@@ -1,0 +1,5 @@
+book = "organ/binding"
+title = "Binding Organ"
+summary = "Binding surface concepts shared by language profiles."
+order = 50
+chapters = ["01-basics"]

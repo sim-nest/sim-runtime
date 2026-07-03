@@ -1,0 +1,8 @@
+id = "profile-descriptor"
+title = "Lua profile descriptor"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 10
+tags = ["lua", "profile", "coroutine"]
+requires = ["core", "codec/lisp"]

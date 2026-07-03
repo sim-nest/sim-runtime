@@ -1,0 +1,8 @@
+id = "profile-descriptor"
+title = "ISLISP profile descriptor"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 10
+tags = ["islisp", "profile", "dispatch"]
+requires = ["core", "codec/lisp"]

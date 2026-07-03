@@ -1,0 +1,8 @@
+id = "profile-descriptor"
+title = "Ruby profile descriptor"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 10
+tags = ["ruby", "profile", "block"]
+requires = ["core", "codec/lisp"]

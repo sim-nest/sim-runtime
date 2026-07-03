@@ -1,0 +1,5 @@
+book = "lang/julia"
+title = "Julia Core Profile"
+summary = "Julia core profile descriptors and dispatch behavior."
+order = 170
+chapters = ["01-basics"]

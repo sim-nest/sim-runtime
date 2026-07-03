@@ -1,0 +1,5 @@
+book = "organ/namespace"
+title = "Namespace Organ"
+summary = "Package, module, import, export, and shadowing surfaces."
+order = 110
+chapters = ["01-basics"]

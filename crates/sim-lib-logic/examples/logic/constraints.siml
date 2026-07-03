@@ -1,0 +1,7 @@
+((fact (target 10))
+ (rule (sum-to ?x ?y ?sum)
+   ((plus ?x ?y ?sum)))
+ (rule (bounded-pair ?x ?y)
+   ((between 1 3 ?x)
+    (between 1 3 ?y)
+    (plus ?x ?y 4))))

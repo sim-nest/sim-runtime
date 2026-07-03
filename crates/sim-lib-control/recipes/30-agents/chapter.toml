@@ -1,0 +1,4 @@
+title = "30 Agents"
+order = 20
+summary = "Deterministic control recipes for physical sensing agent patterns."
+tags = ["30-agents", "control", "offline", "deterministic"]

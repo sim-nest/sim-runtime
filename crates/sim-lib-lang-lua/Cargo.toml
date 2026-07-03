@@ -1,0 +1,16 @@
+[package]
+name = "sim-lib-lang-lua"
+version = "0.1.0"
+edition = "2024"
+license = "MPL-2.0"
+description = "SIM workspace package for sim lib lang lua."
+readme = "README.md"
+publish = true
+repository = "https://github.com/sim-nest/sim-runtime"
+homepage = "https://github.com/sim-nest/sim-runtime"
+
+[dependencies]
+sim-kernel = { version = "0.1.0" }
+sim-lib-control = { version = "0.1.0", path = "../sim-lib-control" }
+sim-lib-mutation = { version = "0.1.0", path = "../sim-lib-mutation" }
+sim-lib-standard-core = { version = "0.1.0", path = "../sim-lib-standard-core" }

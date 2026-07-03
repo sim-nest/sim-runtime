@@ -1,0 +1,3 @@
+title = "Basics"
+order = 10
+summary = "Small forms that exercise the core evaluator."

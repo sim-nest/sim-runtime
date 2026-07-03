@@ -1,0 +1,5 @@
+book = "standard/core"
+title = "Standard Core"
+summary = "Language profiles, fidelity badges, and conformance helpers."
+order = 80
+chapters = ["01-basics"]

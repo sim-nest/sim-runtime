@@ -1,0 +1,5 @@
+book = "lang/clojure"
+title = "Clojure Profile"
+summary = "Clojure core profile, EDN reader, namespace, and sequence surfaces."
+order = 150
+chapters = ["01-basics"]

@@ -1,0 +1,2 @@
+((rule (tool-result ?tool ?args ?result)
+   ((tool-call ?tool ?args ?result))))

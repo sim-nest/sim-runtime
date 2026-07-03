@@ -1,0 +1,5 @@
+book = "organ/dispatch"
+title = "Dispatch Organ"
+summary = "Generic function and multimethod concepts."
+order = 60
+chapters = ["01-basics"]

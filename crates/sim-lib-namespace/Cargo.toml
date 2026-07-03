@@ -1,0 +1,16 @@
+[package]
+name = "sim-lib-namespace"
+version = "0.1.0"
+edition = "2024"
+license = "MPL-2.0"
+description = "SIM workspace package for sim lib namespace."
+readme = "README.md"
+publish = true
+repository = "https://github.com/sim-nest/sim-runtime"
+homepage = "https://github.com/sim-nest/sim-runtime"
+
+[dependencies]
+sim-kernel = { version = "0.1.0" }
+
+[lints]
+workspace = true

@@ -1,0 +1,8 @@
+id = "profile-fidelity"
+title = "Profile fidelity descriptor"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 10
+tags = ["standard", "profile", "fidelity"]
+requires = ["core", "codec/lisp"]

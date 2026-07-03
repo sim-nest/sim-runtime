@@ -1,0 +1,5 @@
+book = "lang/matrix"
+title = "Language Matrix Assembly"
+summary = "Shared conformance matrix assembly recipes."
+order = 210
+chapters = ["01-basics"]

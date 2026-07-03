@@ -1,0 +1,5 @@
+book = "organ/sequence"
+title = "Sequence Organ"
+summary = "Sequence operations shared by language profiles."
+order = 90
+chapters = ["01-basics"]

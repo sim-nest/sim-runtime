@@ -1,0 +1,5 @@
+book = "lang/lua"
+title = "Lua Core Profile"
+summary = "Lua core profile descriptors, tables, and coroutines."
+order = 180
+chapters = ["01-basics"]

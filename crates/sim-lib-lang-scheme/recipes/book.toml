@@ -1,0 +1,5 @@
+book = "lang/scheme"
+title = "Scheme Profile"
+summary = "R7RS-small profile descriptors and reader surface."
+order = 130
+chapters = ["01-basics"]

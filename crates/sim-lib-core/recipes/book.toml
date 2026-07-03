@@ -1,0 +1,5 @@
+book = "core"
+title = "Core Runtime"
+summary = "Quoting, evaluation, and collection basics."
+order = 10
+chapters = ["01-basics"]

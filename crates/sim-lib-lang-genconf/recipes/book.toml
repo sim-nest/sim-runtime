@@ -1,0 +1,5 @@
+book = "lang/genconf"
+title = "Generative Language Conformance"
+summary = "Shared expression-space generator and codec registry recipes."
+order = 215
+chapters = ["01-basics"]

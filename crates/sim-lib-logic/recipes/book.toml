@@ -1,0 +1,5 @@
+book = "logic"
+title = "Logic"
+summary = "Logic database, assertion, and query surfaces."
+order = 70
+chapters = ["01-basics"]

@@ -1,0 +1,5 @@
+book = "lang/ruby"
+title = "Ruby DSL Profile"
+summary = "Ruby DSL profile descriptors and block-control behavior."
+order = 190
+chapters = ["01-basics"]

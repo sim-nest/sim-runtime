@@ -1,0 +1,36 @@
+
+[workspace]
+resolver = "3"
+members = [
+  "crates/sim-lib-binding",
+  "crates/sim-lib-control",
+  "crates/sim-lib-core",
+  "crates/sim-lib-dispatch",
+  "crates/sim-lib-lang-cl",
+  "crates/sim-lib-lang-clojure",
+  "crates/sim-lib-lang-genconf",
+  "crates/sim-lib-lang-islisp",
+  "crates/sim-lib-lang-julia",
+  "crates/sim-lib-lang-lua",
+  "crates/sim-lib-lang-matrix",
+  "crates/sim-lib-lang-prolog",
+  "crates/sim-lib-lang-ruby",
+  "crates/sim-lib-lang-scheme",
+  "crates/sim-lib-lang-typed-lazy",
+  "crates/sim-lib-logic",
+  "crates/sim-lib-mutation",
+  "crates/sim-lib-namespace",
+  "crates/sim-lib-pattern",
+  "crates/sim-lib-sequence",
+  "crates/sim-lib-standard-core",
+  "xtask",
+]
+
+[workspace.package]
+edition = "2024"
+license = "MPL-2.0"
+repository = "https://github.com/sim-nest/sim-runtime"
+homepage = "https://github.com/sim-nest/sim-runtime"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"

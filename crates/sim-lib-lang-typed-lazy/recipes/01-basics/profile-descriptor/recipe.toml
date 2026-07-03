@@ -1,0 +1,8 @@
+id = "profile-descriptor"
+title = "Typed lazy profile descriptor"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 10
+tags = ["typed-lazy", "profile", "lazy"]
+requires = ["core", "codec/lisp"]

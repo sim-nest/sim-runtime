@@ -1,0 +1,8 @@
+id = "pattern-adt"
+title = "Pattern ADT descriptor"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 10
+tags = ["pattern", "adt", "match"]
+requires = ["core", "codec/lisp"]

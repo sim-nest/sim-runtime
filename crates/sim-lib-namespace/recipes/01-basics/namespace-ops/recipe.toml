@@ -1,0 +1,8 @@
+id = "namespace-ops"
+title = "Namespace operation names"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 10
+tags = ["namespace", "package", "module"]
+requires = ["core", "codec/lisp"]

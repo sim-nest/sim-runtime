@@ -1,0 +1,5 @@
+book = "lang/common-lisp"
+title = "Common Lisp Lite Profile"
+summary = "Common Lisp lite profile, reader, package, and condition surfaces."
+order = 160
+chapters = ["01-basics"]

@@ -1,0 +1,5 @@
+book = "control"
+title = "Control"
+summary = "Prompt, capture, abort, and resume surfaces."
+order = 60
+chapters = ["01-basics", "30-agents"]

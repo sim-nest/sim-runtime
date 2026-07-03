@@ -1,0 +1,5 @@
+((fact (parent alice bob))
+ (fact (parent alice carol))
+ (fact (parent bob dan))
+ (rule (grandparent ?x ?z)
+   ((parent ?x ?y) (parent ?y ?z))))

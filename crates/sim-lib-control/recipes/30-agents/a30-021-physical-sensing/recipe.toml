@@ -1,0 +1,24 @@
+id = "a30-021-physical-sensing"
+title = "Physical sensing agent"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 21
+tags = ["30-agents", "chapter-11", "physical-sensing", "offline", "deterministic", "fake-sensor"]
+requires = ["control", "agent", "codec/lisp"]
+recipe_number = 21
+source_chapter = 11
+architecture_family = "physical-sensing"
+runner_mode = "fake"
+safety_posture = "offline"
+capabilities = ["read-eval", "fake-sensor-stream", "temporal-averaging", "deadband", "control-output"]
+descriptor_shape = "physical-sensing-trace"
+assert_tags = ["30-agents", "chapter-11", "physical-sensing", "offline"]
+assert_capabilities = ["read-eval"]
+assert_setup_codec = "lisp"
+assert_descriptor_shape = "physical-sensing-trace"
+expected = "expected.txt"
+
+[[expect]]
+form = 0
+result = "(physical-sensing-trace (id a30-021-physical-sensing) (fixture (source synthetic-sensor-stream) (media copied-no) (device live-device-none)) (sensor-stream (runner fake-sensor-stream) (frame 1 position 22 velocity 3) (frame 2 position 24 velocity 2) (frame 3 position 26 velocity 1)) (temporal-average (window 3) (position 24) (velocity 2)) (controller (kind proportional) (setpoint 30) (gain 2) (deadband 2) (hysteresis enabled)) (control-output (error 6) (command increase-12) (clamped no) (next-state approach-setpoint)) (answer increase-actuator-by-12) (effect-ledger (effect read-fake-sensor-stream deterministic) (effect average-window-three pass) (effect apply-deadband active) (effect emit-control-output increase-12)))"

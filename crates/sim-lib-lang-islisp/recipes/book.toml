@@ -1,0 +1,5 @@
+book = "lang/islisp"
+title = "ISLISP Profile"
+summary = "ISLISP profile descriptors and dispatch fidelity."
+order = 140
+chapters = ["01-basics"]

@@ -1,0 +1,25 @@
+[package]
+name = "sim-lib-lang-genconf"
+version = "0.1.0"
+edition = "2024"
+license = "MPL-2.0"
+description = "SIM generative language conformance support."
+publish = true
+repository = "https://github.com/sim-nest/sim-runtime"
+homepage = "https://github.com/sim-nest/sim-runtime"
+
+[dependencies]
+sim-codec = { version = "0.1.0" }
+sim-kernel = { version = "0.1.0" }
+sim-lib-lang-cl = { version = "0.1.0", path = "../sim-lib-lang-cl" }
+sim-lib-lang-scheme = { version = "0.1.0", path = "../sim-lib-lang-scheme" }
+sim-lib-standard-core = { version = "0.1.0", path = "../sim-lib-standard-core" }
+sim-shape = { version = "0.1.0" }
+
+[dev-dependencies]
+sim-codec-lisp = { version = "0.1.0" }
+sim-lib-lang-matrix = { path = "../sim-lib-lang-matrix" }
+sim-test-support = { version = "0.1.0" }
+
+[lints]
+workspace = true

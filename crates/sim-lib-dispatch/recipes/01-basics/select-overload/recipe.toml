@@ -1,0 +1,8 @@
+id = "select-overload"
+title = "Select an overload"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 10
+tags = ["dispatch", "overload", "descriptor"]
+requires = ["core", "codec/lisp"]

@@ -1,0 +1,31 @@
+[package]
+name = "sim-lib-standard-core"
+version = "0.1.0"
+edition = "2024"
+license = "MPL-2.0"
+description = "SIM workspace package for sim lib standard core."
+readme = "README.md"
+publish = true
+repository = "https://github.com/sim-nest/sim-runtime"
+homepage = "https://github.com/sim-nest/sim-runtime"
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[features]
+native-export = ["dep:sim-codec-binary"]
+
+[dependencies]
+indexmap = "2"
+sim-citizen = { version = "0.1.0" }
+sim-codec-binary = { version = "0.1.0", optional = true }
+sim-kernel = { version = "0.1.0" }
+sim-lib-core = { version = "0.1.0" }
+sim-value = { version = "0.1.0" }
+
+[dev-dependencies]
+sim-codec = { version = "0.1.0" }
+sim-codec-lisp = { version = "0.1.0" }
+
+[lints.rust]
+unsafe_code = "deny"

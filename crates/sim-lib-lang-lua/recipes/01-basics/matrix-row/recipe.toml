@@ -1,0 +1,8 @@
+id = "matrix-row"
+title = "Lua matrix row"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 20
+tags = ["lua", "conformance", "matrix"]
+requires = ["core", "standard"]

@@ -1,0 +1,5 @@
+book = "organ/pattern"
+title = "Pattern Organ"
+summary = "Pattern matching and algebraic data type declarations."
+order = 100
+chapters = ["01-basics"]

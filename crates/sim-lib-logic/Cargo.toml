@@ -1,0 +1,30 @@
+[package]
+name = "sim-lib-logic"
+version = "0.1.0"
+edition = "2024"
+license = "MPL-2.0"
+description = "SIM workspace package for sim lib logic."
+readme = "README.md"
+publish = true
+repository = "https://github.com/sim-nest/sim-runtime"
+homepage = "https://github.com/sim-nest/sim-runtime"
+
+[dependencies]
+indexmap = "2"
+sim-citizen-derive = { version = "0.1.0" }
+sim-codec = { version = "0.1.0" }
+sim-kernel = { version = "0.1.0" }
+sim-lib-control = { version = "0.1.0", path = "../sim-lib-control" }
+sim-lib-core = { version = "0.1.0", path = "../sim-lib-core" }
+sim-lib-sequence = { version = "0.1.0", path = "../sim-lib-sequence" }
+sim-shape = { version = "0.1.0" }
+
+[dev-dependencies]
+sim-codec-lisp = { version = "0.1.0" }
+sim-lib-numbers-arith = { version = "0.1.0" }
+sim-lib-numbers-bigint = { version = "0.1.0" }
+sim-lib-numbers-f64 = { version = "0.1.0" }
+sim-lib-numbers-i64 = { version = "0.1.0" }
+
+[lints]
+workspace = true

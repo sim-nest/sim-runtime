@@ -1,0 +1,26 @@
+[package]
+name = "sim-lib-lang-cl"
+version = "0.1.0"
+edition = "2024"
+license = "MPL-2.0"
+description = "SIM workspace package for sim lib lang cl."
+readme = "README.md"
+publish = true
+repository = "https://github.com/sim-nest/sim-runtime"
+homepage = "https://github.com/sim-nest/sim-runtime"
+
+[dependencies]
+sim-codec = { version = "0.1.0" }
+sim-kernel = { version = "0.1.0" }
+sim-lib-binding = { version = "0.1.0", path = "../sim-lib-binding" }
+sim-lib-control = { version = "0.1.0", path = "../sim-lib-control" }
+sim-lib-dispatch = { version = "0.1.0", path = "../sim-lib-dispatch" }
+sim-lib-mutation = { version = "0.1.0", path = "../sim-lib-mutation" }
+sim-lib-namespace = { version = "0.1.0", path = "../sim-lib-namespace" }
+sim-lib-standard-core = { version = "0.1.0", path = "../sim-lib-standard-core" }
+
+[dev-dependencies]
+sim-shape = { version = "0.1.0" }
+
+[lints]
+workspace = true

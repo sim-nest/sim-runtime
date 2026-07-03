@@ -1,0 +1,8 @@
+id = "profile-descriptor"
+title = "Julia profile descriptor"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 10
+tags = ["julia", "profile", "dispatch"]
+requires = ["core", "codec/lisp"]

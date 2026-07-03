@@ -1,0 +1,5 @@
+book = "lang/typed-lazy"
+title = "Typed Lazy Profile"
+summary = "Typed lazy profile descriptors, ADTs, lazy refs, and typeclasses."
+order = 200
+chapters = ["01-basics"]

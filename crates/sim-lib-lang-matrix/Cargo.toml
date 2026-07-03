@@ -1,0 +1,25 @@
+[package]
+name = "sim-lib-lang-matrix"
+version = "0.1.0"
+edition = "2024"
+license = "MPL-2.0"
+description = "SIM language conformance matrix assembly crate."
+publish = true
+repository = "https://github.com/sim-nest/sim-runtime"
+homepage = "https://github.com/sim-nest/sim-runtime"
+
+[dependencies]
+sim-kernel = { version = "0.1.0" }
+sim-lib-lang-cl = { version = "0.1.0", path = "../sim-lib-lang-cl" }
+sim-lib-lang-clojure = { version = "0.1.0", path = "../sim-lib-lang-clojure" }
+sim-lib-lang-islisp = { version = "0.1.0", path = "../sim-lib-lang-islisp" }
+sim-lib-lang-julia = { version = "0.1.0", path = "../sim-lib-lang-julia" }
+sim-lib-lang-lua = { version = "0.1.0", path = "../sim-lib-lang-lua" }
+sim-lib-lang-prolog = { version = "0.1.0", path = "../sim-lib-lang-prolog" }
+sim-lib-lang-ruby = { version = "0.1.0", path = "../sim-lib-lang-ruby" }
+sim-lib-lang-scheme = { version = "0.1.0", path = "../sim-lib-lang-scheme" }
+sim-lib-lang-typed-lazy = { version = "0.1.0", path = "../sim-lib-lang-typed-lazy" }
+sim-lib-standard-core = { version = "0.1.0", path = "../sim-lib-standard-core" }
+
+[lints]
+workspace = true
