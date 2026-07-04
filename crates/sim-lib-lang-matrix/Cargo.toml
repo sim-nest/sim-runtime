@@ -21,5 +21,9 @@ sim-lib-lang-scheme = { version = "0.1.0", path = "../sim-lib-lang-scheme" }
 sim-lib-lang-typed-lazy = { version = "0.1.0", path = "../sim-lib-lang-typed-lazy" }
 sim-lib-standard-core = { version = "0.1.0", path = "../sim-lib-standard-core" }
 
+[dev-dependencies]
+sim-lib-lang-genconf = { version = "0.1.0", path = "../sim-lib-lang-genconf" }
+sim-test-support = { version = "0.1.0" }
+
 [lints]
 workspace = true
