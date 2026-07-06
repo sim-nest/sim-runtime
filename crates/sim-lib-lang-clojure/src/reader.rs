@@ -163,32 +163,32 @@ impl Parser<'_, '_> {
     fn read_string(&mut self, start: usize) -> Result<LocatedExprTree> {
         self.index += 1;
         let mut out = String::new();
-        while let Some(byte) = self.peek() {
-            self.index += 1;
-            match byte {
-                b'"' => {
+        while let Some(ch) = self.peek_char() {
+            self.index += ch.len_utf8();
+            match ch {
+                '"' => {
                     self.budget.check_string_bytes(self.codec, out.len())?;
                     return Ok(self.tree(Expr::String(out), start, self.index, Vec::new()));
                 }
-                b'\\' => out.push(self.read_escape()?),
-                other => out.push(other as char),
+                '\\' => out.push(self.read_escape()?),
+                other => out.push(other),
             }
         }
         self.err("unterminated EDN string")
     }
 
     fn read_escape(&mut self) -> Result<char> {
-        let Some(escaped) = self.peek() else {
+        let Some(escaped) = self.peek_char() else {
             return self.err("unterminated EDN string escape");
         };
-        self.index += 1;
+        self.index += escaped.len_utf8();
         Ok(match escaped {
-            b'n' => '\n',
-            b'r' => '\r',
-            b't' => '\t',
-            b'"' => '"',
-            b'\\' => '\\',
-            other => other as char,
+            'n' => '\n',
+            'r' => '\r',
+            't' => '\t',
+            '"' => '"',
+            '\\' => '\\',
+            other => other,
         })
     }
 
@@ -265,6 +265,10 @@ impl Parser<'_, '_> {
 
     fn peek(&self) -> Option<u8> {
         self.bytes.get(self.index).copied()
+    }
+
+    fn peek_char(&self) -> Option<char> {
+        self.source[self.index..].chars().next()
     }
 
     fn is_eof(&self) -> bool {

@@ -76,6 +76,25 @@ fn cl_reader_decodes_forms_with_locations() {
 }
 
 #[test]
+fn cl_string_literal_preserves_non_ascii() {
+    let mut cx = cx();
+    let codec_id = cx.registry_mut().fresh_codec_id();
+    cx.load_lib(&ClLiteReaderCodecLib::new(codec_id)).unwrap();
+
+    // Source holds a 2-byte UTF-8 scalar inside the quotes; kept ASCII-only in
+    // this file via a `\u{..}` escape (R8). It must decode, not turn to mojibake.
+    let tree = decode_tree_with_codec(
+        &mut cx,
+        &cl_reader_symbol(),
+        Input::Text("\"caf\u{00e9}\"".to_owned()),
+        read_policy(),
+        "unicode.lisp",
+    )
+    .unwrap();
+    assert_eq!(tree.expr, Expr::String("caf\u{00e9}".to_owned()));
+}
+
+#[test]
 fn cl_form_specs_name_the_shared_organs() {
     let specs = cl_lite_form_specs();
     assert!(specs.iter().any(|spec| {

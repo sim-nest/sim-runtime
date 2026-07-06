@@ -49,6 +49,25 @@ fn reader_preserves_source_locations() {
 }
 
 #[test]
+fn string_literal_preserves_non_ascii() {
+    let mut cx = cx();
+    let codec_id = cx.registry_mut().fresh_codec_id();
+    cx.load_lib(&SchemeCodecLib::new(codec_id)).unwrap();
+
+    // Source holds a 2-byte UTF-8 scalar inside the quotes; kept ASCII-only in
+    // this file via a `\u{..}` escape (R8). It must decode, not turn to mojibake.
+    let tree = decode_tree_with_codec(
+        &mut cx,
+        &scheme_reader_symbol(),
+        Input::Text("\"caf\u{00e9}\"".to_owned()),
+        read_policy(),
+        "unicode.scm",
+    )
+    .unwrap();
+    assert_eq!(tree.expr, Expr::String("caf\u{00e9}".to_owned()));
+}
+
+#[test]
 fn core_forms_lower_to_canonical_term_or_datum() {
     let mut cx = cx();
     let codec_id = cx.registry_mut().fresh_codec_id();
