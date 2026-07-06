@@ -7,9 +7,9 @@ SIM workspace package for sim lib lang cl.
 ## Package Metadata
 
 - Manifest: `crates/sim-lib-lang-cl/Cargo.toml`
-- Publish: `false`
+- Publish: `true`
 - Targets: `lib`
 
 ## Crate Documentation
 
-SIM workspace package for sim lib lang cl.
+Common Lisp surface profile for the SIM runtime.

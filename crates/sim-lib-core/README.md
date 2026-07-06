@@ -7,9 +7,9 @@ SIM workspace package for sim lib core.
 ## Package Metadata
 
 - Manifest: `crates/sim-lib-core/Cargo.toml`
-- Publish: `false`
+- Publish: `true`
 - Targets: `custom-build, lib`
 
 ## Crate Documentation
 
-SIM workspace package for sim lib core.
+Shared surface-pack substrate for SIM runtime libraries.

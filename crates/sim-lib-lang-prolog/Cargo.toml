@@ -3,6 +3,7 @@ name = "sim-lib-lang-prolog"
 version = "0.1.1"
 edition = "2024"
 license = "MPL-2.0"
+readme = "README.md"
 description = "Prolog surface profile for the SIM runtime."
 publish = true
 repository = "https://github.com/sim-nest/sim-runtime"

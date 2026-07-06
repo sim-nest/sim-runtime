@@ -7,9 +7,9 @@ SIM workspace package for sim lib binding.
 ## Package Metadata
 
 - Manifest: `crates/sim-lib-binding/Cargo.toml`
-- Publish: `false`
+- Publish: `true`
 - Targets: `custom-build, lib`
 
 ## Crate Documentation
 
-SIM workspace package for sim lib binding.
+Binding behavior for the SIM runtime: lexical, dynamic, and scoped binding.

@@ -7,9 +7,9 @@ SIM workspace package for sim lib mutation.
 ## Package Metadata
 
 - Manifest: `crates/sim-lib-mutation/Cargo.toml`
-- Publish: `false`
+- Publish: `true`
 - Targets: `lib`
 
 ## Crate Documentation
 
-SIM workspace package for sim lib mutation.
+Mutation behavior for the SIM runtime: cells, boxes, vectors, and tables.

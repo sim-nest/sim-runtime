@@ -7,9 +7,9 @@ SIM workspace package for sim lib lang clojure.
 ## Package Metadata
 
 - Manifest: `crates/sim-lib-lang-clojure/Cargo.toml`
-- Publish: `false`
+- Publish: `true`
 - Targets: `lib`
 
 ## Crate Documentation
 
-SIM workspace package for sim lib lang clojure.
+Clojure surface profile for the SIM runtime.

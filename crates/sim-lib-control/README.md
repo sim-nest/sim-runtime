@@ -7,9 +7,9 @@ SIM workspace package for sim lib control.
 ## Package Metadata
 
 - Manifest: `crates/sim-lib-control/Cargo.toml`
-- Publish: `false`
+- Publish: `true`
 - Targets: `lib`
 
 ## Crate Documentation
 
-SIM workspace package for sim lib control.
+Control behavior for the SIM runtime: async, backtracking, conditions.

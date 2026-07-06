@@ -7,9 +7,9 @@ SIM workspace package for sim lib dispatch.
 ## Package Metadata
 
 - Manifest: `crates/sim-lib-dispatch/Cargo.toml`
-- Publish: `false`
+- Publish: `true`
 - Targets: `custom-build, lib`
 
 ## Crate Documentation
 
-SIM workspace package for sim lib dispatch.
+Generic functions and method dispatch for the SIM runtime.

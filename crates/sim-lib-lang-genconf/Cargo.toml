@@ -3,6 +3,7 @@ name = "sim-lib-lang-genconf"
 version = "0.1.0"
 edition = "2024"
 license = "MPL-2.0"
+readme = "README.md"
 description = "SIM generative language conformance support."
 publish = true
 repository = "https://github.com/sim-nest/sim-runtime"

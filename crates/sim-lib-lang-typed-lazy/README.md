@@ -7,9 +7,9 @@ SIM workspace package for sim lib lang typed lazy.
 ## Package Metadata
 
 - Manifest: `crates/sim-lib-lang-typed-lazy/Cargo.toml`
-- Publish: `false`
+- Publish: `true`
 - Targets: `lib`
 
 ## Crate Documentation
 
-SIM workspace package for sim lib lang typed lazy.
+Typed, lazy surface profile for the SIM runtime.

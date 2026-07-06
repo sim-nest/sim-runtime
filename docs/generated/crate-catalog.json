@@ -1,0 +1,274 @@
+{
+  "generator": "xtask crate-catalog v1",
+  "package_count": 22,
+  "packages": [
+    {
+      "description": "SIM workspace package for sim lib binding.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-binding/Cargo.toml",
+      "name": "sim-lib-binding",
+      "publish": "true",
+      "readme": "crates/sim-lib-binding/README.md",
+      "root": "crates/sim-lib-binding",
+      "target_kinds": [
+        "custom-build",
+        "lib"
+      ]
+    },
+    {
+      "description": "SIM workspace package for sim lib control.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-control/Cargo.toml",
+      "name": "sim-lib-control",
+      "publish": "true",
+      "readme": "crates/sim-lib-control/README.md",
+      "root": "crates/sim-lib-control",
+      "target_kinds": [
+        "lib"
+      ]
+    },
+    {
+      "description": "SIM workspace package for sim lib core.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-core/Cargo.toml",
+      "name": "sim-lib-core",
+      "publish": "true",
+      "readme": "crates/sim-lib-core/README.md",
+      "root": "crates/sim-lib-core",
+      "target_kinds": [
+        "custom-build",
+        "lib"
+      ]
+    },
+    {
+      "description": "SIM workspace package for sim lib dispatch.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-dispatch/Cargo.toml",
+      "name": "sim-lib-dispatch",
+      "publish": "true",
+      "readme": "crates/sim-lib-dispatch/README.md",
+      "root": "crates/sim-lib-dispatch",
+      "target_kinds": [
+        "custom-build",
+        "lib"
+      ]
+    },
+    {
+      "description": "SIM workspace package for sim lib lang cl.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-lang-cl/Cargo.toml",
+      "name": "sim-lib-lang-cl",
+      "publish": "true",
+      "readme": "crates/sim-lib-lang-cl/README.md",
+      "root": "crates/sim-lib-lang-cl",
+      "target_kinds": [
+        "lib"
+      ]
+    },
+    {
+      "description": "SIM workspace package for sim lib lang clojure.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-lang-clojure/Cargo.toml",
+      "name": "sim-lib-lang-clojure",
+      "publish": "true",
+      "readme": "crates/sim-lib-lang-clojure/README.md",
+      "root": "crates/sim-lib-lang-clojure",
+      "target_kinds": [
+        "lib"
+      ]
+    },
+    {
+      "description": "SIM generative language conformance support.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-lang-genconf/Cargo.toml",
+      "name": "sim-lib-lang-genconf",
+      "publish": "true",
+      "readme": "crates/sim-lib-lang-genconf/README.md",
+      "root": "crates/sim-lib-lang-genconf",
+      "target_kinds": [
+        "lib"
+      ]
+    },
+    {
+      "description": "SIM workspace package for sim lib lang islisp.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-lang-islisp/Cargo.toml",
+      "name": "sim-lib-lang-islisp",
+      "publish": "true",
+      "readme": "crates/sim-lib-lang-islisp/README.md",
+      "root": "crates/sim-lib-lang-islisp",
+      "target_kinds": [
+        "lib"
+      ]
+    },
+    {
+      "description": "SIM workspace package for sim lib lang julia.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-lang-julia/Cargo.toml",
+      "name": "sim-lib-lang-julia",
+      "publish": "true",
+      "readme": "crates/sim-lib-lang-julia/README.md",
+      "root": "crates/sim-lib-lang-julia",
+      "target_kinds": [
+        "lib"
+      ]
+    },
+    {
+      "description": "SIM workspace package for sim lib lang lua.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-lang-lua/Cargo.toml",
+      "name": "sim-lib-lang-lua",
+      "publish": "true",
+      "readme": "crates/sim-lib-lang-lua/README.md",
+      "root": "crates/sim-lib-lang-lua",
+      "target_kinds": [
+        "lib"
+      ]
+    },
+    {
+      "description": "SIM language conformance matrix assembly crate.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-lang-matrix/Cargo.toml",
+      "name": "sim-lib-lang-matrix",
+      "publish": "true",
+      "readme": "crates/sim-lib-lang-matrix/README.md",
+      "root": "crates/sim-lib-lang-matrix",
+      "target_kinds": [
+        "lib"
+      ]
+    },
+    {
+      "description": "Prolog surface profile for the SIM runtime.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-lang-prolog/Cargo.toml",
+      "name": "sim-lib-lang-prolog",
+      "publish": "true",
+      "readme": "crates/sim-lib-lang-prolog/README.md",
+      "root": "crates/sim-lib-lang-prolog",
+      "target_kinds": [
+        "lib"
+      ]
+    },
+    {
+      "description": "SIM workspace package for sim lib lang ruby.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-lang-ruby/Cargo.toml",
+      "name": "sim-lib-lang-ruby",
+      "publish": "true",
+      "readme": "crates/sim-lib-lang-ruby/README.md",
+      "root": "crates/sim-lib-lang-ruby",
+      "target_kinds": [
+        "lib"
+      ]
+    },
+    {
+      "description": "SIM workspace package for sim lib lang scheme.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-lang-scheme/Cargo.toml",
+      "name": "sim-lib-lang-scheme",
+      "publish": "true",
+      "readme": "crates/sim-lib-lang-scheme/README.md",
+      "root": "crates/sim-lib-lang-scheme",
+      "target_kinds": [
+        "lib"
+      ]
+    },
+    {
+      "description": "SIM workspace package for sim lib lang typed lazy.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-lang-typed-lazy/Cargo.toml",
+      "name": "sim-lib-lang-typed-lazy",
+      "publish": "true",
+      "readme": "crates/sim-lib-lang-typed-lazy/README.md",
+      "root": "crates/sim-lib-lang-typed-lazy",
+      "target_kinds": [
+        "lib"
+      ]
+    },
+    {
+      "description": "SIM workspace package for sim lib logic.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-logic/Cargo.toml",
+      "name": "sim-lib-logic",
+      "publish": "true",
+      "readme": "crates/sim-lib-logic/README.md",
+      "root": "crates/sim-lib-logic",
+      "target_kinds": [
+        "lib"
+      ]
+    },
+    {
+      "description": "SIM workspace package for sim lib mutation.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-mutation/Cargo.toml",
+      "name": "sim-lib-mutation",
+      "publish": "true",
+      "readme": "crates/sim-lib-mutation/README.md",
+      "root": "crates/sim-lib-mutation",
+      "target_kinds": [
+        "lib"
+      ]
+    },
+    {
+      "description": "SIM workspace package for sim lib namespace.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-namespace/Cargo.toml",
+      "name": "sim-lib-namespace",
+      "publish": "true",
+      "readme": "crates/sim-lib-namespace/README.md",
+      "root": "crates/sim-lib-namespace",
+      "target_kinds": [
+        "lib"
+      ]
+    },
+    {
+      "description": "SIM workspace package for sim lib pattern.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-pattern/Cargo.toml",
+      "name": "sim-lib-pattern",
+      "publish": "true",
+      "readme": "crates/sim-lib-pattern/README.md",
+      "root": "crates/sim-lib-pattern",
+      "target_kinds": [
+        "lib"
+      ]
+    },
+    {
+      "description": "SIM workspace package for sim lib sequence.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-sequence/Cargo.toml",
+      "name": "sim-lib-sequence",
+      "publish": "true",
+      "readme": "crates/sim-lib-sequence/README.md",
+      "root": "crates/sim-lib-sequence",
+      "target_kinds": [
+        "lib"
+      ]
+    },
+    {
+      "description": "SIM workspace package for sim lib standard core.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-standard-core/Cargo.toml",
+      "name": "sim-lib-standard-core",
+      "publish": "true",
+      "readme": "crates/sim-lib-standard-core/README.md",
+      "root": "crates/sim-lib-standard-core",
+      "target_kinds": [
+        "cdylib",
+        "rlib"
+      ]
+    },
+    {
+      "description": "SIM workspace package for xtask.",
+      "generated_readme": true,
+      "manifest": "xtask/Cargo.toml",
+      "name": "xtask",
+      "publish": "false",
+      "readme": "xtask/README.md",
+      "root": "xtask",
+      "target_kinds": [
+        "bin"
+      ]
+    }
+  ]
+}

@@ -7,9 +7,9 @@ SIM workspace package for sim lib sequence.
 ## Package Metadata
 
 - Manifest: `crates/sim-lib-sequence/Cargo.toml`
-- Publish: `false`
+- Publish: `true`
 - Targets: `lib`
 
 ## Crate Documentation
 
-SIM workspace package for sim lib sequence.
+Sequence behavior for the SIM runtime: lazy, persistent, and transducers.

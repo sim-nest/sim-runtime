@@ -7,9 +7,9 @@ SIM workspace package for sim lib lang julia.
 ## Package Metadata
 
 - Manifest: `crates/sim-lib-lang-julia/Cargo.toml`
-- Publish: `false`
+- Publish: `true`
 - Targets: `lib`
 
 ## Crate Documentation
 
-SIM workspace package for sim lib lang julia.
+Julia surface profile for the SIM runtime.

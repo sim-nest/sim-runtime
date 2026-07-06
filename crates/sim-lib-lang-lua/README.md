@@ -7,9 +7,9 @@ SIM workspace package for sim lib lang lua.
 ## Package Metadata
 
 - Manifest: `crates/sim-lib-lang-lua/Cargo.toml`
-- Publish: `false`
+- Publish: `true`
 - Targets: `lib`
 
 ## Crate Documentation
 
-SIM workspace package for sim lib lang lua.
+Lua surface profile for the SIM runtime.

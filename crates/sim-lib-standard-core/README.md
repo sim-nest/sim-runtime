@@ -7,9 +7,9 @@ SIM workspace package for sim lib standard core.
 ## Package Metadata
 
 - Manifest: `crates/sim-lib-standard-core/Cargo.toml`
-- Publish: `false`
-- Targets: `lib`
+- Publish: `true`
+- Targets: `cdylib, rlib`
 
 ## Crate Documentation
 
-SIM workspace package for sim lib standard core.
+Standard distribution core for the SIM runtime.

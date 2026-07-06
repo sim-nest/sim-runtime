@@ -7,9 +7,9 @@ SIM workspace package for sim lib lang ruby.
 ## Package Metadata
 
 - Manifest: `crates/sim-lib-lang-ruby/Cargo.toml`
-- Publish: `false`
+- Publish: `true`
 - Targets: `lib`
 
 ## Crate Documentation
 
-SIM workspace package for sim lib lang ruby.
+Ruby DSL surface profile for the SIM runtime.

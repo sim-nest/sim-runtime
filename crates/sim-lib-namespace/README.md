@@ -7,9 +7,9 @@ SIM workspace package for sim lib namespace.
 ## Package Metadata
 
 - Manifest: `crates/sim-lib-namespace/Cargo.toml`
-- Publish: `false`
+- Publish: `true`
 - Targets: `lib`
 
 ## Crate Documentation
 
-SIM workspace package for sim lib namespace.
+Namespace behavior for the SIM runtime: modules, packages, and imports.

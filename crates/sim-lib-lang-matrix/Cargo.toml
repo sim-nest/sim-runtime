@@ -3,6 +3,7 @@ name = "sim-lib-lang-matrix"
 version = "0.1.0"
 edition = "2024"
 license = "MPL-2.0"
+readme = "README.md"
 description = "SIM language conformance matrix assembly crate."
 publish = true
 repository = "https://github.com/sim-nest/sim-runtime"

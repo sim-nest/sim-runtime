@@ -7,9 +7,9 @@ SIM workspace package for sim lib pattern.
 ## Package Metadata
 
 - Manifest: `crates/sim-lib-pattern/Cargo.toml`
-- Publish: `false`
+- Publish: `true`
 - Targets: `lib`
 
 ## Crate Documentation
 
-SIM workspace package for sim lib pattern.
+Pattern behavior for the SIM runtime over the kernel Shape protocol.

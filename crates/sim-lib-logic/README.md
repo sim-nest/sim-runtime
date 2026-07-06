@@ -7,9 +7,9 @@ SIM workspace package for sim lib logic.
 ## Package Metadata
 
 - Manifest: `crates/sim-lib-logic/Cargo.toml`
-- Publish: `false`
+- Publish: `true`
 - Targets: `lib`
 
 ## Crate Documentation
 
-SIM workspace package for sim lib logic.
+Logic behavior for the SIM runtime: clauses, unification, and queries.
