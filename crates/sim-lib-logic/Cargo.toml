@@ -21,6 +21,7 @@ sim-shape = { version = "0.1.0" }
 
 [dev-dependencies]
 sim-codec-lisp = { version = "0.1.0" }
+sim-kernel = { version = "0.1.0", features = ["test-support"] }
 sim-lib-numbers-arith = { version = "0.1.0" }
 sim-lib-numbers-bigint = { version = "0.1.0" }
 sim-lib-numbers-f64 = { version = "0.1.0" }

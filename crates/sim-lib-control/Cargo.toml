@@ -16,3 +16,6 @@ sim-lib-core = { version = "0.1.0", path = "../sim-lib-core" }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+sim-kernel = { version = "0.1.0", features = ["test-support"] }

@@ -14,3 +14,6 @@ sim-kernel = { version = "0.1.0" }
 sim-lib-control = { version = "0.1.0", path = "../sim-lib-control" }
 sim-lib-mutation = { version = "0.1.0", path = "../sim-lib-mutation" }
 sim-lib-standard-core = { version = "0.1.0", path = "../sim-lib-standard-core" }
+
+[dev-dependencies]
+sim-kernel = { version = "0.1.0", features = ["test-support"] }

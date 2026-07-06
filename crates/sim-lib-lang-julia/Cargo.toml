@@ -15,4 +15,5 @@ sim-lib-dispatch = { version = "0.1.0", path = "../sim-lib-dispatch" }
 sim-lib-standard-core = { version = "0.1.0", path = "../sim-lib-standard-core" }
 
 [dev-dependencies]
+sim-kernel = { version = "0.1.0", features = ["test-support"] }
 sim-shape = { version = "0.1.0" }
