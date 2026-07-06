@@ -342,14 +342,14 @@ fn left_recursive_path_db() -> Result<LogicDb> {
 }
 
 pub(crate) fn prolog_case_cx() -> Result<Cx> {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
     cx.load_lib(&sim_lib_numbers_arith::NumbersArithmeticLib::new())?;
     cx.load_lib(&sim_lib_numbers_i64::I64NumbersLib::new())?;
     cx.load_lib(&sim_lib_numbers_f64::F64NumbersLib::new())?;
     sim_lib_control::install_control_policy(&mut cx);
     install_prolog_lib(&mut cx)?;
-    cx.grant(logic_db_write_capability());
-    cx.grant(control_prompt_capability());
+    seat.grant(&mut cx, logic_db_write_capability());
+    seat.grant(&mut cx, control_prompt_capability());
     Ok(cx)
 }
 
