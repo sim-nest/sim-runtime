@@ -1,5 +1,30 @@
 # sim-runtime
 
+The working machinery of a running SIM program -- names, dispatch, control, and
+languages -- packaged as loadable libraries you install into a registry to give
+your runtime its default organs, standard distribution, and language profiles.
+
+New to SIM? The `sim` CLI (`cargo install sim-run`) and the sim-say walkthrough
+are the front door; this repo is the library set those tools load.
+
+## Example
+
+```bash
+cargo add sim-lib-core
+```
+
+Each library declares the manifest name it installs under. `sim-lib-core` is the
+shared surface-pack substrate; asking for its name returns the qualified
+`lisp:core` symbol:
+
+```rust
+use sim_kernel::Symbol;
+
+assert_eq!(sim_lib_core::manifest_name(), Symbol::qualified("lisp", "core"));
+```
+
+(from the `manifest_name` doctest in `crates/sim-lib-core/src/lib.rs`.)
+
 sim-runtime is a repository in the SIM constellation. SIM is an expandable Rust
 runtime built around a small protocol kernel plus a large set of loadable
 libraries: the kernel defines contracts, libraries provide behavior. This repo
