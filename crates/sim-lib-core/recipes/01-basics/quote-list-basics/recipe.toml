@@ -1,11 +1,11 @@
 id = "quote-list-basics"
-title = "Quote through eval"
+title = "Head of a list"
 codec = "lisp"
 setup = "setup.siml"
 purpose = "purpose.md"
 order = 10
-tags = ["core", "quote", "eval", "list"]
+tags = ["core", "list", "eval"]
 requires = ["core", "codec/lisp"]
 [[expect]]
 form = 0
-result = "core-ok"
+result = "1"

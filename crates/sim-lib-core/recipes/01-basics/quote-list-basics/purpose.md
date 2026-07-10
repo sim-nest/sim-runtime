@@ -1,4 +1,5 @@
-# Quote through eval
+# Head of a list
 
-This recipe uses the core evaluator to return quoted data. It is the smallest
-runtime check before moving on to callable list forms.
+Build the list `(1 2 3)` and take its head. The core evaluator runs the nested
+`list` and `car` calls and returns `1` -- a real result computed through the
+runtime, not a quoted echo.
