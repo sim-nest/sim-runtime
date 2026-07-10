@@ -1,5 +1,5 @@
-# Shape binding descriptor
+# Shape binding surface
 
-Binding organs publish operation claims that language profiles lower into.
-This descriptor keeps the recipe deterministic while pointing at local
-bindings checked by Shape.
+Live let/local binding needs the binding evaluator, which the cookbook's read-eval stack does not load. This recipe is a **descriptor** (tagged `sandbox-descriptor`): it shows the real
+surface shape rather than a live result, because that result cannot be reproduced in
+the cookbook's read-eval sandbox.
