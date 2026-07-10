@@ -1,4 +1,5 @@
-# Query descriptor
+# Logic queries (descriptor)
 
-This recipe names the deterministic logic surfaces: asserting clauses, querying
-facts, and streaming answers.
+This documents the logic organ's `assert` / `query` / `all` / `stream` interface. Resolution
+runs through the logic engine, not the sandbox eval stack (which evaluates pure forms), so the
+query surface is documented rather than executed.

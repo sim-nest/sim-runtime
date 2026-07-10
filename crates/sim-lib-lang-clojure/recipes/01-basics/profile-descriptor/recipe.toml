@@ -4,5 +4,5 @@ codec = "lisp"
 setup = "setup.siml"
 purpose = "purpose.md"
 order = 10
-tags = ["clojure", "profile", "edn"]
+tags = ["clojure", "profile", "edn", "sandbox-descriptor"]
 requires = ["core", "codec/lisp"]

@@ -1,16 +1,5 @@
-# Generative conformance registry
+# Generative language registry (descriptor)
 
-This recipe exercises `generative_registry()`, the registry that connects each
-language row to its codec and shared `ExprSpace`. The closure test confirms
-that every registered language produces a generated coverage report and that an
-unanchored report exposes no coverage percentage.
-
-Exact command:
-
-```bash
-cargo test -p sim-lib-lang-genconf closure
-```
-
-To add a language to generated coverage, add one `GenerativeRow` entry with the
-language symbol, codec symbol, and `ExprSpace`. The curated conformance matrix
-continues to live in `language_matrix()`.
+This documents the generative language registry: how language codec profiles register as rows
+in the runtime so a new surface can be added as data. It is a registry descriptor, not a
+sandbox-evaluable expression.

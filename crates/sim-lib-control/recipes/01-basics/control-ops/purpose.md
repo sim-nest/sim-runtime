@@ -1,5 +1,5 @@
-# Control operation names
+# Control operators (descriptor)
 
-This recipe records the public control operations as runnable data. It keeps
-the cookbook entry deterministic while pointing readers at prompt, capture,
-abort, and resume behavior.
+This documents the control organ's delimited operators (`prompt`, `capture`, `abort`,
+`resume`). They drive the runtime's control policy and continuation machinery, which the
+cookbook sandbox eval stack does not execute, so the organ is documented rather than run.

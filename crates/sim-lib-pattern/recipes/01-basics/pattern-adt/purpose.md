@@ -1,4 +1,5 @@
-# Pattern ADT descriptor
+# Pattern matching (descriptor)
 
-This recipe names the pattern organ concepts used for matching, destructuring,
-and algebraic data declarations.
+This documents the pattern organ's `match` / destructure over algebraic data. Match dispatch
+runs through the kernel Shape engine, which the sandbox eval stack does not drive. The runnable
+numbers recipes show live `#(...)` construction; matching is the reverse direction.

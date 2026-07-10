@@ -4,5 +4,5 @@ codec = "lisp"
 setup = "setup.siml"
 purpose = "purpose.md"
 order = 20
-tags = ["ruby", "conformance", "matrix"]
+tags = ["ruby", "conformance", "matrix", "sandbox-descriptor"]
 requires = ["core", "standard"]

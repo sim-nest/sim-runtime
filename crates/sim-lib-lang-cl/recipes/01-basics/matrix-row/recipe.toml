@@ -4,5 +4,5 @@ codec = "lisp"
 setup = "setup.siml"
 purpose = "purpose.md"
 order = 20
-tags = ["common-lisp", "conformance", "matrix"]
+tags = ["common-lisp", "conformance", "matrix", "sandbox-descriptor"]
 requires = ["core", "standard"]

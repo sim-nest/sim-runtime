@@ -1,4 +1,5 @@
-# Mutable state descriptor
+# Mutable state (descriptor)
 
-This recipe names the mutation organ's deterministic state objects: cells,
-boxes, mutable tables, and mutable vectors.
+This documents the mutation organ's mutable containers (`cell`, `box`, `table`, `vector`,
+`set`). Stateful mutation is recorded through the runtime's effect ledger, not the sandbox
+eval stack, which evaluates pure forms -- so the organ is documented rather than run.

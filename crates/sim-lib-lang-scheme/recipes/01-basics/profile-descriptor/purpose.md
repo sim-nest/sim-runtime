@@ -1,4 +1,6 @@
-# Scheme profile descriptor
+# Scheme codec profile (descriptor)
 
-This recipe records the Scheme profile as data: R7RS-small behavior, reader
-selection, and profile conformance.
+This documents the `scheme` codec profile: the reader/printer surface and the language
+features it presents (the R7RS-small reader surface). A codec profile is runtime metadata describing a surface,
+not an expression that reduces to a value, so it is documented rather than evaluated. The
+profile's behavior is exercised by the Scheme conformance suite (`cargo test`).

@@ -1,4 +1,6 @@
-# Lua profile descriptor
+# Lua codec profile (descriptor)
 
-This recipe records the Lua core surface: Algol-style reader, table values,
-coroutines, and mutation fidelity.
+This documents the `lua` codec profile: the reader/printer surface and the language
+features it presents (tables, coroutines, and mutation). A codec profile is runtime metadata describing a surface,
+not an expression that reduces to a value, so it is documented rather than evaluated. The
+profile's behavior is exercised by the Lua conformance suite (`cargo test`).

@@ -4,5 +4,5 @@ codec = "lisp"
 setup = "setup.siml"
 purpose = "purpose.md"
 order = 10
-tags = ["lua", "profile", "coroutine"]
+tags = ["lua", "profile", "coroutine", "sandbox-descriptor"]
 requires = ["core", "codec/lisp"]

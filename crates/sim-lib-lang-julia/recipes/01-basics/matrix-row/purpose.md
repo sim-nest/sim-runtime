@@ -1,11 +1,6 @@
-# Julia matrix row
+# Julia conformance row (descriptor)
 
-This recipe runs the Julia matrix row and reads its output as evidence. Pass
-counts identify source cases that lower exactly as declared, gap counts identify
-explicit unsupported forms, and fail counts identify mismatches.
-
-Exact command:
-
-```bash
-cargo test -p sim-lib-lang-julia matrix_row
-```
+This records the Julia row of the runtime language-conformance matrix -- the checklist of
+surface features asserted green by the crate's conformance tests (`cargo test`). It documents
+a test-matrix row, not a runnable expression, so the sandbox documents it; the assertions
+run under `cargo test`, not the sandbox eval stack.
