@@ -6,6 +6,7 @@ use sim_kernel::{
 
 use crate::{
     claims::publish_control_organ_claims_for_lib,
+    conditional::IfForm,
     ops::{ControlFunction, abort_symbol, capture_symbol, prompt_symbol, resume_symbol},
     policy::install_control_policy,
 };
@@ -41,6 +42,7 @@ impl Lib for ControlLib {
         ] {
             linker.function_value(function.symbol(), cx.factory().opaque(Arc::new(function))?)?;
         }
+        linker.function_value(IfForm::symbol(), cx.factory().opaque(Arc::new(IfForm))?)?;
         Ok(())
     }
 }
@@ -80,6 +82,7 @@ pub fn control_exports() -> Vec<Export> {
         capture_symbol(),
         abort_symbol(),
         resume_symbol(),
+        IfForm::symbol(),
     ]
     .into_iter()
     .map(|symbol| Export::Function {

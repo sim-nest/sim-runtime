@@ -10,6 +10,7 @@ mod r#async;
 mod backtrack;
 mod claims;
 mod condition;
+mod conditional;
 mod coroutine;
 mod generator;
 mod model;
@@ -27,6 +28,7 @@ pub use claims::{
     publish_control_organ_claims_for_lib,
 };
 pub use condition::{Condition, ConditionHandler, ConditionStack, signal_condition};
+pub use conditional::IfForm;
 pub use coroutine::{Coroutine, CoroutineLane, CoroutineStep};
 pub use generator::{Generator, GeneratorStep};
 pub use model::{ContinuationValue, ControlResultValue};

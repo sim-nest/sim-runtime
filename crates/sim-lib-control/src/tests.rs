@@ -402,3 +402,49 @@ fn control_organ_kind_claims(cx: &Cx) -> Vec<sim_kernel::Claim> {
     ))
     .unwrap()
 }
+
+// ---- COOKBOOK_7 COOK7.02: the `if` eval-policy organ (special form) ----
+
+#[test]
+fn if_special_form_selects_branch_and_is_lazy() {
+    use sim_kernel::{EagerPolicy, Expr};
+
+    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    crate::install_control_lib(&mut cx).unwrap();
+
+    let if_call = |args: Vec<Expr>| Expr::Call {
+        operator: Box::new(Expr::Symbol(Symbol::new("if"))),
+        args,
+    };
+    let s = |text: &str| Expr::String(text.to_owned());
+
+    // Truthy test -> then-branch.
+    let taken = cx
+        .eval_expr(if_call(vec![Expr::Bool(true), s("then"), s("else")]))
+        .unwrap();
+    assert_eq!(taken.object().as_expr(&mut cx).unwrap(), s("then"));
+
+    // Falsy test -> else-branch.
+    let alt = cx
+        .eval_expr(if_call(vec![Expr::Bool(false), s("then"), s("else")]))
+        .unwrap();
+    assert_eq!(alt.object().as_expr(&mut cx).unwrap(), s("else"));
+
+    // Missing else on a falsy test -> nil.
+    let none = cx
+        .eval_expr(if_call(vec![Expr::Bool(false), s("then")]))
+        .unwrap();
+    assert_eq!(none.object().as_expr(&mut cx).unwrap(), Expr::Nil);
+
+    // Laziness: the untaken branch is never evaluated. Here the else-branch is a
+    // nested `(if)` with a bad arity that would error if evaluated; since the
+    // test is truthy it is not, so the whole form still yields the then-branch.
+    let lazy = cx
+        .eval_expr(if_call(vec![Expr::Bool(true), s("ok"), if_call(vec![])]))
+        .unwrap();
+    assert_eq!(lazy.object().as_expr(&mut cx).unwrap(), s("ok"));
+
+    // A bad arity on the outer form is a real error.
+    let err = cx.eval_expr(if_call(vec![Expr::Bool(true)])).unwrap_err();
+    assert!(matches!(err, Error::Eval(msg) if msg.contains("if expects")));
+}
