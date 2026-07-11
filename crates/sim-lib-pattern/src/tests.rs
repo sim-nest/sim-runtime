@@ -165,3 +165,80 @@ fn pattern_organ_claims_project_to_card() {
             == Expr::Symbol(Symbol::qualified("pattern", "match.v1"))
     }));
 }
+
+// ---- COOKBOOK_7 COOK7.02: the `match` pattern organ (special form) ----
+
+#[test]
+fn match_special_form_binds_and_destructures() {
+    use sim_kernel::{Args, Cx, DefaultFactory, EagerPolicy, Error, NumberLiteral};
+
+    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    install_pattern_lib(&mut cx).unwrap();
+
+    let sym = |name: &str| Expr::Symbol(Symbol::new(name));
+    let s = |text: &str| Expr::String(text.to_owned());
+    let num = |n: &str| {
+        Expr::Number(NumberLiteral {
+            domain: Symbol::qualified("numbers", "i64"),
+            canonical: n.to_owned(),
+        })
+    };
+    let clause = |pattern: Expr, body: Expr| Expr::List(vec![pattern, body]);
+    let match_expr = |scrutinee: Expr, clauses: Vec<Expr>| {
+        let mut args = vec![scrutinee];
+        args.extend(clauses);
+        Expr::Call {
+            operator: Box::new(sym("match")),
+            args,
+        }
+    };
+
+    // Capture: a bare symbol pattern binds the scrutinee.
+    let captured = cx
+        .eval_expr(match_expr(s("v"), vec![clause(sym("x"), sym("x"))]))
+        .unwrap();
+    assert_eq!(captured.object().as_expr(&mut cx).unwrap(), s("v"));
+
+    // Literal match wins over the wildcard fallthrough.
+    let literal = cx
+        .eval_expr(match_expr(
+            s("5"),
+            vec![clause(s("5"), s("matched")), clause(sym("_"), s("other"))],
+        ))
+        .unwrap();
+    assert_eq!(literal.object().as_expr(&mut cx).unwrap(), s("matched"));
+
+    // Wildcard fires when no literal matches.
+    let fallthrough = cx
+        .eval_expr(match_expr(
+            s("9"),
+            vec![clause(s("5"), s("no")), clause(sym("_"), s("other"))],
+        ))
+        .unwrap();
+    assert_eq!(fallthrough.object().as_expr(&mut cx).unwrap(), s("other"));
+
+    // List destructure: `[a b]` binds each element; the body reads the first.
+    let destructured = cx
+        .eval_expr(match_expr(
+            Expr::Vector(vec![num("1"), num("2")]),
+            vec![clause(Expr::Vector(vec![sym("a"), sym("b")]), sym("a"))],
+        ))
+        .unwrap();
+    assert_eq!(destructured.object().as_expr(&mut cx).unwrap(), num("1"));
+
+    // No arm matches -> error.
+    let err = cx
+        .eval_expr(match_expr(s("x"), vec![clause(s("y"), s("no"))]))
+        .unwrap_err();
+    assert!(matches!(err, Error::Eval(msg) if msg.contains("no pattern arm matched")));
+
+    // Applying `match` to evaluated arguments is a usage error (special form).
+    let form = cx.resolve_function(&Symbol::new("match")).unwrap();
+    let err = form
+        .object()
+        .as_callable()
+        .unwrap()
+        .call(&mut cx, Args::new(vec![]))
+        .unwrap_err();
+    assert!(matches!(err, Error::Eval(msg) if msg.contains("special form")));
+}

@@ -8,7 +8,9 @@
 
 mod adt;
 mod claims;
+mod match_form;
 mod matching;
+mod runtime;
 mod shapes;
 
 pub use adt::{
@@ -20,10 +22,12 @@ pub use claims::{
     pattern_match_op_key, pattern_op_keys, pattern_organ_symbol, pattern_tag_op_key,
     publish_pattern_organ_claims, publish_pattern_organ_claims_for_lib,
 };
+pub use match_form::MatchForm;
 pub use matching::{
     MatchArm, PatternMatch, destructure_expr, destructure_value, exhaustiveness_diagnostics,
     match_value,
 };
+pub use runtime::{PatternLib, install_pattern_lib, manifest_name, pattern_exports};
 pub use shapes::{AdtShape, VariantShape};
 
 #[cfg(test)]
