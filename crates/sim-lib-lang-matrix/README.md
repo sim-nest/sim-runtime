@@ -8,7 +8,7 @@ SIM language conformance matrix assembly crate.
 
 - Manifest: `crates/sim-lib-lang-matrix/Cargo.toml`
 - Publish: `true`
-- Targets: `lib`
+- Targets: `custom-build, lib`
 
 ## Crate Documentation
 

@@ -30,5 +30,9 @@ pub use matching::{
 pub use runtime::{PatternLib, install_pattern_lib, manifest_name, pattern_exports};
 pub use shapes::{AdtShape, VariantShape};
 
+/// Cookbook recipes for this lib, embedded at build time.
+pub static RECIPES: sim_cookbook::EmbeddedDir =
+    include!(concat!(env!("OUT_DIR"), "/cookbook_recipes.rs"));
+
 #[cfg(test)]
 mod tests;

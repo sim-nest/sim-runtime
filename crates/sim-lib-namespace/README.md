@@ -8,7 +8,7 @@ SIM workspace package for sim lib namespace.
 
 - Manifest: `crates/sim-lib-namespace/Cargo.toml`
 - Publish: `true`
-- Targets: `lib`
+- Targets: `custom-build, lib`
 
 ## Crate Documentation
 

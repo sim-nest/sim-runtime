@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-standard-core"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "MPL-2.0"
 description = "SIM workspace package for sim lib standard core."
@@ -16,6 +16,7 @@ crate-type = ["rlib", "cdylib"]
 native-export = ["dep:sim-codec-binary"]
 
 [dependencies]
+sim-cookbook = { version = "0.1.0" }
 indexmap = "2"
 sim-citizen = { version = "0.1.0" }
 sim-codec-binary = { version = "0.1.0", optional = true }
@@ -30,3 +31,6 @@ sim-kernel = { version = "0.1.0", features = ["test-support"] }
 
 [lints.rust]
 unsafe_code = "deny"
+
+[build-dependencies]
+sim-cookbook = { version = "0.1.0" }

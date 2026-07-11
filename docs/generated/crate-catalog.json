@@ -24,6 +24,7 @@
       "readme": "crates/sim-lib-control/README.md",
       "root": "crates/sim-lib-control",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -62,6 +63,7 @@
       "readme": "crates/sim-lib-lang-cl/README.md",
       "root": "crates/sim-lib-lang-cl",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -74,6 +76,7 @@
       "readme": "crates/sim-lib-lang-clojure/README.md",
       "root": "crates/sim-lib-lang-clojure",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -86,6 +89,7 @@
       "readme": "crates/sim-lib-lang-genconf/README.md",
       "root": "crates/sim-lib-lang-genconf",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -98,6 +102,7 @@
       "readme": "crates/sim-lib-lang-islisp/README.md",
       "root": "crates/sim-lib-lang-islisp",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -110,6 +115,7 @@
       "readme": "crates/sim-lib-lang-julia/README.md",
       "root": "crates/sim-lib-lang-julia",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -122,6 +128,7 @@
       "readme": "crates/sim-lib-lang-lua/README.md",
       "root": "crates/sim-lib-lang-lua",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -134,6 +141,7 @@
       "readme": "crates/sim-lib-lang-matrix/README.md",
       "root": "crates/sim-lib-lang-matrix",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -158,6 +166,7 @@
       "readme": "crates/sim-lib-lang-ruby/README.md",
       "root": "crates/sim-lib-lang-ruby",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -170,6 +179,7 @@
       "readme": "crates/sim-lib-lang-scheme/README.md",
       "root": "crates/sim-lib-lang-scheme",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -182,6 +192,7 @@
       "readme": "crates/sim-lib-lang-typed-lazy/README.md",
       "root": "crates/sim-lib-lang-typed-lazy",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -194,6 +205,7 @@
       "readme": "crates/sim-lib-logic/README.md",
       "root": "crates/sim-lib-logic",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -206,6 +218,7 @@
       "readme": "crates/sim-lib-mutation/README.md",
       "root": "crates/sim-lib-mutation",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -218,6 +231,7 @@
       "readme": "crates/sim-lib-namespace/README.md",
       "root": "crates/sim-lib-namespace",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -230,6 +244,7 @@
       "readme": "crates/sim-lib-pattern/README.md",
       "root": "crates/sim-lib-pattern",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -242,6 +257,7 @@
       "readme": "crates/sim-lib-sequence/README.md",
       "root": "crates/sim-lib-sequence",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },
@@ -255,6 +271,7 @@
       "root": "crates/sim-lib-standard-core",
       "target_kinds": [
         "cdylib",
+        "custom-build",
         "rlib"
       ]
     },

@@ -26,6 +26,10 @@ pub use registry::{GenerativeRow, generative_registry, run_all_generated};
 pub use seed::r7rs_seed_corpus;
 pub use space::ExprSpace;
 
+/// Cookbook recipes for this lib, embedded at build time.
+pub static RECIPES: sim_cookbook::EmbeddedDir =
+    include!(concat!(env!("OUT_DIR"), "/cookbook_recipes.rs"));
+
 #[cfg(test)]
 mod landmark_tests {
     use sim_kernel::Expr;

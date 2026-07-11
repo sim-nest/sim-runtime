@@ -8,7 +8,7 @@ SIM workspace package for sim lib lang lua.
 
 - Manifest: `crates/sim-lib-lang-lua/Cargo.toml`
 - Publish: `true`
-- Targets: `lib`
+- Targets: `custom-build, lib`
 
 ## Crate Documentation
 

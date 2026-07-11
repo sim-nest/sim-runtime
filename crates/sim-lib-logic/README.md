@@ -8,7 +8,7 @@ SIM workspace package for sim lib logic.
 
 - Manifest: `crates/sim-lib-logic/Cargo.toml`
 - Publish: `true`
-- Targets: `lib`
+- Targets: `custom-build, lib`
 
 ## Crate Documentation
 

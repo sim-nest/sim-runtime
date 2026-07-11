@@ -8,7 +8,7 @@ SIM workspace package for sim lib lang islisp.
 
 - Manifest: `crates/sim-lib-lang-islisp/Cargo.toml`
 - Publish: `true`
-- Targets: `lib`
+- Targets: `custom-build, lib`
 
 ## Crate Documentation
 

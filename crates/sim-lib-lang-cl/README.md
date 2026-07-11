@@ -8,7 +8,7 @@ SIM workspace package for sim lib lang cl.
 
 - Manifest: `crates/sim-lib-lang-cl/Cargo.toml`
 - Publish: `true`
-- Targets: `lib`
+- Targets: `custom-build, lib`
 
 ## Crate Documentation
 

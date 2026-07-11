@@ -42,6 +42,10 @@ pub use prompt::{ControlPrompt, ControlTag, raise_prompt};
 pub use restart::{Restart, RestartStack, invoke_restart};
 pub use runtime::{ControlLib, control_exports, install_control_lib, manifest_name};
 
+/// Cookbook recipes for this lib, embedded at build time.
+pub static RECIPES: sim_cookbook::EmbeddedDir =
+    include!(concat!(env!("OUT_DIR"), "/cookbook_recipes.rs"));
+
 #[cfg(test)]
 mod derivation_tests;
 

@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-pattern"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "MPL-2.0"
 description = "SIM workspace package for sim lib pattern."
@@ -10,9 +10,13 @@ repository = "https://github.com/sim-nest/sim-runtime"
 homepage = "https://github.com/sim-nest/sim-runtime"
 
 [dependencies]
+sim-cookbook = { version = "0.1.0" }
 sim-citizen-derive = { version = "0.1.0" }
 sim-kernel = { version = "0.1.0" }
 sim-shape = { version = "0.1.0" }
 
 [lints]
 workspace = true
+
+[build-dependencies]
+sim-cookbook = { version = "0.1.0" }
