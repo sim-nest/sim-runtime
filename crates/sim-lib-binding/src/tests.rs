@@ -262,3 +262,74 @@ fn binding_organ_claims_project_to_card() {
             == Expr::Symbol(Symbol::qualified("binding", "letrec.v1"))
     }));
 }
+
+// ---- COOKBOOK_7 COOK7.02: the `let` binding organ (special form) ----
+
+#[test]
+fn let_special_form_binds_parallel_in_child_scope() {
+    use sim_kernel::{DefaultFactory, EagerPolicy};
+
+    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    install_binding_lib(&mut cx).unwrap();
+
+    let sym = |name: &str| Expr::Symbol(Symbol::new(name));
+    let clause = |name: &str, init: Expr| Expr::List(vec![sym(name), init]);
+    let let_call = |bindings: Expr, body: Vec<Expr>| {
+        let mut args = vec![bindings];
+        args.extend(body);
+        Expr::Call {
+            operator: Box::new(sym("let")),
+            args,
+        }
+    };
+    let s = |text: &str| Expr::String(text.to_owned());
+
+    // Single binding, body reads it back.
+    let single = cx
+        .eval_expr(let_call(
+            Expr::List(vec![clause("x", s("five"))]),
+            vec![sym("x")],
+        ))
+        .unwrap();
+    assert_eq!(single.object().as_expr(&mut cx).unwrap(), s("five"));
+
+    // Parallel bindings: both are visible in the body.
+    let parallel = cx
+        .eval_expr(let_call(
+            Expr::List(vec![clause("x", s("a")), clause("y", s("b"))]),
+            vec![sym("y")],
+        ))
+        .unwrap();
+    assert_eq!(parallel.object().as_expr(&mut cx).unwrap(), s("b"));
+
+    // The binding is scoped: an outer `x` is shadowed inside and restored after.
+    let outer = cx.factory().string("outer".to_owned()).unwrap();
+    cx.env_mut().define(Symbol::new("x"), outer);
+    let shadowed = cx
+        .eval_expr(let_call(
+            Expr::List(vec![clause("x", s("inner"))]),
+            vec![sym("x")],
+        ))
+        .unwrap();
+    assert_eq!(shadowed.object().as_expr(&mut cx).unwrap(), s("inner"));
+    assert_eq!(
+        cx.env()
+            .get(&Symbol::new("x"))
+            .unwrap()
+            .object()
+            .as_expr(&mut cx)
+            .unwrap(),
+        s("outer"),
+        "outer binding must be restored after let"
+    );
+
+    // Applying `let` to already-evaluated args is a usage error (special form).
+    let form = cx.resolve_function(&Symbol::new("let")).unwrap();
+    let err = form
+        .object()
+        .as_callable()
+        .unwrap()
+        .call(&mut cx, Args::new(vec![]))
+        .unwrap_err();
+    assert!(matches!(err, Error::Eval(msg) if msg.contains("special form")));
+}

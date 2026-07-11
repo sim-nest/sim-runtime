@@ -7,8 +7,10 @@
 
 mod claims;
 mod dynamic;
+mod let_form;
 mod lexical;
 mod modes;
+mod runtime;
 
 /// Cookbook recipes for the binding organ, embedded at build time.
 pub static RECIPES: sim_cookbook::EmbeddedDir =
@@ -21,11 +23,13 @@ pub use claims::{
     publish_binding_organ_claims_for_lib,
 };
 pub use dynamic::{DynamicEnv, Parameter};
+pub use let_form::LetForm;
 pub use lexical::{
     BindingInitializer, LexicalEnv, LexicalFunction, eval_let, eval_let_star, eval_letrec,
     lexical_function_value,
 };
 pub use modes::{BindingProfileModes, BindingScopeMode, HygieneMode};
+pub use runtime::{BindingLib, binding_exports, install_binding_lib, manifest_name};
 
 #[cfg(test)]
 mod tests;
