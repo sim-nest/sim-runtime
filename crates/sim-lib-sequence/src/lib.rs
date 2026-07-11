@@ -10,6 +10,7 @@ mod claims;
 mod lazy;
 mod persistent;
 mod profile;
+mod runtime;
 mod transducer;
 
 pub use claims::{
@@ -28,6 +29,7 @@ pub use persistent::{
     persistent_vector_push,
 };
 pub use profile::{ProfileSequence, sequence_for_profile};
+pub use runtime::{SeqOp, SequenceFunction, SequenceLib, install_sequence_lib, sequence_exports};
 pub use transducer::{
     TransducerPipeline, TransducerStep, filter_sequence, for_each_sequence, map_sequence,
     reduce_sequence, transduce,

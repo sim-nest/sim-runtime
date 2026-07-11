@@ -215,3 +215,138 @@ fn sequence_organ_claims_project_to_card() {
             == Expr::Symbol(Symbol::qualified("sequence", "transduce.v1"))
     }));
 }
+
+// ---- COOKBOOK_7 COOK7.02: the sequence organ (seq/map|filter|fold) ----
+
+type TestFnBody = Arc<
+    dyn Fn(&mut Cx, Vec<sim_kernel::Value>) -> sim_kernel::Result<sim_kernel::Value> + Send + Sync,
+>;
+
+/// A closure-backed callable for exercising the higher-order sequence ops.
+#[derive(Clone)]
+struct TestFn(TestFnBody);
+
+impl sim_kernel::Object for TestFn {
+    fn display(&self, _cx: &mut Cx) -> sim_kernel::Result<String> {
+        Ok("#<test-fn>".to_owned())
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl sim_kernel::ObjectCompat for TestFn {
+    fn class(&self, cx: &mut Cx) -> sim_kernel::Result<sim_kernel::ClassRef> {
+        cx.resolve_class(&Symbol::qualified("core", "Function"))
+    }
+    fn as_callable(&self) -> Option<&dyn sim_kernel::Callable> {
+        Some(self)
+    }
+}
+
+impl sim_kernel::Callable for TestFn {
+    fn call(&self, cx: &mut Cx, args: sim_kernel::Args) -> sim_kernel::Result<sim_kernel::Value> {
+        (self.0)(cx, args.into_vec())
+    }
+}
+
+fn test_fn(cx: &mut Cx, body: TestFnBody) -> sim_kernel::Value {
+    cx.factory().opaque(Arc::new(TestFn(body))).unwrap()
+}
+
+fn string(cx: &mut Cx, text: &str) -> sim_kernel::Value {
+    cx.factory().string(text.to_owned()).unwrap()
+}
+
+fn string_of(cx: &mut Cx, value: &sim_kernel::Value) -> String {
+    let Expr::String(text) = value.object().as_expr(cx).unwrap() else {
+        panic!("expected string value");
+    };
+    text
+}
+
+fn strings_of(cx: &mut Cx, value: &sim_kernel::Value) -> Vec<String> {
+    let Expr::List(items) = value.object().as_expr(cx).unwrap() else {
+        panic!("expected list value");
+    };
+    items
+        .into_iter()
+        .map(|item| {
+            let Expr::String(text) = item else {
+                panic!("expected string element");
+            };
+            text
+        })
+        .collect()
+}
+
+#[test]
+fn seq_map_filter_fold_apply_a_function_over_a_list() {
+    use sim_kernel::Callable as _;
+
+    let mut cx = cx();
+    install_sequence_lib(&mut cx).unwrap();
+
+    // The ops are installed as `seq/*` callables.
+    for op in SeqOp::ALL {
+        assert!(cx.resolve_function(&op.symbol()).is_ok(), "{}", op.symbol());
+    }
+
+    // map: append "!" to every element.
+    let bang = test_fn(
+        &mut cx,
+        Arc::new(|cx, args| {
+            let s = string_of(cx, &args[0]);
+            Ok(string(cx, &format!("{s}!")))
+        }),
+    );
+    let a = string(&mut cx, "a");
+    let b = string(&mut cx, "b");
+    let list = cx.factory().list(vec![a, b]).unwrap();
+    let mapped = SequenceFunction::new(SeqOp::Map)
+        .call(&mut cx, sim_kernel::Args::new(vec![bang, list]))
+        .unwrap();
+    assert_eq!(strings_of(&mut cx, &mapped), vec!["a!", "b!"]);
+
+    // filter: keep elements equal to "keep".
+    let is_keep = test_fn(
+        &mut cx,
+        Arc::new(|cx, args| {
+            let keep = string_of(cx, &args[0]) == "keep";
+            cx.factory().bool(keep)
+        }),
+    );
+    let k1 = string(&mut cx, "keep");
+    let d = string(&mut cx, "drop");
+    let k2 = string(&mut cx, "keep");
+    let list = cx.factory().list(vec![k1, d, k2]).unwrap();
+    let filtered = SequenceFunction::new(SeqOp::Filter)
+        .call(&mut cx, sim_kernel::Args::new(vec![is_keep, list]))
+        .unwrap();
+    assert_eq!(strings_of(&mut cx, &filtered), vec!["keep", "keep"]);
+
+    // fold: concatenate left to right from an empty seed.
+    let concat = test_fn(
+        &mut cx,
+        Arc::new(|cx, args| {
+            let acc = string_of(cx, &args[0]);
+            let item = string_of(cx, &args[1]);
+            Ok(string(cx, &format!("{acc}{item}")))
+        }),
+    );
+    let seed = string(&mut cx, "");
+    let fa = string(&mut cx, "a");
+    let fb = string(&mut cx, "b");
+    let fc = string(&mut cx, "c");
+    let list = cx.factory().list(vec![fa, fb, fc]).unwrap();
+    let folded = SequenceFunction::new(SeqOp::Fold)
+        .call(&mut cx, sim_kernel::Args::new(vec![concat, seed, list]))
+        .unwrap();
+    assert_eq!(string_of(&mut cx, &folded), "abc");
+
+    // Arity is checked.
+    let err = SequenceFunction::new(SeqOp::Map)
+        .call(&mut cx, sim_kernel::Args::new(vec![]))
+        .unwrap_err();
+    assert!(matches!(err, sim_kernel::Error::Eval(msg) if msg.contains("expects")));
+}
