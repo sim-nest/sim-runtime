@@ -8,7 +8,7 @@ SIM generative language conformance support.
 
 - Manifest: `crates/sim-lib-lang-genconf/Cargo.toml`
 - Publish: `true`
-- Targets: `lib`
+- Targets: `custom-build, lib`
 
 ## Crate Documentation
 

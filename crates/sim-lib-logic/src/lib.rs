@@ -37,5 +37,9 @@ pub use policy::LogicPolicy;
 pub use query::{LogicQuery, query, query_all, query_all_with_builtins};
 pub use unify::unify_exprs;
 
+/// Cookbook recipes for this lib, embedded at build time.
+pub static RECIPES: sim_cookbook::EmbeddedDir =
+    include!(concat!(env!("OUT_DIR"), "/cookbook_recipes.rs"));
+
 #[cfg(test)]
 mod tests;

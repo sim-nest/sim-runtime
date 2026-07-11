@@ -8,7 +8,7 @@ SIM workspace package for sim lib lang ruby.
 
 - Manifest: `crates/sim-lib-lang-ruby/Cargo.toml`
 - Publish: `true`
-- Targets: `lib`
+- Targets: `custom-build, lib`
 
 ## Crate Documentation
 

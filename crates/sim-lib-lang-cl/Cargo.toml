@@ -10,6 +10,7 @@ repository = "https://github.com/sim-nest/sim-runtime"
 homepage = "https://github.com/sim-nest/sim-runtime"
 
 [dependencies]
+sim-cookbook = { version = "0.1.0" }
 sim-codec = { version = "0.1.0" }
 sim-kernel = { version = "0.1.0" }
 sim-lib-binding = { version = "0.1.0", path = "../sim-lib-binding" }
@@ -25,3 +26,6 @@ sim-shape = { version = "0.1.0" }
 
 [lints]
 workspace = true
+
+[build-dependencies]
+sim-cookbook = { version = "0.1.0" }

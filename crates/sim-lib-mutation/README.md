@@ -8,7 +8,7 @@ SIM workspace package for sim lib mutation.
 
 - Manifest: `crates/sim-lib-mutation/Cargo.toml`
 - Publish: `true`
-- Targets: `lib`
+- Targets: `custom-build, lib`
 
 ## Crate Documentation
 

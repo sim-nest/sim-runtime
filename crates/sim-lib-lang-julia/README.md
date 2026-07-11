@@ -8,7 +8,7 @@ SIM workspace package for sim lib lang julia.
 
 - Manifest: `crates/sim-lib-lang-julia/Cargo.toml`
 - Publish: `true`
-- Targets: `lib`
+- Targets: `custom-build, lib`
 
 ## Crate Documentation
 

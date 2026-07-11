@@ -29,5 +29,9 @@ pub use claims::{
 pub use table::{MutableTable, mutable_table, mutable_table_value};
 pub use vector::{MutableVector, mutable_vector, mutable_vector_from_value, mutable_vector_value};
 
+/// Cookbook recipes for this lib, embedded at build time.
+pub static RECIPES: sim_cookbook::EmbeddedDir =
+    include!(concat!(env!("OUT_DIR"), "/cookbook_recipes.rs"));
+
 #[cfg(test)]
 mod tests;

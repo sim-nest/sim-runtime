@@ -8,7 +8,7 @@ SIM workspace package for sim lib sequence.
 
 - Manifest: `crates/sim-lib-sequence/Cargo.toml`
 - Publish: `true`
-- Targets: `lib`
+- Targets: `custom-build, lib`
 
 ## Crate Documentation
 
