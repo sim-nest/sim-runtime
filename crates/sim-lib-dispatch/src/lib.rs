@@ -9,6 +9,7 @@
 mod claims;
 mod generic;
 mod method;
+mod runtime;
 
 /// Cookbook recipes for the dispatch organ, embedded at build time.
 pub static RECIPES: sim_cookbook::EmbeddedDir =
@@ -22,6 +23,7 @@ pub use claims::{
 };
 pub use generic::{GenericFunction, Multimethod};
 pub use method::{DispatchMethod, MethodBody, MethodRole, MethodSpecificity, compare_specificity};
+pub use runtime::generic_function_value;
 
 #[cfg(test)]
 mod tests;

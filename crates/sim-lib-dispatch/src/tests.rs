@@ -258,3 +258,44 @@ fn dispatch_organ_claims_project_to_card() {
             == Expr::Symbol(Symbol::qualified("dispatch", "specificity.v1"))
     }));
 }
+
+// ---- COOKBOOK_7 COOK7.02: a generic as a runtime callable value ----
+
+#[test]
+fn generic_value_dispatches_most_specific_when_called() {
+    let mut cx = cx();
+    let mut generic = GenericFunction::new(Symbol::qualified("dispatch-test", "runtime-choose"));
+    generic
+        .add_method(primary("broad", vec![any_shape(), any_shape()]))
+        .unwrap();
+    generic
+        .add_method(primary("second-string", vec![any_shape(), string_shape()]))
+        .unwrap();
+
+    // Wrapped as a runtime value, it is an ordinary callable.
+    let value = generic_function_value(&mut cx, generic).unwrap();
+    assert!(value.object().as_callable().is_some());
+
+    // Calling through the general call path dispatches most-specific: the second
+    // argument is a string, so the (any, string) method wins over (any, any).
+    let arg0 = bool_value(&mut cx, true);
+    let arg1 = string(&mut cx, "text");
+    let result = cx
+        .call_value(value.clone(), sim_kernel::Args::new(vec![arg0, arg1]))
+        .unwrap();
+    let Expr::String(label) = result.object().as_expr(&mut cx).unwrap() else {
+        panic!("expected the method body's label string");
+    };
+    assert_eq!(label, "second-string");
+
+    // With two non-string arguments the broad (any, any) method is selected.
+    let a = bool_value(&mut cx, true);
+    let b = bool_value(&mut cx, false);
+    let broad = cx
+        .call_value(value, sim_kernel::Args::new(vec![a, b]))
+        .unwrap();
+    let Expr::String(label) = broad.object().as_expr(&mut cx).unwrap() else {
+        panic!("expected label string");
+    };
+    assert_eq!(label, "broad");
+}
