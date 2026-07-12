@@ -1,0 +1,11 @@
+id = "match-destructure"
+title = "Destructure a list with match"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 10
+tags = ["pattern", "match", "organ", "compute"]
+requires = ["pattern"]
+[[expect]]
+form = 0
+result = "1"

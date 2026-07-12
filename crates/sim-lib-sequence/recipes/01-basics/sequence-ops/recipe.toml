@@ -1,8 +1,0 @@
-id = "sequence-ops"
-title = "Sequence operation names"
-codec = "lisp"
-setup = "setup.siml"
-purpose = "purpose.md"
-order = 10
-tags = ["sequence", "organ", "transduce", "sandbox-descriptor"]
-requires = ["core", "codec/lisp"]

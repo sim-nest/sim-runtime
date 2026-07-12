@@ -1,1 +1,0 @@
-(quote (sequence map filter fold transduce))
