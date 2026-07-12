@@ -1,0 +1,11 @@
+id = "scheme-arithmetic"
+title = "Add on the Scheme surface"
+codec = "scheme-r7rs-small"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 5
+tags = ["codec", "scheme", "compute"]
+requires = ["codec/scheme-r7rs-small", "numbers/arith", "numbers/i64"]
+[[expect]]
+form = 0
+result = "3"
