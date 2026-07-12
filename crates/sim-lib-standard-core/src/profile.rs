@@ -1,6 +1,7 @@
 //! The `LanguageProfile` model: organ uses, badges, and profile metadata.
 
 use sim_kernel::{CapabilityName, Expr, Ref, Symbol};
+use sim_value::capability_names_from_expr;
 
 use crate::fidelity::{FidelityBadge, expr_kind, symbol_from_expr};
 
@@ -344,22 +345,7 @@ fn organ_uses_from_expr(expr: &Expr) -> sim_kernel::Result<Vec<OrganUse>> {
 }
 
 fn capabilities_from_expr(expr: &Expr) -> sim_kernel::Result<Vec<CapabilityName>> {
-    let Expr::List(items) = expr else {
-        return Err(sim_kernel::Error::TypeMismatch {
-            expected: "capability list",
-            found: expr_kind(expr),
-        });
-    };
-    items
-        .iter()
-        .map(|item| match item {
-            Expr::String(name) => Ok(CapabilityName::new(name.clone())),
-            _ => Err(sim_kernel::Error::TypeMismatch {
-                expected: "capability string",
-                found: expr_kind(item),
-            }),
-        })
-        .collect()
+    capability_names_from_expr(expr)
 }
 
 fn symbols_from_expr(expr: &Expr, expected: &'static str) -> sim_kernel::Result<Vec<Symbol>> {

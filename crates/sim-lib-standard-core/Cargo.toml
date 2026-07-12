@@ -22,7 +22,7 @@ sim-citizen = { version = "0.1.0" }
 sim-codec-binary = { version = "0.1.0", optional = true }
 sim-kernel = { version = "0.1.0" }
 sim-lib-core = { version = "0.1.0" }
-sim-value = { version = "0.1.0" }
+sim-value = { version = "0.1.2" }
 
 [dev-dependencies]
 sim-codec = { version = "0.1.0" }
