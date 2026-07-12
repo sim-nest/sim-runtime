@@ -88,6 +88,9 @@
 {"kind":"recipe","path":"crates/sim-lib-lang-scheme/recipes/01-basics/profile-descriptor/purpose.md"}
 {"kind":"recipe","path":"crates/sim-lib-lang-scheme/recipes/01-basics/profile-descriptor/recipe.toml"}
 {"kind":"recipe","path":"crates/sim-lib-lang-scheme/recipes/01-basics/profile-descriptor/setup.siml"}
+{"kind":"recipe","path":"crates/sim-lib-lang-scheme/recipes/01-basics/scheme-arithmetic/purpose.md"}
+{"kind":"recipe","path":"crates/sim-lib-lang-scheme/recipes/01-basics/scheme-arithmetic/recipe.toml"}
+{"kind":"recipe","path":"crates/sim-lib-lang-scheme/recipes/01-basics/scheme-arithmetic/setup.siml"}
 {"kind":"recipe","path":"crates/sim-lib-lang-scheme/recipes/book.toml"}
 {"kind":"recipe","path":"crates/sim-lib-lang-typed-lazy/recipes/01-basics/chapter.toml"}
 {"kind":"recipe","path":"crates/sim-lib-lang-typed-lazy/recipes/01-basics/matrix-row/purpose.md"}
