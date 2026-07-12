@@ -1,0 +1,11 @@
+id = "if-branch"
+title = "Take the true branch"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 10
+tags = ["control", "if", "organ", "compute"]
+requires = ["control"]
+[[expect]]
+form = 0
+result = "10"

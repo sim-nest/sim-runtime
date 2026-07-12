@@ -1,8 +1,0 @@
-id = "control-ops"
-title = "Control operation names"
-codec = "lisp"
-setup = "setup.siml"
-purpose = "purpose.md"
-order = 10
-tags = ["control", "prompt", "resume", "sandbox-descriptor"]
-requires = ["core", "codec/lisp"]

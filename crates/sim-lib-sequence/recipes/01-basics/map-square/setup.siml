@@ -1,0 +1,1 @@
+(seq/map #(numbers/Func (x) (* x x)) [1 2 3])

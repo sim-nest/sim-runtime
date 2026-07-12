@@ -1,0 +1,11 @@
+id = "let-square"
+title = "Bind a local and square it"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 10
+tags = ["binding", "let", "organ", "compute"]
+requires = ["binding", "numbers/arith", "numbers/i64"]
+[[expect]]
+form = 0
+result = "25"

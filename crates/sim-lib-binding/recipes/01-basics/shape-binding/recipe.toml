@@ -1,8 +1,0 @@
-id = "shape-binding"
-title = "Shape binding descriptor"
-codec = "lisp"
-setup = "setup.siml"
-purpose = "purpose.md"
-order = 10
-tags = ["binding", "shape", "descriptor", "sandbox-descriptor"]
-requires = ["core", "codec/lisp"]
