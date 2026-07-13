@@ -143,7 +143,8 @@ fn run_expr_case(
 mod tests {
     use std::sync::Arc;
 
-    use sim_kernel::{DefaultFactory, EagerPolicy};
+    use sim_codec_lisp::LispCodecLib;
+    use sim_kernel::{DefaultFactory, EagerPolicy, read_eval_capability};
     use sim_lib_lang_scheme::{SchemeCodecLib, scheme_reader_symbol};
 
     use super::*;
@@ -160,6 +161,44 @@ mod tests {
         let lib = SchemeCodecLib::new(cx.registry_mut().fresh_codec_id());
         cx.load_lib(&lib).unwrap();
         codec
+    }
+
+    fn register_lisp_codec(cx: &mut Cx) -> Symbol {
+        let codec = Symbol::qualified("codec", "lisp");
+        let lib = LispCodecLib::new(cx.registry_mut().fresh_codec_id()).unwrap();
+        cx.load_lib(&lib).unwrap();
+        codec
+    }
+
+    #[test]
+    fn generated_source_case_rejects_read_eval_payload() {
+        let mut cx = coverage_cx();
+        let codec = register_lisp_codec(&mut cx);
+        let direct = decode_with_codec(
+            &mut cx,
+            &codec,
+            Input::Text("#. 1".to_owned()),
+            ReadPolicy::default(),
+        )
+        .unwrap_err();
+        assert!(
+            matches!(direct, sim_kernel::Error::CapabilityDenied { ref capability } if capability == &read_eval_capability()),
+            "expected direct read-eval denial, got {direct:?}",
+        );
+        let case = ExprRoundTripCase {
+            symbol: Symbol::qualified("gen/lisp", "read-eval-denied"),
+            language: Symbol::new("lisp"),
+            source: "#. 1".to_owned(),
+            expected_display: None,
+            affects_badge: None,
+        };
+
+        let observation = run_expr_case(&mut cx, &codec, &case);
+
+        assert!(
+            matches!(observation, ExprRoundTripObservation::Diagnostic(_)),
+            "read-eval source silently passed: {observation:?}",
+        );
     }
 
     #[test]
