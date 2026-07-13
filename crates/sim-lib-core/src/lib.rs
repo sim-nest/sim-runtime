@@ -8,12 +8,17 @@
 
 use sim_kernel::Symbol;
 
+mod read_eval;
 pub mod surface;
 
 /// Recipes embedded at build time from this crate's `recipes/` tree.
 pub static RECIPES: sim_cookbook::EmbeddedDir =
     include!(concat!(env!("OUT_DIR"), "/cookbook_recipes.rs"));
 
+pub use read_eval::{
+    ReadEvalBroker, ReadEvalBrokerLib, ReadEvalRequest, ReadEvalSource, RequestOrigin,
+    install_read_eval_broker, read_eval_broker_lib_id, read_eval_broker_symbol,
+};
 pub use surface::{
     SurfaceField, SurfacePackLib, SurfacePackSpec, SurfaceValueSpec, card_expr, install_once,
     install_once_id, installed_lib_id,
