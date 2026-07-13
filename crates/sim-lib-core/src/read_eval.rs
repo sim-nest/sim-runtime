@@ -1,5 +1,6 @@
 //! Explicit read-eval admission through one diminished gate.
 
+mod config;
 mod decision;
 
 use std::sync::Arc;
@@ -12,6 +13,10 @@ use sim_kernel::{
 };
 use sim_shape::expected_shape_diagnostic;
 
+pub use config::{
+    ConfigEvalNode, HostConfigEvalOptIn, config_eval_node_symbol, config_eval_origin_tag,
+    parse_config_eval_node, realize_config_expr,
+};
 pub use decision::{ReadEvalDecision, ReadEvalOutcome, read_eval_decision_run};
 
 /// Open origin data for an explicit read-eval request.
@@ -256,6 +261,9 @@ fn shape_diagnostics(
         "read-eval result",
     )])
 }
+
+#[cfg(test)]
+mod config_tests;
 
 #[cfg(test)]
 mod ledger_tests;
