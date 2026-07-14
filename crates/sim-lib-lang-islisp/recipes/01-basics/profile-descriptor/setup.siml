@@ -1,1 +1,9 @@
-(quote (islisp profile reader dispatch))
+(expr:map
+  [kind "language-profile"]
+  [language islisp]
+  [profile lang/islisp-core/v1]
+  [reader codec/islisp]
+  [lowering islisp/lowering-core]
+  [eval-policy eval/islisp-core]
+  [organs [organ/dispatch]]
+  [fidelity [standard/fidelity/islisp-dispatch-organ]])

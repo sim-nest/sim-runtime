@@ -13,7 +13,7 @@ use crate::model::{ContinuationValue, ControlResultValue};
 
 /// A callable runtime object exposing one control primitive.
 ///
-/// The four [`ControlFunction`] variants (`prompt`, `capture`, `abort`,
+/// The core [`ControlFunction`] variants (`prompt`, `capture`, `abort`,
 /// `resume`) are installed by the control lib as `control/*` functions, turning
 /// the kernel control-policy operations into callables the runtime can invoke.
 #[derive(Clone)]
@@ -27,6 +27,7 @@ enum ControlFunctionKind {
     Capture,
     Abort,
     Resume,
+    PhysicalSensingTrace,
 }
 
 impl ControlFunction {
@@ -55,6 +56,13 @@ impl ControlFunction {
     pub fn resume() -> Self {
         Self {
             kind: ControlFunctionKind::Resume,
+        }
+    }
+
+    /// Builds the deterministic physical-sensing descriptor fixture.
+    pub fn physical_sensing_trace() -> Self {
+        Self {
+            kind: ControlFunctionKind::PhysicalSensingTrace,
         }
     }
 
@@ -106,6 +114,7 @@ impl ControlFunctionKind {
             Self::Capture => capture_symbol(),
             Self::Abort => abort_symbol(),
             Self::Resume => resume_symbol(),
+            Self::PhysicalSensingTrace => physical_sensing_trace_symbol(),
         }
     }
 
@@ -115,6 +124,7 @@ impl ControlFunctionKind {
             Self::Capture => call_capture(cx, args),
             Self::Abort => call_abort(cx, args),
             Self::Resume => call_resume(cx, args),
+            Self::PhysicalSensingTrace => call_physical_sensing_trace(cx, args),
         }
     }
 }
@@ -137,6 +147,11 @@ pub fn abort_symbol() -> Symbol {
 /// Returns the `control/resume` symbol.
 pub fn resume_symbol() -> Symbol {
     Symbol::qualified("control", "resume")
+}
+
+/// Returns the `control/physical-sensing-trace` fixture symbol.
+pub fn physical_sensing_trace_symbol() -> Symbol {
+    Symbol::qualified("control", "physical-sensing-trace")
 }
 
 fn call_prompt(cx: &mut Cx, args: Vec<Value>) -> Result<Value> {
@@ -209,6 +224,106 @@ fn call_resume(cx: &mut Cx, args: Vec<Value>) -> Result<Value> {
         ControlResume::new(continuation, value, default_control_result_shape()),
     )?;
     control_result_value(cx, result)
+}
+
+fn call_physical_sensing_trace(cx: &mut Cx, args: Vec<Value>) -> Result<Value> {
+    if !args.is_empty() {
+        return Err(arity_error(
+            "control/physical-sensing-trace",
+            "no arguments",
+        ));
+    }
+    cx.factory().expr(physical_sensing_trace_expr())
+}
+
+fn physical_sensing_trace_expr() -> Expr {
+    list(vec![
+        sym("physical-sensing-trace"),
+        list(vec![sym("id"), sym("a30-021-physical-sensing")]),
+        list(vec![
+            sym("fixture"),
+            list(vec![sym("source"), sym("synthetic-sensor-stream")]),
+            list(vec![sym("media"), sym("copied-no")]),
+            list(vec![sym("device"), sym("live-device-none")]),
+        ]),
+        list(vec![
+            sym("sensor-stream"),
+            list(vec![sym("runner"), sym("fake-sensor-stream")]),
+            list(vec![
+                sym("frame"),
+                sym("1"),
+                sym("position"),
+                sym("22"),
+                sym("velocity"),
+                sym("3"),
+            ]),
+            list(vec![
+                sym("frame"),
+                sym("2"),
+                sym("position"),
+                sym("24"),
+                sym("velocity"),
+                sym("2"),
+            ]),
+            list(vec![
+                sym("frame"),
+                sym("3"),
+                sym("position"),
+                sym("26"),
+                sym("velocity"),
+                sym("1"),
+            ]),
+        ]),
+        list(vec![
+            sym("temporal-average"),
+            list(vec![sym("window"), sym("3")]),
+            list(vec![sym("position"), sym("24")]),
+            list(vec![sym("velocity"), sym("2")]),
+        ]),
+        list(vec![
+            sym("controller"),
+            list(vec![sym("kind"), sym("proportional")]),
+            list(vec![sym("setpoint"), sym("30")]),
+            list(vec![sym("gain"), sym("2")]),
+            list(vec![sym("deadband"), sym("2")]),
+            list(vec![sym("hysteresis"), sym("enabled")]),
+        ]),
+        list(vec![
+            sym("control-output"),
+            list(vec![sym("error"), sym("6")]),
+            list(vec![sym("command"), sym("increase-12")]),
+            list(vec![sym("clamped"), sym("no")]),
+            list(vec![sym("next-state"), sym("approach-setpoint")]),
+        ]),
+        list(vec![sym("answer"), sym("increase-actuator-by-12")]),
+        list(vec![
+            sym("effect-ledger"),
+            list(vec![
+                sym("effect"),
+                sym("read-fake-sensor-stream"),
+                sym("deterministic"),
+            ]),
+            list(vec![
+                sym("effect"),
+                sym("average-window-three"),
+                sym("pass"),
+            ]),
+            list(vec![sym("effect"), sym("apply-deadband"), sym("active")]),
+            list(vec![
+                sym("effect"),
+                sym("emit-control-output"),
+                sym("increase-12"),
+            ]),
+        ]),
+    ])
+}
+
+fn list(items: Vec<Expr>) -> Expr {
+    Expr::List(items)
+}
+
+fn sym(name: &str) -> Expr {
+    Expr::Symbol(Symbol::new(name))
 }
 
 fn refs_from_args(cx: &mut Cx, args: Vec<Value>, context: &'static str) -> Result<Vec<Ref>> {

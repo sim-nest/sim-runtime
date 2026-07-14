@@ -1,1 +1,9 @@
-(quote (common-lisp lite profile package condition restart generic))
+(expr:map
+  [kind "language-profile"]
+  [language common-lisp]
+  [profile lang/common-lisp-lite/v1]
+  [reader codec/common-lisp-lite]
+  [lowering cl/lowering-lite]
+  [eval-policy eval/common-lisp-lite]
+  [organs [organ/binding organ/control organ/dispatch organ/namespace organ/mutation]]
+  [fidelity [standard/fidelity/cl-lite-binding-organ standard/fidelity/cl-lite-control-organ standard/fidelity/cl-lite-dispatch-organ standard/fidelity/cl-lite-namespace-organ standard/fidelity/cl-lite-mutation-organ standard/fidelity/cl-lite-clos-mop-limited]])

@@ -1,1 +1,7 @@
-(quote (lua conformance matrix-row cargo-test))
+(expr:map
+  [kind "language-matrix-row"]
+  [language lua]
+  [profile lang/lua-core/v1]
+  [source-cases [test/lua-core/profile-declared test/lua-core/runtime-gap]]
+  [expr-cases []]
+  [runner cargo-test])

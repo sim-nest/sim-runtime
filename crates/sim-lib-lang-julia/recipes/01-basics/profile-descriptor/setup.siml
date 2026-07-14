@@ -1,1 +1,10 @@
-(quote (julia core profile algol dispatch))
+(expr:map
+  [kind "language-profile"]
+  [language julia]
+  [profile lang/julia-core/v1]
+  [reader codec/algol]
+  [lowering julia/lowering-core]
+  [eval-policy eval/julia-core]
+  [organs [organ/dispatch]]
+  [numeric-tower numbers/julia-core]
+  [fidelity [standard/fidelity/julia-dispatch-organ standard/fidelity/julia-full-runtime-limited]])

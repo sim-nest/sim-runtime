@@ -1,1 +1,7 @@
-(quote (typed-lazy conformance matrix-row cargo-test))
+(expr:map
+  [kind "language-matrix-row"]
+  [language typed-lazy]
+  [profile lang/typed-lazy/v1]
+  [source-cases [test/typed-lazy/profile-declared test/typed-lazy/runtime-gap]]
+  [expr-cases []]
+  [runner cargo-test])

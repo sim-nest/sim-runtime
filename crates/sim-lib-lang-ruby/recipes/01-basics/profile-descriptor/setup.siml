@@ -1,1 +1,9 @@
-(quote (ruby dsl profile block break next dispatch))
+(expr:map
+  [kind "language-profile"]
+  [language ruby]
+  [profile lang/ruby-dsl/v1]
+  [reader codec/algol]
+  [lowering ruby/lowering-dsl]
+  [eval-policy eval/ruby-dsl]
+  [organs [organ/control organ/dispatch]]
+  [fidelity [standard/fidelity/ruby-control-blocks standard/fidelity/ruby-dispatch-methods standard/fidelity/ruby-full-blocks-limited]])

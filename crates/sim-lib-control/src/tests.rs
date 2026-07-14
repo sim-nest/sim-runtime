@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use sim_kernel::{
-    Callable, ClaimPattern, Cx, DefaultFactory, Error, NoopEvalPolicy, Ref, Symbol,
+    Args, Callable, ClaimPattern, Cx, DefaultFactory, Error, Expr, NoopEvalPolicy, Ref, Symbol,
     capability::{
         control_capture_capability, control_multishot_capability, control_prompt_capability,
         control_resume_capability,
@@ -154,6 +154,7 @@ fn control_lib_registers_public_ops_and_claims() {
         capture_symbol(),
         abort_symbol(),
         resume_symbol(),
+        physical_sensing_trace_symbol(),
     ] {
         assert!(cx.resolve_function(&symbol).is_ok());
     }
@@ -171,6 +172,35 @@ fn control_lib_registers_public_ops_and_claims() {
         table_value(&card, "ops").unwrap(),
         Symbol::qualified("control", "prompt.v1"),
     );
+}
+
+#[test]
+fn physical_sensing_trace_returns_evaluated_descriptor() {
+    let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+
+    install_control_lib(&mut cx).unwrap();
+    let function = cx
+        .resolve_function(&physical_sensing_trace_symbol())
+        .unwrap();
+    let value = function
+        .object()
+        .as_callable()
+        .unwrap()
+        .call(&mut cx, Args::new(Vec::new()))
+        .unwrap();
+    let expr = value.object().as_expr(&mut cx).unwrap();
+    let Expr::List(items) = expr else {
+        panic!("physical sensing trace must return a list descriptor");
+    };
+
+    assert_eq!(
+        items.first(),
+        Some(&Expr::Symbol(Symbol::new("physical-sensing-trace")))
+    );
+    assert!(items.iter().any(|item| {
+        matches!(item, Expr::List(fields)
+            if fields.first() == Some(&Expr::Symbol(Symbol::new("answer"))))
+    }));
 }
 
 #[test]

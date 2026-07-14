@@ -1,1 +1,7 @@
-(quote (julia conformance matrix-row cargo-test))
+(expr:map
+  [kind "language-matrix-row"]
+  [language julia]
+  [profile lang/julia-core/v1]
+  [source-cases [test/julia-core/profile-declared test/julia-core/runtime-gap]]
+  [expr-cases []]
+  [runner cargo-test])

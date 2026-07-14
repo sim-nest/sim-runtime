@@ -39,6 +39,7 @@ impl Lib for ControlLib {
             ControlFunction::capture(),
             ControlFunction::abort(),
             ControlFunction::resume(),
+            ControlFunction::physical_sensing_trace(),
         ] {
             linker.function_value(function.symbol(), cx.factory().opaque(Arc::new(function))?)?;
         }
@@ -83,6 +84,7 @@ pub fn control_exports() -> Vec<Export> {
         abort_symbol(),
         resume_symbol(),
         IfForm::symbol(),
+        crate::physical_sensing_trace_symbol(),
     ]
     .into_iter()
     .map(|symbol| Export::Function {

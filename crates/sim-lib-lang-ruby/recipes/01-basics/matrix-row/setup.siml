@@ -1,1 +1,7 @@
-(quote (ruby conformance matrix-row cargo-test))
+(expr:map
+  [kind "language-matrix-row"]
+  [language ruby]
+  [profile lang/ruby-dsl/v1]
+  [source-cases [test/ruby-dsl/profile-declared test/ruby-dsl/runtime-gap]]
+  [expr-cases []]
+  [runner cargo-test])

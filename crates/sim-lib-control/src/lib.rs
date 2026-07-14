@@ -33,7 +33,10 @@ pub use coroutine::{Coroutine, CoroutineLane, CoroutineStep};
 pub use generator::{Generator, GeneratorStep};
 pub use model::{ContinuationValue, ControlResultValue};
 pub use nonlocal::{LabeledPrompt, NonLocalExit, NonLocalExitKind, escape_to_label};
-pub use ops::{ControlFunction, abort_symbol, capture_symbol, prompt_symbol, resume_symbol};
+pub use ops::{
+    ControlFunction, abort_symbol, capture_symbol, physical_sensing_trace_symbol, prompt_symbol,
+    resume_symbol,
+};
 pub use policy::{
     OneShotControlPolicy, SegmentedControlPolicy, install_control_policy, one_shot_control_policy,
     segmented_control_policy,
