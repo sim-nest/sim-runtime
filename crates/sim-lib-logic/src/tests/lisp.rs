@@ -1,10 +1,8 @@
 use std::sync::Arc;
 
-use sim_kernel::{
-    CapabilitySet, Cx, DefaultFactory, EagerPolicy, ReadPolicy, Symbol, logic_db_write_capability,
-};
+use sim_kernel::{CapabilitySet, Cx, DefaultFactory, EagerPolicy, ReadPolicy, Symbol};
 
-use crate::{LogicLib, install_logic_lib};
+use crate::{LogicLib, install_logic_lib, logic_db_write_capability};
 
 #[test]
 fn install_logic_lib_registers_surface_and_assert_query_work() {

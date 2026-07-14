@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use sim_kernel::{
     Cx, DefaultFactory, EagerPolicy, Expr, NumberLiteral, QuoteMode, ShapeMatchObject, Stream,
-    Symbol, Value, capability::control_prompt_capability, logic_db_write_capability,
+    Symbol, Value, capability::control_prompt_capability,
 };
+use sim_lib_logic::logic_db_write_capability;
 
 use crate::{install_prolog_lib, prolog_exports};
 

@@ -1,7 +1,10 @@
-use sim_kernel::{Cx, Datum, DatumStore, Expr, Ref, Result, Symbol, logic_tool_call_capability};
+use sim_kernel::{Cx, Datum, DatumStore, Expr, Ref, Result, Symbol};
 use sim_lib_control::{ControlPrompt, ControlTag, raise_prompt};
 
-use crate::{env::LogicEnv, error::logic_eval_error, model::LogicConfig, unify::occurs_check};
+use crate::{
+    capabilities::logic_tool_call_capability, env::LogicEnv, error::logic_eval_error,
+    model::LogicConfig, unify::occurs_check,
+};
 
 pub(crate) fn solve_constraint(
     cx: &mut Cx,

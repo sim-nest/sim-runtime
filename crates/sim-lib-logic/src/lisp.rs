@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use sim_kernel::{
     AbiVersion, Cx, Expr, Lib, LibManifest, LibTarget, Linker, Result, Symbol, Value, Version,
-    logic_db_write_capability,
 };
 
 use crate::{
+    capabilities::logic_db_write_capability,
     codec::{consult_expr, consult_path},
     error::logic_eval_error,
     lisp_runtime::{

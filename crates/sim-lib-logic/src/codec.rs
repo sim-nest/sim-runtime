@@ -1,9 +1,9 @@
 use std::{fs, path::Path};
 
 use sim_codec::{Input, decode_with_codec};
-use sim_kernel::{Cx, ReadPolicy, Result, Symbol, logic_consult_file_capability};
+use sim_kernel::{Cx, ReadPolicy, Result, Symbol};
 
-use crate::{db::LogicDb, error::logic_eval_error};
+use crate::{capabilities::logic_consult_file_capability, db::LogicDb, error::logic_eval_error};
 
 pub(crate) fn consult_path(cx: &mut Cx, db: &mut LogicDb, path: &str) -> Result<usize> {
     cx.require(&logic_consult_file_capability())?;

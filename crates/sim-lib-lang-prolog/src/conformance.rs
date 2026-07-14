@@ -5,11 +5,11 @@ use std::sync::Arc;
 use sim_kernel::{
     Cx, DefaultFactory, EagerPolicy, Error, Expr, NumberLiteral, QuoteMode, Result, ShapeMatch,
     ShapeMatchObject, Symbol, Value, capability::control_prompt_capability,
-    logic_db_write_capability,
 };
 use sim_lib_logic::{
     LogicConfig, LogicDb,
     builtins::{BuiltinTable, tabling_memo_binding},
+    logic_db_write_capability,
 };
 use sim_lib_standard_core::{
     MatrixRunReport, MatrixRunner, SourceConformanceCase, SourceObservation,

@@ -8,9 +8,11 @@ use sim_codec::{Input, decode_with_codec};
 use sim_kernel::{
     AbiVersion, Args, Callable, ClassRef, Cx, Error, Expr, Lib, LibManifest, LibTarget, Linker,
     LoadCx, Object, QuoteMode, RawArgs, ReadPolicy, Result, Symbol, Value, Version,
-    logic_consult_file_capability, logic_db_write_capability,
 };
-use sim_lib_logic::{LogicConfig, LogicDb, LogicPolicy, SearchStrategy, query};
+use sim_lib_logic::{
+    LogicConfig, LogicDb, LogicPolicy, SearchStrategy, logic_consult_file_capability,
+    logic_db_write_capability, query,
+};
 
 use crate::exports::prolog_export_declarations;
 
