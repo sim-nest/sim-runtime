@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use sim_kernel::{
-    Args, Callable, ClassRef, Cx, Error, Expr, Object, ObjectCompat, RawArgs, Ref, Result, Symbol,
-    Value,
+    Args, Callable, ClassRef, Cx, Error, Expr, NumberLiteral, Object, ObjectCompat, RawArgs, Ref,
+    Result, Symbol, Value,
     control::{
         ControlAbort, ControlCapture, ControlPrompt, ControlResume, abort, capture,
         default_control_result_shape, prompt, resume,
@@ -323,6 +323,12 @@ fn list(items: Vec<Expr>) -> Expr {
 }
 
 fn sym(name: &str) -> Expr {
+    if name.as_bytes().iter().all(u8::is_ascii_digit) {
+        return Expr::Number(NumberLiteral {
+            domain: Symbol::qualified("numbers", "i64"),
+            canonical: name.to_owned(),
+        });
+    }
     Expr::Symbol(Symbol::new(name))
 }
 
