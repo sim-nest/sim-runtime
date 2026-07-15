@@ -59,7 +59,7 @@
       "generated_readme": true,
       "manifest": "crates/sim-lib-exec/Cargo.toml",
       "name": "sim-lib-exec",
-      "publish": "false",
+      "publish": "true",
       "readme": "crates/sim-lib-exec/README.md",
       "root": "crates/sim-lib-exec",
       "target_kinds": [

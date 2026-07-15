@@ -7,7 +7,7 @@ Capability-gated bounded process execution for SIM.
 ## Package Metadata
 
 - Manifest: `crates/sim-lib-exec/Cargo.toml`
-- Publish: `false`
+- Publish: `true`
 - Targets: `custom-build, lib`
 
 ## Crate Documentation
