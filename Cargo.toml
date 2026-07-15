@@ -6,6 +6,7 @@ members = [
   "crates/sim-lib-control",
   "crates/sim-lib-core",
   "crates/sim-lib-dispatch",
+  "crates/sim-lib-exec",
   "crates/sim-lib-lang-cl",
   "crates/sim-lib-lang-clojure",
   "crates/sim-lib-lang-genconf",
