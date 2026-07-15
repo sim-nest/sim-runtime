@@ -10,6 +10,7 @@ Generated from Cargo metadata by `xtask crate-catalog v1`.
 | `sim-lib-control` | `true` | `custom-build, lib` | SIM workspace package for sim lib control. |
 | `sim-lib-core` | `true` | `custom-build, lib` | SIM workspace package for sim lib core. |
 | `sim-lib-dispatch` | `true` | `custom-build, lib` | SIM workspace package for sim lib dispatch. |
+| `sim-lib-exec` | `false` | `custom-build, lib` | Capability-gated bounded process execution for SIM. |
 | `sim-lib-lang-cl` | `true` | `custom-build, lib` | SIM workspace package for sim lib lang cl. |
 | `sim-lib-lang-clojure` | `true` | `custom-build, lib` | SIM workspace package for sim lib lang clojure. |
 | `sim-lib-lang-genconf` | `true` | `custom-build, lib` | SIM generative language conformance support. |

@@ -1,6 +1,6 @@
 {
   "generator": "xtask crate-catalog v1",
-  "package_count": 22,
+  "package_count": 23,
   "packages": [
     {
       "description": "SIM workspace package for sim lib binding.",
@@ -49,6 +49,19 @@
       "publish": "true",
       "readme": "crates/sim-lib-dispatch/README.md",
       "root": "crates/sim-lib-dispatch",
+      "target_kinds": [
+        "custom-build",
+        "lib"
+      ]
+    },
+    {
+      "description": "Capability-gated bounded process execution for SIM.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-exec/Cargo.toml",
+      "name": "sim-lib-exec",
+      "publish": "false",
+      "readme": "crates/sim-lib-exec/README.md",
+      "root": "crates/sim-lib-exec",
       "target_kinds": [
         "custom-build",
         "lib"
