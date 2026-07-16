@@ -295,17 +295,22 @@ fn manifest_to_expr(manifest: &LibManifest) -> Expr {
                     .iter()
                     .map(|export| {
                         let (kind, symbol) = match export {
-                            Export::Class { symbol, .. } => ("class", symbol),
-                            Export::Function { symbol, .. } => ("function", symbol),
-                            Export::Macro { symbol, .. } => ("macro", symbol),
-                            Export::Shape { symbol, .. } => ("shape", symbol),
-                            Export::Codec { symbol, .. } => ("codec", symbol),
-                            Export::NumberDomain { symbol, .. } => ("number-domain", symbol),
-                            Export::Site { symbol, .. } => ("site", symbol),
-                            Export::Value { symbol } => ("value", symbol),
+                            Export::Class { symbol, .. } => ("class".to_owned(), symbol),
+                            Export::Function { symbol, .. } => ("function".to_owned(), symbol),
+                            Export::Macro { symbol, .. } => ("macro".to_owned(), symbol),
+                            Export::Shape { symbol, .. } => ("shape".to_owned(), symbol),
+                            Export::Codec { symbol, .. } => ("codec".to_owned(), symbol),
+                            Export::NumberDomain { symbol, .. } => {
+                                ("number-domain".to_owned(), symbol)
+                            }
+                            Export::Site { symbol, .. } => ("site".to_owned(), symbol),
+                            Export::Value { symbol } => ("value".to_owned(), symbol),
+                            Export::Open { kind, symbol } => {
+                                (kind.symbol().as_qualified_str(), symbol)
+                            }
                         };
                         Expr::Map(vec![
-                            symbol_entry("kind", Expr::String(kind.to_owned())),
+                            symbol_entry("kind", Expr::String(kind)),
                             symbol_entry("symbol", Expr::Symbol(symbol.clone())),
                         ])
                     })
