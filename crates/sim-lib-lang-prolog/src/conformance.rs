@@ -20,6 +20,31 @@ use crate::conformance_all_solutions::{
 };
 use crate::{install_prolog_lib, prolog_conformance_case_symbol, prolog_matrix_row};
 
+trait GrantOutcome {
+    fn into_result(self) -> Result<()>;
+}
+
+impl GrantOutcome for () {
+    fn into_result(self) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl GrantOutcome for Result<()> {
+    fn into_result(self) -> Result<()> {
+        self
+    }
+}
+
+macro_rules! grant_into_result {
+    ($grant:expr) => {{
+        #[allow(clippy::let_unit_value)]
+        let grant_result = $grant;
+        #[allow(clippy::unit_arg)]
+        grant_result.into_result()
+    }};
+}
+
 /// Runs one Prolog source conformance case through the installed Prolog surface.
 pub fn run_prolog_conformance_case(
     _cx: &mut Cx,
@@ -348,8 +373,8 @@ pub(crate) fn prolog_case_cx() -> Result<Cx> {
     cx.load_lib(&sim_lib_numbers_f64::F64NumbersLib::new())?;
     sim_lib_control::install_control_policy(&mut cx);
     install_prolog_lib(&mut cx)?;
-    seat.grant(&mut cx, logic_db_write_capability());
-    seat.grant(&mut cx, control_prompt_capability());
+    grant_into_result!(seat.grant(&mut cx, logic_db_write_capability()))?;
+    grant_into_result!(seat.grant(&mut cx, control_prompt_capability()))?;
     Ok(cx)
 }
 

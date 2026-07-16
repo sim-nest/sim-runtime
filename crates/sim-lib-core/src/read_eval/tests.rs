@@ -92,7 +92,7 @@ fn install_registers_broker_value() {
 #[test]
 fn missing_read_eval_capability_is_denied() {
     let (mut cx, seat) = probe_cx(read_eval_capability());
-    seat.grant(&mut cx, read_eval_capability());
+    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
     let mut request = request_with(
         ReadEvalSource::Expr(Expr::Nil),
         Arc::new(ExprKindShape::new(ExprKind::Bool)),
@@ -110,7 +110,7 @@ fn missing_read_eval_capability_is_denied() {
 #[test]
 fn untrusted_read_eval_policy_is_denied() {
     let (mut cx, seat) = probe_cx(read_eval_capability());
-    seat.grant(&mut cx, read_eval_capability());
+    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
     let mut request = request_with(
         ReadEvalSource::Expr(Expr::Nil),
         Arc::new(ExprKindShape::new(ExprKind::Bool)),
@@ -133,7 +133,7 @@ fn untrusted_read_eval_policy_is_denied() {
 fn required_capability_must_be_held_by_caller() {
     let required = CapabilityName::new("test.required");
     let (mut cx, seat) = probe_cx(read_eval_capability());
-    seat.grant(&mut cx, read_eval_capability());
+    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
     let mut request = request_with(
         ReadEvalSource::Expr(Expr::Nil),
         Arc::new(ExprKindShape::new(ExprKind::Bool)),
@@ -152,7 +152,7 @@ fn required_capability_must_be_held_by_caller() {
 fn allowed_capability_absent_from_caller_is_not_active() {
     let extra = CapabilityName::new("test.extra");
     let (mut cx, seat) = probe_cx(extra.clone());
-    seat.grant(&mut cx, read_eval_capability());
+    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
     let mut request = request_with(
         ReadEvalSource::Expr(Expr::Nil),
         Arc::new(ExprKindShape::new(ExprKind::Bool)),
@@ -168,7 +168,7 @@ fn allowed_capability_absent_from_caller_is_not_active() {
 #[test]
 fn shape_mismatch_is_denied() {
     let (mut cx, seat) = probe_cx(read_eval_capability());
-    seat.grant(&mut cx, read_eval_capability());
+    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
     let request = request_with(
         ReadEvalSource::Expr(Expr::Nil),
         Arc::new(ExprKindShape::new(ExprKind::String)),
@@ -182,8 +182,8 @@ fn shape_mismatch_is_denied() {
 #[test]
 fn happy_path_returns_value_and_restores_caller_capabilities() {
     let (mut cx, seat) = probe_cx(read_eval_capability());
-    seat.grant(&mut cx, read_eval_capability());
-    seat.grant(&mut cx, read_construct_capability());
+    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
+    expect_granted!(seat.grant(&mut cx, read_construct_capability()));
     let request = request_with(
         ReadEvalSource::Expr(Expr::Nil),
         Arc::new(ExprKindShape::new(ExprKind::Bool)),
@@ -199,7 +199,7 @@ fn happy_path_returns_value_and_restores_caller_capabilities() {
 #[test]
 fn text_source_decodes_through_named_codec() {
     let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
-    seat.grant(&mut cx, read_eval_capability());
+    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
     let lib = LispCodecLib::new(sim_kernel::CodecId(1)).unwrap();
     cx.load_lib(&lib).unwrap();
     let request = request_with(
@@ -218,7 +218,7 @@ fn text_source_decodes_through_named_codec() {
 #[test]
 fn bytes_source_decodes_through_named_codec() {
     let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
-    seat.grant(&mut cx, read_eval_capability());
+    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
     let lib = LispCodecLib::new(sim_kernel::CodecId(1)).unwrap();
     cx.load_lib(&lib).unwrap();
     let request = request_with(ReadEvalSource::Bytes(b"nil".to_vec()), Arc::new(AnyShape));

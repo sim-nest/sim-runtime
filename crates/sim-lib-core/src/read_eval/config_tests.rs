@@ -78,7 +78,7 @@ fn opt_in() -> HostConfigEvalOptIn {
 #[test]
 fn config_without_node_is_unchanged() {
     let (mut cx, seat) = cx();
-    seat.grant(&mut cx, read_eval_capability());
+    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
     let broker = ReadEvalBroker::new();
     let config = Expr::Map(vec![(key("enabled"), Expr::Bool(true))]);
 
@@ -106,7 +106,7 @@ fn config_eval_node_without_host_opt_in_is_unchanged() {
 #[test]
 fn config_eval_shape_mismatch_is_denied() {
     let (mut cx, seat) = cx();
-    seat.grant(&mut cx, read_eval_capability());
+    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
     let broker = ReadEvalBroker::new();
     let config = Expr::Map(vec![config_eval_entry(node_map_expr(
         text("not a map"),
@@ -124,7 +124,7 @@ fn config_eval_shape_mismatch_is_denied() {
 #[test]
 fn config_eval_opt_in_merges_matching_map_result() {
     let (mut cx, seat) = cx();
-    seat.grant(&mut cx, read_eval_capability());
+    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
     let broker = ReadEvalBroker::new();
     let config = Expr::Map(vec![
         (key("enabled"), Expr::Bool(true)),
@@ -181,7 +181,7 @@ fn capability_probe_cx(capability: CapabilityName) -> (Cx, sim_kernel::GrantSeat
 fn realized_probe(capability: CapabilityName, grant_read_eval: bool) -> Expr {
     let (mut cx, seat) = capability_probe_cx(capability);
     if grant_read_eval {
-        seat.grant(&mut cx, read_eval_capability());
+        expect_granted!(seat.grant(&mut cx, read_eval_capability()));
     }
     let broker = ReadEvalBroker::new();
     let config = Expr::Map(vec![(

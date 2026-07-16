@@ -85,9 +85,9 @@ fn probe_cx(capability: CapabilityName) -> (Cx, sim_kernel::GrantSeat) {
 fn admitted_request_records_trace_decision_with_diminished_caps() {
     let probe = CapabilityName::new("test.probe");
     let (mut cx, seat) = probe_cx(probe.clone());
-    seat.grant(&mut cx, read_eval_capability());
-    seat.grant(&mut cx, read_construct_capability());
-    seat.grant(&mut cx, probe.clone());
+    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
+    expect_granted!(seat.grant(&mut cx, read_construct_capability()));
+    expect_granted!(seat.grant(&mut cx, probe.clone()));
     let broker = ReadEvalBroker::new();
     let request = request_with(
         ReadEvalSource::Expr(Expr::Nil),
@@ -124,9 +124,9 @@ fn admitted_request_records_trace_decision_with_diminished_caps() {
 fn denied_request_records_trace_decision_with_diminished_caps() {
     let probe = CapabilityName::new("test.probe");
     let (mut cx, seat) = probe_cx(probe.clone());
-    seat.grant(&mut cx, read_eval_capability());
-    seat.grant(&mut cx, read_construct_capability());
-    seat.grant(&mut cx, probe.clone());
+    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
+    expect_granted!(seat.grant(&mut cx, read_construct_capability()));
+    expect_granted!(seat.grant(&mut cx, probe.clone()));
     let broker = ReadEvalBroker::new();
     let request = request_with(
         ReadEvalSource::Expr(Expr::Nil),

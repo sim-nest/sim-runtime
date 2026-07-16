@@ -19,6 +19,33 @@ pub use config::{
 };
 pub use decision::{ReadEvalDecision, ReadEvalOutcome, read_eval_decision_run};
 
+#[cfg(test)]
+trait GrantOutcome {
+    fn expect_granted(self);
+}
+
+#[cfg(test)]
+impl GrantOutcome for () {
+    fn expect_granted(self) {}
+}
+
+#[cfg(test)]
+impl GrantOutcome for Result<()> {
+    fn expect_granted(self) {
+        self.unwrap();
+    }
+}
+
+#[cfg(test)]
+macro_rules! expect_granted {
+    ($grant:expr) => {{
+        #[allow(clippy::let_unit_value)]
+        let grant_result = $grant;
+        #[allow(clippy::unit_arg)]
+        grant_result.expect_granted();
+    }};
+}
+
 /// Open origin data for an explicit read-eval request.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RequestOrigin {
