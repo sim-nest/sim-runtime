@@ -1,5 +1,166 @@
 {
-  "schema": "sim.rustdoc-index.v1",
-  "repo": "sim-runtime",
-  "target_doc": "target/doc/"
+  "generator": "xtask repo-contract v1",
+  "packages": [
+    {
+      "crate_name": "sim_lib_binding",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-binding/Cargo.toml",
+      "package": "sim-lib-binding",
+      "summary": "Binding behavior for the SIM runtime: lexical, dynamic, and scoped binding."
+    },
+    {
+      "crate_name": "sim_lib_control",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-control/Cargo.toml",
+      "package": "sim-lib-control",
+      "summary": "Control behavior for the SIM runtime: async, backtracking, conditions."
+    },
+    {
+      "crate_name": "sim_lib_core",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-core/Cargo.toml",
+      "package": "sim-lib-core",
+      "summary": "Shared surface-pack substrate for SIM runtime libraries."
+    },
+    {
+      "crate_name": "sim_lib_dispatch",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-dispatch/Cargo.toml",
+      "package": "sim-lib-dispatch",
+      "summary": "Generic functions and method dispatch for the SIM runtime."
+    },
+    {
+      "crate_name": "sim_lib_exec",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-exec/Cargo.toml",
+      "package": "sim-lib-exec",
+      "summary": "Capability-gated bounded host-process execution for the SIM runtime."
+    },
+    {
+      "crate_name": "sim_lib_lang_cl",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-cl/Cargo.toml",
+      "package": "sim-lib-lang-cl",
+      "summary": "Common Lisp surface profile for the SIM runtime."
+    },
+    {
+      "crate_name": "sim_lib_lang_clojure",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-clojure/Cargo.toml",
+      "package": "sim-lib-lang-clojure",
+      "summary": "Clojure surface profile for the SIM runtime."
+    },
+    {
+      "crate_name": "sim_lib_lang_genconf",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-genconf/Cargo.toml",
+      "package": "sim-lib-lang-genconf",
+      "summary": "Generative conformance support over the shared expression graph."
+    },
+    {
+      "crate_name": "sim_lib_lang_islisp",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-islisp/Cargo.toml",
+      "package": "sim-lib-lang-islisp",
+      "summary": "ISLISP surface profile for the SIM runtime."
+    },
+    {
+      "crate_name": "sim_lib_lang_julia",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-julia/Cargo.toml",
+      "package": "sim-lib-lang-julia",
+      "summary": "Julia surface profile for the SIM runtime."
+    },
+    {
+      "crate_name": "sim_lib_lang_lua",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-lua/Cargo.toml",
+      "package": "sim-lib-lang-lua",
+      "summary": "Lua surface profile for the SIM runtime."
+    },
+    {
+      "crate_name": "sim_lib_lang_matrix",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-matrix/Cargo.toml",
+      "package": "sim-lib-lang-matrix",
+      "summary": "Assembly point for the SIM language conformance matrix."
+    },
+    {
+      "crate_name": "sim_lib_lang_prolog",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-prolog/Cargo.toml",
+      "package": "sim-lib-lang-prolog",
+      "summary": "Prolog surface profile for the SIM runtime."
+    },
+    {
+      "crate_name": "sim_lib_lang_ruby",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-ruby/Cargo.toml",
+      "package": "sim-lib-lang-ruby",
+      "summary": "Ruby DSL surface profile for the SIM runtime."
+    },
+    {
+      "crate_name": "sim_lib_lang_scheme",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-scheme/Cargo.toml",
+      "package": "sim-lib-lang-scheme",
+      "summary": "Scheme (R7RS-small) surface profile for the SIM runtime."
+    },
+    {
+      "crate_name": "sim_lib_lang_typed_lazy",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-typed-lazy/Cargo.toml",
+      "package": "sim-lib-lang-typed-lazy",
+      "summary": "Typed, lazy surface profile for the SIM runtime."
+    },
+    {
+      "crate_name": "sim_lib_logic",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-logic/Cargo.toml",
+      "package": "sim-lib-logic",
+      "summary": "Logic behavior for the SIM runtime: clauses, unification, and queries."
+    },
+    {
+      "crate_name": "sim_lib_mutation",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-mutation/Cargo.toml",
+      "package": "sim-lib-mutation",
+      "summary": "Mutation behavior for the SIM runtime: cells, boxes, vectors, and tables."
+    },
+    {
+      "crate_name": "sim_lib_namespace",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-namespace/Cargo.toml",
+      "package": "sim-lib-namespace",
+      "summary": "Namespace behavior for the SIM runtime: modules, packages, and imports."
+    },
+    {
+      "crate_name": "sim_lib_pattern",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-pattern/Cargo.toml",
+      "package": "sim-lib-pattern",
+      "summary": "Pattern behavior for the SIM runtime over the kernel Shape protocol."
+    },
+    {
+      "crate_name": "sim_lib_sequence",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-sequence/Cargo.toml",
+      "package": "sim-lib-sequence",
+      "summary": "Sequence behavior for the SIM runtime: lazy, persistent, and transducers."
+    },
+    {
+      "crate_name": "sim_lib_standard_core",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-standard-core/Cargo.toml",
+      "package": "sim-lib-standard-core",
+      "summary": "SIM workspace package for sim lib standard core."
+    },
+    {
+      "crate_name": "xtask",
+      "group": "workspace",
+      "manifest": "xtask/Cargo.toml",
+      "package": "xtask",
+      "summary": "SIM workspace package for xtask."
+    }
+  ]
 }
