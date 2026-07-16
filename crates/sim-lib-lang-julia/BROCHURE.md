@@ -4,7 +4,7 @@ In one line: It lets you write for SIM in Julia style, the notation favored for 
 
 ## What it gives you
 
-This library gives SIM a Julia face. Julia's notation is popular with people doing calculation-heavy and scientific work, and this profile lets you express your ideas in that familiar shape and run them on SIM. It is a front for reading and writing in the Julia style, not a separate engine copied inside; the meaning of what you write is carried by SIM's shared expression graph underneath. So you keep the clean, math-friendly look you are used to while your code joins the same runtime that every other SIM surface shares, side by side with them.
+This library gives SIM a Julia face. Julia's notation is popular with people doing calculation-heavy and scientific work, and this profile lets you express your ideas in that familiar shape and run them on SIM. It is a front for reading and writing in the Julia style, not a separate engine copied inside; the meaning of what you write is carried by SIM's shared expression graph underneath. So you keep the clean, math-friendly look you already know while your code joins the same runtime that every other SIM surface shares, side by side with them.
 
 ## Why you will be glad
 
