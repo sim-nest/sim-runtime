@@ -20,8 +20,14 @@ pub enum ReadEvalOutcome {
     TrustDenied,
     /// The caller lacked a capability listed in `requires`.
     MissingPower,
+    /// The request source could not be decoded through the named codec.
+    DecodeFailed,
+    /// The decoded or prebuilt expression failed during evaluation.
+    EvalFailed,
     /// The evaluated result failed the expected shape.
     ShapeDenied,
+    /// The shape check failed before it could report a match result.
+    ShapeError,
 }
 
 impl ReadEvalOutcome {
@@ -31,7 +37,10 @@ impl ReadEvalOutcome {
             Self::CapDenied => Symbol::new("cap-denied"),
             Self::TrustDenied => Symbol::new("trust-denied"),
             Self::MissingPower => Symbol::new("missing-power"),
+            Self::DecodeFailed => Symbol::new("decode-failed"),
+            Self::EvalFailed => Symbol::new("eval-failed"),
             Self::ShapeDenied => Symbol::new("shape-denied"),
+            Self::ShapeError => Symbol::new("shape-error"),
         }
     }
 
@@ -41,7 +50,10 @@ impl ReadEvalOutcome {
             "cap-denied" => Ok(Self::CapDenied),
             "trust-denied" => Ok(Self::TrustDenied),
             "missing-power" => Ok(Self::MissingPower),
+            "decode-failed" => Ok(Self::DecodeFailed),
+            "eval-failed" => Ok(Self::EvalFailed),
             "shape-denied" => Ok(Self::ShapeDenied),
+            "shape-error" => Ok(Self::ShapeError),
             other => Err(Error::Eval(format!(
                 "unknown read-eval decision outcome {other}"
             ))),

@@ -133,30 +133,52 @@ impl ReadEvalBroker {
         }
 
         let active = diminish_capabilities(cx.capabilities(), &request.allow);
-        let value = cx.with_capabilities(active.clone(), |cx| {
-            let expr = decode_source(
+        let expr = match cx.with_capabilities(active.clone(), |cx| {
+            decode_source(
                 cx,
                 &request.codec,
                 request.source.clone(),
                 request.read_policy.clone(),
-            )?;
-            cx.eval_expr(expr)
-        })?;
+            )
+        }) {
+            Ok(expr) => expr,
+            Err(err) => {
+                self.record(cx, &request, &active, ReadEvalOutcome::DecodeFailed)?;
+                return Err(err);
+            }
+        };
+        let value = match cx.with_capabilities(active.clone(), |cx| cx.eval_expr(expr)) {
+            Ok(value) => value,
+            Err(err) => {
+                self.record(cx, &request, &active, ReadEvalOutcome::EvalFailed)?;
+                return Err(err);
+            }
+        };
 
-        let matched = request.expected_shape.check_value(cx, value.clone())?;
+        let matched = match request.expected_shape.check_value(cx, value.clone()) {
+            Ok(matched) => matched,
+            Err(err) => {
+                self.record(cx, &request, &active, ReadEvalOutcome::ShapeError)?;
+                return Err(err);
+            }
+        };
         if matched.accepted {
             self.record(cx, &request, &active, ReadEvalOutcome::Admitted)?;
             return Ok(value);
         }
 
+        let diagnostics =
+            match shape_diagnostics(cx, request.expected_shape.as_ref(), matched.diagnostics) {
+                Ok(diagnostics) => diagnostics,
+                Err(err) => {
+                    self.record(cx, &request, &active, ReadEvalOutcome::ShapeError)?;
+                    return Err(err);
+                }
+            };
         self.record(cx, &request, &active, ReadEvalOutcome::ShapeDenied)?;
         Err(Error::WrongShape {
             expected: request.expected_shape.id().unwrap_or(ShapeId(0)),
-            diagnostics: shape_diagnostics(
-                cx,
-                request.expected_shape.as_ref(),
-                matched.diagnostics,
-            )?,
+            diagnostics,
         })
     }
 
