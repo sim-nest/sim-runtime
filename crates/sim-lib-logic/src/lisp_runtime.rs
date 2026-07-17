@@ -215,6 +215,13 @@ pub(crate) fn string_expr(cx: &mut Cx, expr: &Expr) -> Result<String> {
     }
 }
 
+pub(crate) fn value_expr(cx: &mut Cx, expr: &Expr) -> Result<Value> {
+    match unquote(expr) {
+        Expr::Symbol(symbol) => cx.resolve_value(&symbol),
+        other => cx.eval_expr(other),
+    }
+}
+
 pub(crate) fn usize_from_expr(cx: &mut Cx, expr: &Expr) -> Result<usize> {
     let expr = unquote(expr);
     match expr {

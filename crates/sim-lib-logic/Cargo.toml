@@ -28,6 +28,7 @@ sim-lib-numbers-arith = { version = "0.1.0" }
 sim-lib-numbers-bigint = { version = "0.1.0" }
 sim-lib-numbers-f64 = { version = "0.1.0" }
 sim-lib-numbers-i64 = { version = "0.1.0" }
+sim-table-fs = { version = "0.1.0" }
 
 [lints]
 workspace = true

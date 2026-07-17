@@ -5,13 +5,13 @@ use sim_kernel::{
 };
 
 use crate::{
-    capabilities::logic_db_write_capability,
-    codec::{consult_expr, consult_path},
+    capabilities::{logic_config_write_capability, logic_db_write_capability},
+    codec::{consult_expr, consult_table_path},
     error::logic_eval_error,
     lisp_runtime::{
         CONFIG_SYMBOL, DB_SYMBOL, LogicConfigState, LogicDbState, LogicFunction, config_value,
         keyword, logic_config_state, logic_db_state, query_config, string_expr, symbol_expr,
-        unquote, usize_from_expr,
+        unquote, usize_from_expr, value_expr,
     },
     model::SearchStrategy,
     query::{query, query_all, query_bool, query_one},
@@ -182,6 +182,7 @@ fn register_logic_functions(cx: &mut sim_kernel::LoadCx, linker: &mut Linker<'_>
 }
 
 fn logic_config_fn(cx: &mut Cx, args: &[Expr]) -> Result<Value> {
+    cx.require(&logic_config_write_capability())?;
     let state = logic_config_state(cx)?;
     let mut config = state.lock()?.clone();
     if !args.len().is_multiple_of(2) {
@@ -250,13 +251,16 @@ fn logic_facts_fn(cx: &mut Cx, args: &[Expr]) -> Result<Value> {
 
 fn logic_consult_fn(cx: &mut Cx, args: &[Expr]) -> Result<Value> {
     cx.require(&logic_db_write_capability())?;
-    let [path_expr] = args else {
-        return Err(logic_eval_error("logic/consult expects one path"));
+    let [source_expr, path_expr] = args else {
+        return Err(logic_eval_error(
+            "logic/consult expects a directory value and relative table path",
+        ));
     };
+    let source = value_expr(cx, source_expr)?;
     let path = string_expr(cx, path_expr)?;
     let state = logic_db_state(cx)?;
     let mut db = state.lock()?;
-    let count = consult_path(cx, &mut db, &path)?;
+    let count = consult_table_path(cx, &mut db, &source, &path)?;
     drop(db);
     cx.factory().string(count.to_string())
 }

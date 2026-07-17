@@ -29,9 +29,10 @@ mod stream;
 mod unify;
 
 pub use capabilities::{
-    logic_consult_file_capability, logic_db_write_capability, logic_tool_call_capability,
+    logic_config_write_capability, logic_db_write_capability, logic_tool_call_capability,
 };
 pub use clause::{Clause, ClauseId, parse_clause_expr};
+pub use codec::consult_table_path;
 pub use db::LogicDb;
 pub use env::LogicEnv;
 pub use lisp::realize_logic;

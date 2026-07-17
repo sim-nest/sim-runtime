@@ -1,10 +1,17 @@
-use std::sync::Arc;
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
+use sim_codec_lisp::LispCodecLib;
 use sim_kernel::{
-    Cx, DefaultFactory, EagerPolicy, Expr, NumberLiteral, QuoteMode, ShapeMatchObject, Stream,
-    Symbol, Value, capability::control_prompt_capability,
+    AbiVersion, Cx, DefaultFactory, EagerPolicy, Error, Expr, Lib, LibManifest, LibTarget, Linker,
+    LoadCx, NumberLiteral, QuoteMode, ShapeMatchObject, Stream, Symbol, Value, Version,
+    capability::control_prompt_capability,
 };
 use sim_lib_logic::logic_db_write_capability;
+use sim_table_fs::{FsDir, table_fs_read_capability};
 
 use crate::{install_prolog_lib, prolog_exports};
 
@@ -33,6 +40,8 @@ fn number(text: &str) -> Expr {
 fn prolog_cx() -> Cx {
     let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
     sim_lib_control::install_control_policy(&mut cx);
+    let lisp = LispCodecLib::new(cx.registry_mut().fresh_codec_id()).unwrap();
+    cx.load_lib(&lisp).unwrap();
     install_prolog_lib(&mut cx).unwrap();
     cx.grant(logic_db_write_capability());
     cx.grant(control_prompt_capability());
@@ -125,6 +134,67 @@ fn bindings_for(answers: &[Value], name: &str) -> Vec<Expr> {
         .iter()
         .filter_map(|answer| binding_expr(answer, name))
         .collect()
+}
+
+fn test_root(name: &str) -> PathBuf {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    std::env::temp_dir().join(format!(
+        "sim-lib-lang-prolog-{name}-{}-{nanos}",
+        std::process::id()
+    ))
+}
+
+fn write_logic_fixture(path: &Path, body: &str) {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).unwrap();
+    }
+    std::fs::write(path, body).unwrap();
+}
+
+struct ExportFsDirLib {
+    lib_symbol: Symbol,
+    export_symbol: Symbol,
+    dir: FsDir,
+}
+
+impl ExportFsDirLib {
+    fn new(export_symbol: Symbol, root: PathBuf) -> Self {
+        Self {
+            lib_symbol: Symbol::qualified("test", "prolog-fixture-dir"),
+            export_symbol,
+            dir: FsDir::open(root).unwrap(),
+        }
+    }
+}
+
+impl Lib for ExportFsDirLib {
+    fn manifest(&self) -> LibManifest {
+        LibManifest {
+            id: self.lib_symbol.clone(),
+            version: Version(env!("CARGO_PKG_VERSION").to_owned()),
+            abi: AbiVersion { major: 0, minor: 1 },
+            target: LibTarget::HostRegistered,
+            requires: Vec::new(),
+            capabilities: Vec::new(),
+            exports: vec![sim_kernel::Export::Value {
+                symbol: self.export_symbol.clone(),
+            }],
+        }
+    }
+
+    fn load(&self, cx: &mut LoadCx, linker: &mut Linker<'_>) -> sim_kernel::Result<()> {
+        linker.value(
+            self.export_symbol.clone(),
+            cx.factory().opaque(Arc::new(self.dir.clone()))?,
+        )
+    }
+}
+
+fn export_fs_dir(cx: &mut Cx, symbol: Symbol, root: PathBuf) {
+    cx.load_lib(&ExportFsDirLib::new(symbol, root)).unwrap();
 }
 
 #[test]
@@ -316,4 +386,105 @@ fn prolog_exports_all_registered() {
         cx.resolve_function(&symbol)
             .unwrap_or_else(|err| panic!("missing runtime function {symbol}: {err}"));
     }
+}
+
+#[test]
+fn prolog_consult_requires_fs_read_authority() {
+    let mut cx = prolog_cx();
+    let root = test_root("consult-denied");
+    write_logic_fixture(
+        &root.join("rules").join("family.siml"),
+        "((fact (parent alice bob)) (fact (parent alice carol)))",
+    );
+    let dir_symbol = Symbol::qualified("test", "rules-dir");
+    export_fs_dir(&mut cx, dir_symbol.clone(), root);
+
+    let consult_fn = cx
+        .resolve_function(&Symbol::qualified("prolog", "consult"))
+        .unwrap();
+    let err = cx
+        .call_exprs(
+            consult_fn,
+            vec![
+                Expr::Symbol(dir_symbol),
+                Expr::String("rules/family".to_owned()),
+            ],
+        )
+        .unwrap_err();
+
+    assert!(matches!(
+        err,
+        Error::CapabilityDenied { capability } if capability == table_fs_read_capability()
+    ));
+}
+
+#[test]
+fn prolog_consult_reads_relative_path_from_confined_dir() {
+    let mut cx = prolog_cx();
+    cx.grant(table_fs_read_capability());
+    let root = test_root("consult-allowed");
+    write_logic_fixture(
+        &root.join("rules").join("family.siml"),
+        "((fact (parent alice bob)) (fact (parent alice carol)))",
+    );
+    let dir_symbol = Symbol::qualified("test", "rules-dir");
+    export_fs_dir(&mut cx, dir_symbol.clone(), root);
+
+    let consult_fn = cx
+        .resolve_function(&Symbol::qualified("prolog", "consult"))
+        .unwrap();
+    let consulted = cx
+        .call_exprs(
+            consult_fn,
+            vec![
+                Expr::Symbol(dir_symbol),
+                Expr::String("rules/family".to_owned()),
+            ],
+        )
+        .unwrap();
+    assert_eq!(
+        consulted.object().as_expr(&mut cx).unwrap(),
+        Expr::String("2".to_owned())
+    );
+
+    let answers = query_all(
+        &mut cx,
+        goal("parent", vec![symbol("alice"), local("who")]),
+        8,
+    );
+    assert_eq!(
+        bindings_for(&answers, "who"),
+        vec![symbol("bob"), symbol("carol")]
+    );
+}
+
+#[test]
+fn prolog_quoted_consult_stays_pure_without_fs_read() {
+    let mut cx = prolog_cx();
+    let consult_fn = cx
+        .resolve_function(&Symbol::qualified("prolog", "consult"))
+        .unwrap();
+    let consulted = cx
+        .call_exprs(
+            consult_fn,
+            vec![quote(Expr::List(vec![
+                fact("parent", vec![symbol("alice"), symbol("bob")]),
+                fact("parent", vec![symbol("alice"), symbol("carol")]),
+            ]))],
+        )
+        .unwrap();
+    assert_eq!(
+        consulted.object().as_expr(&mut cx).unwrap(),
+        Expr::String("2".to_owned())
+    );
+
+    let answers = query_all(
+        &mut cx,
+        goal("parent", vec![symbol("alice"), local("who")]),
+        8,
+    );
+    assert_eq!(
+        bindings_for(&answers, "who"),
+        vec![symbol("bob"), symbol("carol")]
+    );
 }

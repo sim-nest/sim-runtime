@@ -1,16 +1,11 @@
-use std::{
-    fs,
-    path::Path,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
-use sim_codec::{Input, decode_with_codec};
 use sim_kernel::{
     AbiVersion, Args, Callable, ClassRef, Cx, Error, Expr, Lib, LibManifest, LibTarget, Linker,
-    LoadCx, Object, QuoteMode, RawArgs, ReadPolicy, Result, Symbol, Value, Version,
+    LoadCx, Object, QuoteMode, RawArgs, Result, Symbol, Value, Version,
 };
 use sim_lib_logic::{
-    LogicConfig, LogicDb, LogicPolicy, SearchStrategy, logic_consult_file_capability,
+    LogicConfig, LogicDb, LogicPolicy, SearchStrategy, consult_table_path,
     logic_db_write_capability, query,
 };
 
@@ -265,27 +260,29 @@ fn prolog_query_seq_fn(cx: &mut Cx, args: &[Expr]) -> Result<Value> {
 
 fn prolog_consult_fn(cx: &mut Cx, args: &[Expr]) -> Result<Value> {
     cx.require(&logic_db_write_capability())?;
-    let [expr] = args else {
-        return Err(prolog_eval_error(
-            "prolog/consult expects one path or quoted program",
-        ));
-    };
-    let program = unquote(expr);
-    let count = match program {
-        Expr::String(path) => {
+    let count = match args {
+        [source_expr, path_expr] => {
+            let source = value_expr(cx, source_expr)?;
+            let path = string_expr(cx, path_expr)?;
             let state = prolog_db_state(cx)?;
             let mut db = state.lock()?;
-            prolog_consult_path(cx, &mut db, &path)?
+            consult_table_path(cx, &mut db, &source, &path)?
         }
-        Expr::Symbol(path) => {
+        [expr] => {
+            let program = unquote(expr);
+            if matches!(program, Expr::String(_) | Expr::Symbol(_)) {
+                return Err(prolog_eval_error(
+                    "prolog/consult string and symbol paths require a directory value and relative table path",
+                ));
+            }
             let state = prolog_db_state(cx)?;
             let mut db = state.lock()?;
-            prolog_consult_path(cx, &mut db, &path.to_string())?
+            prolog_consult_expr(&mut db, program)?
         }
-        other => {
-            let state = prolog_db_state(cx)?;
-            let mut db = state.lock()?;
-            prolog_consult_expr(&mut db, other)?
+        _ => {
+            return Err(prolog_eval_error(
+                "prolog/consult expects a directory value plus relative table path, or one quoted program",
+            ));
         }
     };
     cx.factory().string(count.to_string())
@@ -359,6 +356,25 @@ fn symbol_expr(cx: &mut Cx, expr: &Expr) -> Result<Symbol> {
     }
 }
 
+fn string_expr(cx: &mut Cx, expr: &Expr) -> Result<String> {
+    match unquote(expr) {
+        Expr::String(text) => Ok(text),
+        Expr::Symbol(symbol) => Ok(symbol.to_string()),
+        other => match cx.eval_expr(other)?.object().as_expr(cx)? {
+            Expr::String(text) => Ok(text),
+            Expr::Symbol(symbol) => Ok(symbol.to_string()),
+            _ => Err(prolog_eval_error("expected string-like value")),
+        },
+    }
+}
+
+fn value_expr(cx: &mut Cx, expr: &Expr) -> Result<Value> {
+    match unquote(expr) {
+        Expr::Symbol(symbol) => cx.resolve_value(&symbol),
+        other => cx.eval_expr(other),
+    }
+}
+
 fn usize_from_expr(cx: &mut Cx, expr: &Expr) -> Result<usize> {
     match unquote(expr) {
         Expr::Number(number) => number
@@ -394,24 +410,6 @@ fn unquote(expr: &Expr) -> Expr {
     }
 }
 
-fn prolog_consult_path(cx: &mut Cx, db: &mut LogicDb, path: &str) -> Result<usize> {
-    cx.require(&logic_consult_file_capability())?;
-    let bytes = fs::read(path).map_err(|err| prolog_eval_error(err.to_string()))?;
-    let codec = codec_for_path(path);
-    let expr = decode_with_codec(
-        cx,
-        &codec,
-        match codec.name.as_ref() {
-            "binary" | "binary-base64" => Input::Bytes(bytes),
-            _ => Input::Text(
-                String::from_utf8(bytes).map_err(|err| prolog_eval_error(err.to_string()))?,
-            ),
-        },
-        ReadPolicy::default(),
-    )?;
-    prolog_consult_expr(db, expr)
-}
-
 fn prolog_consult_expr(db: &mut LogicDb, expr: Expr) -> Result<usize> {
     match expr {
         Expr::List(items) => {
@@ -426,20 +424,6 @@ fn prolog_consult_expr(db: &mut LogicDb, expr: Expr) -> Result<usize> {
             db.assert_clause_expr(other)?;
             Ok(1)
         }
-    }
-}
-
-fn codec_for_path(path: &str) -> Symbol {
-    match Path::new(path)
-        .extension()
-        .and_then(|extension| extension.to_str())
-        .unwrap_or_default()
-    {
-        "simlogicb64" | "simb64" => Symbol::qualified("codec", "binary-base64"),
-        "json" => Symbol::qualified("codec", "json"),
-        "alg" => Symbol::qualified("codec", "algol"),
-        "slb8" => Symbol::qualified("codec", "binary"),
-        _ => Symbol::qualified("codec", "lisp"),
     }
 }
 
