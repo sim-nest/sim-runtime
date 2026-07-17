@@ -210,10 +210,56 @@ fn sequence_organ_claims_project_to_card() {
     let list = ops.object().as_list().unwrap();
     let values = force_list_to_vec(&mut cx, list, "sequence organ ops").unwrap();
 
-    assert!(values.into_iter().any(|value| {
-        value.object().as_expr(&mut cx).unwrap()
-            == Expr::Symbol(Symbol::qualified("sequence", "transduce.v1"))
-    }));
+    let exprs = values
+        .into_iter()
+        .map(|value| value.object().as_expr(&mut cx).unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(exprs.len(), 3);
+    assert!(exprs.contains(&Expr::Symbol(Symbol::qualified("sequence", "map.v1"))));
+    assert!(exprs.contains(&Expr::Symbol(Symbol::qualified("sequence", "filter.v1"))));
+    assert!(exprs.contains(&Expr::Symbol(Symbol::qualified("sequence", "reduce.v1"))));
+}
+
+#[test]
+fn sequence_live_claims_match_loaded_exports() {
+    let mut cx = cx();
+    install_sequence_lib(&mut cx).unwrap();
+    let lib = cx.registry().lib(&manifest_name()).unwrap().clone();
+    publish_sequence_organ_claims_for_lib(&mut cx, lib.id).unwrap();
+
+    let card = card_for_ref(&mut cx, Ref::Symbol(sequence_organ_symbol())).unwrap();
+    let table = card.object().as_table(&mut cx).unwrap();
+    let entries = table.object().as_table_impl().unwrap();
+    let ops = entries.get(&mut cx, Symbol::new("ops")).unwrap();
+    let list = ops.object().as_list().unwrap();
+    let card_ops = force_list_to_vec(&mut cx, list, "sequence live ops")
+        .unwrap()
+        .into_iter()
+        .map(|value| value.object().as_expr(&mut cx).unwrap())
+        .collect::<Vec<_>>();
+
+    assert_eq!(card_ops.len(), sequence_live_ops().len());
+
+    for (op_key, export_symbol) in sequence_live_ops() {
+        let op_symbol = Symbol::qualified(
+            op_key.namespace.to_string(),
+            format!("{}.v{}", op_key.name, op_key.version),
+        );
+        assert!(
+            card_ops.contains(&Expr::Symbol(op_symbol.clone())),
+            "missing live sequence claim {op_symbol}"
+        );
+        assert!(
+            lib.exports
+                .iter()
+                .any(|export| export.symbol == export_symbol),
+            "missing sequence export {export_symbol}"
+        );
+        assert!(
+            cx.resolve_function(&export_symbol).is_ok(),
+            "{export_symbol}"
+        );
+    }
 }
 
 // ---- COOKBOOK_7 COOK7.02: the sequence organ (seq/map|filter|fold) ----

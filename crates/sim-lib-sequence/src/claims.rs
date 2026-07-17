@@ -3,6 +3,8 @@ use sim_kernel::{
     standard::{publish_organ_claims, publish_organ_claims_for_lib},
 };
 
+use crate::runtime::SeqOp;
+
 /// Symbol naming the sequence organ as a claim subject.
 ///
 /// Identifies this crate's behavior in the kernel claim store so the organ and
@@ -46,11 +48,12 @@ pub fn sequence_transduce_op_key() -> OpKey {
     sequence_op_key("transduce")
 }
 
-/// All operation keys the sequence organ advertises.
+/// All sequence-surface operations this crate models, whether or not they are
+/// currently exported as live runtime callables.
 ///
 /// The canonical operation set published with
 /// [`publish_sequence_organ_claims`].
-pub fn sequence_op_keys() -> Vec<OpKey> {
+pub fn sequence_declared_op_keys() -> Vec<OpKey> {
     [
         sequence_persistent_op_key(),
         sequence_lazy_op_key(),
@@ -61,6 +64,23 @@ pub fn sequence_op_keys() -> Vec<OpKey> {
         sequence_transduce_op_key(),
     ]
     .into()
+}
+
+/// Live sequence claim-to-export mappings backed by the loaded runtime surface.
+pub fn sequence_live_ops() -> Vec<(OpKey, Symbol)> {
+    vec![
+        (sequence_map_op_key(), SeqOp::Map.symbol()),
+        (sequence_filter_op_key(), SeqOp::Filter.symbol()),
+        (sequence_reduce_op_key(), SeqOp::Fold.symbol()),
+    ]
+}
+
+/// Operation keys the sequence organ currently publishes as live claims.
+pub fn sequence_op_keys() -> Vec<OpKey> {
+    sequence_live_ops()
+        .into_iter()
+        .map(|(op_key, _export_symbol)| op_key)
+        .collect()
 }
 
 /// Publish the sequence organ and its operation keys into the claim store.

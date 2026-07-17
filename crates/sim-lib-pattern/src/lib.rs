@@ -18,9 +18,10 @@ pub use adt::{
     tagged_value,
 };
 pub use claims::{
-    pattern_adt_op_key, pattern_destructure_op_key, pattern_exhaustive_op_key,
-    pattern_match_op_key, pattern_op_keys, pattern_organ_symbol, pattern_tag_op_key,
-    publish_pattern_organ_claims, publish_pattern_organ_claims_for_lib,
+    pattern_adt_op_key, pattern_declared_op_keys, pattern_destructure_op_key,
+    pattern_exhaustive_op_key, pattern_live_ops, pattern_match_op_key, pattern_op_keys,
+    pattern_organ_symbol, pattern_tag_op_key, publish_pattern_organ_claims,
+    publish_pattern_organ_claims_for_lib,
 };
 pub use match_form::MatchForm;
 pub use matching::{

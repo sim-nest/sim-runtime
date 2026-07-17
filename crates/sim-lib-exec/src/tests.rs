@@ -1,6 +1,8 @@
 use std::{
     fs,
     path::PathBuf,
+    process::Command,
+    thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
@@ -110,6 +112,45 @@ fn timeout_also_bounds_inherited_output_pipes() {
     assert!(started.elapsed() < Duration::from_millis(500));
 }
 
+#[cfg(unix)]
+#[test]
+fn timeout_kills_background_children_in_the_same_process_group() {
+    let pid_dir = temp_dir("timeout-group");
+    let pid_file = pid_dir.join("child.pid");
+
+    let mut cx = bare_cx();
+    cx.grant(exec_capability());
+
+    let err = exec(
+        &mut cx,
+        &argv(&[
+            "env",
+            "sh",
+            "-c",
+            "sleep 5 & echo $! > \"$1\"; wait",
+            "sh",
+            pid_file.to_str().unwrap(),
+        ]),
+        &ExecOptions::new(100, 1_024),
+    )
+    .unwrap_err();
+
+    assert!(matches!(err, Error::HostError(message) if message.contains("timed out")));
+
+    let pid = wait_for_pid(&pid_file);
+    let deadline = Instant::now() + Duration::from_secs(1);
+    while process_is_alive(pid) && Instant::now() < deadline {
+        thread::sleep(Duration::from_millis(10));
+    }
+
+    if process_is_alive(pid) {
+        force_kill(pid);
+        panic!("background child {pid} survived exec timeout");
+    }
+
+    let _ = fs::remove_dir_all(pid_dir);
+}
+
 #[test]
 fn cwd_is_confined_to_root() {
     let root = temp_dir("root");
@@ -173,4 +214,46 @@ fn temp_dir(label: &str) -> PathBuf {
     ));
     fs::create_dir_all(&path).unwrap();
     path
+}
+
+#[cfg(unix)]
+fn wait_for_pid(path: &PathBuf) -> u32 {
+    let deadline = Instant::now() + Duration::from_secs(1);
+    loop {
+        if let Ok(contents) = fs::read_to_string(path) {
+            return contents.trim().parse().unwrap();
+        }
+        if Instant::now() >= deadline {
+            panic!("timed out waiting for pid file {}", path.display());
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+}
+
+#[cfg(unix)]
+fn process_is_alive(pid: u32) -> bool {
+    Command::new("env")
+        .args([
+            "sh",
+            "-c",
+            "kill -0 \"$1\" >/dev/null 2>&1",
+            "sh",
+            &pid.to_string(),
+        ])
+        .status()
+        .unwrap()
+        .success()
+}
+
+#[cfg(unix)]
+fn force_kill(pid: u32) {
+    let _ = Command::new("env")
+        .args([
+            "sh",
+            "-c",
+            "kill -KILL \"$1\" >/dev/null 2>&1 || true",
+            "sh",
+            &pid.to_string(),
+        ])
+        .status();
 }

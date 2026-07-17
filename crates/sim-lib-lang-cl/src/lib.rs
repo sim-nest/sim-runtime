@@ -9,6 +9,7 @@
 mod codec;
 mod conformance;
 mod forms;
+mod lowering;
 mod matrix_row;
 mod profile;
 mod reader;
@@ -18,6 +19,9 @@ mod symbols;
 pub use codec::{ClLiteReaderCodec, ClLiteReaderCodecLib};
 pub use conformance::{run_cl_lite_conformance_case, run_cl_lite_matrix_row};
 pub use forms::{ClLiteFormRole, ClLiteFormSpec, cl_lite_form_specs};
+pub use lowering::{
+    LocatedClLiteExpansion, cl_explicit_hygiene_symbol, expand_cl_lite_expr, expand_cl_lite_tree,
+};
 pub use matrix_row::{cl_lite_matrix_row, cl_lite_source_cases};
 pub use profile::{cl_lite_profile, install_cl_lite_profile};
 pub use reader::{decode_cl_lite_tree, parse_cl_lite_source};
@@ -38,3 +42,6 @@ pub static RECIPES: sim_cookbook::EmbeddedDir =
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod lowering_tests;
