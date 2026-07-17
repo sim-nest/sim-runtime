@@ -1,12 +1,15 @@
 use std::sync::Arc;
 
-use sim_kernel::Symbol;
-use sim_kernel::{ClaimKind, ClaimPattern, Cx, DefaultFactory, Expr, NoopEvalPolicy, Ref};
+use sim_kernel::{
+    ClaimKind, ClaimPattern, Cx, Datum, DatumStore, DefaultFactory, Expr, NoopEvalPolicy, Ref,
+    Symbol,
+};
 
 use crate::{
     ConformanceMatrix, ExprRoundTripCase, ExprRoundTripObservation, LanguageProfile, LanguageRow,
-    LanguageRowBuilder, MatrixRunner, SourceConformanceCase, SourceExpectation, SourceObservation,
-    standard_test_capability, standard_test_case_predicate, standard_test_result_predicate,
+    LanguageRowBuilder, MatrixCellKind, MatrixRunner, SourceConformanceCase,
+    SourceConformanceCaseKind, SourceExpectation, SourceObservation, standard_test_capability,
+    standard_test_case_predicate, standard_test_result_predicate,
 };
 
 #[test]
@@ -106,7 +109,7 @@ fn matrix_runner_single_pass_row_report_is_correct() {
     let mut cx = test_cx();
     let row = row_with_pass_and_gap_cases();
 
-    let report = MatrixRunner::run_row(&mut cx, &row, observation_for_case);
+    let report = MatrixRunner::run_source_row(&mut cx, &row, observation_for_case);
 
     assert_eq!(report.cells.len(), 2);
     assert_eq!(report.pass_count(), 1);
@@ -116,23 +119,86 @@ fn matrix_runner_single_pass_row_report_is_correct() {
 }
 
 #[test]
-fn matrix_runner_publishes_cell_claims() {
+fn matrix_runner_reports_expr_cells_and_descriptor_cells() {
+    let mut cx = test_cx();
+    let mixed_row = row_with_pass_gap_and_expr_cases();
+    let descriptor_row = row_with_descriptor_cases();
+
+    let mixed_report = MatrixRunner::run_row(
+        &mut cx,
+        &mixed_row,
+        observation_for_case,
+        expr_observation_for_case,
+    );
+    let descriptor_report =
+        MatrixRunner::run_source_row(&mut cx, &descriptor_row, observation_for_case);
+
+    assert_eq!(mixed_report.cells.len(), 4);
+    assert_eq!(mixed_report.pass_count(), 2);
+    assert_eq!(mixed_report.gap_count(), 2);
+    assert_eq!(mixed_report.fail_count(), 0);
+    assert!(
+        mixed_report.cells.iter().any(|cell| cell.case_symbol
+            == expr_case_symbol("expr-bool-true")
+            && cell.kind == MatrixCellKind::ExprRoundTrip),
+        "expected expression round-trip cells in the mixed report",
+    );
+
+    assert_eq!(descriptor_report.cells.len(), 2);
+    assert_eq!(descriptor_report.pass_count(), 0);
+    assert_eq!(descriptor_report.gap_count(), 0);
+    assert_eq!(descriptor_report.fail_count(), 0);
+    assert_eq!(
+        descriptor_report.language_fidelity(&Symbol::new("scheme")),
+        None
+    );
+}
+
+#[test]
+fn matrix_runner_publishes_cell_claims_with_kind_and_badge() {
     let mut cx = test_cx();
     cx.grant(standard_test_capability());
-    let row = row_with_pass_and_gap_cases();
-    let report = MatrixRunner::run_row(&mut cx, &row, observation_for_case);
+    let row = row_with_pass_gap_and_expr_cases();
+    let report = MatrixRunner::run_row(
+        &mut cx,
+        &row,
+        observation_for_case,
+        expr_observation_for_case,
+    );
 
     report.publish_claims(&mut cx).unwrap();
 
     let claims = cx
         .query_facts(profile_result_claims(&row.profile.symbol))
         .unwrap();
-    assert_eq!(claims.len(), 2);
+    assert_eq!(claims.len(), 4);
     assert!(
         claims
             .iter()
             .any(|claim| has_case_claim(&cx, &claim.object, pass_case_symbol())),
         "expected a published evidence claim for the passing case"
+    );
+    let expr_evidence = claims
+        .iter()
+        .find(|claim| has_case_claim(&cx, &claim.object, expr_case_symbol("expr-bool-true")))
+        .map(|claim| claim.object.clone())
+        .expect("expected published evidence for expression case");
+    let Ref::Content(evidence_id) = expr_evidence else {
+        panic!("expected content-backed evidence");
+    };
+    let Some(Datum::Node { fields, .. }) = cx.datum_store().get(&evidence_id).unwrap() else {
+        panic!("expected evidence datum node");
+    };
+    assert_eq!(
+        node_field(fields, "cell-kind"),
+        Some(&Datum::Symbol(Symbol::qualified(
+            "standard-test",
+            "expr-round-trip"
+        )))
+    );
+    assert_eq!(
+        node_field(fields, "affects-badge"),
+        Some(&Datum::Symbol(Symbol::qualified("standard", "partial")))
     );
     assert!(claims.iter().all(|claim| claim.kind == ClaimKind::Observed));
 }
@@ -142,7 +208,7 @@ fn matrix_runner_fidelity_is_one_for_all_pass_row() {
     let mut cx = test_cx();
     let row = row_with_cases("scheme", 2);
 
-    let report = MatrixRunner::run_row(&mut cx, &row, observation_for_case);
+    let report = MatrixRunner::run_source_row(&mut cx, &row, observation_for_case);
 
     assert_eq!(report.pass_count(), 2);
     assert_eq!(report.language_fidelity(&Symbol::new("scheme")), Some(1.0));
@@ -153,7 +219,7 @@ fn matrix_runner_fidelity_is_none_for_gap_only_row() {
     let mut cx = test_cx();
     let row = row_with_gap_case();
 
-    let report = MatrixRunner::run_row(&mut cx, &row, observation_for_case);
+    let report = MatrixRunner::run_source_row(&mut cx, &row, observation_for_case);
 
     assert_eq!(report.gap_count(), 1);
     assert_eq!(report.language_fidelity(&Symbol::new("scheme")), None);
@@ -163,7 +229,7 @@ fn matrix_runner_fidelity_is_none_for_gap_only_row() {
 fn conformance_card_fields_one_pass_one_gap_fidelity_is_100_percent() {
     let mut cx = test_cx();
     let row = row_with_pass_and_gap_cases();
-    let report = MatrixRunner::run_row(&mut cx, &row, observation_for_case);
+    let report = MatrixRunner::run_source_row(&mut cx, &row, observation_for_case);
 
     let fields = report
         .conformance_card_fields(&mut cx, &Symbol::new("scheme"))
@@ -202,6 +268,7 @@ fn row_with_cases(language: &str, case_count: usize) -> LanguageRow {
         organ: Symbol::qualified(language, "reader"),
         source_name: format!("{language}-{index}.src"),
         source: "source".to_owned(),
+        kind: SourceConformanceCaseKind::Observed,
         expectation: SourceExpectation::LowersTo("expr".to_owned()),
         affects_badge: None,
     });
@@ -232,14 +299,39 @@ fn row_with_gap_case() -> LanguageRow {
     .build()
 }
 
+fn row_with_pass_gap_and_expr_cases() -> LanguageRow {
+    LanguageRowBuilder::new(
+        Symbol::new("scheme"),
+        LanguageProfile::new(Symbol::qualified("lang", "scheme/v1")),
+    )
+    .with_case(pass_case())
+    .with_case(gap_case())
+    .with_expr_cases(vec![
+        expr_case("expr-bool-true", Some("Expr::Bool(true)")),
+        expr_case("expr-callcc-gap", None),
+    ])
+    .build()
+}
+
+fn row_with_descriptor_cases() -> LanguageRow {
+    LanguageRowBuilder::new(
+        Symbol::new("scheme"),
+        LanguageProfile::new(Symbol::qualified("lang", "scheme/v1")),
+    )
+    .with_case(descriptor_pass_case())
+    .with_case(descriptor_gap_case())
+    .build()
+}
+
 fn pass_case() -> SourceConformanceCase {
     SourceConformanceCase {
         symbol: pass_case_symbol(),
         organ: Symbol::qualified("scheme", "reader"),
         source_name: "pass.scm".to_owned(),
         source: "'answer".to_owned(),
+        kind: SourceConformanceCaseKind::Observed,
         expectation: SourceExpectation::LowersTo("expr".to_owned()),
-        affects_badge: None,
+        affects_badge: Some(Symbol::qualified("standard", "partial")),
     }
 }
 
@@ -249,11 +341,26 @@ fn gap_case() -> SourceConformanceCase {
         organ: Symbol::qualified("scheme", "lowering"),
         source_name: "gap.scm".to_owned(),
         source: "(eval '(+ 1 2))".to_owned(),
+        kind: SourceConformanceCaseKind::Observed,
         expectation: SourceExpectation::ExpectedGap {
             code: gap_code(),
             reason: "declared gap".to_owned(),
         },
         affects_badge: None,
+    }
+}
+
+fn descriptor_pass_case() -> SourceConformanceCase {
+    SourceConformanceCase {
+        kind: SourceConformanceCaseKind::DescriptorOnly,
+        ..pass_case()
+    }
+}
+
+fn descriptor_gap_case() -> SourceConformanceCase {
+    SourceConformanceCase {
+        kind: SourceConformanceCaseKind::DescriptorOnly,
+        ..gap_case()
     }
 }
 
@@ -270,14 +377,31 @@ fn observation_for_case(
     }
 }
 
+fn expr_observation_for_case(
+    _cx: &mut Cx,
+    case: &ExprRoundTripCase,
+) -> sim_kernel::Result<ExprRoundTripObservation> {
+    match &case.expected_display {
+        Some(expected) => Ok(ExprRoundTripObservation::RoundTripped(expected.clone())),
+        None => Ok(ExprRoundTripObservation::Gap(Symbol::qualified(
+            "codec",
+            "declared-gap",
+        ))),
+    }
+}
+
 fn expr_case(name: &str, expected_display: Option<&str>) -> ExprRoundTripCase {
     ExprRoundTripCase {
-        symbol: Symbol::qualified("test/r7rs-small", name),
+        symbol: expr_case_symbol(name),
         language: Symbol::new("scheme"),
         source: "#t".to_owned(),
         expected_display: expected_display.map(str::to_owned),
         affects_badge: Some(Symbol::qualified("standard", "partial")),
     }
+}
+
+fn expr_case_symbol(name: &str) -> Symbol {
+    Symbol::qualified("test/r7rs-small", name)
 }
 
 fn pass_case_symbol() -> Symbol {
@@ -331,6 +455,12 @@ fn field_expr(cx: &mut Cx, fields: &[(Symbol, sim_kernel::Value)], name: &str) -
         .object()
         .as_expr(cx)
         .unwrap()
+}
+
+fn node_field<'a>(fields: &'a [(Symbol, Datum)], name: &str) -> Option<&'a Datum> {
+    fields
+        .iter()
+        .find_map(|(field, value)| (field == &Symbol::new(name)).then_some(value))
 }
 
 fn test_cx() -> Cx {

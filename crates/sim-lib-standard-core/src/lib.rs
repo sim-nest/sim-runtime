@@ -54,8 +54,9 @@ pub use lang_profile::{
 pub use lisp::{lisp_stub_symbols, standard_fidelity_symbol, standard_profile_symbol};
 pub use matrix::{
     ConformanceMatrix, ExprRoundTripCase, ExprRoundTripObservation, LanguageRow,
-    LanguageRowBuilder, MatrixCellResult, MatrixRunReport, MatrixRunner, SourceConformanceCase,
-    SourceExpectation, SourceObservation, compare_source_observation,
+    LanguageRowBuilder, MatrixCellKind, MatrixCellResult, MatrixRunReport, MatrixRunner,
+    SourceConformanceCase, SourceConformanceCaseKind, SourceExpectation, SourceObservation,
+    compare_expr_observation, compare_source_observation,
 };
 pub use polyglot::{
     ProfileFunction, ProfileFunctionBinding, SharedOrganRuntime, profile_function_value,

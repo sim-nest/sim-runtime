@@ -36,6 +36,24 @@ pub enum SourceObservation {
     },
 }
 
+/// Whether a source conformance case is scored or descriptor-only.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SourceConformanceCaseKind {
+    /// A scored case that must be backed by observed runtime behavior.
+    Observed,
+    /// A descriptor-only case that remains visible but does not affect scoring.
+    DescriptorOnly,
+}
+
+impl SourceConformanceCaseKind {
+    fn cell_kind(self) -> MatrixCellKind {
+        match self {
+            Self::Observed => MatrixCellKind::SourceObserved,
+            Self::DescriptorOnly => MatrixCellKind::DescriptorOnly,
+        }
+    }
+}
+
 /// One source-language conformance case.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SourceConformanceCase {
@@ -47,6 +65,8 @@ pub struct SourceConformanceCase {
     pub source_name: String,
     /// Source text.
     pub source: String,
+    /// Whether this case is scored or descriptor-only.
+    pub kind: SourceConformanceCaseKind,
     /// Expected result.
     pub expectation: SourceExpectation,
     /// Fidelity badge affected by this case, if any.
@@ -56,8 +76,8 @@ pub struct SourceConformanceCase {
 /// Codec-faithful source case that decodes to the shared `Expr` graph.
 ///
 /// The case records source text plus the canonical display expected from the
-/// decoded expression. A missing expected display means successful decoding is
-/// enough; a language-specific decoder returns `Ok(None)` for an explicit gap.
+/// decoded expression. A missing expected display marks an explicit gap case;
+/// a language-specific decoder returns `Ok(None)` when that gap is observed.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ExprRoundTripCase {
     /// Stable symbol identifying this case.
@@ -225,6 +245,35 @@ impl LanguageRowBuilder {
     }
 }
 
+/// Published kind for one matrix result cell.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MatrixCellKind {
+    /// A scored source case backed by observed runtime behavior.
+    SourceObserved,
+    /// A descriptor-only source case that remains visible but unscored.
+    DescriptorOnly,
+    /// A scored expression round-trip case.
+    ExprRoundTrip,
+    /// A generated coverage report published through the matrix claim surface.
+    GeneratedCoverage,
+}
+
+impl MatrixCellKind {
+    /// Symbol stored in published evidence for this cell kind.
+    pub fn symbol(self) -> Symbol {
+        match self {
+            Self::SourceObserved => Symbol::qualified("standard-test", "source-observed"),
+            Self::DescriptorOnly => Symbol::qualified("standard-test", "descriptor-only"),
+            Self::ExprRoundTrip => Symbol::qualified("standard-test", "expr-round-trip"),
+            Self::GeneratedCoverage => Symbol::qualified("standard-test", "generated-coverage"),
+        }
+    }
+
+    fn is_scored(self) -> bool {
+        matches!(self, Self::SourceObserved | Self::ExprRoundTrip)
+    }
+}
+
 /// Outcome for a single language/case cell in a matrix run.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MatrixCellResult {
@@ -236,8 +285,18 @@ pub struct MatrixCellResult {
     pub organ: Symbol,
     /// Stable case symbol.
     pub case_symbol: Symbol,
+    /// Kind of evidence this cell contributes.
+    pub kind: MatrixCellKind,
+    /// Fidelity badge affected by this cell, if any.
+    pub affects_badge: Option<Symbol>,
     /// Compared conformance outcome.
     pub outcome: ConformanceOutcome,
+}
+
+impl MatrixCellResult {
+    fn is_scored(&self) -> bool {
+        self.kind.is_scored()
+    }
 }
 
 /// Accumulated results for one matrix run.
@@ -256,7 +315,7 @@ impl MatrixRunReport {
     pub fn pass_count(&self) -> usize {
         self.cells
             .iter()
-            .filter(|cell| cell.outcome.is_pass())
+            .filter(|cell| cell.is_scored() && cell.outcome.is_pass())
             .count()
     }
 
@@ -264,7 +323,7 @@ impl MatrixRunReport {
     pub fn gap_count(&self) -> usize {
         self.cells
             .iter()
-            .filter(|cell| cell.outcome.is_gap())
+            .filter(|cell| cell.is_scored() && cell.outcome.is_gap())
             .count()
     }
 
@@ -272,7 +331,7 @@ impl MatrixRunReport {
     pub fn fail_count(&self) -> usize {
         self.cells
             .iter()
-            .filter(|cell| cell.outcome.is_fail())
+            .filter(|cell| cell.is_scored() && cell.outcome.is_fail())
             .count()
     }
 
@@ -282,12 +341,12 @@ impl MatrixRunReport {
         let pass = self
             .cells
             .iter()
-            .filter(|cell| &cell.language == language && cell.outcome.is_pass())
+            .filter(|cell| &cell.language == language && cell.is_scored() && cell.outcome.is_pass())
             .count();
         let fail = self
             .cells
             .iter()
-            .filter(|cell| &cell.language == language && cell.outcome.is_fail())
+            .filter(|cell| &cell.language == language && cell.is_scored() && cell.outcome.is_fail())
             .count();
         if pass + fail == 0 {
             None
@@ -336,7 +395,7 @@ impl MatrixRunReport {
     ) -> usize {
         self.cells
             .iter()
-            .filter(|cell| &cell.language == language && matches(&cell.outcome))
+            .filter(|cell| &cell.language == language && cell.is_scored() && matches(&cell.outcome))
             .count()
     }
 }
@@ -350,14 +409,31 @@ impl MatrixRunReport {
 pub struct MatrixRunner;
 
 impl MatrixRunner {
-    /// Runs a single language row, using `run_case` to execute each source case.
-    pub fn run_row<F>(cx: &mut Cx, row: &LanguageRow, run_case: F) -> MatrixRunReport
+    /// Runs a single language row that has source cases only.
+    pub fn run_source_row<F>(cx: &mut Cx, row: &LanguageRow, run_case: F) -> MatrixRunReport
     where
         F: Fn(&mut Cx, &SourceConformanceCase) -> Result<SourceObservation>,
     {
-        let mut cells = Vec::with_capacity(row.cases.len());
+        Self::run_row(cx, row, run_case, |_cx, _case| {
+            panic!("source-only row attempted to execute expression cases")
+        })
+    }
+
+    /// Runs a single language row, using caller-supplied closures for both
+    /// source cases and expression round-trip cases.
+    pub fn run_row<F, G>(
+        cx: &mut Cx,
+        row: &LanguageRow,
+        run_source_case: F,
+        run_expr_case: G,
+    ) -> MatrixRunReport
+    where
+        F: Fn(&mut Cx, &SourceConformanceCase) -> Result<SourceObservation>,
+        G: Fn(&mut Cx, &ExprRoundTripCase) -> Result<ExprRoundTripObservation>,
+    {
+        let mut cells = Vec::with_capacity(row.cases.len() + row.expr_cases.len());
         for case in &row.cases {
-            let outcome = match run_case(cx, case) {
+            let outcome = match run_source_case(cx, case) {
                 Ok(observation) => compare_source_observation(case, observation),
                 Err(err) => ConformanceOutcome::fail_with(err.to_string()),
             };
@@ -366,6 +442,23 @@ impl MatrixRunner {
                 profile: row.profile.symbol.clone(),
                 organ: case.organ.clone(),
                 case_symbol: case.symbol.clone(),
+                kind: case.kind.cell_kind(),
+                affects_badge: case.affects_badge.clone(),
+                outcome,
+            });
+        }
+        for case in &row.expr_cases {
+            let outcome = match run_expr_case(cx, case) {
+                Ok(observation) => compare_expr_observation(case, observation),
+                Err(err) => ConformanceOutcome::fail_with(err.to_string()),
+            };
+            cells.push(MatrixCellResult {
+                language: row.language.clone(),
+                profile: row.profile.symbol.clone(),
+                organ: expr_round_trip_organ(&row.language),
+                case_symbol: case.symbol.clone(),
+                kind: MatrixCellKind::ExprRoundTrip,
+                affects_badge: case.affects_badge.clone(),
                 outcome,
             });
         }
@@ -406,6 +499,35 @@ pub fn compare_source_observation(
         }
         (SourceExpectation::LowersTo(expected), SourceObservation::Gap { code, reason }) => {
             ConformanceOutcome::fail(format!("expected {expected}, got gap {code}: {reason}"))
+        }
+    }
+}
+
+/// Compares an expression round-trip observation against its expected result.
+pub fn compare_expr_observation(
+    case: &ExprRoundTripCase,
+    observation: ExprRoundTripObservation,
+) -> ConformanceOutcome {
+    match (&case.expected_display, observation) {
+        (Some(_), ExprRoundTripObservation::RoundTripped(_)) => ConformanceOutcome::pass(),
+        (Some(_), ExprRoundTripObservation::Mismatch { expected, got }) => {
+            ConformanceOutcome::fail(format!("expected {expected}, got {got}"))
+        }
+        (Some(expected), ExprRoundTripObservation::Diagnostic(code)) => {
+            ConformanceOutcome::fail(format!("expected {expected}, got diagnostic {code}"))
+        }
+        (Some(expected), ExprRoundTripObservation::Gap(code)) => {
+            ConformanceOutcome::fail(format!("expected {expected}, got gap {code}"))
+        }
+        (None, ExprRoundTripObservation::Gap(code)) => ConformanceOutcome::gap(code.to_string()),
+        (None, ExprRoundTripObservation::RoundTripped(got)) => {
+            ConformanceOutcome::fail(format!("expected declared gap, got {got}"))
+        }
+        (None, ExprRoundTripObservation::Diagnostic(code)) => {
+            ConformanceOutcome::fail(format!("expected declared gap, got diagnostic {code}"))
+        }
+        (None, ExprRoundTripObservation::Mismatch { expected, got }) => {
+            ConformanceOutcome::fail(format!("expected declared gap, got {expected} -> {got}"))
         }
     }
 }
@@ -467,6 +589,10 @@ impl ConformanceMatrix {
 
 fn expr_display(expr: &Expr) -> String {
     format!("Expr::{expr:?}")
+}
+
+fn expr_round_trip_organ(language: &Symbol) -> Symbol {
+    Symbol::qualified(language.as_qualified_str(), "expr-round-trip")
 }
 
 fn diagnostic_slug(err: &Error) -> &'static str {

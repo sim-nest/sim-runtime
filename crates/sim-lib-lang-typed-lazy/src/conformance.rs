@@ -24,7 +24,7 @@ pub fn run_typed_lazy_conformance_case(
 /// Runs the typed-lazy matrix row and publishes claim-backed cells.
 pub fn run_typed_lazy_matrix_row(cx: &mut Cx) -> Result<MatrixRunReport> {
     let row = typed_lazy_matrix_row();
-    let report = MatrixRunner::run_row(cx, &row, run_typed_lazy_conformance_case);
+    let report = MatrixRunner::run_source_row(cx, &row, run_typed_lazy_conformance_case);
     report.publish_claims(cx)?;
     Ok(report)
 }
@@ -72,8 +72,9 @@ mod tests {
         let report = run_typed_lazy_matrix_row(&mut cx).unwrap();
 
         assert_eq!(report.cells.len(), 2);
-        assert_eq!(report.pass_count(), 1);
-        assert_eq!(report.gap_count(), 1);
+        assert_eq!(report.pass_count(), 0);
+        assert_eq!(report.gap_count(), 0);
         assert_eq!(report.fail_count(), 0);
+        assert_eq!(report.language_fidelity(&Symbol::new("typed-lazy")), None);
     }
 }

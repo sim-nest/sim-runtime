@@ -211,13 +211,27 @@ fn scheme_matrix_row_publishes_cell_claims() {
 
     let report = run_scheme_matrix_row(&mut cx).unwrap();
 
-    assert_eq!(report.cells.len(), 2);
-    assert_eq!(report.pass_count(), 1);
-    assert_eq!(report.gap_count(), 1);
+    assert_eq!(report.cells.len(), 4);
+    assert_eq!(report.pass_count(), 2);
+    assert_eq!(report.gap_count(), 2);
     assert_eq!(report.fail_count(), 0);
     assert_eq!(report.language_fidelity(&Symbol::new("scheme")), Some(1.0));
+    assert!(
+        report.cells.iter().any(|cell| {
+            cell.case_symbol == Symbol::qualified("test/r7rs-small", "eval-gap")
+                && cell.outcome.is_gap()
+        }),
+        "expected observed source gap cell",
+    );
+    assert!(
+        report.cells.iter().any(|cell| {
+            cell.case_symbol == Symbol::qualified("test/r7rs-small", "expr-callcc-gap")
+                && cell.outcome.is_gap()
+        }),
+        "expected observed expression gap cell",
+    );
     let claims = cx.query_facts(scheme_profile_result_claims()).unwrap();
-    assert_eq!(claims.len(), 2);
+    assert_eq!(claims.len(), 4);
 }
 
 #[test]
@@ -244,15 +258,15 @@ fn scheme_card_with_capability_emits_fidelity() {
     let card = scheme_language_card(&mut cx).unwrap();
     let expr = card.object().as_expr(&mut cx).unwrap();
 
-    assert_eq!(number_table_value(&expr, "conformance.pass"), Some("1"));
-    assert_eq!(number_table_value(&expr, "conformance.gap"), Some("1"));
+    assert_eq!(number_table_value(&expr, "conformance.pass"), Some("2"));
+    assert_eq!(number_table_value(&expr, "conformance.gap"), Some("2"));
     assert_eq!(number_table_value(&expr, "conformance.fail"), Some("0"));
     assert_eq!(
         table_value(&expr, "conformance.fidelity"),
         Some(&Expr::String("100%".to_owned()))
     );
     let claims = cx.query_facts(scheme_profile_result_claims()).unwrap();
-    assert_eq!(claims.len(), 2);
+    assert_eq!(claims.len(), 4);
 }
 
 #[test]

@@ -3,8 +3,8 @@
 use sim_codec::{Input, decode_with_codec};
 use sim_kernel::{Cx, Expr, ReadPolicy, Symbol};
 use sim_lib_standard_core::{
-    ExprRoundTripCase, ExprRoundTripObservation, LanguageProfile, LanguageRowBuilder, MatrixRunner,
-    SourceObservation,
+    ExprRoundTripCase, ExprRoundTripObservation, LanguageProfile, LanguageRowBuilder,
+    MatrixRunReport, MatrixRunner,
 };
 
 use crate::property::{check_round_trip, generated_expr_cases};
@@ -15,6 +15,8 @@ use crate::space::ExprSpace;
 pub struct GeneratedCoverageReport {
     /// Language row measured by this report.
     pub language: Symbol,
+    /// Per-case matrix evidence for the generated expression run.
+    pub matrix_report: MatrixRunReport,
     /// Number of generated cases sampled.
     pub sampled: usize,
     /// Number of sampled cases that round-tripped.
@@ -80,10 +82,13 @@ pub fn run_generated_row(
     )
     .with_expr_cases(generated_cases)
     .build();
-    let matrix_report = MatrixRunner::run_row(cx, &row, |_cx, _case| {
-        Ok(SourceObservation::LowersTo(String::new()))
-    });
-    debug_assert!(matrix_report.cells.is_empty());
+    let matrix_report = MatrixRunner::run_row(
+        cx,
+        &row,
+        |_cx, _case| panic!("generated coverage rows do not register source cases"),
+        |cx, case| Ok(run_expr_case(cx, codec, case)),
+    );
+    debug_assert_eq!(matrix_report.cells.len(), row.expr_cases.len());
 
     let mut round_tripped = 0;
     let mut mismatched = 0;
@@ -100,6 +105,7 @@ pub fn run_generated_row(
 
     GeneratedCoverageReport {
         language: language.clone(),
+        matrix_report,
         sampled: row.expr_cases.len(),
         round_tripped,
         mismatched,
@@ -215,6 +221,7 @@ mod tests {
 
         assert_eq!(first, second);
         assert_eq!(first.language, language);
+        assert_eq!(first.matrix_report.cells.len(), first.sampled);
         assert_eq!(first.sampled, 8);
         assert_eq!(first.round_tripped, 0);
         assert_eq!(first.mismatched, 0);
@@ -246,6 +253,7 @@ mod tests {
     fn coverage_ratio_is_round_tripped_over_sampled_after_landmarks() {
         let report = GeneratedCoverageReport {
             language: Symbol::new("scheme"),
+            matrix_report: MatrixRunReport { cells: Vec::new() },
             sampled: 4,
             round_tripped: 3,
             mismatched: 1,

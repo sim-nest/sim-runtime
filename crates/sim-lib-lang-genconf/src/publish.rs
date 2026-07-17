@@ -1,7 +1,9 @@
 //! Publication helpers for generated coverage evidence.
 
 use sim_kernel::{Cx, Result, Symbol, Value};
-use sim_lib_standard_core::{ConformanceOutcome, MatrixCellResult, MatrixRunReport};
+use sim_lib_standard_core::{
+    ConformanceOutcome, MatrixCellKind, MatrixCellResult, MatrixRunReport,
+};
 
 use crate::{CoverageVerdict, GeneratedCoverageReport};
 
@@ -64,6 +66,8 @@ pub fn publish_coverage_claims(
             profile: generated_coverage_profile_symbol(&report.language),
             organ: generated_coverage_organ_symbol(),
             case_symbol: generated_coverage_case_symbol(&report.language),
+            kind: MatrixCellKind::GeneratedCoverage,
+            affects_badge: None,
             outcome,
         }],
     }
@@ -103,7 +107,8 @@ mod tests {
     use std::sync::Arc;
 
     use sim_kernel::{
-        ClaimKind, ClaimPattern, Cx, DefaultFactory, Expr, NoopEvalPolicy, Ref, Symbol,
+        ClaimKind, ClaimPattern, Cx, Datum, DatumStore, DefaultFactory, Expr, NoopEvalPolicy, Ref,
+        Symbol,
     };
     use sim_lib_standard_core::{
         MatrixRunReport, standard_test_capability, standard_test_case_predicate,
@@ -182,11 +187,25 @@ mod tests {
             &claims[0].object,
             generated_coverage_case_symbol(&report.language)
         ));
+        let Ref::Content(evidence_id) = claims[0].object.clone() else {
+            panic!("expected content-backed evidence");
+        };
+        let Some(Datum::Node { fields, .. }) = cx.datum_store().get(&evidence_id).unwrap() else {
+            panic!("expected evidence datum node");
+        };
+        assert_eq!(
+            node_field(fields, "cell-kind"),
+            Some(&Datum::Symbol(Symbol::qualified(
+                "standard-test",
+                "generated-coverage",
+            )))
+        );
     }
 
     fn anchored_report() -> GeneratedCoverageReport {
         GeneratedCoverageReport {
             language: Symbol::new("scheme"),
+            matrix_report: MatrixRunReport { cells: Vec::new() },
             sampled: 4,
             round_tripped: 3,
             mismatched: 1,
@@ -254,6 +273,12 @@ mod tests {
             .object()
             .as_expr(cx)
             .unwrap()
+    }
+
+    fn node_field<'a>(fields: &'a [(Symbol, Datum)], name: &str) -> Option<&'a Datum> {
+        fields
+            .iter()
+            .find_map(|(field, value)| (field == &Symbol::new(name)).then_some(value))
     }
 
     fn test_cx() -> Cx {
