@@ -10,6 +10,7 @@ mod card;
 mod conformance;
 mod conformance_all_solutions;
 mod exports;
+#[cfg(feature = "generated-coverage")]
 mod generated_coverage;
 mod matrix_row;
 mod profile;
@@ -19,6 +20,7 @@ mod symbols;
 pub use card::prolog_language_card;
 pub use conformance::{run_prolog_conformance_case, run_prolog_matrix_row};
 pub use exports::prolog_exports;
+#[cfg(feature = "generated-coverage")]
 pub use generated_coverage::{PrologGeneratedCoverage, run_prolog_generated_coverage};
 pub use matrix_row::{prolog_conformance_cases, prolog_matrix_row};
 pub use profile::{install_prolog_profile, prolog_profile};

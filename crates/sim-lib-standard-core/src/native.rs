@@ -10,6 +10,45 @@ use sim_kernel::{
 
 struct NativeStandardCore;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum NativeProofExportKind {
+    Class,
+    Function,
+    Macro,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct NativeProofDispatchContract {
+    kind: NativeProofExportKind,
+    export_symbol: &'static str,
+    call_op: &'static str,
+}
+
+const NATIVE_PROOF_MANIFEST_ID: &str = "standard/core-native-proof";
+const NATIVE_PROOF_BOX_SYMBOL: &str = "standard/proof-box";
+const NATIVE_PROOF_BOX_VALUE_SYMBOL: &str = "standard/proof-box/value";
+const NATIVE_PROOF_QUOTE_SYMBOL: &str = "standard/proof-quote";
+const NATIVE_PROOF_BOX_NEW_OP: &str = "standard/proof-box/new";
+const NATIVE_PROOF_QUOTE_EXPAND_OP: &str = "standard/proof-quote/expand";
+
+const NATIVE_PROOF_DISPATCH_CONTRACTS: &[NativeProofDispatchContract] = &[
+    NativeProofDispatchContract {
+        kind: NativeProofExportKind::Class,
+        export_symbol: NATIVE_PROOF_BOX_SYMBOL,
+        call_op: NATIVE_PROOF_BOX_NEW_OP,
+    },
+    NativeProofDispatchContract {
+        kind: NativeProofExportKind::Function,
+        export_symbol: NATIVE_PROOF_BOX_VALUE_SYMBOL,
+        call_op: NATIVE_PROOF_BOX_VALUE_SYMBOL,
+    },
+    NativeProofDispatchContract {
+        kind: NativeProofExportKind::Macro,
+        export_symbol: NATIVE_PROOF_QUOTE_SYMBOL,
+        call_op: NATIVE_PROOF_QUOTE_EXPAND_OP,
+    },
+];
+
 #[allow(unsafe_code)]
 unsafe extern "C" fn instantiate() -> *mut c_void {
     Box::into_raw(Box::new(NativeStandardCore)).cast::<c_void>()
@@ -105,38 +144,45 @@ pub extern "C" fn sim_native_abi_v1() -> *const NativeLibAbiV1 {
 
 fn native_manifest() -> LibManifest {
     LibManifest {
-        id: Symbol::qualified("standard", "core-native-proof"),
+        id: native_symbol(NATIVE_PROOF_MANIFEST_ID),
         version: Version(env!("CARGO_PKG_VERSION").to_owned()),
         abi: AbiVersion { major: 0, minor: 1 },
         target: LibTarget::HostRegistered,
         requires: Vec::new(),
         capabilities: Vec::new(),
-        exports: vec![
-            Export::Class {
-                symbol: proof_box_symbol(),
-                class_id: None,
-            },
-            Export::Function {
-                symbol: Symbol::qualified("standard/proof-box", "value"),
-                function_id: None,
-            },
-            Export::Macro {
-                symbol: proof_quote_symbol(),
-                macro_id: None,
-            },
-        ],
+        exports: native_manifest_exports(),
     }
 }
 
 fn call_expr(function: &str, expr: Expr) -> Result<Expr> {
     match function {
-        "standard/proof-box/new" => proof_box_new(expr),
-        "standard/proof-box/value" | "standard/proof-box.value" => proof_box_value(expr),
-        "standard/proof-quote/expand" => proof_quote_expand(expr),
+        NATIVE_PROOF_BOX_NEW_OP => proof_box_new(expr),
+        NATIVE_PROOF_BOX_VALUE_SYMBOL => proof_box_value(expr),
+        NATIVE_PROOF_QUOTE_EXPAND_OP => proof_quote_expand(expr),
         _ => Err(sim_kernel::Error::UnknownFunction {
-            function: Symbol::new(function),
+            function: native_symbol(function),
         }),
     }
+}
+
+fn native_manifest_exports() -> Vec<Export> {
+    NATIVE_PROOF_DISPATCH_CONTRACTS
+        .iter()
+        .map(|contract| match contract.kind {
+            NativeProofExportKind::Class => Export::Class {
+                symbol: native_symbol(contract.export_symbol),
+                class_id: None,
+            },
+            NativeProofExportKind::Function => Export::Function {
+                symbol: native_symbol(contract.export_symbol),
+                function_id: None,
+            },
+            NativeProofExportKind::Macro => Export::Macro {
+                symbol: native_symbol(contract.export_symbol),
+                macro_id: None,
+            },
+        })
+        .collect()
 }
 
 fn proof_box_new(expr: Expr) -> Result<Expr> {
@@ -294,21 +340,8 @@ fn manifest_to_expr(manifest: &LibManifest) -> Expr {
                     .exports
                     .iter()
                     .map(|export| {
-                        let (kind, symbol) = match export {
-                            Export::Class { symbol, .. } => ("class".to_owned(), symbol),
-                            Export::Function { symbol, .. } => ("function".to_owned(), symbol),
-                            Export::Macro { symbol, .. } => ("macro".to_owned(), symbol),
-                            Export::Shape { symbol, .. } => ("shape".to_owned(), symbol),
-                            Export::Codec { symbol, .. } => ("codec".to_owned(), symbol),
-                            Export::NumberDomain { symbol, .. } => {
-                                ("number-domain".to_owned(), symbol)
-                            }
-                            Export::Site { symbol, .. } => ("site".to_owned(), symbol),
-                            Export::Value { symbol } => ("value".to_owned(), symbol),
-                            Export::Open { kind, symbol } => {
-                                (kind.symbol().as_qualified_str(), symbol)
-                            }
-                        };
+                        let kind = export.kind_symbol().symbol().as_qualified_str();
+                        let symbol = export.symbol();
                         Expr::Map(vec![
                             symbol_entry("kind", Expr::String(kind)),
                             symbol_entry("symbol", Expr::Symbol(symbol.clone())),
@@ -332,11 +365,18 @@ fn number_expr(value: impl ToString) -> Expr {
 }
 
 fn proof_box_symbol() -> Symbol {
-    Symbol::qualified("standard", "proof-box")
+    native_symbol(NATIVE_PROOF_BOX_SYMBOL)
 }
 
 fn proof_quote_symbol() -> Symbol {
-    Symbol::qualified("standard", "proof-quote")
+    native_symbol(NATIVE_PROOF_QUOTE_SYMBOL)
+}
+
+fn native_symbol(raw: &str) -> Symbol {
+    match raw.rsplit_once('/') {
+        Some((namespace, name)) => Symbol::qualified(namespace, name),
+        None => Symbol::new(raw),
+    }
 }
 
 fn success_expr(expr: &Expr) -> NativeAbiCallResponse {
@@ -348,4 +388,115 @@ fn success_expr(expr: &Expr) -> NativeAbiCallResponse {
 
 fn failure(message: impl Into<String>) -> NativeAbiCallResponse {
     NativeAbiCallResponse::failure(NativeAbiError::boxed(message))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use super::*;
+
+    fn export_kind(export: &Export) -> NativeProofExportKind {
+        match export {
+            Export::Class { .. } => NativeProofExportKind::Class,
+            Export::Function { .. } => NativeProofExportKind::Function,
+            Export::Macro { .. } => NativeProofExportKind::Macro,
+            other => panic!("unexpected native proof export kind: {:?}", other.kind()),
+        }
+    }
+
+    fn export_symbol(export: &Export) -> &Symbol {
+        match export {
+            Export::Class { symbol, .. }
+            | Export::Function { symbol, .. }
+            | Export::Macro { symbol, .. } => symbol,
+            other => panic!("unexpected native proof export symbol: {:?}", other.kind()),
+        }
+    }
+
+    #[test]
+    fn native_manifest_exports_match_dispatch_contracts() {
+        let manifest = native_manifest();
+
+        assert_eq!(manifest.id, native_symbol(NATIVE_PROOF_MANIFEST_ID));
+        assert_eq!(
+            manifest.exports.len(),
+            NATIVE_PROOF_DISPATCH_CONTRACTS.len()
+        );
+        for contract in NATIVE_PROOF_DISPATCH_CONTRACTS {
+            assert!(
+                manifest.exports.iter().any(|export| {
+                    export_kind(export) == contract.kind
+                        && export_symbol(export) == &native_symbol(contract.export_symbol)
+                }),
+                "missing {:?} export {}",
+                contract.kind,
+                contract.export_symbol
+            );
+        }
+    }
+
+    #[test]
+    fn native_dispatch_contracts_are_callable() {
+        for contract in NATIVE_PROOF_DISPATCH_CONTRACTS {
+            let result = match contract.kind {
+                NativeProofExportKind::Class => {
+                    call_expr(contract.call_op, Expr::List(vec![Expr::Bool(true)])).unwrap()
+                }
+                NativeProofExportKind::Function => call_expr(
+                    contract.call_op,
+                    Expr::List(vec![proof_box_expr(Expr::String("value".to_owned()))]),
+                )
+                .unwrap(),
+                NativeProofExportKind::Macro => call_expr(
+                    contract.call_op,
+                    Expr::List(vec![
+                        Expr::Symbol(native_symbol(contract.export_symbol)),
+                        Expr::String("quoted".to_owned()),
+                    ]),
+                )
+                .unwrap(),
+            };
+
+            match contract.kind {
+                NativeProofExportKind::Class => {
+                    assert_eq!(
+                        proof_box_field(&result, &Symbol::new("value")).unwrap(),
+                        Expr::Bool(true)
+                    );
+                }
+                NativeProofExportKind::Function => {
+                    assert_eq!(result, Expr::String("value".to_owned()));
+                }
+                NativeProofExportKind::Macro => {
+                    assert_eq!(result, Expr::String("quoted".to_owned()));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn native_call_ops_stay_aligned_with_exported_symbols() {
+        let exported: BTreeSet<_> = native_manifest()
+            .exports
+            .iter()
+            .map(|export| export_symbol(export).as_qualified_str())
+            .collect();
+
+        assert!(exported.contains(NATIVE_PROOF_BOX_SYMBOL));
+        assert!(exported.contains(NATIVE_PROOF_BOX_VALUE_SYMBOL));
+        assert!(exported.contains(NATIVE_PROOF_QUOTE_SYMBOL));
+        assert_eq!(
+            NATIVE_PROOF_BOX_NEW_OP,
+            format!("{NATIVE_PROOF_BOX_SYMBOL}/new")
+        );
+        assert_eq!(
+            NATIVE_PROOF_BOX_VALUE_SYMBOL,
+            native_symbol(NATIVE_PROOF_BOX_VALUE_SYMBOL).as_qualified_str()
+        );
+        assert_eq!(
+            NATIVE_PROOF_QUOTE_EXPAND_OP,
+            format!("{NATIVE_PROOF_QUOTE_SYMBOL}/expand")
+        );
+    }
 }

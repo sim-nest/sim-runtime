@@ -62,7 +62,20 @@
       "package": "sim-lib-lang-matrix"
     },
     {
-      "features": [],
+      "features": [
+        {
+          "edges": [
+            "dep:sim-lib-lang-genconf"
+          ],
+          "name": "generated-coverage",
+          "workspace_edges": [
+            {
+              "feature": null,
+              "package": "sim-lib-lang-genconf"
+            }
+          ]
+        }
+      ],
       "group": "workspace",
       "package": "sim-lib-lang-prolog"
     },

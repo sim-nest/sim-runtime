@@ -7,10 +7,10 @@ use sim_kernel::{
 use sim_lib_logic::builtins::{BuiltinTable, tabling_memo_binding};
 use sim_lib_standard_core::{MatrixRunReport, standard_test_capability};
 
-use crate::{
-    generated_coverage::prolog_generated_coverage_card_fields, prolog_profile_symbol,
-    run_prolog_matrix_row,
-};
+use crate::{prolog_profile_symbol, run_prolog_matrix_row};
+
+#[cfg(feature = "generated-coverage")]
+use crate::generated_coverage::prolog_generated_coverage_card_fields;
 
 /// Builds the Prolog profile Card with browseable conformance fields.
 ///
@@ -76,9 +76,12 @@ fn prolog_conformance_fields(cx: &mut Cx, language: &Symbol) -> Result<Vec<(Symb
 }
 
 fn prolog_generated_coverage_fields(cx: &mut Cx) -> Result<Vec<(Symbol, Value)>> {
+    #[cfg(feature = "generated-coverage")]
     if cx.require(&standard_test_capability()).is_ok() {
         return prolog_generated_coverage_card_fields(cx);
     }
+    #[cfg(not(feature = "generated-coverage"))]
+    let _ = cx;
     Ok(Vec::new())
 }
 
@@ -132,14 +135,8 @@ mod tests {
             table_value(&expr, "builtin.tabling.path.organ"),
             Some(&Expr::Symbol(Symbol::new("sequence")))
         );
-        assert_ne!(
-            table_value(&expr, "coverage.generated.percent"),
-            Some(&Expr::String("unanchored".to_owned()))
-        );
-        assert_eq!(
-            table_value(&expr, "coverage.generated.citation"),
-            Some(&Expr::String("expr-space/core".to_owned()))
-        );
+        assert_eq!(table_value(&expr, "coverage.generated.percent"), None);
+        assert_eq!(table_value(&expr, "coverage.generated.citation"), None);
     }
 
     fn table_value<'a>(expr: &'a Expr, key: &str) -> Option<&'a Expr> {

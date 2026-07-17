@@ -9,13 +9,16 @@ publish = true
 repository = "https://github.com/sim-nest/sim-runtime"
 homepage = "https://github.com/sim-nest/sim-runtime"
 
+[features]
+generated-coverage = ["dep:sim-lib-lang-genconf"]
+
 [dependencies]
 sim-codec = { version = "0.1.0" }
 sim-codec-lisp = { version = "0.1.0" }
 sim-kernel = { version = "0.1.0" }
 sim-lib-control = { version = "0.1.0", path = "../sim-lib-control" }
 sim-lib-core = { version = "0.1.0", path = "../sim-lib-core" }
-sim-lib-lang-genconf = { version = "0.1.0", path = "../sim-lib-lang-genconf" }
+sim-lib-lang-genconf = { version = "0.1.0", path = "../sim-lib-lang-genconf", optional = true }
 sim-lib-logic = { version = "0.1.0", path = "../sim-lib-logic" }
 sim-lib-numbers-arith = { version = "0.1.0" }
 sim-lib-numbers-f64 = { version = "0.1.0" }
