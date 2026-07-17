@@ -43,7 +43,7 @@ pub fn unify_exprs(
     right: &Expr,
 ) -> Result<ShapeMatch> {
     let mut env = LogicEnv::new();
-    let accepted = env.unify(left, right, occurs_check(config))?;
+    let accepted = env.unify(cx, left, right, occurs_check(config))?;
     if accepted {
         env.as_shape_match(cx)
     } else {

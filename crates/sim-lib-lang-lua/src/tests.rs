@@ -84,9 +84,8 @@ fn lua_profile_publishes_honest_fidelity() {
     );
     assert!(
         profile
-            .organs
-            .iter()
-            .any(|organ| organ.organ == sim_lib_mutation::mutation_organ_symbol())
+            .backing_requirements
+            .contains(&Symbol::qualified("sim", "mutation"))
     );
     assert!(registry.profile(&profile.symbol).is_some());
     let result = sim_kernel::control::aborted_control_result(

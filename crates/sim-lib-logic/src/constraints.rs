@@ -15,7 +15,7 @@ pub(crate) fn solve_constraint(
 ) -> Result<Vec<LogicEnv>> {
     match key.name.as_ref() {
         "#=" | "#<" | "dif" => constraint_through_ledger(cx, key, args, env),
-        "=" => solve_eq(config, args, env),
+        "=" => solve_eq(cx, config, args, env),
         "<" => solve_compare("<", args, env),
         "<=" => solve_compare("<=", args, env),
         ">" => solve_compare(">", args, env),
@@ -116,12 +116,17 @@ fn constraint_verdict(demand: &ConstraintDemand) -> Result<ConstraintVerdict> {
     }
 }
 
-fn solve_eq(config: &LogicConfig, args: &[Expr], env: &LogicEnv) -> Result<Vec<LogicEnv>> {
+fn solve_eq(
+    cx: &mut Cx,
+    config: &LogicConfig,
+    args: &[Expr],
+    env: &LogicEnv,
+) -> Result<Vec<LogicEnv>> {
     let [left, right] = args else {
         return Err(logic_eval_error("= expects two arguments"));
     };
     let mut next = env.clone();
-    if next.unify(left, right, occurs_check(config))? {
+    if next.unify(cx, left, right, occurs_check(config))? {
         Ok(vec![next])
     } else {
         Ok(Vec::new())
@@ -299,7 +304,7 @@ fn solve_tool_call(
     let result = cx.call_exprs(tool_value, tool_args)?;
     let result = result.object().as_expr(cx)?;
     let mut next = env.clone();
-    if next.unify(result_expr, &result, occurs_check(config))? {
+    if next.unify(cx, result_expr, &result, occurs_check(config))? {
         Ok(vec![next])
     } else {
         Ok(Vec::new())

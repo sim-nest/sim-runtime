@@ -1,6 +1,7 @@
 use sim_kernel::{Cx, Result, Symbol};
 use sim_lib_standard_core::{
-    LanguageProfile, OrganUse, ProfileRegistry, fidelity_badge, install_language_profile,
+    LanguageProfile, OrganUse, ProfileBackingLib, ProfileRegistry, fidelity_badge,
+    install_language_profile,
 };
 
 use crate::{
@@ -65,6 +66,10 @@ pub fn install_julia_core_profile(
         cx,
         registry,
         julia_core_profile(),
-        &[sim_lib_dispatch::publish_dispatch_organ_claims_for_lib],
+        &[ProfileBackingLib::unresolved(
+            sim_lib_dispatch::dispatch_organ_symbol(),
+            Symbol::qualified("sim", "dispatch"),
+        )],
+        &[],
     )
 }

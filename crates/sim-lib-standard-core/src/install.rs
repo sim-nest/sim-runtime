@@ -63,6 +63,6 @@ pub fn install_profile_stub(
         organ_count: profile.organs.len(),
         test_count: profile.conformance_tests.len(),
     };
-    install_language_profile(cx, registry, profile, &[])?;
+    install_language_profile(cx, registry, profile, &[], &[])?;
     Ok(report)
 }

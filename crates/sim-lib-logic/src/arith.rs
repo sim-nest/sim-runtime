@@ -17,7 +17,7 @@ pub(crate) fn eval_is_through_tower(
     let value = eval_arith_term(cx, &env.apply(right))?;
     let result = number_value_to_expr(cx, value)?;
     let mut next = env.clone();
-    if next.unify(left, &result, occurs_check(config))? {
+    if next.unify(cx, left, &result, occurs_check(config))? {
         Ok(vec![next])
     } else {
         Ok(Vec::new())

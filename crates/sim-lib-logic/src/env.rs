@@ -8,10 +8,8 @@ use std::{
     sync::Arc,
 };
 
-use sim_kernel::{
-    Cx, DefaultFactory, EagerPolicy, Expr, MatchScore, Result, ShapeBindings, ShapeMatch, Symbol,
-};
-use sim_shape::{AnyShape, CaptureShape, ExactExprShape, ListShape, Shape};
+use sim_kernel::{Cx, Expr, MatchScore, Result, ShapeBindings, ShapeMatch, Symbol};
+use sim_shape::{AnyShape, CaptureShape, ExactExprShape, ListShape, Shape, ShapeObject};
 
 use crate::model::OccursCheck;
 
@@ -133,22 +131,28 @@ impl LogicEnv {
     ///
     /// Returns `true` when the terms unify and `false` on a structural
     /// mismatch; errors propagate only from a failed occurs check.
-    pub fn unify(&mut self, left: &Expr, right: &Expr, occurs_check: OccursCheck) -> Result<bool> {
+    pub fn unify(
+        &mut self,
+        cx: &mut Cx,
+        left: &Expr,
+        right: &Expr,
+        occurs_check: OccursCheck,
+    ) -> Result<bool> {
         let left = self.apply(left);
         let right = self.apply(right);
         if left.canonical_eq(&right) {
             return Ok(true);
         }
 
-        let left_match = self.shape_unify(&left, &right, occurs_check)?;
-        let right_match = self.shape_unify(&right, &left, occurs_check)?;
+        let left_match = self.shape_unify(cx, &left, &right, occurs_check)?;
+        let right_match = self.shape_unify(cx, &right, &left, occurs_check)?;
         match (left_match, right_match) {
             (ShapeUnify::Accepted(next), _) | (_, ShapeUnify::Accepted(next)) => {
                 *self = next;
                 Ok(true)
             }
             (ShapeUnify::Unsupported, _) | (_, ShapeUnify::Unsupported) => {
-                unify_ground(self, &left, &right, occurs_check)
+                unify_ground(cx, self, &left, &right, occurs_check)
             }
             (ShapeUnify::Rejected, ShapeUnify::Rejected) => Ok(false),
         }
@@ -156,20 +160,20 @@ impl LogicEnv {
 
     fn shape_unify(
         &self,
+        cx: &mut Cx,
         pattern: &Expr,
         subject: &Expr,
         occurs_check: OccursCheck,
     ) -> Result<ShapeUnify> {
-        let Some(shape) = shape_from_pattern(pattern) else {
+        let Some(shape) = shape_from_pattern(cx, pattern) else {
             return Ok(ShapeUnify::Unsupported);
         };
-        let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
-        let matched = shape.check_expr(&mut cx, subject)?;
+        let matched = shape.check_expr(cx, subject)?;
         if !matched.accepted {
             return Ok(ShapeUnify::Rejected);
         }
         let mut next = self.clone();
-        if next.merge_shape_captures(&matched.captures, occurs_check)? {
+        if next.merge_shape_captures(cx, &matched.captures, occurs_check)? {
             Ok(ShapeUnify::Accepted(next))
         } else {
             Ok(ShapeUnify::Rejected)
@@ -178,11 +182,12 @@ impl LogicEnv {
 
     fn merge_shape_captures(
         &mut self,
+        cx: &mut Cx,
         captures: &ShapeBindings,
         occurs_check: OccursCheck,
     ) -> Result<bool> {
         for (var, value) in captures.exprs() {
-            if !self.merge_shape_capture(var.clone(), value.clone(), occurs_check)? {
+            if !self.merge_shape_capture(cx, var.clone(), value.clone(), occurs_check)? {
                 return Ok(false);
             }
         }
@@ -191,6 +196,7 @@ impl LogicEnv {
 
     fn merge_shape_capture(
         &mut self,
+        cx: &mut Cx,
         var: Symbol,
         value: Expr,
         occurs_check: OccursCheck,
@@ -198,7 +204,7 @@ impl LogicEnv {
         let value = self.apply(&value);
         if let Some(bound) = self.captures.get(&var).cloned() {
             let bound = self.apply(&bound);
-            return self.unify(&bound, &value, occurs_check);
+            return self.unify(cx, &bound, &value, occurs_check);
         }
         self.bind(var, value, occurs_check)?;
         Ok(true)
@@ -238,22 +244,31 @@ enum ShapeUnify {
     Unsupported,
 }
 
-fn shape_from_pattern(pattern: &Expr) -> Option<Arc<dyn Shape>> {
+fn shape_from_pattern(cx: &mut Cx, pattern: &Expr) -> Option<Arc<dyn Shape>> {
     match pattern {
         Expr::Local(var) => Some(Arc::new(CaptureShape::new(var.clone(), Arc::new(AnyShape)))),
         Expr::List(items) => {
             let item_shapes = items
                 .iter()
-                .map(shape_from_pattern)
+                .map(|item| shape_from_pattern(cx, item))
                 .collect::<Option<Vec<_>>>()?;
             Some(Arc::new(ListShape::new(item_shapes)))
         }
+        Expr::Symbol(symbol) => resolve_shape_symbol(cx, symbol)
+            .or_else(|| Some(Arc::new(ExactExprShape::new(pattern.clone())))),
         other if !contains_local(other) => Some(Arc::new(ExactExprShape::new(other.clone()))),
         _ => None,
     }
 }
 
+fn resolve_shape_symbol(cx: &mut Cx, symbol: &Symbol) -> Option<Arc<dyn Shape>> {
+    let value = cx.resolve_shape(symbol).ok()?;
+    let shape = value.object().downcast_ref::<ShapeObject>()?;
+    Some(Arc::clone(&shape.shape))
+}
+
 fn unify_ground(
+    cx: &mut Cx,
     env: &mut LogicEnv,
     left: &Expr,
     right: &Expr,
@@ -271,7 +286,7 @@ fn unify_ground(
         | (Expr::Vector(left_items), Expr::Vector(right_items))
         | (Expr::Set(left_items), Expr::Set(right_items))
         | (Expr::Block(left_items), Expr::Block(right_items)) => {
-            unify_slices(env, left_items, right_items, occurs_check)
+            unify_slices(cx, env, left_items, right_items, occurs_check)
         }
         (Expr::Map(left_entries), Expr::Map(right_entries)) => {
             if left_entries.len() != right_entries.len() {
@@ -280,10 +295,10 @@ fn unify_ground(
             for ((left_key, left_value), (right_key, right_value)) in
                 left_entries.iter().zip(right_entries.iter())
             {
-                if !env.unify(left_key, right_key, occurs_check)? {
+                if !env.unify(cx, left_key, right_key, occurs_check)? {
                     return Ok(false);
                 }
-                if !env.unify(left_value, right_value, occurs_check)? {
+                if !env.unify(cx, left_value, right_value, occurs_check)? {
                     return Ok(false);
                 }
             }
@@ -299,10 +314,12 @@ fn unify_ground(
                 args: right_args,
             },
         ) => {
-            if left_args.len() != right_args.len() || !env.unify(left_op, right_op, occurs_check)? {
+            if left_args.len() != right_args.len()
+                || !env.unify(cx, left_op, right_op, occurs_check)?
+            {
                 return Ok(false);
             }
-            unify_slices(env, left_args, right_args, occurs_check)
+            unify_slices(cx, env, left_args, right_args, occurs_check)
         }
         (
             Expr::Quote {
@@ -317,7 +334,7 @@ fn unify_ground(
             if left_mode != right_mode {
                 return Ok(false);
             }
-            env.unify(left_expr, right_expr, occurs_check)
+            env.unify(cx, left_expr, right_expr, occurs_check)
         }
         (
             Expr::Annotated {
@@ -330,14 +347,16 @@ fn unify_ground(
             },
         ) => {
             if left_annotations.len() != right_annotations.len()
-                || !env.unify(left_expr, right_expr, occurs_check)?
+                || !env.unify(cx, left_expr, right_expr, occurs_check)?
             {
                 return Ok(false);
             }
             for ((left_name, left_value), (right_name, right_value)) in
                 left_annotations.iter().zip(right_annotations.iter())
             {
-                if left_name != right_name || !env.unify(left_value, right_value, occurs_check)? {
+                if left_name != right_name
+                    || !env.unify(cx, left_value, right_value, occurs_check)?
+                {
                     return Ok(false);
                 }
             }
@@ -352,7 +371,7 @@ fn unify_ground(
                 tag: right_tag,
                 payload: right_payload,
             },
-        ) => Ok(left_tag == right_tag && env.unify(left_payload, right_payload, occurs_check)?),
+        ) => Ok(left_tag == right_tag && env.unify(cx, left_payload, right_payload, occurs_check)?),
         (
             Expr::Infix {
                 operator: left_op,
@@ -365,8 +384,8 @@ fn unify_ground(
                 right: right_b,
             },
         ) => Ok(left_op == right_op
-            && env.unify(left_a, right_a, occurs_check)?
-            && env.unify(left_b, right_b, occurs_check)?),
+            && env.unify(cx, left_a, right_a, occurs_check)?
+            && env.unify(cx, left_b, right_b, occurs_check)?),
         (
             Expr::Prefix {
                 operator: left_op,
@@ -386,12 +405,13 @@ fn unify_ground(
                 operator: right_op,
                 arg: right_arg,
             },
-        ) => Ok(left_op == right_op && env.unify(left_arg, right_arg, occurs_check)?),
+        ) => Ok(left_op == right_op && env.unify(cx, left_arg, right_arg, occurs_check)?),
         _ => Ok(false),
     }
 }
 
 fn unify_slices(
+    cx: &mut Cx,
     env: &mut LogicEnv,
     left: &[Expr],
     right: &[Expr],
@@ -401,7 +421,7 @@ fn unify_slices(
         return Ok(false);
     }
     for (left_item, right_item) in left.iter().zip(right.iter()) {
-        if !env.unify(left_item, right_item, occurs_check)? {
+        if !env.unify(cx, left_item, right_item, occurs_check)? {
             return Ok(false);
         }
     }

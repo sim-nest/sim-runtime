@@ -103,6 +103,9 @@ pub struct LanguageProfile {
     pub eval_policy: Symbol,
     /// Organs the profile uses.
     pub organs: Vec<OrganUse>,
+    /// Backing libraries the profile still requires before additional behavior
+    /// can be claimed live.
+    pub backing_requirements: Vec<Symbol>,
     /// Optional numeric tower symbol.
     pub numeric_tower: Option<Symbol>,
     /// Capabilities the profile requires.
@@ -125,6 +128,7 @@ impl LanguageProfile {
             lowering: unspecified_symbol("lowering"),
             eval_policy: unspecified_symbol("eval-policy"),
             organs: Vec::new(),
+            backing_requirements: Vec::new(),
             numeric_tower: None,
             capabilities: Vec::new(),
             unsupported_forms: Vec::new(),
@@ -154,6 +158,12 @@ impl LanguageProfile {
     /// Add an organ use.
     pub fn with_organ(mut self, organ: OrganUse) -> Self {
         self.organs.push(organ);
+        self
+    }
+
+    /// Record one backing library that remains unresolved at install time.
+    pub fn with_backing_requirement(mut self, manifest: Symbol) -> Self {
+        self.backing_requirements.push(manifest);
         self
     }
 
@@ -195,6 +205,13 @@ impl LanguageProfile {
             Expr::Symbol(self.lowering.clone()),
             Expr::Symbol(self.eval_policy.clone()),
             Expr::List(self.organs.iter().map(OrganUse::to_expr).collect()),
+            Expr::List(
+                self.backing_requirements
+                    .iter()
+                    .cloned()
+                    .map(Expr::Symbol)
+                    .collect(),
+            ),
             self.numeric_tower
                 .clone()
                 .map(Expr::Symbol)
@@ -239,6 +256,7 @@ impl LanguageProfile {
             lowering,
             eval_policy,
             organs,
+            backing_requirements,
             numeric_tower,
             capabilities,
             unsupported_forms,
@@ -247,7 +265,7 @@ impl LanguageProfile {
         ] = args.as_slice()
         else {
             return Err(sim_kernel::Error::Eval(
-                "standard/Profile expects ten constructor arguments".to_owned(),
+                "standard/Profile expects eleven constructor arguments".to_owned(),
             ));
         };
 
@@ -257,6 +275,10 @@ impl LanguageProfile {
             lowering: symbol_from_expr(lowering, "lowering symbol")?,
             eval_policy: symbol_from_expr(eval_policy, "eval policy symbol")?,
             organs: organ_uses_from_expr(organs)?,
+            backing_requirements: symbols_from_expr(
+                backing_requirements,
+                "backing library symbol",
+            )?,
             numeric_tower: optional_symbol(numeric_tower)?,
             capabilities: capabilities_from_expr(capabilities)?,
             unsupported_forms: symbols_from_expr(unsupported_forms, "unsupported form")?,

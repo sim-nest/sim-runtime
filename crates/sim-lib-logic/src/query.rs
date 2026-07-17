@@ -382,7 +382,7 @@ impl SequenceEngineState {
                 }
                 let clause = rename_clause_apart(clause, frame.depth + 1);
                 let mut next_env = frame.env.clone();
-                if !next_env.unify(&goal, &clause.head, occurs_check(&self.config))? {
+                if !next_env.unify(cx, &goal, &clause.head, occurs_check(&self.config))? {
                     continue;
                 }
                 let mut goals = clause.body.clone();

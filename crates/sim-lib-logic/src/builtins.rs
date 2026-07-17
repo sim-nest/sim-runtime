@@ -126,7 +126,7 @@ pub fn tabling_memo_binding(predicate: Symbol) -> BuiltinBinding {
         organ: Symbol::new("sequence"),
         solve: Arc::new(move |cx, ctx, args, env| {
             let tuples = cached_tabled_tuples(cx, ctx, &predicate, args.len(), &memo)?;
-            replay_tabled_tuples(ctx.config, args, env, &tuples)
+            replay_tabled_tuples(cx, ctx.config, args, env, &tuples)
         }),
     }
 }
@@ -310,6 +310,7 @@ fn solve_tabled_body(
             let applied = env.apply(goal);
             if predicate_symbol(&applied)? == predicate.clone() {
                 next_envs.extend(replay_tabled_tuples(
+                    cx,
                     ctx.config,
                     goal_args(&applied)?,
                     &env,
@@ -328,6 +329,7 @@ fn solve_tabled_body(
 }
 
 fn replay_tabled_tuples(
+    cx: &mut Cx,
     config: &LogicConfig,
     args: &[Expr],
     env: &LogicEnv,
@@ -338,7 +340,7 @@ fn replay_tabled_tuples(
         let mut next = env.clone();
         let mut accepted = true;
         for (arg, value) in args.iter().zip(tuple) {
-            if !next.unify(arg, value, occurs_check(config))? {
+            if !next.unify(cx, arg, value, occurs_check(config))? {
                 accepted = false;
                 break;
             }
@@ -358,7 +360,7 @@ fn resolve_non_tabled_goal(
 ) -> Result<Vec<LogicEnv>> {
     let mut out = Vec::new();
     for answer in query_all(cx, ctx.db, ctx.config, goal.clone(), ctx.answer_limit)? {
-        if let Some(next) = merge_answer(env.clone(), ctx.config, &answer)? {
+        if let Some(next) = merge_answer(cx, env.clone(), ctx.config, &answer)? {
             out.push(next);
         }
     }
@@ -366,12 +368,13 @@ fn resolve_non_tabled_goal(
 }
 
 fn merge_answer(
+    cx: &mut Cx,
     mut env: LogicEnv,
     config: &LogicConfig,
     answer: &ShapeMatch,
 ) -> Result<Option<LogicEnv>> {
     for (var, value) in answer.captures.exprs() {
-        if !env.unify(&Expr::Local(var.clone()), value, occurs_check(config))? {
+        if !env.unify(cx, &Expr::Local(var.clone()), value, occurs_check(config))? {
             return Ok(None);
         }
     }

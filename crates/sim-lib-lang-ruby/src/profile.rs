@@ -1,6 +1,7 @@
 use sim_kernel::{Cx, Result, Symbol};
 use sim_lib_standard_core::{
-    LanguageProfile, OrganUse, ProfileRegistry, fidelity_badge, install_language_profile,
+    LanguageProfile, OrganUse, ProfileBackingLib, ProfileRegistry, fidelity_badge,
+    install_language_profile,
 };
 
 use crate::{
@@ -73,8 +74,17 @@ pub fn install_ruby_dsl_profile(
         registry,
         ruby_dsl_profile(),
         &[
-            sim_lib_control::publish_control_organ_claims_for_lib,
-            sim_lib_dispatch::publish_dispatch_organ_claims_for_lib,
+            ProfileBackingLib::loadable(
+                sim_lib_control::control_organ_symbol(),
+                sim_lib_control::manifest_name(),
+                sim_lib_control::install_control_lib,
+                None,
+            ),
+            ProfileBackingLib::unresolved(
+                sim_lib_dispatch::dispatch_organ_symbol(),
+                Symbol::qualified("sim", "dispatch"),
+            ),
         ],
+        &[],
     )
 }

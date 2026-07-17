@@ -48,8 +48,8 @@ pub use harness::{
 };
 pub use install::{StandardInstallReport, install_profile_stub, standard_install_op_key};
 pub use lang_profile::{
-    FidelityBadgeSpec, ProfileOrganPublisher, fidelity_badge, install_language_profile,
-    language_profile_lib_symbol,
+    FidelityBadgeSpec, ProfileBackingLib, ProfileOrganPublisher, fidelity_badge,
+    install_language_profile, language_profile_lib_symbol,
 };
 pub use lisp::{lisp_stub_symbols, standard_fidelity_symbol, standard_profile_symbol};
 pub use matrix::{

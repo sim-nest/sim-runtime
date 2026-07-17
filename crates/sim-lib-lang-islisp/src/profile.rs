@@ -1,6 +1,7 @@
 use sim_kernel::{Cx, Ref, Result, Symbol};
 use sim_lib_standard_core::{
-    FidelityBadge, LanguageProfile, OrganUse, ProfileRegistry, install_language_profile,
+    FidelityBadge, LanguageProfile, OrganUse, ProfileBackingLib, ProfileRegistry,
+    install_language_profile,
 };
 
 use crate::{
@@ -43,16 +44,12 @@ pub fn islisp_profile() -> LanguageProfile {
 /// use sim_kernel::{Cx, DefaultFactory, NoopEvalPolicy};
 /// use sim_lib_standard_core::ProfileRegistry;
 /// use sim_lib_lang_islisp::install_islisp_profile;
+/// use sim_kernel::Symbol;
 ///
 /// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
 /// let mut registry = ProfileRegistry::new();
 /// let profile = install_islisp_profile(&mut cx, &mut registry).unwrap();
-/// assert!(
-///     profile
-///         .organs
-///         .iter()
-///         .any(|organ| organ.organ == sim_lib_dispatch::dispatch_organ_symbol())
-/// );
+/// assert!(profile.backing_requirements.contains(&Symbol::qualified("sim", "dispatch")));
 /// ```
 pub fn install_islisp_profile(
     cx: &mut Cx,
@@ -62,6 +59,10 @@ pub fn install_islisp_profile(
         cx,
         registry,
         islisp_profile(),
-        &[sim_lib_dispatch::publish_dispatch_organ_claims_for_lib],
+        &[ProfileBackingLib::unresolved(
+            sim_lib_dispatch::dispatch_organ_symbol(),
+            Symbol::qualified("sim", "dispatch"),
+        )],
+        &[],
     )
 }

@@ -64,6 +64,7 @@ pub(crate) fn findall_through_sequence_with_probe(
 
     let mut next = request.env.clone();
     if next.unify(
+        cx,
         request.output,
         &Expr::List(values),
         occurs_check(request.config),
@@ -93,7 +94,7 @@ fn grouped_all_solutions(
     if groups.is_empty() {
         return Ok(Vec::new());
     }
-    bind_groups(ctx, env, output, groups, dedup)
+    bind_groups(cx, ctx, env, output, groups, dedup)
 }
 
 fn collect_groups(
@@ -131,6 +132,7 @@ fn collect_groups(
 }
 
 fn bind_groups(
+    cx: &mut Cx,
     ctx: &BuiltinCtx<'_>,
     env: &LogicEnv,
     output: &Expr,
@@ -145,7 +147,7 @@ fn bind_groups(
         let mut next = env.clone();
         let mut witnesses_match = true;
         for (symbol, value) in group.witnesses {
-            if !next.unify(&Expr::Local(symbol), &value, occurs_check(ctx.config))? {
+            if !next.unify(cx, &Expr::Local(symbol), &value, occurs_check(ctx.config))? {
                 witnesses_match = false;
                 break;
             }
@@ -153,7 +155,12 @@ fn bind_groups(
         if !witnesses_match {
             continue;
         }
-        if next.unify(output, &Expr::List(group.values), occurs_check(ctx.config))? {
+        if next.unify(
+            cx,
+            output,
+            &Expr::List(group.values),
+            occurs_check(ctx.config),
+        )? {
             answers.push(next);
         }
     }

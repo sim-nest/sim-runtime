@@ -58,9 +58,8 @@ fn ruby_profile_publishes_honest_fidelity() {
 
     assert!(
         profile
-            .organs
-            .iter()
-            .any(|organ| organ.organ == sim_lib_dispatch::dispatch_organ_symbol())
+            .backing_requirements
+            .contains(&Symbol::qualified("sim", "dispatch"))
     );
     assert!(
         profile

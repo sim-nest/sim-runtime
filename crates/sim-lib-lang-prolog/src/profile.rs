@@ -1,6 +1,7 @@
 use sim_kernel::{Cx, Result, Symbol};
 use sim_lib_standard_core::{
-    LanguageProfile, OrganUse, ProfileRegistry, fidelity_badge, install_language_profile,
+    LanguageProfile, OrganUse, ProfileBackingLib, ProfileRegistry, fidelity_badge,
+    install_language_profile,
 };
 
 use crate::{
@@ -42,15 +43,31 @@ pub fn install_prolog_profile(
     cx: &mut Cx,
     registry: &mut ProfileRegistry,
 ) -> Result<LanguageProfile> {
-    install_prolog_lib(cx)?;
     install_language_profile(
         cx,
         registry,
         prolog_profile(),
         &[
-            sim_lib_sequence::publish_sequence_organ_claims_for_lib,
-            sim_lib_control::publish_control_organ_claims_for_lib,
+            ProfileBackingLib::loadable(
+                prolog_logic_organ_symbol(),
+                Symbol::new("logic"),
+                sim_lib_logic::install_logic_lib,
+                None,
+            ),
+            ProfileBackingLib::loadable(
+                sim_lib_sequence::sequence_organ_symbol(),
+                Symbol::qualified("sim", "sequence"),
+                sim_lib_sequence::install_sequence_lib,
+                Some(sim_lib_sequence::publish_sequence_organ_claims_for_lib),
+            ),
+            ProfileBackingLib::loadable(
+                sim_lib_control::control_organ_symbol(),
+                sim_lib_control::manifest_name(),
+                sim_lib_control::install_control_lib,
+                None,
+            ),
         ],
+        &[|inner_cx, _lib_id| install_prolog_lib(inner_cx)],
     )
 }
 
@@ -77,6 +94,28 @@ mod tests {
                 .organs
                 .iter()
                 .any(|organ| organ.organ == sim_lib_sequence::sequence_organ_symbol())
+        );
+        assert!(profile.backing_requirements.is_empty());
+        assert!(
+            !cx.registry()
+                .lib(&Symbol::new("logic"))
+                .unwrap()
+                .exports
+                .is_empty()
+        );
+        assert!(
+            !cx.registry()
+                .lib(&Symbol::qualified("sim", "sequence"))
+                .unwrap()
+                .exports
+                .is_empty()
+        );
+        assert!(
+            !cx.registry()
+                .lib(&sim_lib_control::manifest_name())
+                .unwrap()
+                .exports
+                .is_empty()
         );
         assert!(cx.registry().lib(&Symbol::new("prolog")).is_some());
         assert!(registry.profile(&prolog_profile_symbol()).is_some());
