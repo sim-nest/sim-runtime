@@ -11,6 +11,7 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 
 [dependencies]
 sim-cookbook = { version = "0.1.0" }
+sim-citizen = { version = "0.1.0" }
 sim-citizen-derive = { version = "0.1.0" }
 sim-kernel = { version = "0.1.0" }
 sim-lib-dispatch = { version = "0.1.0", path = "../sim-lib-dispatch" }

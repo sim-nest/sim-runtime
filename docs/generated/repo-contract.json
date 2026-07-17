@@ -178,6 +178,7 @@
   "non_citizen_exemptions": [
     {
       "crate": "sim-lib-control",
+      "descriptor": "core/Ref",
       "file": "crates/sim-lib-control/src/model.rs",
       "kind": "handle",
       "line": 3,
@@ -185,6 +186,7 @@
     },
     {
       "crate": "sim-lib-control",
+      "descriptor": "core/Ref",
       "file": "crates/sim-lib-control/src/model.rs",
       "kind": "marker",
       "line": 66,
@@ -192,6 +194,7 @@
     },
     {
       "crate": "sim-lib-lang-islisp",
+      "descriptor": "islisp/Object",
       "file": "crates/sim-lib-lang-islisp/src/generic.rs",
       "kind": "marker",
       "line": 8,
@@ -199,6 +202,7 @@
     },
     {
       "crate": "sim-lib-logic",
+      "descriptor": "logic/Db",
       "file": "crates/sim-lib-logic/src/lisp_runtime.rs",
       "kind": "handle",
       "line": 10,
@@ -206,6 +210,7 @@
     },
     {
       "crate": "sim-lib-logic",
+      "descriptor": "logic/Config",
       "file": "crates/sim-lib-logic/src/lisp_runtime.rs",
       "kind": "handle",
       "line": 20,
@@ -213,6 +218,7 @@
     },
     {
       "crate": "sim-lib-logic",
+      "descriptor": "logic/Db",
       "file": "crates/sim-lib-logic/src/stream.rs",
       "kind": "handle",
       "line": 18,
@@ -220,6 +226,7 @@
     },
     {
       "crate": "sim-lib-mutation",
+      "descriptor": "core/Expr",
       "file": "crates/sim-lib-mutation/src/cell.rs",
       "kind": "handle",
       "line": 32,
@@ -227,6 +234,7 @@
     },
     {
       "crate": "sim-lib-mutation",
+      "descriptor": "core/Expr",
       "file": "crates/sim-lib-mutation/src/cell.rs",
       "kind": "handle",
       "line": 86,
@@ -234,6 +242,7 @@
     },
     {
       "crate": "sim-lib-mutation",
+      "descriptor": "core/Table",
       "file": "crates/sim-lib-mutation/src/table.rs",
       "kind": "handle",
       "line": 17,
@@ -241,6 +250,7 @@
     },
     {
       "crate": "sim-lib-mutation",
+      "descriptor": "core/Expr",
       "file": "crates/sim-lib-mutation/src/vector.rs",
       "kind": "handle",
       "line": 13,
@@ -248,6 +258,7 @@
     },
     {
       "crate": "sim-lib-pattern",
+      "descriptor": "pattern/TaggedValue",
       "file": "crates/sim-lib-pattern/src/adt.rs",
       "kind": "marker",
       "line": 302,
@@ -255,6 +266,7 @@
     },
     {
       "crate": "sim-lib-sequence",
+      "descriptor": "core/Sequence",
       "file": "crates/sim-lib-sequence/src/lazy.rs",
       "kind": "handle",
       "line": 15,
@@ -262,6 +274,7 @@
     },
     {
       "crate": "sim-lib-sequence",
+      "descriptor": "core/Expr",
       "file": "crates/sim-lib-sequence/src/persistent.rs",
       "kind": "marker",
       "line": 5,
@@ -269,13 +282,15 @@
     },
     {
       "crate": "sim-lib-sequence",
+      "descriptor": "core/Expr",
       "file": "crates/sim-lib-sequence/src/persistent.rs",
       "kind": "marker",
-      "line": 58,
+      "line": 59,
       "reason": "persistent set wrapper; canonical form is native Expr::Set data"
     },
     {
       "crate": "sim-lib-sequence",
+      "descriptor": "core/Sequence",
       "file": "crates/sim-lib-sequence/src/profile.rs",
       "kind": "handle",
       "line": 8,
@@ -283,6 +298,7 @@
     },
     {
       "crate": "sim-lib-sequence",
+      "descriptor": "core/Sequence",
       "file": "crates/sim-lib-sequence/src/transducer.rs",
       "kind": "handle",
       "line": 69,
@@ -1545,10 +1561,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-16T00:13:38+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "24f6bc6578bf7866869db073c3051ec873f2dc62",
+    "git_commit": "0184febaa675c6e0decdbc3a7a8f91d749ec5d2f",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "24f6bc6578bf7866869db073c3051ec873f2dc62",
+    "source_commit": "0184febaa675c6e0decdbc3a7a8f91d749ec5d2f",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -1561,7 +1577,7 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "dcf543f93e2455ec",
+    "workspace_hash": "0c08a8f50d9adbfd",
     "workspace_hash_algorithm": "fnv1a64",
     "workspace_hash_input_count": 312,
     "workspace_hash_inputs": [
