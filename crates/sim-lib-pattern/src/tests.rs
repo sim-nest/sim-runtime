@@ -209,7 +209,7 @@ fn pattern_live_claims_match_loaded_exports() {
     }
 }
 
-// ---- COOKBOOK_7 COOK7.02: the `match` pattern organ (special form) ----
+// ---- `match` pattern organ (special form) ----
 
 #[test]
 fn match_special_form_binds_and_destructures() {

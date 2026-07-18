@@ -153,14 +153,14 @@
       "group": "workspace",
       "manifest": "crates/sim-lib-standard-core/Cargo.toml",
       "package": "sim-lib-standard-core",
-      "summary": "SIM workspace package for sim lib standard core."
+      "summary": "Standard distribution core for SIM capabilities, claims, tests, and profiles."
     },
     {
       "crate_name": "xtask",
       "group": "workspace",
       "manifest": "xtask/Cargo.toml",
       "package": "xtask",
-      "summary": "SIM workspace package for xtask."
+      "summary": "Repository maintenance tasks for sim-runtime."
     }
   ]
 }

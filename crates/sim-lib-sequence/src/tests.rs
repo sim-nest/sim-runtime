@@ -262,7 +262,7 @@ fn sequence_live_claims_match_loaded_exports() {
     }
 }
 
-// ---- COOKBOOK_7 COOK7.02: the sequence organ (seq/map|filter|fold) ----
+// ---- sequence organ (seq/map|filter|fold) ----
 
 type TestFnBody = Arc<
     dyn Fn(&mut Cx, Vec<sim_kernel::Value>) -> sim_kernel::Result<sim_kernel::Value> + Send + Sync,

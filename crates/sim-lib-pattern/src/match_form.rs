@@ -1,6 +1,6 @@
 //! The `match` pattern special form.
 //!
-//! `match` is a COOKBOOK_7 Category B eval-policy organ. Like the other
+//! `match` is an eval-policy organ. Like the other
 //! control/binding organs it is a special form -- a [`Callable`] overriding
 //! [`Callable::call_exprs`] so it receives its arguments UNEVALUATED. It
 //! evaluates the scrutinee once, then tries each clause's pattern in order via
@@ -15,8 +15,9 @@
 //! - `[p ...]`      -> [`ListShape`] of the element patterns (list/vector destructure,
 //!   composing the element captures).
 //!
-//! Constructor/ADT patterns (`(Con a b)`) are a future extension -- the pattern
-//! crate carries the `AlgebraicDataType`/`VariantConstructor` machinery for them.
+//! Constructor and ADT data are handled by the crate's
+//! `AlgebraicDataType`/`VariantConstructor` machinery; this form accepts the
+//! shape patterns listed above.
 
 use std::sync::Arc;
 

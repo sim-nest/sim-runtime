@@ -306,7 +306,7 @@ fn binding_live_claims_match_loaded_exports() {
     }
 }
 
-// ---- COOKBOOK_7 COOK7.02: the `let` binding organ (special form) ----
+// ---- `let` binding organ (special form) ----
 
 #[test]
 fn let_special_form_binds_parallel_in_child_scope() {

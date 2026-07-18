@@ -17,9 +17,16 @@ crates.io -- no extra tooling or sibling checkouts are required:
 Every PR runs these gates in CI, and they must be green before merge:
 
 - `cargo fmt --all --check`
-- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo run -p xtask -- check-local-sources`
+- `cargo run -p xtask -- check-file-sizes`
+- `cargo test -p sim-lib-standard-core --features native-export`
 - `cargo test --workspace`
+- `cargo clippy --workspace --all-targets -- -D warnings`
 - `cargo doc --workspace --no-deps`
+- `cargo run -p xtask -- simdoc --check`
+- `cargo run -p xtask -- repo-contract --check --repo .`
+- `cargo run -p xtask -- validation-matrix --check --repo .`
+- `cargo run -p xtask -- crate-catalog --check --repo .`
 
 Please keep source and Markdown ASCII-only, and add or update tests for behavior
 you change. Public APIs carry `#![deny(missing_docs)]`; document new public items.

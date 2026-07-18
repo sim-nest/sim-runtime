@@ -259,7 +259,7 @@ fn dispatch_organ_claims_project_to_card() {
     }));
 }
 
-// ---- COOKBOOK_7 COOK7.02: a generic as a runtime callable value ----
+// ---- generic function as a runtime callable value ----
 
 #[test]
 fn generic_value_dispatches_most_specific_when_called() {

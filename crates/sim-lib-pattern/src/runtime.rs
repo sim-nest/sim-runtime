@@ -1,8 +1,8 @@
 //! The pattern organ as a loadable kernel [`Lib`].
 //!
 //! Registers the pattern special forms as callables against the kernel
-//! [`Lib`]/[`Linker`] contract. Today that is the `match` form (COOKBOOK_7
-//! Category B); the crate's `Shape`/ADT machinery is the substrate it drives.
+//! [`Lib`]/[`Linker`] contract. The runtime entry point is the `match` form;
+//! the crate's `Shape`/ADT machinery is the substrate it drives.
 
 use std::sync::Arc;
 

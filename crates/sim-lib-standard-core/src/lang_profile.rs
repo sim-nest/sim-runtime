@@ -49,8 +49,8 @@ impl ProfileBackingLib {
         }
     }
 
-    /// Declare a backing library requirement for `organ` that is not yet
-    /// loadable in the current runtime.
+    /// Declare a backing library requirement for `organ` without an installer
+    /// in the current runtime.
     pub fn unresolved(organ: Symbol, manifest: Symbol) -> Self {
         Self {
             organ,
@@ -98,8 +98,8 @@ impl FidelityBadgeSpec {
 /// register the resulting live profile, publish its profile claims, then run
 /// any extra metadata publishers against the profile receipt.
 ///
-/// Organs whose backing libraries are not yet loadable are removed from the
-/// live claim set and recorded under
+/// Organs without installed backing libraries are removed from the live claim
+/// set and recorded under
 /// [`LanguageProfile::backing_requirements`](crate::LanguageProfile::backing_requirements)
 /// instead.
 pub fn install_language_profile(

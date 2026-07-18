@@ -3,7 +3,7 @@
   "package_count": 23,
   "packages": [
     {
-      "description": "SIM workspace package for sim lib binding.",
+      "description": "Binding forms and scoped name resolution for SIM runtime evaluation.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-binding/Cargo.toml",
       "name": "sim-lib-binding",
@@ -16,7 +16,7 @@
       ]
     },
     {
-      "description": "SIM workspace package for sim lib control.",
+      "description": "Control-flow organs for SIM async, branching, and policy-aware execution.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-control/Cargo.toml",
       "name": "sim-lib-control",
@@ -29,7 +29,7 @@
       ]
     },
     {
-      "description": "SIM workspace package for sim lib core.",
+      "description": "Shared manifest and registry installation substrate for SIM libraries.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-core/Cargo.toml",
       "name": "sim-lib-core",
@@ -42,7 +42,7 @@
       ]
     },
     {
-      "description": "SIM workspace package for sim lib dispatch.",
+      "description": "Generic function and method dispatch organs for SIM runtime values.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-dispatch/Cargo.toml",
       "name": "sim-lib-dispatch",
@@ -68,7 +68,7 @@
       ]
     },
     {
-      "description": "SIM workspace package for sim lib lang cl.",
+      "description": "Common Lisp surface profile for the SIM expression runtime.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-lang-cl/Cargo.toml",
       "name": "sim-lib-lang-cl",
@@ -81,7 +81,7 @@
       ]
     },
     {
-      "description": "SIM workspace package for sim lib lang clojure.",
+      "description": "Clojure core surface profile for the SIM expression runtime.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-lang-clojure/Cargo.toml",
       "name": "sim-lib-lang-clojure",
@@ -107,7 +107,7 @@
       ]
     },
     {
-      "description": "SIM workspace package for sim lib lang islisp.",
+      "description": "ISLISP surface profile for the SIM expression runtime.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-lang-islisp/Cargo.toml",
       "name": "sim-lib-lang-islisp",
@@ -120,7 +120,7 @@
       ]
     },
     {
-      "description": "SIM workspace package for sim lib lang julia.",
+      "description": "Julia-style surface profile for the SIM expression runtime.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-lang-julia/Cargo.toml",
       "name": "sim-lib-lang-julia",
@@ -133,7 +133,7 @@
       ]
     },
     {
-      "description": "SIM workspace package for sim lib lang lua.",
+      "description": "Lua-style surface profile for the SIM expression runtime.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-lang-lua/Cargo.toml",
       "name": "sim-lib-lang-lua",
@@ -171,7 +171,7 @@
       ]
     },
     {
-      "description": "SIM workspace package for sim lib lang ruby.",
+      "description": "Ruby-style surface profile for the SIM expression runtime.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-lang-ruby/Cargo.toml",
       "name": "sim-lib-lang-ruby",
@@ -184,7 +184,7 @@
       ]
     },
     {
-      "description": "SIM workspace package for sim lib lang scheme.",
+      "description": "Scheme surface profile for the SIM expression runtime.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-lang-scheme/Cargo.toml",
       "name": "sim-lib-lang-scheme",
@@ -197,7 +197,7 @@
       ]
     },
     {
-      "description": "SIM workspace package for sim lib lang typed lazy.",
+      "description": "Typed lazy language profile for the SIM expression runtime.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-lang-typed-lazy/Cargo.toml",
       "name": "sim-lib-lang-typed-lazy",
@@ -210,7 +210,7 @@
       ]
     },
     {
-      "description": "SIM workspace package for sim lib logic.",
+      "description": "Logic programming facts, queries, unification, and backtracking for SIM.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-logic/Cargo.toml",
       "name": "sim-lib-logic",
@@ -223,7 +223,7 @@
       ]
     },
     {
-      "description": "SIM workspace package for sim lib mutation.",
+      "description": "Tracked mutation cells and update operations for SIM runtime values.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-mutation/Cargo.toml",
       "name": "sim-lib-mutation",
@@ -236,7 +236,7 @@
       ]
     },
     {
-      "description": "SIM workspace package for sim lib namespace.",
+      "description": "Namespace registration and symbol lookup support for SIM libraries.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-namespace/Cargo.toml",
       "name": "sim-lib-namespace",
@@ -249,7 +249,7 @@
       ]
     },
     {
-      "description": "SIM workspace package for sim lib pattern.",
+      "description": "Shape-based pattern matching and destructuring for SIM runtime values.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-pattern/Cargo.toml",
       "name": "sim-lib-pattern",
@@ -262,7 +262,7 @@
       ]
     },
     {
-      "description": "SIM workspace package for sim lib sequence.",
+      "description": "Sequence operations, lazy streams, and collection transforms for SIM.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-sequence/Cargo.toml",
       "name": "sim-lib-sequence",
@@ -275,7 +275,7 @@
       ]
     },
     {
-      "description": "SIM workspace package for sim lib standard core.",
+      "description": "Standard distribution core for SIM capabilities, claims, tests, and profiles.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-standard-core/Cargo.toml",
       "name": "sim-lib-standard-core",
@@ -289,7 +289,7 @@
       ]
     },
     {
-      "description": "SIM workspace package for xtask.",
+      "description": "Repository maintenance tasks for sim-runtime.",
       "generated_readme": true,
       "manifest": "xtask/Cargo.toml",
       "name": "xtask",
@@ -297,7 +297,8 @@
       "readme": "xtask/README.md",
       "root": "xtask",
       "target_kinds": [
-        "bin"
+        "bin",
+        "lib"
       ]
     }
   ]

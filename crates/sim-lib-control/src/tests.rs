@@ -433,7 +433,7 @@ fn control_organ_kind_claims(cx: &Cx) -> Vec<sim_kernel::Claim> {
     .unwrap()
 }
 
-// ---- COOKBOOK_7 COOK7.02: the `if` eval-policy organ (special form) ----
+// ---- `if` eval-policy organ (special form) ----
 
 #[test]
 fn if_special_form_selects_branch_and_is_lazy() {
