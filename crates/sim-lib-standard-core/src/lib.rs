@@ -6,13 +6,14 @@
 //! The kernel defines the capability, claim, codec, and `ExportRecord`
 //! contracts; this crate supplies the standard-distribution behavior:
 //! capabilities, claims, diff, fidelity, the conformance harness, install,
-//! language-profile support, the lisp codec surface, polyglot/profile support,
-//! and read/construct.
+//! guest-runtime policy kits, language-profile support, the lisp codec surface,
+//! polyglot/profile support, and read/construct.
 
 pub mod cap;
 pub mod claims;
 pub mod diff;
 pub mod fidelity;
+pub mod guest_kit;
 pub mod harness;
 pub mod install;
 pub mod lang_profile;
@@ -38,6 +39,7 @@ pub use diff::{
     standard_diff_stub,
 };
 pub use fidelity::{FidelityBadge, fidelity_badge_class_symbol};
+pub use guest_kit::{Arity, CoercionPolicy, GuestRuntimeKit, TruthPolicy, adjust_values};
 pub use harness::{
     ConformanceHarness, ConformanceOutcome, ConformanceStatus, ConformanceTestCase,
     ConformanceTestReport, OrganTestReport, StandardTestReport,
@@ -76,6 +78,8 @@ pub use registry::ProfileRegistry;
 pub static RECIPES: sim_cookbook::EmbeddedDir =
     include!(concat!(env!("OUT_DIR"), "/cookbook_recipes.rs"));
 
+#[cfg(test)]
+mod guest_kit_tests;
 #[cfg(test)]
 mod harness_tests;
 #[cfg(test)]
