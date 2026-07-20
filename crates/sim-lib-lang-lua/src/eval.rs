@@ -14,6 +14,9 @@ use crate::{
     lua_binary, lua_core_profile, lua_get, lua_len, lua_rawget, lua_rawset, lua_table_from_values,
     stdlib_base::install_lua_base_stdlib,
     stdlib_coroutine::install_lua_coroutine_stdlib,
+    stdlib_string::install_lua_string_stdlib,
+    stdlib_table::install_lua_table_stdlib,
+    stdlib_utf8::install_lua_utf8_stdlib,
 };
 
 /// Eval policy for the Lua core profile.
@@ -44,10 +47,13 @@ impl LuaEvalPolicy {
         &self.kit
     }
 
-    /// Install the Lua base and coroutine standard library into `env`.
+    /// Install the Lua standard library fragments implemented by this profile.
     pub fn install_stdlib(&self, cx: &mut Cx, env: &mut LuaEnv) -> Result<()> {
         install_lua_base_stdlib(cx, self, env)?;
-        install_lua_coroutine_stdlib(cx, self, env)
+        install_lua_coroutine_stdlib(cx, self, env)?;
+        install_lua_table_stdlib(cx, self, env)?;
+        install_lua_string_stdlib(cx, self, env)?;
+        install_lua_utf8_stdlib(cx, self, env)
     }
 
     /// Evaluate a Lua core expression.

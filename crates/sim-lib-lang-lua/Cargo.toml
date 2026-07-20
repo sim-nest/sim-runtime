@@ -19,6 +19,7 @@ sim-lib-dispatch = { version = "0.1.0", path = "../sim-lib-dispatch" }
 sim-lib-mutation = { version = "0.1.0", path = "../sim-lib-mutation" }
 sim-lib-numbers-f64 = { version = "0.1.0" }
 sim-lib-numbers-i64 = { version = "0.1.0" }
+sim-lib-pattern = { version = "0.1.0", path = "../sim-lib-pattern" }
 sim-lib-sequence = { version = "0.1.0", path = "../sim-lib-sequence" }
 sim-lib-standard-core = { version = "0.1.0", path = "../sim-lib-standard-core" }
 

@@ -17,10 +17,16 @@ mod matrix_row;
 mod metatable;
 mod number;
 mod operator;
+mod pattern_replace;
 mod profile;
 mod runtime;
 mod stdlib_base;
 mod stdlib_coroutine;
+mod stdlib_string;
+mod stdlib_string_format;
+mod stdlib_string_pattern;
+mod stdlib_table;
+mod stdlib_utf8;
 mod symbols;
 mod table;
 mod value;
@@ -41,8 +47,8 @@ pub use symbols::{
     lua_profile_symbol, lua_reader_symbol,
 };
 pub use table::{
-    LuaTable, LuaTablePolicy, lua_get_metatable, lua_rawget, lua_rawset, lua_set_metatable,
-    lua_table, lua_table_from_values, lua_table_value,
+    LuaTable, LuaTablePolicy, lua_get_metatable, lua_rawdel, lua_rawget, lua_rawset,
+    lua_set_metatable, lua_table, lua_table_from_values, lua_table_value,
 };
 pub use value::LuaResult;
 
@@ -52,6 +58,9 @@ pub static RECIPES: sim_cookbook::EmbeddedDir =
 
 #[cfg(test)]
 mod lua3_12_tests;
+
+#[cfg(test)]
+mod lua3_13_tests;
 
 #[cfg(test)]
 mod tests;

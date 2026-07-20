@@ -47,7 +47,16 @@ impl LuaTable {
 
     /// Writes a raw entry after checking mutation authority.
     pub fn raw_set(&self, cx: &mut Cx, key: Value, value: Value) -> Result<()> {
+        if matches!(value.object().as_expr(cx)?, Expr::Nil) {
+            self.entries.del(cx, &key)?;
+            return Ok(());
+        }
         self.entries.set(cx, key, value)
+    }
+
+    /// Deletes a raw entry after checking mutation authority.
+    pub fn raw_del(&self, cx: &mut Cx, key: &Value) -> Result<Option<Value>> {
+        self.entries.del(cx, key)
     }
 
     /// Reads a symbol-keyed raw entry.
@@ -174,6 +183,11 @@ pub fn lua_rawget(cx: &mut Cx, table: &Value, key: &Value) -> Result<Option<Valu
 /// Performs a raw Lua table write without consulting `__newindex`.
 pub fn lua_rawset(cx: &mut Cx, table: &Value, key: Value, value: Value) -> Result<()> {
     lua_table_value(table)?.raw_set(cx, key, value)
+}
+
+/// Deletes a raw Lua table entry without consulting `__newindex`.
+pub fn lua_rawdel(cx: &mut Cx, table: &Value, key: &Value) -> Result<Option<Value>> {
+    lua_table_value(table)?.raw_del(cx, key)
 }
 
 /// Installs a Lua table metatable.

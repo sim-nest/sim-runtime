@@ -9,6 +9,10 @@ use crate::{
         LuaCoroutineFunction, LuaCoroutineWrapper, call_lua_coroutine_wrapper,
         run_lua_coroutine_function,
     },
+    stdlib_string::{LuaStringFunction, run_lua_string_function},
+    stdlib_string_pattern::{LuaGMatchIterator, call_lua_gmatch_iterator},
+    stdlib_table::{LuaTableFunction, run_lua_table_function},
+    stdlib_utf8::{LuaUtf8Function, run_lua_utf8_function},
 };
 
 pub(crate) fn call_lua_value(
@@ -28,6 +32,18 @@ pub(crate) fn call_lua_value(
     }
     if let Some(wrapper) = callee.object().downcast_ref::<LuaCoroutineWrapper>() {
         return call_lua_coroutine_wrapper(cx, policy, wrapper, args);
+    }
+    if let Some(function) = callee.object().downcast_ref::<LuaTableFunction>() {
+        return run_lua_table_function(cx, policy, function.kind(), args);
+    }
+    if let Some(function) = callee.object().downcast_ref::<LuaStringFunction>() {
+        return run_lua_string_function(cx, policy, function.kind(), args);
+    }
+    if let Some(iterator) = callee.object().downcast_ref::<LuaGMatchIterator>() {
+        return call_lua_gmatch_iterator(cx, policy, iterator);
+    }
+    if let Some(function) = callee.object().downcast_ref::<LuaUtf8Function>() {
+        return run_lua_utf8_function(cx, policy, function.kind(), args);
     }
     cx.call_value(callee, Args::new(args))
         .map(|value| vec![value])
@@ -51,6 +67,22 @@ pub(crate) fn protected_lua_call(
         || function
             .object()
             .downcast_ref::<LuaCoroutineWrapper>()
+            .is_some()
+        || function
+            .object()
+            .downcast_ref::<LuaTableFunction>()
+            .is_some()
+        || function
+            .object()
+            .downcast_ref::<LuaStringFunction>()
+            .is_some()
+        || function
+            .object()
+            .downcast_ref::<LuaGMatchIterator>()
+            .is_some()
+        || function
+            .object()
+            .downcast_ref::<LuaUtf8Function>()
             .is_some()
     {
         return match call_lua_value(cx, policy, function, args) {
