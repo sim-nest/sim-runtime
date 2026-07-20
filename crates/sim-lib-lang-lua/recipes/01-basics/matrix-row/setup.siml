@@ -2,6 +2,6 @@
   [kind "language-matrix-row"]
   [language lua]
   [profile lang/lua-core/v1]
-  [source-cases [test/lua-core/profile-declared test/lua-core/runtime-gap]]
+  [source-cases [test/lua-core/profile-declared test/lua-core/load-source test/lua-core/closure-upvalue test/lua-core/metatable-vector test/lua-core/coroutine-producer test/lua-core/string-patterns test/lua-core/bytecode test/lua-core/debug-hook test/lua-core/c-api]]
   [expr-cases []]
   [runner cargo-test])

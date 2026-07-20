@@ -14,9 +14,8 @@ use crate::{
 ///
 /// Wires the Lua reader, lowering, and eval policy; draws on binding, control,
 /// mutation, sequence, and dispatch organs; requires the standard mutate
-/// capability; marks full-VM debug hooks as unsupported; and publishes honest
-/// fidelity badges (coroutines and table mutation supported, full runtime
-/// limited).
+/// capability; marks C API loading, debug hooks, and bytecode dumping as
+/// unsupported; and publishes earned fidelity badges for the source runtime.
 pub fn lua_core_profile() -> LanguageProfile {
     let profile = lua_profile_symbol();
     let test = lua_conformance_test_symbol();
@@ -30,7 +29,9 @@ pub fn lua_core_profile() -> LanguageProfile {
         .with_organ(OrganUse::new(sim_lib_sequence::sequence_organ_symbol()))
         .with_organ(OrganUse::new(sim_lib_dispatch::dispatch_organ_symbol()))
         .requiring(sim_lib_mutation::standard_mutate_capability())
-        .with_unsupported_form(Symbol::qualified("lua", "full-vm-debug-hooks"))
+        .with_unsupported_form(Symbol::qualified("lua", "c-api"))
+        .with_unsupported_form(Symbol::qualified("lua", "debug-hooks"))
+        .with_unsupported_form(Symbol::qualified("lua", "string-dump-bytecode"))
         .with_conformance_test(test.clone())
         .with_fidelity_badge(fidelity_badge(
             &profile,
@@ -47,7 +48,7 @@ pub fn lua_core_profile() -> LanguageProfile {
         .with_fidelity_badge(fidelity_badge(
             &profile,
             lua_full_runtime_fidelity_symbol(),
-            0,
+            1,
             &test,
         ))
 }

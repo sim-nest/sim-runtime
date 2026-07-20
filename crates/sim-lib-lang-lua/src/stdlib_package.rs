@@ -7,7 +7,7 @@ use sim_lib_standard_core::{Arity, SharedOrganRuntime};
 
 use crate::{
     LuaEvalPolicy, call::call_lua_value, lua_core_profile, lua_integer_value, lua_rawget,
-    lua_rawset, lua_table_from_values,
+    lua_rawset, lua_table_from_values, stdlib_debug::lua_expected_gap_table,
 };
 
 #[derive(Clone, Copy)]
@@ -18,6 +18,7 @@ pub(crate) enum LuaPackageKind {
     CSearcher,
     AllInOneSearcher,
     SearchPath,
+    LoadLib,
 }
 
 impl LuaPackageKind {
@@ -29,6 +30,7 @@ impl LuaPackageKind {
             Self::CSearcher => "c-searcher",
             Self::AllInOneSearcher => "all-in-one-searcher",
             Self::SearchPath => "searchpath",
+            Self::LoadLib => "loadlib",
         }
     }
 
@@ -127,6 +129,12 @@ pub(crate) fn install_lua_package_stdlib(
         &profile_symbol,
         LuaPackageFunction::new(LuaPackageKind::SearchPath),
     )?;
+    let loadlib = package_function(
+        cx,
+        &mut runtime,
+        &profile_symbol,
+        LuaPackageFunction::new(LuaPackageKind::LoadLib),
+    )?;
     let package = lua_table_from_values(
         cx,
         vec![
@@ -149,6 +157,7 @@ pub(crate) fn install_lua_package_stdlib(
                 cx.factory().string("searchpath".to_owned())?,
                 searchpath.clone(),
             ),
+            (cx.factory().string("loadlib".to_owned())?, loadlib.clone()),
         ],
     )?;
     let require = package_function(
@@ -160,6 +169,7 @@ pub(crate) fn install_lua_package_stdlib(
 
     define_or_assign(env, Symbol::new("package"), package)?;
     define_or_assign(env, Symbol::new("package.searchpath"), searchpath)?;
+    define_or_assign(env, Symbol::new("package.loadlib"), loadlib)?;
     define_or_assign(env, Symbol::new("require"), require)
 }
 
@@ -176,6 +186,7 @@ pub(crate) fn run_lua_package_function(
         | LuaPackageKind::CSearcher
         | LuaPackageKind::AllInOneSearcher => lua_gap_searcher(cx, policy, function.kind, args),
         LuaPackageKind::SearchPath => lua_searchpath(cx, policy, args),
+        LuaPackageKind::LoadLib => lua_loadlib_gap(cx),
     }
 }
 
@@ -328,6 +339,15 @@ fn lua_searchpath(cx: &mut Cx, policy: &LuaEvalPolicy, args: Vec<Value>) -> Resu
         cx.factory()
             .string(format!("no Lua package path resolved for '{module}'"))?,
     ])
+}
+
+fn lua_loadlib_gap(cx: &mut Cx) -> Result<Vec<Value>> {
+    lua_expected_gap_table(
+        cx,
+        "lua.c-api",
+        "Lua C API package loading is outside the source runtime",
+    )
+    .map(|value| vec![value])
 }
 
 fn cache_loaded(cx: &mut Cx, loaded: &Value, key: Value, value: Value) -> Result<()> {

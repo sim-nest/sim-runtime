@@ -1,0 +1,8 @@
+id = "metatable-vector"
+title = "Metatable vector case"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 40
+tags = ["lua", "conformance", "metatable", "sandbox-descriptor"]
+requires = ["core", "standard"]

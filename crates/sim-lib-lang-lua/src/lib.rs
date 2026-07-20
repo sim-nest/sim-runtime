@@ -8,6 +8,7 @@
 
 mod call;
 mod closure;
+mod codec_normalize;
 mod conformance;
 mod env;
 mod eval;
@@ -37,7 +38,9 @@ mod symbols;
 mod table;
 mod value;
 
-pub use conformance::{run_lua_core_conformance_case, run_lua_core_matrix_row};
+pub use conformance::{
+    REUSE_LEDGER, ReuseLedgerEntry, run_lua_core_conformance_case, run_lua_core_matrix_row,
+};
 pub use env::LuaEnv;
 pub use eval::LuaEvalPolicy;
 pub use matrix_row::{lua_core_matrix_row, lua_core_source_cases};

@@ -12,7 +12,7 @@
 | `cookbook/lang/genconf` | `cookbook-recipe` | `sim-lib-lang-genconf` | Shared expression-space generator and codec registry recipes. |
 | `cookbook/lang/islisp` | `cookbook-recipe` | `sim-lib-lang-islisp` | ISLISP profile descriptors and dispatch fidelity. |
 | `cookbook/lang/julia` | `cookbook-recipe` | `sim-lib-lang-julia` | Julia core profile descriptors and dispatch behavior. |
-| `cookbook/lang/lua` | `cookbook-recipe` | `sim-lib-lang-lua` | Lua core profile descriptors, tables, and coroutines. |
+| `cookbook/lang/lua` | `cookbook-recipe` | `sim-lib-lang-lua` | Lua core profile descriptors, source conformance cases, tables, and coroutines. |
 | `cookbook/lang/matrix` | `cookbook-recipe` | `sim-lib-lang-matrix` | Shared conformance matrix assembly recipes. |
 | `cookbook/lang/ruby` | `cookbook-recipe` | `sim-lib-lang-ruby` | Ruby DSL profile descriptors and block-control behavior. |
 | `cookbook/lang/scheme` | `cookbook-recipe` | `sim-lib-lang-scheme` | R7RS-small profile descriptors and reader surface. |

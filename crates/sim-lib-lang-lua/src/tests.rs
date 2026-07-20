@@ -291,8 +291,18 @@ fn lua_profile_publishes_honest_fidelity() {
             .iter()
             .map(|badge| badge.level)
             .min(),
-        Some(0)
+        Some(1)
     );
+    for unsupported in [
+        Symbol::qualified("lua", "c-api"),
+        Symbol::qualified("lua", "debug-hooks"),
+        Symbol::qualified("lua", "string-dump-bytecode"),
+    ] {
+        assert!(
+            declared.unsupported_forms.contains(&unsupported),
+            "missing unsupported Lua form {unsupported}"
+        );
+    }
     assert!(
         profile
             .backing_requirements

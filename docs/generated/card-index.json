@@ -53,7 +53,7 @@
       "id": "cookbook/lang/lua",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-lang-lua",
-      "summary": "Lua core profile descriptors, tables, and coroutines."
+      "summary": "Lua core profile descriptors, source conformance cases, tables, and coroutines."
     },
     {
       "id": "cookbook/lang/matrix",

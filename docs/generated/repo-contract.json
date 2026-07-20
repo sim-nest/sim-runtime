@@ -53,7 +53,7 @@
       "id": "cookbook/lang/lua",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-lang-lua",
-      "summary": "Lua core profile descriptors, tables, and coroutines."
+      "summary": "Lua core profile descriptors, source conformance cases, tables, and coroutines."
     },
     {
       "id": "cookbook/lang/matrix",
@@ -1636,10 +1636,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-16T00:13:38+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "8af1cdcdcc11cedabaf1827d3e99615b938cfba4",
+    "git_commit": "08151a555973a7e1f1fcf3628c837ab2bfa6a5fb",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "8af1cdcdcc11cedabaf1827d3e99615b938cfba4",
+    "source_commit": "08151a555973a7e1f1fcf3628c837ab2bfa6a5fb",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -1652,9 +1652,9 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "f9b66e1ef92c4046",
+    "workspace_hash": "31d8841501540434",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 359,
+    "workspace_hash_input_count": 364,
     "workspace_hash_inputs": [
       "Cargo.toml",
       "crates/sim-lib-binding/Cargo.toml",
@@ -1796,11 +1796,16 @@
       "crates/sim-lib-lang-julia/src/tests.rs",
       "crates/sim-lib-lang-lua/Cargo.toml",
       "crates/sim-lib-lang-lua/build.rs",
+      "crates/sim-lib-lang-lua/recipes/01-basics/closure-upvalue/recipe.toml",
+      "crates/sim-lib-lang-lua/recipes/01-basics/coroutine-producer/recipe.toml",
       "crates/sim-lib-lang-lua/recipes/01-basics/matrix-row/recipe.toml",
+      "crates/sim-lib-lang-lua/recipes/01-basics/metatable-vector/recipe.toml",
       "crates/sim-lib-lang-lua/recipes/01-basics/profile-descriptor/recipe.toml",
+      "crates/sim-lib-lang-lua/recipes/01-basics/string-patterns/recipe.toml",
       "crates/sim-lib-lang-lua/recipes/book.toml",
       "crates/sim-lib-lang-lua/src/call.rs",
       "crates/sim-lib-lang-lua/src/closure.rs",
+      "crates/sim-lib-lang-lua/src/codec_normalize.rs",
       "crates/sim-lib-lang-lua/src/conformance.rs",
       "crates/sim-lib-lang-lua/src/env.rs",
       "crates/sim-lib-lang-lua/src/eval.rs",
@@ -2265,8 +2270,24 @@
       "card_id": "cookbook/lang/lua",
       "group": "workspace",
       "package": "sim-lib-lang-lua",
-      "recipe_count": 2,
+      "recipe_count": 6,
       "recipes": [
+        {
+          "card_id": "lang/lua/01-basics/closure-upvalue",
+          "codec": "lisp",
+          "id": "closure-upvalue",
+          "package": "sim-lib-lang-lua",
+          "recipe_toml": "crates/sim-lib-lang-lua/recipes/01-basics/closure-upvalue/recipe.toml",
+          "title": "Closure upvalue case"
+        },
+        {
+          "card_id": "lang/lua/01-basics/coroutine-producer",
+          "codec": "lisp",
+          "id": "coroutine-producer",
+          "package": "sim-lib-lang-lua",
+          "recipe_toml": "crates/sim-lib-lang-lua/recipes/01-basics/coroutine-producer/recipe.toml",
+          "title": "Coroutine producer case"
+        },
         {
           "card_id": "lang/lua/01-basics/matrix-row",
           "codec": "lisp",
@@ -2276,15 +2297,31 @@
           "title": "Lua matrix row"
         },
         {
+          "card_id": "lang/lua/01-basics/metatable-vector",
+          "codec": "lisp",
+          "id": "metatable-vector",
+          "package": "sim-lib-lang-lua",
+          "recipe_toml": "crates/sim-lib-lang-lua/recipes/01-basics/metatable-vector/recipe.toml",
+          "title": "Metatable vector case"
+        },
+        {
           "card_id": "lang/lua/01-basics/profile-descriptor",
           "codec": "lisp",
           "id": "profile-descriptor",
           "package": "sim-lib-lang-lua",
           "recipe_toml": "crates/sim-lib-lang-lua/recipes/01-basics/profile-descriptor/recipe.toml",
           "title": "Lua profile descriptor"
+        },
+        {
+          "card_id": "lang/lua/01-basics/string-patterns",
+          "codec": "lisp",
+          "id": "string-patterns",
+          "package": "sim-lib-lang-lua",
+          "recipe_toml": "crates/sim-lib-lang-lua/recipes/01-basics/string-patterns/recipe.toml",
+          "title": "String pattern case"
         }
       ],
-      "summary": "Lua core profile descriptors, tables, and coroutines.",
+      "summary": "Lua core profile descriptors, source conformance cases, tables, and coroutines.",
       "title": "Lua Core Profile"
     },
     {
