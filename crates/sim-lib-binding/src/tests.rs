@@ -167,6 +167,46 @@ fn letrec_handles_mutual_recursion() {
 }
 
 #[test]
+fn captured_binding_cell_is_shared_by_two_closures() {
+    let mut cx = cx();
+    let env = LexicalEnv::new();
+    let shared = Symbol::new("shared");
+
+    env.define(shared.clone(), symbol_value(&mut cx, "initial"))
+        .unwrap();
+    let writer_cell = env.capture_cell(&shared).unwrap();
+    let reader_cell = env.capture_cell(&shared).unwrap();
+
+    let writer = lexical_function_value(
+        &mut cx,
+        Symbol::new("scheme-setter"),
+        env.clone(),
+        Arc::new(move |_cx, _env, args| {
+            let value = args
+                .into_iter()
+                .next()
+                .ok_or_else(|| Error::Eval("scheme-setter expects one value".to_owned()))?;
+            writer_cell.set(value.clone())?;
+            Ok(value)
+        }),
+    )
+    .unwrap();
+    let reader = lexical_function_value(
+        &mut cx,
+        Symbol::new("cl-reader"),
+        env,
+        Arc::new(move |_cx, _env, _args| reader_cell.get()),
+    )
+    .unwrap();
+
+    let replacement = symbol_value(&mut cx, "replacement");
+    call_value(&mut cx, writer, vec![replacement.clone()]).unwrap();
+    let observed = call_value(&mut cx, reader, Vec::new()).unwrap();
+
+    assert_eq!(observed, replacement);
+}
+
+#[test]
 fn dynamic_binding_is_restored_after_escape() {
     let mut cx = cx();
     let env = DynamicEnv::new();
