@@ -369,7 +369,7 @@ fn lua_eval_policy_runs_chunk_with_core_forms() {
                 },
             )))
             .unwrap();
-    env.define(Symbol::new("choose"), choose);
+    env.define(Symbol::new("choose"), choose).unwrap();
 
     let program = lua_form(
         "chunk",

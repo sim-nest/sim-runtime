@@ -7,6 +7,8 @@ pub enum LuaResult {
     Values(Vec<Value>),
     /// Values carried by a Lua `return` form.
     Return(Vec<Value>),
+    /// Non-local exit carried by a Lua `break` form.
+    Break,
 }
 
 impl LuaResult {
@@ -25,10 +27,16 @@ impl LuaResult {
         Self::Return(values)
     }
 
+    /// Build a `break` result.
+    pub fn break_signal() -> Self {
+        Self::Break
+    }
+
     /// Borrow the contained values.
     pub fn values_ref(&self) -> &[Value] {
         match self {
             Self::Values(values) | Self::Return(values) => values,
+            Self::Break => &[],
         }
     }
 
@@ -37,10 +45,16 @@ impl LuaResult {
         matches!(self, Self::Return(_))
     }
 
+    /// Return whether this result came from a Lua `break` form.
+    pub fn is_break(&self) -> bool {
+        matches!(self, Self::Break)
+    }
+
     /// Consume the result and return its values.
     pub fn into_values(self) -> Vec<Value> {
         match self {
             Self::Values(values) | Self::Return(values) => values,
+            Self::Break => Vec::new(),
         }
     }
 }

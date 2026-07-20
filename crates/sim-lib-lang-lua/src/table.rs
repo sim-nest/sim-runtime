@@ -181,6 +181,11 @@ pub fn lua_set_metatable(cx: &mut Cx, table: &Value, metatable: Value) -> Result
     lua_table_value(table)?.set_metatable(cx, metatable)
 }
 
+/// Returns a Lua table metatable, if one is installed.
+pub fn lua_get_metatable(table: &Value) -> Result<Option<Value>> {
+    lua_table_value(table)?.metatable()
+}
+
 fn lua_number_key(cx: &mut Cx, value: &Value) -> Result<Option<RuntimeKey>> {
     let Some(number) = lua_number_from_value(cx, value)? else {
         return Ok(None);

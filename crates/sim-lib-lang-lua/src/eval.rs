@@ -1,13 +1,19 @@
 use std::sync::Arc;
 
-use sim_kernel::{Args, Cx, Error, Expr, Result, Symbol, Value};
+use sim_kernel::{Cx, Error, Expr, Result, Symbol, Value};
 use sim_lib_standard_core::{
     Arity, CoercionPolicy, GuestRuntimeKit, SharedOrganRuntime, TruthPolicy,
 };
 
 use crate::{
-    LuaEnv, LuaOp, LuaResult, lua_binary, lua_core_profile, lua_get, lua_len, lua_rawget,
-    lua_rawset, lua_table_from_values,
+    LuaEnv, LuaOp, LuaResult,
+    call::call_lua_value,
+    closure::{lua_closure_value, lua_varargs_values},
+    forms::{LuaForm, binding_symbol, bool_literal, lua_form, required_head, symbol_list},
+    loops::{eval_generic_for, eval_numeric_for},
+    lua_binary, lua_core_profile, lua_get, lua_len, lua_rawget, lua_rawset, lua_table_from_values,
+    stdlib_base::install_lua_base_stdlib,
+    stdlib_coroutine::install_lua_coroutine_stdlib,
 };
 
 /// Eval policy for the Lua core profile.
@@ -38,16 +44,37 @@ impl LuaEvalPolicy {
         &self.kit
     }
 
+    /// Install the Lua base and coroutine standard library into `env`.
+    pub fn install_stdlib(&self, cx: &mut Cx, env: &mut LuaEnv) -> Result<()> {
+        install_lua_base_stdlib(cx, self, env)?;
+        install_lua_coroutine_stdlib(cx, self, env)
+    }
+
     /// Evaluate a Lua core expression.
     pub fn eval(&self, cx: &mut Cx, env: &mut LuaEnv, expr: &Expr) -> Result<LuaResult> {
         if let Some((form, args)) = lua_form(expr) {
             return match form {
                 LuaForm::Chunk | LuaForm::Block => self.eval_block(cx, env, args),
                 LuaForm::Local => self.eval_local(cx, env, args),
+                LuaForm::LocalValues => self.eval_local_values(cx, env, args),
                 LuaForm::Assign => self.eval_assign(cx, env, args),
                 LuaForm::If => self.eval_if(cx, env, args),
                 LuaForm::Call => self.eval_call_form(cx, env, args),
+                LuaForm::Closure => self.eval_closure(cx, env, args),
+                LuaForm::Varargs => self.eval_varargs(env, args),
                 LuaForm::Return => self.eval_return(cx, env, args),
+                LuaForm::Break => self.eval_break(args),
+                LuaForm::NumericFor => {
+                    eval_numeric_for(cx, self, env, args, |policy, cx, env, expr| {
+                        policy.eval_one(cx, env, expr)
+                    })
+                }
+                LuaForm::GenericFor => {
+                    eval_generic_for(cx, self, env, args, |policy, cx, env, expr| {
+                        policy.eval_one(cx, env, expr)
+                    })
+                }
+                LuaForm::Stdlib => self.eval_stdlib(cx, env, args),
                 LuaForm::Table => self.eval_table(cx, env, args),
                 LuaForm::Get => self.eval_get(cx, env, args),
                 LuaForm::RawGet => self.eval_rawget(cx, env, args),
@@ -66,14 +93,17 @@ impl LuaEvalPolicy {
 
     fn eval_block(&self, cx: &mut Cx, env: &mut LuaEnv, body: &[Expr]) -> Result<LuaResult> {
         let mut last = vec![self.kit.nil.clone()];
-        for expr in body {
+        for (index, expr) in body.iter().enumerate() {
             let result = self.eval(cx, env, expr)?;
-            if result.is_return() {
+            if result.is_return() || result.is_break() {
                 return Ok(result);
             }
-            last = self
-                .kit
-                .adjust_values(result.into_values(), Arity::AtLeastOne);
+            let values = result.into_values();
+            last = if index + 1 == body.len() {
+                values
+            } else {
+                self.kit.adjust_values(values, Arity::AtLeastOne)
+            };
         }
         Ok(LuaResult::values(last))
     }
@@ -88,8 +118,18 @@ impl LuaEvalPolicy {
             Some(value_expr) => self.eval_one(cx, env, value_expr)?,
             None => self.kit.nil.clone(),
         };
-        env.define(name, value.clone());
+        env.define(name, value.clone())?;
         Ok(LuaResult::one(value))
+    }
+
+    fn eval_local_values(&self, cx: &mut Cx, env: &mut LuaEnv, args: &[Expr]) -> Result<LuaResult> {
+        let (names_expr, value_exprs) = required_head(args, "lua local-values")?;
+        let names = symbol_list(names_expr, "lua local-values")?;
+        let values = self.assignment_values(cx, env, value_exprs, names.len())?;
+        for (name, value) in names.into_iter().zip(values.iter().cloned()) {
+            env.define(name, value)?;
+        }
+        Ok(LuaResult::values(values))
     }
 
     fn eval_assign(&self, cx: &mut Cx, env: &mut LuaEnv, args: &[Expr]) -> Result<LuaResult> {
@@ -132,21 +172,57 @@ impl LuaEvalPolicy {
         args: &[Expr],
     ) -> Result<LuaResult> {
         let callee = self.eval_one(cx, env, operator)?;
-        let mut values = Vec::with_capacity(args.len());
-        for arg in args {
-            values.push(self.eval_one(cx, env, arg)?);
+        let values = self.eval_argument_values(cx, env, args)?;
+        call_lua_value(cx, self, callee, values).map(LuaResult::values)
+    }
+
+    fn eval_closure(&self, cx: &mut Cx, env: &mut LuaEnv, args: &[Expr]) -> Result<LuaResult> {
+        if !(4..=5).contains(&args.len()) {
+            return Err(Error::Eval(
+                "lua closure requires name, params, vararg flag, body, and optional captures"
+                    .to_owned(),
+            ));
         }
-        cx.call_value(callee, Args::new(values)).map(LuaResult::one)
+        let name = binding_symbol(&args[0], "lua closure")?;
+        let params = symbol_list(&args[1], "lua closure params")?;
+        let vararg = bool_literal(&args[2], "lua closure vararg flag")?;
+        let captures = match args.get(4) {
+            Some(expr) => symbol_list(expr, "lua closure captures")?,
+            None => Vec::new(),
+        };
+        lua_closure_value(cx, env, name, params, vararg, args[3].clone(), captures)
+            .map(LuaResult::one)
+    }
+
+    fn eval_varargs(&self, env: &mut LuaEnv, args: &[Expr]) -> Result<LuaResult> {
+        if !args.is_empty() {
+            return Err(Error::Eval("lua varargs accepts no operands".to_owned()));
+        }
+        let value = env.get(&Symbol::new("..."))?;
+        let values = lua_varargs_values(&value)
+            .ok_or_else(|| Error::Eval("lua varargs local is not a vararg bundle".to_owned()))?;
+        Ok(LuaResult::values(values))
     }
 
     fn eval_return(&self, cx: &mut Cx, env: &mut LuaEnv, args: &[Expr]) -> Result<LuaResult> {
-        let mut values = Vec::with_capacity(args.len());
-        for arg in args {
-            values.push(self.eval_one(cx, env, arg)?);
-        }
         Ok(LuaResult::return_values(
-            self.kit.adjust_values(values, Arity::All),
+            self.eval_multi_exprs(cx, env, args)?,
         ))
+    }
+
+    fn eval_break(&self, args: &[Expr]) -> Result<LuaResult> {
+        if !args.is_empty() {
+            return Err(Error::Eval("lua break accepts no operands".to_owned()));
+        }
+        Ok(LuaResult::break_signal())
+    }
+
+    fn eval_stdlib(&self, cx: &mut Cx, env: &mut LuaEnv, args: &[Expr]) -> Result<LuaResult> {
+        if !args.is_empty() {
+            return Err(Error::Eval("lua stdlib accepts no operands".to_owned()));
+        }
+        self.install_stdlib(cx, env)?;
+        Ok(LuaResult::one(self.kit.nil.clone()))
     }
 
     fn eval_table(&self, cx: &mut Cx, env: &mut LuaEnv, args: &[Expr]) -> Result<LuaResult> {
@@ -237,7 +313,67 @@ impl LuaEvalPolicy {
             LuaResult::Return(_) => Err(Error::Eval(
                 "lua return cannot be used as a value expression".to_owned(),
             )),
+            LuaResult::Break => Err(Error::Eval(
+                "lua break cannot be used as a value expression".to_owned(),
+            )),
         }
+    }
+
+    fn eval_values(&self, cx: &mut Cx, env: &mut LuaEnv, expr: &Expr) -> Result<Vec<Value>> {
+        match self.eval(cx, env, expr)? {
+            LuaResult::Values(values) => {
+                if let [value] = values.as_slice()
+                    && let Some(values) = lua_varargs_values(value)
+                {
+                    return Ok(values);
+                }
+                Ok(values)
+            }
+            LuaResult::Return(_) => Err(Error::Eval(
+                "lua return cannot be used as a value expression".to_owned(),
+            )),
+            LuaResult::Break => Err(Error::Eval(
+                "lua break cannot be used as a value expression".to_owned(),
+            )),
+        }
+    }
+
+    fn eval_multi_exprs(
+        &self,
+        cx: &mut Cx,
+        env: &mut LuaEnv,
+        exprs: &[Expr],
+    ) -> Result<Vec<Value>> {
+        let Some((last, prefix)) = exprs.split_last() else {
+            return Ok(Vec::new());
+        };
+        let mut values = Vec::with_capacity(exprs.len());
+        for expr in prefix {
+            values.push(self.eval_one(cx, env, expr)?);
+        }
+        values.extend(self.eval_values(cx, env, last)?);
+        Ok(values)
+    }
+
+    fn eval_argument_values(
+        &self,
+        cx: &mut Cx,
+        env: &mut LuaEnv,
+        exprs: &[Expr],
+    ) -> Result<Vec<Value>> {
+        self.eval_multi_exprs(cx, env, exprs)
+    }
+
+    fn assignment_values(
+        &self,
+        cx: &mut Cx,
+        env: &mut LuaEnv,
+        exprs: &[Expr],
+        count: usize,
+    ) -> Result<Vec<Value>> {
+        Ok(self
+            .kit
+            .adjust_values(self.eval_multi_exprs(cx, env, exprs)?, Arity::Exact(count)))
     }
 
     fn eval_atom(&self, cx: &mut Cx, env: &mut LuaEnv, expr: &Expr) -> Result<Value> {
@@ -296,6 +432,9 @@ impl LuaEvalPolicy {
                 LuaResult::Return(_) => Err(Error::Eval(
                     "lua return cannot be used as a value expression".to_owned(),
                 )),
+                LuaResult::Break => Err(Error::Eval(
+                    "lua break cannot be used as a value expression".to_owned(),
+                )),
             },
             Expr::Quote { expr, .. } => cx.factory().expr((**expr).clone()),
             Expr::Annotated { expr, .. } => self.eval_one(cx, env, expr),
@@ -314,88 +453,6 @@ fn lua_runtime_kit(cx: &mut Cx) -> Result<GuestRuntimeKit> {
         Arc::new(LuaCoercionPolicy),
         cx.factory().nil()?,
     ))
-}
-
-#[derive(Clone, Copy)]
-enum LuaForm {
-    Chunk,
-    Block,
-    Local,
-    Assign,
-    If,
-    Call,
-    Return,
-    Table,
-    Get,
-    RawGet,
-    RawSet,
-    Len,
-    Binary(LuaOp),
-}
-
-fn lua_form(expr: &Expr) -> Option<(LuaForm, &[Expr])> {
-    let Expr::List(items) = expr else {
-        return None;
-    };
-    let (head, args) = items.split_first()?;
-    let Expr::Symbol(symbol) = head else {
-        return None;
-    };
-    lua_form_symbol(symbol).map(|form| (form, args))
-}
-
-fn lua_form_symbol(symbol: &Symbol) -> Option<LuaForm> {
-    if !matches!(
-        symbol.namespace.as_deref(),
-        Some("lua") | Some("lua/core") | None
-    ) {
-        return None;
-    }
-    match symbol.name.as_ref() {
-        "chunk" => Some(LuaForm::Chunk),
-        "block" => Some(LuaForm::Block),
-        "local" => Some(LuaForm::Local),
-        "assign" => Some(LuaForm::Assign),
-        "if" => Some(LuaForm::If),
-        "call" => Some(LuaForm::Call),
-        "return" => Some(LuaForm::Return),
-        "table" => Some(LuaForm::Table),
-        "get" => Some(LuaForm::Get),
-        "rawget" => Some(LuaForm::RawGet),
-        "rawset" => Some(LuaForm::RawSet),
-        "len" => Some(LuaForm::Len),
-        "add" => Some(LuaForm::Binary(LuaOp::Add)),
-        "sub" => Some(LuaForm::Binary(LuaOp::Sub)),
-        "mul" => Some(LuaForm::Binary(LuaOp::Mul)),
-        "div" => Some(LuaForm::Binary(LuaOp::FloatDiv)),
-        "floordiv" => Some(LuaForm::Binary(LuaOp::FloorDiv)),
-        "mod" => Some(LuaForm::Binary(LuaOp::Mod)),
-        "pow" => Some(LuaForm::Binary(LuaOp::Pow)),
-        "band" => Some(LuaForm::Binary(LuaOp::Band)),
-        "bor" => Some(LuaForm::Binary(LuaOp::Bor)),
-        "bxor" => Some(LuaForm::Binary(LuaOp::Bxor)),
-        "shl" => Some(LuaForm::Binary(LuaOp::Shl)),
-        "shr" => Some(LuaForm::Binary(LuaOp::Shr)),
-        "concat" => Some(LuaForm::Binary(LuaOp::Concat)),
-        "eq" => Some(LuaForm::Binary(LuaOp::Eq)),
-        "lt" => Some(LuaForm::Binary(LuaOp::Lt)),
-        "le" => Some(LuaForm::Binary(LuaOp::Le)),
-        _ => None,
-    }
-}
-
-fn required_head<'a>(args: &'a [Expr], context: &str) -> Result<(&'a Expr, &'a [Expr])> {
-    args.split_first()
-        .ok_or_else(|| Error::Eval(format!("{context} requires a target")))
-}
-
-fn binding_symbol(expr: &Expr, context: &str) -> Result<Symbol> {
-    match expr {
-        Expr::Symbol(symbol) | Expr::Local(symbol) => Ok(symbol.clone()),
-        _ => Err(Error::Eval(format!(
-            "{context} requires a symbol binding target"
-        ))),
-    }
 }
 
 struct LuaTruthPolicy;

@@ -1,11 +1,10 @@
-use std::collections::BTreeMap;
+use sim_kernel::{Result, Symbol, Value};
+use sim_lib_binding::{BindingCell, LexicalEnv};
 
-use sim_kernel::{Error, Result, Symbol, Value};
-
-/// Flat local environment used by the Lua core eval policy.
+/// Lexical local environment used by the Lua core eval policy.
 #[derive(Clone, Debug, Default)]
 pub struct LuaEnv {
-    locals: BTreeMap<Symbol, Value>,
+    lexical: LexicalEnv,
 }
 
 impl LuaEnv {
@@ -14,34 +13,36 @@ impl LuaEnv {
         Self::default()
     }
 
-    /// Bind or replace a Lua local value.
-    pub fn define(&mut self, name: Symbol, value: Value) -> Option<Value> {
-        self.locals.insert(name, value)
+    /// Open a nested scope whose lookups fall through to this one.
+    pub fn child(&self) -> Self {
+        Self {
+            lexical: self.lexical.child(),
+        }
+    }
+
+    /// Bind a Lua local value in the current frame.
+    pub fn define(&mut self, name: Symbol, value: Value) -> Result<()> {
+        self.lexical.define(name, value)
     }
 
     /// Return whether a Lua local is bound.
     pub fn contains(&self, name: &Symbol) -> bool {
-        self.locals.contains_key(name)
+        self.lexical.lookup(name).is_ok()
     }
 
     /// Assign an existing Lua local.
     pub fn assign(&mut self, name: &Symbol, value: Value) -> Result<Value> {
-        let Some(slot) = self.locals.get_mut(name) else {
-            return Err(Error::UnknownSymbol {
-                symbol: name.clone(),
-            });
-        };
-        *slot = value.clone();
+        self.capture(name)?.set(value.clone())?;
         Ok(value)
     }
 
     /// Look up a Lua local value.
     pub fn get(&self, name: &Symbol) -> Result<Value> {
-        self.locals
-            .get(name)
-            .cloned()
-            .ok_or_else(|| Error::UnknownSymbol {
-                symbol: name.clone(),
-            })
+        self.lexical.lookup(name)
+    }
+
+    /// Capture an existing Lua local as a shared upvalue cell.
+    pub fn capture(&self, name: &Symbol) -> Result<BindingCell> {
+        self.lexical.capture_cell(name)
     }
 }
