@@ -38,6 +38,13 @@ fn number_canonical(cx: &mut Cx, value: &Value) -> String {
     }
 }
 
+fn number_domain(cx: &mut Cx, value: &Value) -> Symbol {
+    match value_expr(cx, value) {
+        Expr::Number(NumberLiteral { domain, .. }) => domain,
+        other => panic!("expected number, got {other:?}"),
+    }
+}
+
 fn lua_form(name: &str, args: Vec<Expr>) -> Expr {
     let mut items = vec![Expr::Symbol(Symbol::qualified("lua", name))];
     items.extend(args);
@@ -152,6 +159,14 @@ fn lua_numeric_operators_follow_lua_subtypes_and_coercions() {
     let right = string(&mut cx, "3");
     let coerced = lua_binary(&mut cx, &mut env, LuaOp::Mul, left, right).unwrap();
     assert_eq!(number_canonical(&mut cx, &coerced), "6");
+    assert_eq!(
+        number_domain(&mut cx, &coerced),
+        sim_lib_numbers_i64::number_domain()
+    );
+    assert_eq!(
+        number_domain(&mut cx, &div),
+        sim_lib_numbers_f64::number_domain()
+    );
 }
 
 #[test]

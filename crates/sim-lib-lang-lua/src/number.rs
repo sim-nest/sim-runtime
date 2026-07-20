@@ -221,9 +221,9 @@ fn canonical_float(value: f64) -> String {
 }
 
 fn lua_integer_domain() -> Symbol {
-    Symbol::qualified("lua", "integer")
+    sim_lib_numbers_i64::number_domain()
 }
 
 fn lua_float_domain() -> Symbol {
-    Symbol::qualified("lua", "float")
+    sim_lib_numbers_f64::number_domain()
 }
