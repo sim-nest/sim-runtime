@@ -7,19 +7,26 @@
 //! shared `Expr` graph, not a standalone interpreter.
 
 mod conformance;
+mod env;
+mod eval;
 mod matrix_row;
 mod profile;
 mod runtime;
 mod symbols;
+mod value;
 
 pub use conformance::{run_lua_core_conformance_case, run_lua_core_matrix_row};
+pub use env::LuaEnv;
+pub use eval::LuaEvalPolicy;
 pub use matrix_row::{lua_core_matrix_row, lua_core_source_cases};
 pub use profile::{install_lua_core_profile, lua_core_profile};
 pub use runtime::{lua_coroutine, lua_table, lua_table_value};
 pub use symbols::{
-    lua_conformance_test_symbol, lua_control_fidelity_symbol, lua_full_runtime_fidelity_symbol,
-    lua_lowering_symbol, lua_mutation_fidelity_symbol, lua_profile_symbol, lua_reader_symbol,
+    lua_conformance_test_symbol, lua_control_fidelity_symbol, lua_eval_policy_symbol,
+    lua_full_runtime_fidelity_symbol, lua_lowering_symbol, lua_mutation_fidelity_symbol,
+    lua_profile_symbol, lua_reader_symbol,
 };
+pub use value::LuaResult;
 
 /// Cookbook recipes for this lib, embedded at build time.
 pub static RECIPES: sim_cookbook::EmbeddedDir =
