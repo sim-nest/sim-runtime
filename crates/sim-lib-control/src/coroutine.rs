@@ -1,5 +1,83 @@
 use sim_kernel::Ref;
 
+/// The next observable transition from a resumable coroutine frame.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CoroutineFrameStep<T = Ref> {
+    /// The frame produced a value from its producer side.
+    Produced(T),
+    /// The frame consumed a value on its consumer side.
+    Consumed(T),
+    /// Both sides are exhausted.
+    Complete,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CoroutineFrameTurn {
+    Produce,
+    Consume,
+}
+
+/// A resumable producer/consumer frame for control libraries.
+///
+/// The frame alternates between produced and consumed values while either side
+/// has work remaining. It carries no language-specific status names, so codec
+/// and language layers can map the generic steps into their own surfaces.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CoroutineFrame<T = Ref> {
+    produced: Vec<T>,
+    consumed: Vec<T>,
+    produced_index: usize,
+    consumed_index: usize,
+    turn: CoroutineFrameTurn,
+}
+
+impl<T> CoroutineFrame<T> {
+    /// Builds a frame from producer-side and consumer-side values.
+    pub fn new(produced: Vec<T>, consumed: Vec<T>) -> Self {
+        Self {
+            produced,
+            consumed,
+            produced_index: 0,
+            consumed_index: 0,
+            turn: CoroutineFrameTurn::Produce,
+        }
+    }
+
+    /// Resumes the frame, returning the next producer or consumer transition.
+    pub fn resume(&mut self) -> CoroutineFrameStep<T>
+    where
+        T: Clone,
+    {
+        loop {
+            match self.turn {
+                CoroutineFrameTurn::Produce => {
+                    self.turn = CoroutineFrameTurn::Consume;
+                    if let Some(value) = self.produced.get(self.produced_index).cloned() {
+                        self.produced_index += 1;
+                        return CoroutineFrameStep::Produced(value);
+                    }
+                }
+                CoroutineFrameTurn::Consume => {
+                    self.turn = CoroutineFrameTurn::Produce;
+                    if let Some(value) = self.consumed.get(self.consumed_index).cloned() {
+                        self.consumed_index += 1;
+                        return CoroutineFrameStep::Consumed(value);
+                    }
+                }
+            }
+
+            if self.is_complete() {
+                return CoroutineFrameStep::Complete;
+            }
+        }
+    }
+
+    /// Returns whether both producer and consumer sides are exhausted.
+    pub fn is_complete(&self) -> bool {
+        self.produced_index >= self.produced.len() && self.consumed_index >= self.consumed.len()
+    }
+}
+
 /// Identifies which of a coroutine's two cooperating lanes yielded a value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CoroutineLane {

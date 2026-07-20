@@ -9,6 +9,7 @@
 mod r#async;
 mod backtrack;
 mod claims;
+mod close;
 mod condition;
 mod conditional;
 mod coroutine;
@@ -18,6 +19,7 @@ mod nonlocal;
 mod ops;
 mod policy;
 mod prompt;
+mod protected;
 mod restart;
 mod runtime;
 
@@ -27,9 +29,10 @@ pub use claims::{
     control_op_keys, control_organ_symbol, publish_control_organ_claims,
     publish_control_organ_claims_for_lib,
 };
+pub use close::{CloseGuard, run_with_close_guards};
 pub use condition::{Condition, ConditionHandler, ConditionStack, signal_condition};
 pub use conditional::IfForm;
-pub use coroutine::{Coroutine, CoroutineLane, CoroutineStep};
+pub use coroutine::{Coroutine, CoroutineFrame, CoroutineFrameStep, CoroutineLane, CoroutineStep};
 pub use generator::{Generator, GeneratorStep};
 pub use model::{ContinuationValue, ControlResultValue};
 pub use nonlocal::{LabeledPrompt, NonLocalExit, NonLocalExitKind, escape_to_label};
@@ -42,6 +45,7 @@ pub use policy::{
     segmented_control_policy,
 };
 pub use prompt::{ControlPrompt, ControlTag, raise_prompt};
+pub use protected::{ProtectedOutcome, protected_call};
 pub use restart::{Restart, RestartStack, invoke_restart};
 pub use runtime::{ControlLib, control_exports, install_control_lib, manifest_name};
 
@@ -51,6 +55,9 @@ pub static RECIPES: sim_cookbook::EmbeddedDir =
 
 #[cfg(test)]
 mod derivation_tests;
+
+#[cfg(test)]
+mod frame_tests;
 
 #[cfg(test)]
 mod tests;
