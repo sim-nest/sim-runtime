@@ -5,7 +5,10 @@ use sim_lib_standard_core::{
     Arity, CoercionPolicy, GuestRuntimeKit, SharedOrganRuntime, TruthPolicy,
 };
 
-use crate::{LuaEnv, LuaResult, lua_core_profile};
+use crate::{
+    LuaEnv, LuaOp, LuaResult, lua_binary, lua_core_profile, lua_get, lua_len, lua_rawget,
+    lua_rawset, lua_table_from_values,
+};
 
 /// Eval policy for the Lua core profile.
 #[derive(Clone, Debug)]
@@ -45,6 +48,12 @@ impl LuaEvalPolicy {
                 LuaForm::If => self.eval_if(cx, env, args),
                 LuaForm::Call => self.eval_call_form(cx, env, args),
                 LuaForm::Return => self.eval_return(cx, env, args),
+                LuaForm::Table => self.eval_table(cx, env, args),
+                LuaForm::Get => self.eval_get(cx, env, args),
+                LuaForm::RawGet => self.eval_rawget(cx, env, args),
+                LuaForm::RawSet => self.eval_rawset(cx, env, args),
+                LuaForm::Len => self.eval_len(cx, env, args),
+                LuaForm::Binary(op) => self.eval_binary(cx, env, op, args),
             };
         }
 
@@ -138,6 +147,83 @@ impl LuaEvalPolicy {
         Ok(LuaResult::return_values(
             self.kit.adjust_values(values, Arity::All),
         ))
+    }
+
+    fn eval_table(&self, cx: &mut Cx, env: &mut LuaEnv, args: &[Expr]) -> Result<LuaResult> {
+        if !args.len().is_multiple_of(2) {
+            return Err(Error::Eval(
+                "lua table requires key/value expression pairs".to_owned(),
+            ));
+        }
+        let mut entries = Vec::with_capacity(args.len() / 2);
+        for pair in args.chunks_exact(2) {
+            entries.push((
+                self.eval_one(cx, env, &pair[0])?,
+                self.eval_one(cx, env, &pair[1])?,
+            ));
+        }
+        lua_table_from_values(cx, entries).map(LuaResult::one)
+    }
+
+    fn eval_get(&self, cx: &mut Cx, env: &mut LuaEnv, args: &[Expr]) -> Result<LuaResult> {
+        let [table, key] = args else {
+            return Err(Error::Eval("lua get requires table and key".to_owned()));
+        };
+        let table = self.eval_one(cx, env, table)?;
+        let key = self.eval_one(cx, env, key)?;
+        Ok(LuaResult::one(
+            lua_get(cx, &table, &key)?.unwrap_or_else(|| self.kit.nil.clone()),
+        ))
+    }
+
+    fn eval_rawget(&self, cx: &mut Cx, env: &mut LuaEnv, args: &[Expr]) -> Result<LuaResult> {
+        let [table, key] = args else {
+            return Err(Error::Eval("lua rawget requires table and key".to_owned()));
+        };
+        let table = self.eval_one(cx, env, table)?;
+        let key = self.eval_one(cx, env, key)?;
+        Ok(LuaResult::one(
+            lua_rawget(cx, &table, &key)?.unwrap_or_else(|| self.kit.nil.clone()),
+        ))
+    }
+
+    fn eval_rawset(&self, cx: &mut Cx, env: &mut LuaEnv, args: &[Expr]) -> Result<LuaResult> {
+        let [table, key, value] = args else {
+            return Err(Error::Eval(
+                "lua rawset requires table, key, and value".to_owned(),
+            ));
+        };
+        let table = self.eval_one(cx, env, table)?;
+        let key = self.eval_one(cx, env, key)?;
+        let value = self.eval_one(cx, env, value)?;
+        lua_rawset(cx, &table, key, value.clone())?;
+        Ok(LuaResult::one(value))
+    }
+
+    fn eval_len(&self, cx: &mut Cx, env: &mut LuaEnv, args: &[Expr]) -> Result<LuaResult> {
+        let [value] = args else {
+            return Err(Error::Eval("lua len requires one value".to_owned()));
+        };
+        let value = self.eval_one(cx, env, value)?;
+        lua_len(cx, env, value).map(LuaResult::one)
+    }
+
+    fn eval_binary(
+        &self,
+        cx: &mut Cx,
+        env: &mut LuaEnv,
+        op: LuaOp,
+        args: &[Expr],
+    ) -> Result<LuaResult> {
+        let [left, right] = args else {
+            return Err(Error::Eval(format!(
+                "lua operator {} requires two operands",
+                op.name()
+            )));
+        };
+        let left = self.eval_one(cx, env, left)?;
+        let right = self.eval_one(cx, env, right)?;
+        lua_binary(cx, env, op, left, right).map(LuaResult::one)
     }
 
     fn eval_one(&self, cx: &mut Cx, env: &mut LuaEnv, expr: &Expr) -> Result<Value> {
@@ -239,6 +325,12 @@ enum LuaForm {
     If,
     Call,
     Return,
+    Table,
+    Get,
+    RawGet,
+    RawSet,
+    Len,
+    Binary(LuaOp),
 }
 
 fn lua_form(expr: &Expr) -> Option<(LuaForm, &[Expr])> {
@@ -267,6 +359,27 @@ fn lua_form_symbol(symbol: &Symbol) -> Option<LuaForm> {
         "if" => Some(LuaForm::If),
         "call" => Some(LuaForm::Call),
         "return" => Some(LuaForm::Return),
+        "table" => Some(LuaForm::Table),
+        "get" => Some(LuaForm::Get),
+        "rawget" => Some(LuaForm::RawGet),
+        "rawset" => Some(LuaForm::RawSet),
+        "len" => Some(LuaForm::Len),
+        "add" => Some(LuaForm::Binary(LuaOp::Add)),
+        "sub" => Some(LuaForm::Binary(LuaOp::Sub)),
+        "mul" => Some(LuaForm::Binary(LuaOp::Mul)),
+        "div" => Some(LuaForm::Binary(LuaOp::FloatDiv)),
+        "floordiv" => Some(LuaForm::Binary(LuaOp::FloorDiv)),
+        "mod" => Some(LuaForm::Binary(LuaOp::Mod)),
+        "pow" => Some(LuaForm::Binary(LuaOp::Pow)),
+        "band" => Some(LuaForm::Binary(LuaOp::Band)),
+        "bor" => Some(LuaForm::Binary(LuaOp::Bor)),
+        "bxor" => Some(LuaForm::Binary(LuaOp::Bxor)),
+        "shl" => Some(LuaForm::Binary(LuaOp::Shl)),
+        "shr" => Some(LuaForm::Binary(LuaOp::Shr)),
+        "concat" => Some(LuaForm::Binary(LuaOp::Concat)),
+        "eq" => Some(LuaForm::Binary(LuaOp::Eq)),
+        "lt" => Some(LuaForm::Binary(LuaOp::Lt)),
+        "le" => Some(LuaForm::Binary(LuaOp::Le)),
         _ => None,
     }
 }

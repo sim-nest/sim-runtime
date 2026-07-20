@@ -10,21 +10,32 @@ mod conformance;
 mod env;
 mod eval;
 mod matrix_row;
+mod metatable;
+mod number;
+mod operator;
 mod profile;
 mod runtime;
 mod symbols;
+mod table;
 mod value;
 
 pub use conformance::{run_lua_core_conformance_case, run_lua_core_matrix_row};
 pub use env::LuaEnv;
 pub use eval::LuaEvalPolicy;
 pub use matrix_row::{lua_core_matrix_row, lua_core_source_cases};
+pub use metatable::{lua_get, lua_index_slot, lua_metamethod};
+pub use number::{LuaNumber, lua_float_value, lua_integer_value, lua_number_from_value};
+pub use operator::{LuaOp, lua_binary, lua_len};
 pub use profile::{install_lua_core_profile, lua_core_profile};
-pub use runtime::{lua_coroutine, lua_table, lua_table_value};
+pub use runtime::lua_coroutine;
 pub use symbols::{
     lua_conformance_test_symbol, lua_control_fidelity_symbol, lua_eval_policy_symbol,
     lua_full_runtime_fidelity_symbol, lua_lowering_symbol, lua_mutation_fidelity_symbol,
     lua_profile_symbol, lua_reader_symbol,
+};
+pub use table::{
+    LuaTable, LuaTablePolicy, lua_rawget, lua_rawset, lua_set_metatable, lua_table,
+    lua_table_from_values, lua_table_value,
 };
 pub use value::LuaResult;
 
