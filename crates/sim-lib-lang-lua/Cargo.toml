@@ -13,16 +13,16 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 sim-codec-lua = { version = "0.1.1" }
 sim-cookbook = { version = "0.1.0" }
 sim-kernel = { version = "0.1.0" }
-sim-lib-binding = { version = "0.1.0", path = "../sim-lib-binding" }
-sim-lib-control = { version = "0.1.0", path = "../sim-lib-control" }
-sim-lib-dispatch = { version = "0.1.0", path = "../sim-lib-dispatch" }
+sim-lib-binding = { version = "0.1.2", path = "../sim-lib-binding" }
+sim-lib-control = { version = "0.1.2", path = "../sim-lib-control" }
+sim-lib-dispatch = { version = "0.1.1", path = "../sim-lib-dispatch" }
 sim-lib-exec = { version = "0.1.0", path = "../sim-lib-exec" }
-sim-lib-mutation = { version = "0.1.0", path = "../sim-lib-mutation" }
+sim-lib-mutation = { version = "0.1.2", path = "../sim-lib-mutation" }
 sim-lib-numbers-f64 = { version = "0.1.0" }
 sim-lib-numbers-i64 = { version = "0.1.0" }
-sim-lib-pattern = { version = "0.1.0", path = "../sim-lib-pattern" }
-sim-lib-sequence = { version = "0.1.0", path = "../sim-lib-sequence" }
-sim-lib-standard-core = { version = "0.1.0", path = "../sim-lib-standard-core" }
+sim-lib-pattern = { version = "0.1.2", path = "../sim-lib-pattern" }
+sim-lib-sequence = { version = "0.1.2", path = "../sim-lib-sequence" }
+sim-lib-standard-core = { version = "0.1.2", path = "../sim-lib-standard-core" }
 
 [dev-dependencies]
 sim-kernel = { version = "0.1.0", features = ["test-support"] }
