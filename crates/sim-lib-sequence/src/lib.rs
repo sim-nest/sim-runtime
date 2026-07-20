@@ -1,16 +1,18 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
-//! Sequence behavior for the SIM runtime: lazy, persistent, and transducers.
+//! Sequence behavior for the SIM runtime: lazy, persistent, runtime-indexed,
+//! and transducer-backed collections.
 //!
 //! The kernel defines the operation and object contracts; this crate supplies
 //! the concrete sequence organ (lazy sequences, persistent vectors/maps/sets,
-//! and transducer pipelines).
+//! runtime-indexed projection, and transducer pipelines).
 
 mod claims;
 mod lazy;
 mod persistent;
 mod profile;
 mod runtime;
+mod runtime_iter;
 mod transducer;
 
 pub use claims::{
@@ -31,6 +33,10 @@ pub use persistent::{
 pub use profile::{ProfileSequence, sequence_for_profile};
 pub use runtime::{
     SeqOp, SequenceFunction, SequenceLib, install_sequence_lib, manifest_name, sequence_exports,
+};
+pub use runtime_iter::{
+    RuntimeIndexLookup, RuntimeIndexSource, runtime_index_lookup_sequence, runtime_index_sequence,
+    runtime_index_values,
 };
 pub use transducer::{
     TransducerPipeline, TransducerStep, filter_sequence, for_each_sequence, map_sequence,

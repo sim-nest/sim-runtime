@@ -125,7 +125,7 @@
       "group": "workspace",
       "manifest": "crates/sim-lib-mutation/Cargo.toml",
       "package": "sim-lib-mutation",
-      "summary": "Mutation behavior for the SIM runtime: cells, boxes, vectors, and tables."
+      "summary": "Mutation behavior for the SIM runtime: cells, boxes, vectors, symbol-keyed tables, and runtime-keyed tables."
     },
     {
       "crate_name": "sim_lib_namespace",
@@ -146,7 +146,7 @@
       "group": "workspace",
       "manifest": "crates/sim-lib-sequence/Cargo.toml",
       "package": "sim-lib-sequence",
-      "summary": "Sequence behavior for the SIM runtime: lazy, persistent, and transducers."
+      "summary": "Sequence behavior for the SIM runtime: lazy, persistent, runtime-indexed, and transducer-backed collections."
     },
     {
       "crate_name": "sim_lib_standard_core",

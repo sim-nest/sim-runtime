@@ -1,6 +1,9 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicUsize, Ordering},
+use std::{
+    collections::BTreeMap,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
 
 use sim_kernel::{
@@ -40,6 +43,30 @@ fn table_number(cx: &mut Cx, table: &sim_kernel::Value, key: &str) -> u64 {
     let table = table.object().as_table_impl().unwrap();
     let value = table.get(cx, Symbol::new(key)).unwrap();
     number_from_value(cx, &value)
+}
+
+#[test]
+fn runtime_index_projection_stops_at_first_missing_key() {
+    let mut cx = cx();
+    let mut entries = BTreeMap::new();
+    entries.insert(1, number(&mut cx, 10));
+    entries.insert(2, number(&mut cx, 20));
+    entries.insert(4, number(&mut cx, 40));
+
+    let values = runtime_index_values(
+        &mut cx,
+        Arc::new(TestIndexSource { entries }),
+        1,
+        8,
+        "generic array projection",
+    )
+    .unwrap();
+
+    let values = values
+        .iter()
+        .map(|value| number_from_value(&mut cx, value))
+        .collect::<Vec<_>>();
+    assert_eq!(values, vec![10, 20]);
 }
 
 #[test]
@@ -90,6 +117,20 @@ fn persistent_ops_do_not_mutate_inputs() {
         set2.object().as_expr(&mut cx).unwrap(),
         Expr::Set(vec![one_expr, two_expr])
     );
+}
+
+struct TestIndexSource {
+    entries: BTreeMap<i64, sim_kernel::Value>,
+}
+
+impl RuntimeIndexSource for TestIndexSource {
+    fn value_at_runtime_index(
+        &self,
+        _cx: &mut Cx,
+        index: i64,
+    ) -> sim_kernel::Result<Option<sim_kernel::Value>> {
+        Ok(self.entries.get(&index).cloned())
+    }
 }
 
 #[test]

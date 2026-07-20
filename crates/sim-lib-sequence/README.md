@@ -12,4 +12,4 @@ Sequence operations, lazy streams, and collection transforms for SIM.
 
 ## Crate Documentation
 
-Sequence behavior for the SIM runtime: lazy, persistent, and transducers.
+Sequence behavior for the SIM runtime: lazy, persistent, runtime-indexed, and transducer-backed collections.

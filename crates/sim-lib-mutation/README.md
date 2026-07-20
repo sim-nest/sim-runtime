@@ -12,4 +12,4 @@ Tracked mutation cells and update operations for SIM runtime values.
 
 ## Crate Documentation
 
-Mutation behavior for the SIM runtime: cells, boxes, vectors, and tables.
+Mutation behavior for the SIM runtime: cells, boxes, vectors, symbol-keyed tables, and runtime-keyed tables.
