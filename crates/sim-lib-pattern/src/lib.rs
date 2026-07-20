@@ -8,10 +8,14 @@
 
 mod adt;
 mod claims;
+mod dialect;
+mod glob_dialect;
+mod lua_dialect;
 mod match_form;
 mod matching;
 mod runtime;
 mod shapes;
+mod text_vm;
 
 pub use adt::{
     AlgebraicDataType, PatternField, TaggedValue, VariantConstructor, VariantDeclaration,
@@ -23,6 +27,9 @@ pub use claims::{
     pattern_organ_symbol, pattern_tag_op_key, publish_pattern_organ_claims,
     publish_pattern_organ_claims_for_lib,
 };
+pub use dialect::PatternDialect;
+pub use glob_dialect::{GlobPatternDialect, compile_glob_pattern};
+pub use lua_dialect::{LuaPatternDialect, compile_lua_pattern};
 pub use match_form::MatchForm;
 pub use matching::{
     MatchArm, PatternMatch, destructure_expr, destructure_value, exhaustiveness_diagnostics,
@@ -30,6 +37,7 @@ pub use matching::{
 };
 pub use runtime::{PatternLib, install_pattern_lib, manifest_name, pattern_exports};
 pub use shapes::{AdtShape, VariantShape};
+pub use text_vm::{TextClass, TextLimits, TextMatch, TextOp, run_text_pattern};
 
 /// Cookbook recipes for this lib, embedded at build time.
 pub static RECIPES: sim_cookbook::EmbeddedDir =
@@ -37,3 +45,5 @@ pub static RECIPES: sim_cookbook::EmbeddedDir =
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod text_tests;
