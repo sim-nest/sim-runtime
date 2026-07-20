@@ -28,15 +28,12 @@ pub fn lua_core_source_cases() -> Vec<SourceConformanceCase> {
             affects_badge: Some(Symbol::qualified("standard", "partial")),
         },
         SourceConformanceCase {
-            symbol: Symbol::qualified("test/lua-core", "runtime-gap"),
+            symbol: Symbol::qualified("test/lua-core", "load-source"),
             organ: lua_lowering_symbol(),
-            source_name: "runtime-gap.lua".to_owned(),
+            source_name: "load-source.lua".to_owned(),
             source: "return load('return 1 + 2')()".to_owned(),
-            kind: SourceConformanceCaseKind::DescriptorOnly,
-            expectation: SourceExpectation::ExpectedGap {
-                code: Symbol::qualified("lua", "runtime-gap"),
-                reason: "Lua full VM execution is outside this row".to_owned(),
-            },
+            kind: SourceConformanceCaseKind::Observed,
+            expectation: SourceExpectation::LowersTo("3".to_owned()),
             affects_badge: None,
         },
     ]
@@ -67,7 +64,7 @@ mod tests {
         ));
         assert!(matches!(
             row.cases[1].expectation,
-            SourceExpectation::ExpectedGap { .. }
+            SourceExpectation::LowersTo(_)
         ));
     }
 }

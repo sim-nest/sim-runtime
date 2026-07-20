@@ -854,6 +854,13 @@
         {
           "kind": "normal",
           "optional": false,
+          "package": "sim-lib-exec",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
           "package": "sim-lib-mutation",
           "rename": null,
           "target": null
@@ -1629,10 +1636,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-16T00:13:38+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "1504667a64970903f4f1d00b530ce99bdcecc8ae",
+    "git_commit": "8af1cdcdcc11cedabaf1827d3e99615b938cfba4",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "1504667a64970903f4f1d00b530ce99bdcecc8ae",
+    "source_commit": "8af1cdcdcc11cedabaf1827d3e99615b938cfba4",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -1645,9 +1652,9 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "7d36346621ecec4f",
+    "workspace_hash": "f9b66e1ef92c4046",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 352,
+    "workspace_hash_input_count": 359,
     "workspace_hash_inputs": [
       "Cargo.toml",
       "crates/sim-lib-binding/Cargo.toml",
@@ -1799,9 +1806,11 @@
       "crates/sim-lib-lang-lua/src/eval.rs",
       "crates/sim-lib-lang-lua/src/forms.rs",
       "crates/sim-lib-lang-lua/src/lib.rs",
+      "crates/sim-lib-lang-lua/src/load.rs",
       "crates/sim-lib-lang-lua/src/loops.rs",
       "crates/sim-lib-lang-lua/src/lua3_12_tests.rs",
       "crates/sim-lib-lang-lua/src/lua3_13_tests.rs",
+      "crates/sim-lib-lang-lua/src/lua3_14_tests.rs",
       "crates/sim-lib-lang-lua/src/matrix_row.rs",
       "crates/sim-lib-lang-lua/src/metatable.rs",
       "crates/sim-lib-lang-lua/src/number.rs",
@@ -1811,6 +1820,11 @@
       "crates/sim-lib-lang-lua/src/runtime.rs",
       "crates/sim-lib-lang-lua/src/stdlib_base.rs",
       "crates/sim-lib-lang-lua/src/stdlib_coroutine.rs",
+      "crates/sim-lib-lang-lua/src/stdlib_debug.rs",
+      "crates/sim-lib-lang-lua/src/stdlib_io.rs",
+      "crates/sim-lib-lang-lua/src/stdlib_math.rs",
+      "crates/sim-lib-lang-lua/src/stdlib_os.rs",
+      "crates/sim-lib-lang-lua/src/stdlib_package.rs",
       "crates/sim-lib-lang-lua/src/stdlib_string.rs",
       "crates/sim-lib-lang-lua/src/stdlib_string_format.rs",
       "crates/sim-lib-lang-lua/src/stdlib_string_pattern.rs",

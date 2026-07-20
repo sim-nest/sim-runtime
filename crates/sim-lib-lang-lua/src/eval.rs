@@ -10,10 +10,16 @@ use crate::{
     call::call_lua_value,
     closure::{lua_closure_value, lua_varargs_values},
     forms::{LuaForm, binding_symbol, bool_literal, lua_form, required_head, symbol_list},
+    load::install_lua_load_stdlib,
     loops::{eval_generic_for, eval_numeric_for},
     lua_binary, lua_core_profile, lua_get, lua_len, lua_rawget, lua_rawset, lua_table_from_values,
     stdlib_base::install_lua_base_stdlib,
     stdlib_coroutine::install_lua_coroutine_stdlib,
+    stdlib_debug::install_lua_debug_stdlib,
+    stdlib_io::install_lua_io_stdlib,
+    stdlib_math::install_lua_math_stdlib,
+    stdlib_os::install_lua_os_stdlib,
+    stdlib_package::install_lua_package_stdlib,
     stdlib_string::install_lua_string_stdlib,
     stdlib_table::install_lua_table_stdlib,
     stdlib_utf8::install_lua_utf8_stdlib,
@@ -51,6 +57,12 @@ impl LuaEvalPolicy {
     pub fn install_stdlib(&self, cx: &mut Cx, env: &mut LuaEnv) -> Result<()> {
         install_lua_base_stdlib(cx, self, env)?;
         install_lua_coroutine_stdlib(cx, self, env)?;
+        install_lua_load_stdlib(cx, self, env)?;
+        install_lua_math_stdlib(cx, self, env)?;
+        install_lua_package_stdlib(cx, self, env)?;
+        install_lua_io_stdlib(cx, self, env)?;
+        install_lua_os_stdlib(cx, self, env)?;
+        install_lua_debug_stdlib(cx, self, env)?;
         install_lua_table_stdlib(cx, self, env)?;
         install_lua_string_stdlib(cx, self, env)?;
         install_lua_utf8_stdlib(cx, self, env)

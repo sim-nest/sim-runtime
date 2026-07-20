@@ -12,6 +12,7 @@ mod conformance;
 mod env;
 mod eval;
 mod forms;
+mod load;
 mod loops;
 mod matrix_row;
 mod metatable;
@@ -22,6 +23,11 @@ mod profile;
 mod runtime;
 mod stdlib_base;
 mod stdlib_coroutine;
+mod stdlib_debug;
+mod stdlib_io;
+mod stdlib_math;
+mod stdlib_os;
+mod stdlib_package;
 mod stdlib_string;
 mod stdlib_string_format;
 mod stdlib_string_pattern;
@@ -61,6 +67,9 @@ mod lua3_12_tests;
 
 #[cfg(test)]
 mod lua3_13_tests;
+
+#[cfg(test)]
+mod lua3_14_tests;
 
 #[cfg(test)]
 mod tests;
