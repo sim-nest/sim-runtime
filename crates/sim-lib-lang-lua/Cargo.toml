@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-lang-lua"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "MPL-2.0"
 description = "Lua-style surface profile for the SIM expression runtime."
@@ -10,7 +10,7 @@ repository = "https://github.com/sim-nest/sim-runtime"
 homepage = "https://github.com/sim-nest/sim-runtime"
 
 [dependencies]
-sim-codec-lua = { version = "0.1.0" }
+sim-codec-lua = { version = "0.1.1" }
 sim-cookbook = { version = "0.1.0" }
 sim-kernel = { version = "0.1.0" }
 sim-lib-binding = { version = "0.1.0", path = "../sim-lib-binding" }
