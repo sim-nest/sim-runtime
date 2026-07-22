@@ -1,9 +1,9 @@
 [package]
 name = "sim-lib-sequence"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "MPL-2.0"
-description = "SIM workspace package for sim lib sequence."
+description = "Sequence operations, lazy streams, and collection transforms for SIM."
 readme = "README.md"
 publish = true
 repository = "https://github.com/sim-nest/sim-runtime"
@@ -11,6 +11,7 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 
 [dependencies]
 sim-cookbook = { version = "0.1.0" }
+sim-citizen = { version = "0.1.0" }
 sim-citizen-derive = { version = "0.1.0" }
 sim-kernel = { version = "0.1.0" }
 

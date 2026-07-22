@@ -1,20 +1,28 @@
 [package]
 name = "sim-lib-lang-lua"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "MPL-2.0"
-description = "SIM workspace package for sim lib lang lua."
+description = "Lua-style surface profile for the SIM expression runtime."
 readme = "README.md"
 publish = true
 repository = "https://github.com/sim-nest/sim-runtime"
 homepage = "https://github.com/sim-nest/sim-runtime"
 
 [dependencies]
+sim-codec-lua = { version = "0.1.1" }
 sim-cookbook = { version = "0.1.0" }
 sim-kernel = { version = "0.1.0" }
-sim-lib-control = { version = "0.1.0", path = "../sim-lib-control" }
-sim-lib-mutation = { version = "0.1.0", path = "../sim-lib-mutation" }
-sim-lib-standard-core = { version = "0.1.0", path = "../sim-lib-standard-core" }
+sim-lib-binding = { version = "0.1.2", path = "../sim-lib-binding" }
+sim-lib-control = { version = "0.1.2", path = "../sim-lib-control" }
+sim-lib-dispatch = { version = "0.1.1", path = "../sim-lib-dispatch" }
+sim-lib-exec = { version = "0.1.0", path = "../sim-lib-exec" }
+sim-lib-mutation = { version = "0.1.2", path = "../sim-lib-mutation" }
+sim-lib-numbers-f64 = { version = "0.1.0" }
+sim-lib-numbers-i64 = { version = "0.1.0" }
+sim-lib-pattern = { version = "0.1.2", path = "../sim-lib-pattern" }
+sim-lib-sequence = { version = "0.1.2", path = "../sim-lib-sequence" }
+sim-lib-standard-core = { version = "0.1.2", path = "../sim-lib-standard-core" }
 
 [dev-dependencies]
 sim-kernel = { version = "0.1.0", features = ["test-support"] }

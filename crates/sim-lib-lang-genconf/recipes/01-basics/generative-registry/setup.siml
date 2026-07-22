@@ -1,1 +1,6 @@
-(quote (language generative registry codec row))
+(expr:map
+  [kind "generative-language-registry"]
+  [rows [scheme common-lisp clojure islisp julia lua ruby typed-lazy prolog]]
+  [codec-rows [codec/scheme-r7rs-small codec/common-lisp-lite codec/clojure-edn codec/islisp codec/algol codec/algol codec/algol codec/algol codec/lisp]]
+  [space r7rs-core-and-core-round-trip]
+  [runner generated-expression-coverage])

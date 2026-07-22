@@ -79,12 +79,16 @@ fn matrix_cell_ref(cx: &mut Cx, cell: &MatrixCellResult) -> Result<Ref> {
         ),
         (Symbol::new("organ"), Datum::Symbol(cell.organ.clone())),
         (Symbol::new("test"), Datum::Symbol(cell.case_symbol.clone())),
+        (Symbol::new("cell-kind"), Datum::Symbol(cell.kind.symbol())),
         (Symbol::new("passed"), Datum::Bool(cell.outcome.passed)),
         (
             Symbol::new("status"),
             Datum::Symbol(cell.outcome.status_symbol()),
         ),
     ];
+    if let Some(badge) = &cell.affects_badge {
+        fields.push((Symbol::new("affects-badge"), Datum::Symbol(badge.clone())));
+    }
     if let Some(detail) = &cell.outcome.detail {
         fields.push((Symbol::new("detail"), Datum::String(detail.clone())));
     }

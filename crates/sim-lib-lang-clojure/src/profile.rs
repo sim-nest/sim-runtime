@@ -1,6 +1,7 @@
 use sim_kernel::{Cx, Ref, Result, Symbol};
 use sim_lib_standard_core::{
-    FidelityBadge, LanguageProfile, OrganUse, ProfileRegistry, install_language_profile,
+    FidelityBadge, LanguageProfile, OrganUse, ProfileBackingLib, ProfileRegistry,
+    install_language_profile,
 };
 
 use crate::{
@@ -59,9 +60,23 @@ pub fn install_clojure_core_profile(
         registry,
         clojure_core_profile(),
         &[
-            sim_lib_sequence::publish_sequence_organ_claims_for_lib,
-            sim_lib_namespace::publish_namespace_organ_claims_for_lib,
-            sim_lib_control::publish_control_organ_claims_for_lib,
+            ProfileBackingLib::loadable(
+                sim_lib_sequence::sequence_organ_symbol(),
+                Symbol::qualified("sim", "sequence"),
+                sim_lib_sequence::install_sequence_lib,
+                Some(sim_lib_sequence::publish_sequence_organ_claims_for_lib),
+            ),
+            ProfileBackingLib::unresolved(
+                sim_lib_namespace::namespace_organ_symbol(),
+                Symbol::qualified("sim", "namespace"),
+            ),
+            ProfileBackingLib::loadable(
+                sim_lib_control::control_organ_symbol(),
+                sim_lib_control::manifest_name(),
+                sim_lib_control::install_control_lib,
+                None,
+            ),
         ],
+        &[],
     )
 }

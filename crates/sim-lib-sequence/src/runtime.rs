@@ -1,7 +1,7 @@
 //! The sequence organ as a loadable kernel [`Lib`].
 //!
 //! Registers the higher-order sequence operations `seq/map`, `seq/filter`, and
-//! `seq/fold` as callables (COOKBOOK_7 Category B). These are ordinary functions
+//! `seq/fold` as callables. These are ordinary functions
 //! -- both the applied function and the collection are evaluated before the op
 //! runs -- but they are eval-policy organs in that they APPLY a function value
 //! over every element, driving the evaluator once per element via

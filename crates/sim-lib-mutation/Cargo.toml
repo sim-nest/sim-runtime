@@ -1,9 +1,9 @@
 [package]
 name = "sim-lib-mutation"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "MPL-2.0"
-description = "SIM workspace package for sim lib mutation."
+description = "Tracked mutation cells and update operations for SIM runtime values."
 readme = "README.md"
 publish = true
 repository = "https://github.com/sim-nest/sim-runtime"
@@ -11,12 +11,13 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 
 [dependencies]
 sim-cookbook = { version = "0.1.0" }
+sim-citizen = { version = "0.1.0" }
 sim-citizen-derive = { version = "0.1.0" }
 sim-kernel = { version = "0.1.0" }
 
 [dev-dependencies]
 sim-kernel = { version = "0.1.0", features = ["test-support"] }
-sim-lib-sequence = { version = "0.1.0", path = "../sim-lib-sequence" }
+sim-lib-sequence = { version = "0.1.2", path = "../sim-lib-sequence" }
 
 [lints]
 workspace = true

@@ -1,1 +1,6 @@
-(quote (mutation cell box table vector set))
+(expr:map
+  [kind "mutation-organ"]
+  [values [cell box table vector]]
+  [operations [mutation/cell mutation/box mutation/table mutation/vector mutation/set]]
+  [capability standard/mutate]
+  [audit write-through-capability])

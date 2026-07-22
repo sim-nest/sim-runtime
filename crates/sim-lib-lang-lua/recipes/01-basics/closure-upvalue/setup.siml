@@ -1,0 +1,6 @@
+(expr:map
+  [kind "lua-source-conformance-case"]
+  [case test/lua-core/closure-upvalue]
+  [source "local n = 0 local f = function() n = n + 1 return n end return f() + f()"]
+  [expect "3"]
+  [runner cargo-test])

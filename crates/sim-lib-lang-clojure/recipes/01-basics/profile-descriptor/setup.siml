@@ -1,1 +1,9 @@
-(quote (clojure profile edn namespace sequence recur))
+(expr:map
+  [kind "language-profile"]
+  [language clojure]
+  [profile lang/clojure-core/v1]
+  [reader codec/clojure-edn]
+  [lowering clojure/lowering-core]
+  [eval-policy eval/clojure-core]
+  [organs [organ/control organ/namespace organ/sequence]]
+  [fidelity [standard/fidelity/clojure-sequence-organ standard/fidelity/clojure-namespace-organ standard/fidelity/clojure-control-organ]])

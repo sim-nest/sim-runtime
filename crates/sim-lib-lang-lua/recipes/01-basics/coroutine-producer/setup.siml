@@ -1,0 +1,6 @@
+(expr:map
+  [kind "lua-source-conformance-case"]
+  [case test/lua-core/coroutine-producer]
+  [source "local co = coroutine.create(function() return 1 end) return select(2, coroutine.resume(co))"]
+  [expect "1"]
+  [runner cargo-test])

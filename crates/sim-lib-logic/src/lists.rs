@@ -18,7 +18,7 @@ pub(crate) fn member_through_sequence(
     let mut answers = Vec::new();
     for item in items {
         let mut next = env.clone();
-        if next.unify(needle, &item, occurs_check(ctx.config))? {
+        if next.unify(cx, needle, &item, occurs_check(ctx.config))? {
             answers.push(next);
         }
     }
@@ -46,7 +46,12 @@ pub(crate) fn append_through_sequence(
     concatenated.extend(right_items);
 
     let mut next = env.clone();
-    if next.unify(output, &Expr::List(concatenated), occurs_check(ctx.config))? {
+    if next.unify(
+        cx,
+        output,
+        &Expr::List(concatenated),
+        occurs_check(ctx.config),
+    )? {
         Ok(vec![next])
     } else {
         Ok(Vec::new())
@@ -68,7 +73,7 @@ pub(crate) fn length_through_sequence(
         domain: Symbol::qualified("numbers", "i64"),
         canonical: items.len().to_string(),
     });
-    if next.unify(output, &length, occurs_check(ctx.config))? {
+    if next.unify(cx, output, &length, occurs_check(ctx.config))? {
         Ok(vec![next])
     } else {
         Ok(Vec::new())
@@ -94,8 +99,9 @@ pub(crate) fn select_through_sequence(
             .map(|(_candidate, expr)| expr.clone())
             .collect::<Vec<_>>();
         let mut next = env.clone();
-        if next.unify(selected, item, occurs_check(ctx.config))?
+        if next.unify(cx, selected, item, occurs_check(ctx.config))?
             && next.unify(
+                cx,
                 remainder,
                 &Expr::List(remainder_items),
                 occurs_check(ctx.config),
@@ -121,8 +127,8 @@ fn append_splits_through_sequence(
         let mut next = env.clone();
         let prefix = Expr::List(items[..split_at].to_vec());
         let suffix = Expr::List(items[split_at..].to_vec());
-        if next.unify(left, &prefix, occurs_check(ctx.config))?
-            && next.unify(right, &suffix, occurs_check(ctx.config))?
+        if next.unify(cx, left, &prefix, occurs_check(ctx.config))?
+            && next.unify(cx, right, &suffix, occurs_check(ctx.config))?
         {
             answers.push(next);
             if answers.len() >= sequence_answer_bound(ctx) {

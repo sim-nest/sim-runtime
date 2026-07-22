@@ -1,6 +1,7 @@
 use sim_kernel::{Cx, Result, Symbol};
 use sim_lib_standard_core::{
-    LanguageProfile, OrganUse, ProfileRegistry, fidelity_badge, install_language_profile,
+    LanguageProfile, OrganUse, ProfileBackingLib, ProfileRegistry, fidelity_badge,
+    install_language_profile,
 };
 
 use crate::{
@@ -99,11 +100,31 @@ pub fn install_cl_lite_profile(
         registry,
         cl_lite_profile(),
         &[
-            sim_lib_binding::publish_binding_organ_claims_for_lib,
-            sim_lib_control::publish_control_organ_claims_for_lib,
-            sim_lib_dispatch::publish_dispatch_organ_claims_for_lib,
-            sim_lib_namespace::publish_namespace_organ_claims_for_lib,
-            sim_lib_mutation::publish_mutation_organ_claims_for_lib,
+            ProfileBackingLib::loadable(
+                sim_lib_binding::binding_organ_symbol(),
+                sim_lib_binding::manifest_name(),
+                sim_lib_binding::install_binding_lib,
+                Some(sim_lib_binding::publish_binding_organ_claims_for_lib),
+            ),
+            ProfileBackingLib::loadable(
+                sim_lib_control::control_organ_symbol(),
+                sim_lib_control::manifest_name(),
+                sim_lib_control::install_control_lib,
+                None,
+            ),
+            ProfileBackingLib::unresolved(
+                sim_lib_dispatch::dispatch_organ_symbol(),
+                Symbol::qualified("sim", "dispatch"),
+            ),
+            ProfileBackingLib::unresolved(
+                sim_lib_namespace::namespace_organ_symbol(),
+                Symbol::qualified("sim", "namespace"),
+            ),
+            ProfileBackingLib::unresolved(
+                sim_lib_mutation::mutation_organ_symbol(),
+                Symbol::qualified("sim", "mutation"),
+            ),
         ],
+        &[],
     )
 }

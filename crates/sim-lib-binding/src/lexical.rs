@@ -7,6 +7,8 @@ use sim_kernel::{
     Args, Callable, ClassRef, Cx, Error, Object, ObjectCompat, Result, Symbol, Value,
 };
 
+use crate::BindingCell;
+
 type BindingSlot = Arc<Mutex<Option<Value>>>;
 
 /// Computes a binding's initial value within a (possibly partial) scope.
@@ -83,6 +85,19 @@ impl LexicalEnv {
             .map_err(|_| Error::Eval(format!("lexical binding {name} lock is poisoned")))?
             .clone()
             .ok_or_else(|| Error::Eval(format!("lexical binding {name} is not initialized")))
+    }
+
+    /// Captures `name` as a shared cell for closure formation.
+    ///
+    /// Mutating the returned cell updates the lexical slot itself, so every
+    /// closure that captures the same binding observes the same value.
+    pub fn capture_cell(&self, name: &Symbol) -> Result<BindingCell> {
+        let Some(slot) = self.lookup_slot(name)? else {
+            return Err(Error::Eval(format!(
+                "lexical binding {name} is not defined"
+            )));
+        };
+        Ok(BindingCell::from_slot(name.clone(), slot))
     }
 
     fn predefine(&self, name: Symbol) -> Result<()> {

@@ -1,6 +1,6 @@
 # sim-lib-lang-genconf
 
-In one line: It generates a steady, repeatable set of test inputs used to confirm the language surfaces behave correctly.
+In one line: It generates a steady, repeatable set of test inputs for confirming that language surfaces behave correctly.
 
 ## What it gives you
 

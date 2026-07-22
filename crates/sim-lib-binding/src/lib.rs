@@ -5,6 +5,7 @@
 //! The kernel defines the binding-related contracts; this crate supplies the
 //! concrete binding organ (lexical/letrec scopes, dynamic parameters, modes).
 
+mod cell;
 mod claims;
 mod dynamic;
 mod let_form;
@@ -16,11 +17,12 @@ mod runtime;
 pub static RECIPES: sim_cookbook::EmbeddedDir =
     include!(concat!(env!("OUT_DIR"), "/cookbook_recipes.rs"));
 
+pub use cell::BindingCell;
 pub use claims::{
-    binding_dynamic_let_op_key, binding_let_op_key, binding_let_star_op_key, binding_letrec_op_key,
-    binding_op_keys, binding_organ_symbol, binding_parameterize_op_key,
-    binding_profile_modes_op_key, publish_binding_organ_claims,
-    publish_binding_organ_claims_for_lib,
+    binding_declared_op_keys, binding_dynamic_let_op_key, binding_let_op_key,
+    binding_let_star_op_key, binding_letrec_op_key, binding_live_ops, binding_op_keys,
+    binding_organ_symbol, binding_parameterize_op_key, binding_profile_modes_op_key,
+    publish_binding_organ_claims, publish_binding_organ_claims_for_lib,
 };
 pub use dynamic::{DynamicEnv, Parameter};
 pub use let_form::LetForm;

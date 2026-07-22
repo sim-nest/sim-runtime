@@ -3,6 +3,8 @@ use sim_kernel::{
     standard::{publish_organ_claims, publish_organ_claims_for_lib},
 };
 
+use crate::let_form::LetForm;
+
 /// Symbol identifying the binding organ in the claim store.
 ///
 /// Used as the claim subject when publishing the organ's contributed
@@ -41,8 +43,9 @@ pub fn binding_profile_modes_op_key() -> OpKey {
     binding_op_key("profile-modes")
 }
 
-/// All operation keys contributed by the binding organ, in claim order.
-pub fn binding_op_keys() -> Vec<OpKey> {
+/// All binding-surface operations this crate models, whether or not they are
+/// currently exported as live runtime callables.
+pub fn binding_declared_op_keys() -> Vec<OpKey> {
     [
         binding_let_op_key(),
         binding_let_star_op_key(),
@@ -52,6 +55,19 @@ pub fn binding_op_keys() -> Vec<OpKey> {
         binding_profile_modes_op_key(),
     ]
     .into()
+}
+
+/// Live binding claim-to-export mappings backed by the loaded runtime surface.
+pub fn binding_live_ops() -> Vec<(OpKey, Symbol)> {
+    vec![(binding_let_op_key(), LetForm::symbol())]
+}
+
+/// Operation keys the binding organ currently publishes as live claims.
+pub fn binding_op_keys() -> Vec<OpKey> {
+    binding_live_ops()
+        .into_iter()
+        .map(|(op_key, _export_symbol)| op_key)
+        .collect()
 }
 
 /// Publishes the binding organ's claims and operation keys into a [`Cx`].

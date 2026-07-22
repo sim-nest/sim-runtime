@@ -1,1 +1,7 @@
-(quote (dispatch generic select most-specific))
+(expr:map
+  [kind "dispatch-selection"]
+  [generic dispatch/describe]
+  [methods [method/any method/string]]
+  [argument-shape core/String]
+  [selected method/string]
+  [rule most-specific])

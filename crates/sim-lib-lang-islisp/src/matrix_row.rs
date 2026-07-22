@@ -2,7 +2,8 @@
 
 use sim_kernel::Symbol;
 use sim_lib_standard_core::{
-    LanguageRow, LanguageRowBuilder, SourceConformanceCase, SourceExpectation,
+    LanguageRow, LanguageRowBuilder, SourceConformanceCase, SourceConformanceCaseKind,
+    SourceExpectation,
 };
 
 use crate::{islisp_lowering_symbol, islisp_profile, islisp_reader_symbol};
@@ -22,6 +23,7 @@ pub fn islisp_source_cases() -> Vec<SourceConformanceCase> {
             organ: islisp_reader_symbol(),
             source_name: "profile.sim".to_owned(),
             source: "profile".to_owned(),
+            kind: SourceConformanceCaseKind::DescriptorOnly,
             expectation: SourceExpectation::LowersTo(islisp_profile_display()),
             affects_badge: Some(Symbol::qualified("standard", "partial")),
         },
@@ -30,6 +32,7 @@ pub fn islisp_source_cases() -> Vec<SourceConformanceCase> {
             organ: islisp_lowering_symbol(),
             source_name: "runtime-gap.lisp".to_owned(),
             source: "(eval '(+ 1 2))".to_owned(),
+            kind: SourceConformanceCaseKind::DescriptorOnly,
             expectation: SourceExpectation::ExpectedGap {
                 code: Symbol::qualified("islisp", "runtime-gap"),
                 reason: "ISLISP full evaluator execution is outside this row".to_owned(),

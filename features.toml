@@ -1,0 +1,149 @@
+schema = "sim.features"
+
+[enforcement.audience]
+framework = "strict"
+code = "strict"
+
+[enforcement.specimen]
+user = "strict"
+framework = "strict"
+code = "advisory"
+
+[enforcement.route]
+major_entrypoints = "advisory"
+frameworks = "advisory"
+
+[[feature]]
+id = "feature/sim-runtime/capabilities-read-eval"
+title = "Capabilities and read-eval"
+summary = "Gate diminished read-eval and surface packing through explicit runtime libraries and capability checks."
+owner = "crate/sim-lib-core"
+audiences = ["code", "framework"]
+guidance = "Use this row when a framework needs diminished evaluation, read policy, or capability-gated loading."
+claims_anchors = [
+  "anchor/crate/sim-lib-core",
+  "anchor/runtime-lib/sim-lib-core/read-eval-broker-lib",
+  "anchor/runtime-lib/sim-lib-core/surface-pack-lib",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-standard-core/src/read_construct",
+]
+
+[[feature]]
+id = "feature/sim-runtime/organs"
+title = "Runtime organs"
+summary = "Provide binding, control, logic, pattern, mutation, and sequence organs as loadable runtime libraries."
+owner = "crate/sim-lib-binding"
+audiences = ["code", "framework"]
+guidance = "Use this row when composing reusable runtime behavior from small loadable organs."
+claims_anchors = [
+  "anchor/crate/sim-lib-binding",
+  "anchor/crate/sim-lib-control",
+  "anchor/crate/sim-lib-dispatch",
+  "anchor/crate/sim-lib-logic",
+  "anchor/crate/sim-lib-mutation",
+  "anchor/crate/sim-lib-namespace",
+  "anchor/crate/sim-lib-pattern",
+  "anchor/crate/sim-lib-sequence",
+  "anchor/runtime-lib/sim-lib-binding/binding-lib",
+  "anchor/runtime-lib/sim-lib-control/control-lib",
+  "anchor/runtime-lib/sim-lib-logic/logic-lib",
+  "anchor/runtime-lib/sim-lib-pattern/pattern-lib",
+  "anchor/runtime-lib/sim-lib-sequence/sequence-lib",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-logic/src/tests/organ_proof",
+]
+
+[[feature]]
+id = "feature/sim-runtime/library-loading"
+title = "Library loading and runtime exports"
+summary = "Load standard and language-profile runtime libraries through stable export records."
+owner = "crate/sim-lib-standard-core"
+audiences = ["code", "framework"]
+guidance = "Use this row when a framework depends on standard libraries or language-profile loading."
+claims_anchors = [
+  "anchor/crate/sim-lib-lang-cl",
+  "anchor/crate/sim-lib-lang-clojure",
+  "anchor/crate/sim-lib-lang-genconf",
+  "anchor/crate/sim-lib-lang-islisp",
+  "anchor/crate/sim-lib-lang-julia",
+  "anchor/crate/sim-lib-lang-lua",
+  "anchor/crate/sim-lib-lang-matrix",
+  "anchor/crate/sim-lib-lang-prolog",
+  "anchor/crate/sim-lib-lang-ruby",
+  "anchor/crate/sim-lib-lang-scheme",
+  "anchor/crate/sim-lib-lang-typed-lazy",
+  "anchor/crate/sim-lib-standard-core",
+  "anchor/runtime-lib/sim-lib-lang-cl/cl-lite-reader-codec-lib",
+  "anchor/runtime-lib/sim-lib-lang-clojure/clojure-edn-codec-lib",
+  "anchor/runtime-lib/sim-lib-lang-prolog/prolog-lib",
+  "anchor/runtime-lib/sim-lib-lang-scheme/scheme-codec-lib",
+  "anchor/runtime-lib/sim-lib-standard-core/language-profile-lib",
+  "anchor/runtime-lib/sim-lib-standard-core/standard-core-classes-lib",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-lang-scheme/src/conformance",
+]
+
+[[feature]]
+id = "feature/sim-runtime/host-exec"
+title = "Host exec primitive"
+summary = "Expose bounded process execution as a capability-gated host primitive outside the kernel."
+owner = "crate/sim-lib-exec"
+audiences = ["code", "framework"]
+guidance = "Use this row when a framework needs an explicit host process primitive."
+claims_anchors = [
+  "anchor/crate/sim-lib-exec",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-exec/src/tests",
+]
+
+[[feature]]
+id = "feature/sim-runtime/contract-emitter"
+title = "Runtime contract emitter"
+summary = "Emit generated repository contract and index fragments for runtime crates."
+owner = "crate/xtask"
+audiences = ["code"]
+guidance = "Use this row when refreshing generated runtime contract evidence."
+claims_anchors = [
+  "anchor/crate/xtask",
+]
+supports = [
+  "feature/sim-runtime/organs",
+]
+
+[[route]]
+id = "route/add-capability-gated-read-eval"
+task = "Add capability-gated read-eval"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/capabilities-read-eval", why = "The core row owns read policy, capability checks, and read-construct evidence." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-standard-core/src/read_construct", why = "The read-construct test checks object round trips through standard core." },
+]
+
+[[route]]
+id = "route/add-runtime-organ"
+task = "Add a runtime organ"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/organs", why = "The organ row groups loadable binding, control, logic, pattern, mutation, and sequence behavior." },
+  { feature = "feature/sim-runtime/contract-emitter", why = "The emitter row keeps generated runtime contract evidence current." },
+]
+
+[[route]]
+id = "route/load-runtime-library"
+task = "Load a runtime library"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/library-loading", why = "The loading row owns standard and language-profile runtime libraries." },
+]
+
+[[route]]
+id = "route/add-host-exec-primitive"
+task = "Add a host exec primitive"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/host-exec", why = "The exec row keeps host process behavior in a loadable library." },
+]

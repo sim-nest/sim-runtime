@@ -1,0 +1,5 @@
+book = "runtime/exec"
+title = "Bounded Process Execution"
+summary = "Permission-gated host process runs with time and output limits."
+order = 125
+chapters = ["01-basics"]

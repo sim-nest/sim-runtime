@@ -65,7 +65,8 @@ impl ObjectCompat for ContinuationValue {
 
 #[sim_citizen_derive::non_citizen(
     reason = "control result ref wrapper; canonical data is the referenced value",
-    kind = "marker"
+    kind = "marker",
+    descriptor = "core/Ref"
 )]
 /// A runtime object wrapping the result reference of a control operation.
 ///

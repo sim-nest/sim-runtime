@@ -1,1 +1,6 @@
-(quote (standard profile fidelity conformance))
+(expr:map
+  [kind "standard-profile-fidelity"]
+  [classes [standard/Profile standard/FidelityBadge]]
+  [claims [standard/reader standard/lowering standard/eval-policy standard/numeric standard/unsupported standard/fidelity-badge]]
+  [reports [standard/test-profile standard/test-organ standard/reported-fidelity]]
+  [coverage conformance-harness])

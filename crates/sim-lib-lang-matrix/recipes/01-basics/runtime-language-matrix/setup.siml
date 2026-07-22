@@ -1,1 +1,6 @@
-(quote (language conformance matrix assembly))
+(expr:map
+  [kind "runtime-language-matrix"]
+  [rows [scheme common-lisp clojure islisp julia lua ruby typed-lazy prolog]]
+  [curated-row-count 9]
+  [closure-checks [duplicate-row-names generated-registry-alignment live-codec-ids]]
+  [runner conformance-matrix])

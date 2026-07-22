@@ -1,1 +1,10 @@
-(quote (lua core profile table coroutine mutation))
+(expr:map
+  [kind "language-profile"]
+  [language lua]
+  [profile lang/lua-core/v1]
+  [reader codec/algol]
+  [lowering lua/lowering-core]
+  [eval-policy eval/lua-core]
+  [organs [organ/control organ/mutation]]
+  [fidelity [standard/fidelity/lua-control-organ standard/fidelity/lua-mutation-organ standard/fidelity/lua-full-runtime-limited]]
+  [unsupported [lua/c-api lua/debug-hooks lua/string-dump-bytecode]])

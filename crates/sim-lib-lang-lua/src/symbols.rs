@@ -6,10 +6,13 @@ pub fn lua_profile_symbol() -> Symbol {
 }
 
 /// Stable symbol for the reader codec the Lua surface decodes through.
-///
-/// The Lua profile reuses the shared algol reader rather than a bespoke one.
 pub fn lua_reader_symbol() -> Symbol {
-    Symbol::qualified("codec", "algol")
+    Symbol::qualified("codec", "lua")
+}
+
+/// Stable symbol naming the Lua core eval policy.
+pub fn lua_eval_policy_symbol() -> Symbol {
+    Symbol::qualified("eval", "lua-core")
 }
 
 /// Stable symbol for the Lua lowering from surface forms to `Expr`.

@@ -1,1 +1,7 @@
-(quote (clojure conformance matrix-row cargo-test))
+(expr:map
+  [kind "language-matrix-row"]
+  [language clojure]
+  [profile lang/clojure-core/v1]
+  [source-cases [test/clojure-core/profile-declared test/clojure-core/runtime-gap]]
+  [expr-cases []]
+  [runner cargo-test])

@@ -2,7 +2,8 @@
 
 use sim_kernel::Symbol;
 use sim_lib_standard_core::{
-    LanguageRow, LanguageRowBuilder, SourceConformanceCase, SourceExpectation,
+    LanguageRow, LanguageRowBuilder, SourceConformanceCase, SourceConformanceCaseKind,
+    SourceExpectation,
 };
 
 use crate::{clojure_core_profile, clojure_edn_reader_symbol, clojure_lowering_symbol};
@@ -22,6 +23,7 @@ pub fn clojure_core_source_cases() -> Vec<SourceConformanceCase> {
             organ: clojure_edn_reader_symbol(),
             source_name: "profile.sim".to_owned(),
             source: "profile".to_owned(),
+            kind: SourceConformanceCaseKind::DescriptorOnly,
             expectation: SourceExpectation::LowersTo(clojure_core_profile_display()),
             affects_badge: Some(Symbol::qualified("standard", "partial")),
         },
@@ -30,6 +32,7 @@ pub fn clojure_core_source_cases() -> Vec<SourceConformanceCase> {
             organ: clojure_lowering_symbol(),
             source_name: "runtime-gap.clj".to_owned(),
             source: "(eval '(+ 1 2))".to_owned(),
+            kind: SourceConformanceCaseKind::DescriptorOnly,
             expectation: SourceExpectation::ExpectedGap {
                 code: Symbol::qualified("clojure", "runtime-gap"),
                 reason: "Clojure eval forms are outside the EDN profile row".to_owned(),

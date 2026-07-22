@@ -1,0 +1,6 @@
+(expr:map
+  [kind "lua-source-conformance-case"]
+  [case test/lua-core/string-patterns]
+  [source "local out, n = string.gsub('aba', 'a', 'x') return out .. ':' .. n"]
+  [expect "xbx:2"]
+  [runner cargo-test])

@@ -1,1 +1,7 @@
-(quote (scheme conformance matrix-row cargo-test))
+(expr:map
+  [kind "language-matrix-row"]
+  [language scheme]
+  [profile lang/scheme-r7rs-small/v1]
+  [source-cases [test/r7rs-small/quote-symbol test/r7rs-small/eval-gap]]
+  [expr-cases [test/r7rs-small/expr-bool-true test/r7rs-small/expr-callcc-gap]]
+  [runner cargo-test])

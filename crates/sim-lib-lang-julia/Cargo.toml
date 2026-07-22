@@ -1,9 +1,9 @@
 [package]
 name = "sim-lib-lang-julia"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "MPL-2.0"
-description = "SIM workspace package for sim lib lang julia."
+description = "Julia-style surface profile for the SIM expression runtime."
 readme = "README.md"
 publish = true
 repository = "https://github.com/sim-nest/sim-runtime"
@@ -13,7 +13,7 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 sim-cookbook = { version = "0.1.0" }
 sim-kernel = { version = "0.1.0" }
 sim-lib-dispatch = { version = "0.1.0", path = "../sim-lib-dispatch" }
-sim-lib-standard-core = { version = "0.1.0", path = "../sim-lib-standard-core" }
+sim-lib-standard-core = { version = "0.1.2", path = "../sim-lib-standard-core" }
 
 [dev-dependencies]
 sim-kernel = { version = "0.1.0", features = ["test-support"] }

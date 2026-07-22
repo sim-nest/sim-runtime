@@ -4,7 +4,8 @@ use sim_kernel::{Cx, Error, Expr, Object, ObjectCompat, Result, Symbol, Value, f
 
 #[sim_citizen_derive::non_citizen(
     reason = "persistent vector wrapper; canonical form is native Expr::Vector data",
-    kind = "marker"
+    kind = "marker",
+    descriptor = "core/Expr"
 )]
 /// Immutable, shareable vector object backed by a shared slice.
 ///
@@ -57,7 +58,8 @@ impl ObjectCompat for PersistentVector {
 
 #[sim_citizen_derive::non_citizen(
     reason = "persistent set wrapper; canonical form is native Expr::Set data",
-    kind = "marker"
+    kind = "marker",
+    descriptor = "core/Expr"
 )]
 /// Immutable, shareable set object holding canonically distinct elements.
 ///

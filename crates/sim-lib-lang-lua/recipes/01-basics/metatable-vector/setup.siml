@@ -1,0 +1,6 @@
+(expr:map
+  [kind "lua-source-conformance-case"]
+  [case test/lua-core/metatable-vector]
+  [source "local mt = { __add = function(a, b) return { x = a.x + b.x, y = a.y + b.y } end } local a = setmetatable({ x = 2, y = 4 }, mt) local b = { x = 3, y = 5 } local c = a + b return c.x + c.y"]
+  [expect "14"]
+  [runner cargo-test])

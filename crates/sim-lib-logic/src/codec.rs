@@ -1,31 +1,24 @@
-use std::{fs, path::Path};
+use sim_kernel::{Cx, Error, Expr, Result, Symbol, Value};
 
-use sim_codec::{Input, decode_with_codec};
-use sim_kernel::{Cx, ReadPolicy, Result, Symbol, logic_consult_file_capability};
+use crate::db::LogicDb;
 
-use crate::{db::LogicDb, error::logic_eval_error};
-
-pub(crate) fn consult_path(cx: &mut Cx, db: &mut LogicDb, path: &str) -> Result<usize> {
-    cx.require(&logic_consult_file_capability())?;
-    let bytes = fs::read(path).map_err(|err| logic_eval_error(err.to_string()))?;
-    let codec = codec_for_path(path);
-    let expr = decode_with_codec(
-        cx,
-        &codec,
-        match codec.name.as_ref() {
-            "binary" | "binary-base64" => Input::Bytes(bytes),
-            _ => Input::Text(
-                String::from_utf8(bytes).map_err(|err| logic_eval_error(err.to_string()))?,
-            ),
-        },
-        ReadPolicy::default(),
-    )?;
+/// Consults clauses from a table/dir-backed relative path.
+///
+/// Higher-level language surfaces use this helper so host reads stay on the
+/// shared Table/Dir authority path.
+pub fn consult_table_path(
+    cx: &mut Cx,
+    db: &mut LogicDb,
+    source: &Value,
+    path: &str,
+) -> Result<usize> {
+    let expr = read_table_path_expr(cx, source, path)?;
     consult_expr(db, expr)
 }
 
-pub(crate) fn consult_expr(db: &mut LogicDb, expr: sim_kernel::Expr) -> Result<usize> {
+pub(crate) fn consult_expr(db: &mut LogicDb, expr: Expr) -> Result<usize> {
     match expr {
-        sim_kernel::Expr::List(items) => {
+        Expr::List(items) => {
             let mut count = 0usize;
             for item in items {
                 db.assert_clause_expr(item)?;
@@ -40,16 +33,56 @@ pub(crate) fn consult_expr(db: &mut LogicDb, expr: sim_kernel::Expr) -> Result<u
     }
 }
 
-fn codec_for_path(path: &str) -> Symbol {
-    match Path::new(path)
-        .extension()
-        .and_then(|extension| extension.to_str())
-        .unwrap_or_default()
-    {
-        "simlogicb64" | "simb64" => Symbol::qualified("codec", "binary-base64"),
-        "json" => Symbol::qualified("codec", "json"),
-        "alg" => Symbol::qualified("codec", "algol"),
-        "slb8" => Symbol::qualified("codec", "binary"),
-        _ => Symbol::qualified("codec", "lisp"),
+fn read_table_path_expr(cx: &mut Cx, source: &Value, path: &str) -> Result<Expr> {
+    let segments = relative_table_path(path)?;
+    let (leaf, parents) = segments
+        .split_last()
+        .ok_or_else(|| Error::Eval("consult path must not be empty".to_owned()))?;
+    let mut current = source.clone();
+    for segment in parents {
+        let dir = current.object().as_dir().ok_or_else(|| {
+            Error::Eval(format!(
+                "consult source does not expose directory segment {segment}"
+            ))
+        })?;
+        current = dir
+            .opendir(cx, Symbol::new(*segment))?
+            .ok_or_else(|| Error::Eval(format!("consult source does not contain {path}")))?;
     }
+    let table = current
+        .object()
+        .as_table_impl()
+        .ok_or_else(|| Error::Eval("consult source does not implement Table".to_owned()))?;
+    let key = Symbol::new(*leaf);
+    if let Some(dir) = current.object().as_dir()
+        && dir.is_dir(cx, key.clone())?
+    {
+        return Err(Error::Eval(format!(
+            "consult source path {path} is a directory"
+        )));
+    }
+    if !table.has(cx, key.clone())? {
+        return Err(Error::Eval(format!(
+            "consult source does not contain {path}"
+        )));
+    }
+    table.get(cx, key)?.object().as_expr(cx)
+}
+
+fn relative_table_path(path: &str) -> Result<Vec<&str>> {
+    if path.is_empty() || path.starts_with('/') || path.ends_with('/') || path.contains('\\') {
+        return Err(Error::Eval(format!(
+            "consult path must be a non-empty relative table path: {path}"
+        )));
+    }
+    let segments: Vec<_> = path.split('/').collect();
+    if segments
+        .iter()
+        .any(|segment| segment.is_empty() || *segment == "." || *segment == "..")
+    {
+        return Err(Error::Eval(format!(
+            "consult path must be a non-empty relative table path: {path}"
+        )));
+    }
+    Ok(segments)
 }

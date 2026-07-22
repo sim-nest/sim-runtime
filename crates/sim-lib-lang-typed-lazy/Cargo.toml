@@ -1,9 +1,9 @@
 [package]
 name = "sim-lib-lang-typed-lazy"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "MPL-2.0"
-description = "SIM workspace package for sim lib lang typed lazy."
+description = "Typed lazy language profile for the SIM expression runtime."
 readme = "README.md"
 publish = true
 repository = "https://github.com/sim-nest/sim-runtime"
@@ -14,7 +14,7 @@ sim-cookbook = { version = "0.1.0" }
 sim-kernel = { version = "0.1.0" }
 sim-lib-control = { version = "0.1.0", path = "../sim-lib-control" }
 sim-lib-pattern = { version = "0.1.0", path = "../sim-lib-pattern" }
-sim-lib-standard-core = { version = "0.1.0", path = "../sim-lib-standard-core" }
+sim-lib-standard-core = { version = "0.1.2", path = "../sim-lib-standard-core" }
 sim-shape = { version = "0.1.0" }
 
 [dev-dependencies]

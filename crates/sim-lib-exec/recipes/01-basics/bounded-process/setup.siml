@@ -1,0 +1,3 @@
+(exec
+  ("env" "printf" "SIM")
+  (:cwd "." :timeout-ms 1000 :max-output-bytes 1024))

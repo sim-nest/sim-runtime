@@ -7,7 +7,7 @@ use sim_kernel::{
     Symbol, Value,
 };
 
-use crate::{LanguageProfile, ProfileRegistry};
+use crate::{GuestRuntimeKit, LanguageProfile, ProfileRegistry};
 
 /// Body of a [`ProfileFunction`]: a callable closure over `Cx` and `Args`.
 pub type ProfileFunctionBody = Arc<dyn Fn(&mut Cx, Args) -> Result<Value> + Send + Sync>;
@@ -104,6 +104,7 @@ pub struct ProfileFunctionBinding {
 pub struct SharedOrganRuntime {
     registry: ProfileRegistry,
     functions: BTreeMap<Symbol, ProfileFunctionBinding>,
+    kits: BTreeMap<Symbol, GuestRuntimeKit>,
 }
 
 impl SharedOrganRuntime {
@@ -125,6 +126,30 @@ impl SharedOrganRuntime {
     /// Iterate the registered profiles.
     pub fn profiles(&self) -> impl Iterator<Item = &LanguageProfile> {
         self.registry.profiles()
+    }
+
+    /// Register a guest runtime policy kit for a known profile.
+    ///
+    /// Fails if the profile is unknown or already has a kit registered.
+    pub fn register_kit(&mut self, profile: &Symbol, kit: GuestRuntimeKit) -> Result<()> {
+        if self.registry.profile(profile).is_none() {
+            return Err(Error::UnknownSymbol {
+                symbol: profile.clone(),
+            });
+        }
+        if self.kits.contains_key(profile) {
+            return Err(Error::DuplicateExport {
+                kind: "standard-guest-runtime-kit",
+                symbol: profile.clone(),
+            });
+        }
+        self.kits.insert(profile.clone(), kit);
+        Ok(())
+    }
+
+    /// Look up a registered guest runtime policy kit by profile symbol.
+    pub fn kit(&self, profile: &Symbol) -> Option<&GuestRuntimeKit> {
+        self.kits.get(profile)
     }
 
     /// Define a callable `function` in `organ`, attributed to `defining_profile`.

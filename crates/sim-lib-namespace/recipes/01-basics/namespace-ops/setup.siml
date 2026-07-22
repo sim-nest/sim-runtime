@@ -1,1 +1,6 @@
-(quote (namespace package module import export shadow))
+(expr:map
+  [kind "namespace-organ"]
+  [namespaces [package module]]
+  [operations [namespace/package namespace/module namespace/import namespace/export namespace/rename namespace/shadow]]
+  [conflict namespace/shadow-conflict]
+  [resolution explicit-import-options])

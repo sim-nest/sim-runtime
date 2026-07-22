@@ -2,7 +2,8 @@
 
 use sim_kernel::Symbol;
 use sim_lib_standard_core::{
-    LanguageRow, LanguageRowBuilder, SourceConformanceCase, SourceExpectation,
+    LanguageRow, LanguageRowBuilder, SourceConformanceCase, SourceConformanceCaseKind,
+    SourceExpectation,
 };
 
 use crate::{typed_lazy_lowering_symbol, typed_lazy_profile, typed_lazy_reader_symbol};
@@ -22,6 +23,7 @@ pub fn typed_lazy_source_cases() -> Vec<SourceConformanceCase> {
             organ: typed_lazy_reader_symbol(),
             source_name: "profile.sim".to_owned(),
             source: "profile".to_owned(),
+            kind: SourceConformanceCaseKind::DescriptorOnly,
             expectation: SourceExpectation::LowersTo(typed_lazy_profile_display()),
             affects_badge: Some(Symbol::qualified("standard", "partial")),
         },
@@ -30,6 +32,7 @@ pub fn typed_lazy_source_cases() -> Vec<SourceConformanceCase> {
             organ: typed_lazy_lowering_symbol(),
             source_name: "runtime-gap.tl".to_owned(),
             source: "force (delay 1)".to_owned(),
+            kind: SourceConformanceCaseKind::DescriptorOnly,
             expectation: SourceExpectation::ExpectedGap {
                 code: Symbol::qualified("typed-lazy", "runtime-gap"),
                 reason: "Typed-lazy full evaluator execution is outside this row".to_owned(),

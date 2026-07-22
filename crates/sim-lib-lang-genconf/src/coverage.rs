@@ -3,8 +3,8 @@
 use sim_codec::{Input, decode_with_codec};
 use sim_kernel::{Cx, Expr, ReadPolicy, Symbol};
 use sim_lib_standard_core::{
-    ExprRoundTripCase, ExprRoundTripObservation, LanguageProfile, LanguageRowBuilder, MatrixRunner,
-    SourceObservation,
+    ExprRoundTripCase, ExprRoundTripObservation, LanguageProfile, LanguageRowBuilder,
+    MatrixRunReport, MatrixRunner,
 };
 
 use crate::property::{check_round_trip, generated_expr_cases};
@@ -15,6 +15,8 @@ use crate::space::ExprSpace;
 pub struct GeneratedCoverageReport {
     /// Language row measured by this report.
     pub language: Symbol,
+    /// Per-case matrix evidence for the generated expression run.
+    pub matrix_report: MatrixRunReport,
     /// Number of generated cases sampled.
     pub sampled: usize,
     /// Number of sampled cases that round-tripped.
@@ -80,10 +82,13 @@ pub fn run_generated_row(
     )
     .with_expr_cases(generated_cases)
     .build();
-    let matrix_report = MatrixRunner::run_row(cx, &row, |_cx, _case| {
-        Ok(SourceObservation::LowersTo(String::new()))
-    });
-    debug_assert!(matrix_report.cells.is_empty());
+    let matrix_report = MatrixRunner::run_row(
+        cx,
+        &row,
+        |_cx, _case| panic!("generated coverage rows do not register source cases"),
+        |cx, case| Ok(run_expr_case(cx, codec, case)),
+    );
+    debug_assert_eq!(matrix_report.cells.len(), row.expr_cases.len());
 
     let mut round_tripped = 0;
     let mut mismatched = 0;
@@ -100,6 +105,7 @@ pub fn run_generated_row(
 
     GeneratedCoverageReport {
         language: language.clone(),
+        matrix_report,
         sampled: row.expr_cases.len(),
         round_tripped,
         mismatched,
@@ -143,7 +149,8 @@ fn run_expr_case(
 mod tests {
     use std::sync::Arc;
 
-    use sim_kernel::{DefaultFactory, EagerPolicy};
+    use sim_codec_lisp::LispCodecLib;
+    use sim_kernel::{DefaultFactory, EagerPolicy, read_eval_capability};
     use sim_lib_lang_scheme::{SchemeCodecLib, scheme_reader_symbol};
 
     use super::*;
@@ -162,6 +169,44 @@ mod tests {
         codec
     }
 
+    fn register_lisp_codec(cx: &mut Cx) -> Symbol {
+        let codec = Symbol::qualified("codec", "lisp");
+        let lib = LispCodecLib::new(cx.registry_mut().fresh_codec_id()).unwrap();
+        cx.load_lib(&lib).unwrap();
+        codec
+    }
+
+    #[test]
+    fn generated_source_case_rejects_read_eval_payload() {
+        let mut cx = coverage_cx();
+        let codec = register_lisp_codec(&mut cx);
+        let direct = decode_with_codec(
+            &mut cx,
+            &codec,
+            Input::Text("#. 1".to_owned()),
+            ReadPolicy::default(),
+        )
+        .unwrap_err();
+        assert!(
+            matches!(direct, sim_kernel::Error::CapabilityDenied { ref capability } if capability == &read_eval_capability()),
+            "expected direct read-eval denial, got {direct:?}",
+        );
+        let case = ExprRoundTripCase {
+            symbol: Symbol::qualified("gen/lisp", "read-eval-denied"),
+            language: Symbol::new("lisp"),
+            source: "#. 1".to_owned(),
+            expected_display: None,
+            affects_badge: None,
+        };
+
+        let observation = run_expr_case(&mut cx, &codec, &case);
+
+        assert!(
+            matches!(observation, ExprRoundTripObservation::Diagnostic(_)),
+            "read-eval source silently passed: {observation:?}",
+        );
+    }
+
     #[test]
     fn scheme_generated_coverage_is_reproducible() {
         let mut first_cx = coverage_cx();
@@ -176,6 +221,7 @@ mod tests {
 
         assert_eq!(first, second);
         assert_eq!(first.language, language);
+        assert_eq!(first.matrix_report.cells.len(), first.sampled);
         assert_eq!(first.sampled, 8);
         assert_eq!(first.round_tripped, 0);
         assert_eq!(first.mismatched, 0);
@@ -207,6 +253,7 @@ mod tests {
     fn coverage_ratio_is_round_tripped_over_sampled_after_landmarks() {
         let report = GeneratedCoverageReport {
             language: Symbol::new("scheme"),
+            matrix_report: MatrixRunReport { cells: Vec::new() },
             sampled: 4,
             round_tripped: 3,
             mismatched: 1,

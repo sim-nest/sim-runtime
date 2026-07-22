@@ -1,9 +1,9 @@
 use sim_kernel::Ref;
 
-/// Outcome of polling an [`AsyncTask`]: not yet complete, or a ready result.
+/// Outcome of polling an [`AsyncTask`]: pending work or a ready result.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AsyncPoll {
-    /// The task has not yet reached its ready point and must be polled again.
+    /// The task remains pending and must be polled again.
     Pending,
     /// The task completed, carrying its result [`Ref`].
     Ready(Ref),

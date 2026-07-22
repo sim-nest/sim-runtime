@@ -1,5 +1,141 @@
 {
-  "schema": "sim.feature-map.v1",
-  "repo": "sim-runtime",
-  "packages": []
+  "generator": "xtask repo-contract v1",
+  "packages": [
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-binding"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-control"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-core"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-dispatch"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-exec"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-lang-cl"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-lang-clojure"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-lang-genconf"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-lang-islisp"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-lang-julia"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-lang-lua"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-lang-matrix"
+    },
+    {
+      "features": [
+        {
+          "edges": [
+            "dep:sim-lib-lang-genconf"
+          ],
+          "name": "generated-coverage",
+          "workspace_edges": [
+            {
+              "feature": null,
+              "package": "sim-lib-lang-genconf"
+            }
+          ]
+        }
+      ],
+      "group": "workspace",
+      "package": "sim-lib-lang-prolog"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-lang-ruby"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-lang-scheme"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-lang-typed-lazy"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-logic"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-mutation"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-namespace"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-pattern"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "sim-lib-sequence"
+    },
+    {
+      "features": [
+        {
+          "edges": [
+            "dep:sim-codec-binary"
+          ],
+          "name": "native-export",
+          "workspace_edges": []
+        }
+      ],
+      "group": "workspace",
+      "package": "sim-lib-standard-core"
+    },
+    {
+      "features": [],
+      "group": "workspace",
+      "package": "xtask"
+    }
+  ]
 }

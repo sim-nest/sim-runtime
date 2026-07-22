@@ -2,7 +2,7 @@
 //!
 //! Registers the binding special forms as callables against the kernel
 //! [`Lib`]/[`Linker`] contract. Today that is the `let` lexical binding form
-//! (COOKBOOK_7 Category B); the crate's lexical/dynamic/mode machinery is the
+//! eval-policy organ; the crate's lexical/dynamic/mode machinery is the
 //! substrate the forms build on.
 
 use std::sync::Arc;

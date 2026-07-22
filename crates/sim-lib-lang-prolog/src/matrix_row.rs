@@ -2,7 +2,8 @@
 
 use sim_kernel::Symbol;
 use sim_lib_standard_core::{
-    LanguageRow, LanguageRowBuilder, SourceConformanceCase, SourceExpectation,
+    LanguageRow, LanguageRowBuilder, SourceConformanceCase, SourceConformanceCaseKind,
+    SourceExpectation,
 };
 
 use crate::{
@@ -64,6 +65,7 @@ fn prolog_case(
         organ: prolog_logic_organ_symbol(),
         source_name: source_name.to_owned(),
         source: source.to_owned(),
+        kind: SourceConformanceCaseKind::Observed,
         expectation: SourceExpectation::LowersTo(expected.to_owned()),
         affects_badge: Some(prolog_surface_fidelity_symbol()),
     }
@@ -80,6 +82,7 @@ fn prolog_numbers_case(
         organ: Symbol::qualified("numbers", "arith"),
         source_name: source_name.to_owned(),
         source: source.to_owned(),
+        kind: SourceConformanceCaseKind::Observed,
         expectation: SourceExpectation::LowersTo(expected.to_owned()),
         affects_badge: Some(prolog_surface_fidelity_symbol()),
     }
@@ -97,6 +100,7 @@ fn prolog_numbers_gap(
         organ: Symbol::qualified("numbers", "arith"),
         source_name: source_name.to_owned(),
         source: source.to_owned(),
+        kind: SourceConformanceCaseKind::Observed,
         expectation: SourceExpectation::ExpectedGap {
             code,
             reason: reason.to_owned(),
@@ -116,6 +120,7 @@ fn prolog_sequence_case(
         organ: Symbol::new("sequence"),
         source_name: source_name.to_owned(),
         source: source.to_owned(),
+        kind: SourceConformanceCaseKind::Observed,
         expectation: SourceExpectation::LowersTo(expected.to_owned()),
         affects_badge: Some(prolog_surface_fidelity_symbol()),
     }
@@ -133,6 +138,7 @@ fn prolog_sequence_gap(
         organ: Symbol::new("sequence"),
         source_name: source_name.to_owned(),
         source: source.to_owned(),
+        kind: SourceConformanceCaseKind::Observed,
         expectation: SourceExpectation::ExpectedGap {
             code,
             reason: reason.to_owned(),
@@ -152,6 +158,7 @@ fn prolog_control_case(
         organ: Symbol::new("control"),
         source_name: source_name.to_owned(),
         source: source.to_owned(),
+        kind: SourceConformanceCaseKind::Observed,
         expectation: SourceExpectation::LowersTo(expected.to_owned()),
         affects_badge: Some(prolog_surface_fidelity_symbol()),
     }
@@ -169,6 +176,7 @@ fn prolog_control_gap(
         organ: Symbol::new("control"),
         source_name: source_name.to_owned(),
         source: source.to_owned(),
+        kind: SourceConformanceCaseKind::Observed,
         expectation: SourceExpectation::ExpectedGap {
             code,
             reason: reason.to_owned(),

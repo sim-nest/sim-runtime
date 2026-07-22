@@ -1,6 +1,6 @@
 //! The `if` conditional special form.
 //!
-//! `if` is the first eval-policy organ of COOKBOOK_7 Category B: a special form,
+//! `if` is an eval-policy organ: a special form,
 //! not an ordinary function. An ordinary function evaluates every argument before
 //! it runs, which would evaluate BOTH branches of a conditional. `IfForm` instead
 //! overrides [`Callable::call_exprs`] so it receives its arguments UNEVALUATED,

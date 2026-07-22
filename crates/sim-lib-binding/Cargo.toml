@@ -1,9 +1,9 @@
 [package]
 name = "sim-lib-binding"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "MPL-2.0"
-description = "SIM workspace package for sim lib binding."
+description = "Binding forms and scoped name resolution for SIM runtime evaluation."
 readme = "README.md"
 publish = true
 repository = "https://github.com/sim-nest/sim-runtime"

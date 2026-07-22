@@ -1,7 +1,7 @@
 //! Runtime integration for the dispatch organ: a [`GenericFunction`] as a
 //! first-class callable value.
 //!
-//! COOKBOOK_7 Category B. The dispatch machinery ([`GenericFunction::call`],
+//! runtime dispatch organ. The dispatch machinery ([`GenericFunction::call`],
 //! most-specific selection) is complete; this wraps a generic as a kernel
 //! [`Callable`] so it is an ordinary runtime value the evaluator can invoke.
 //! Calling it dispatches on the evaluated arguments and runs the single

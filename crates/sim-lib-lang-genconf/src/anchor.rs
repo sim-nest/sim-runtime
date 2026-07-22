@@ -187,6 +187,7 @@ mod tests {
     ) -> GeneratedCoverageReport {
         GeneratedCoverageReport {
             language,
+            matrix_report: sim_lib_standard_core::MatrixRunReport { cells: Vec::new() },
             sampled: 4,
             round_tripped: 4,
             mismatched: 0,

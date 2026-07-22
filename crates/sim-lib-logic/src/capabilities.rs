@@ -1,0 +1,35 @@
+//! Capability names used by the logic library.
+
+use sim_kernel::CapabilityName;
+
+/// The capability gating logic-database writes (`logic.db.write`).
+pub fn logic_db_write_capability() -> CapabilityName {
+    CapabilityName::new("logic.db.write")
+}
+
+/// The capability gating global logic-config mutation (`logic.config.write`).
+pub fn logic_config_write_capability() -> CapabilityName {
+    CapabilityName::new("logic.config.write")
+}
+
+/// The capability gating logic tool calls (`logic.tool-call`).
+pub fn logic_tool_call_capability() -> CapabilityName {
+    CapabilityName::new("logic.tool-call")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        logic_config_write_capability, logic_db_write_capability, logic_tool_call_capability,
+    };
+
+    #[test]
+    fn capability_tokens_are_stable() {
+        assert_eq!(logic_db_write_capability().as_str(), "logic.db.write");
+        assert_eq!(
+            logic_config_write_capability().as_str(),
+            "logic.config.write"
+        );
+        assert_eq!(logic_tool_call_capability().as_str(), "logic.tool-call");
+    }
+}

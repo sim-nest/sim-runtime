@@ -1,9 +1,7 @@
 #![forbid(unsafe_code)]
 
-mod simdoc;
-
 fn main() {
-    if let Err(err) = simdoc::run(std::env::args().collect()) {
+    if let Err(err) = xtask::run(std::env::args().collect()) {
         eprintln!("{err}");
         std::process::exit(1);
     }

@@ -3,10 +3,9 @@ use std::sync::Arc;
 use sim_kernel::{
     Args, Callable, ClassRef, Cx, DefaultFactory, EagerPolicy, Expr, Object, Ref, Result, Symbol,
     Value, capability::control_prompt_capability, effect::effect_control_prompt_kind,
-    logic_tool_call_capability,
 };
 
-use crate::{LogicConfig, LogicDb, query::query_all};
+use crate::{LogicConfig, LogicDb, logic_tool_call_capability, query::query_all};
 
 fn number(text: &str) -> Expr {
     Expr::Number(sim_kernel::NumberLiteral {

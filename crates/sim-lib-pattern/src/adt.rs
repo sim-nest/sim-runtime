@@ -301,7 +301,8 @@ impl Callable for VariantConstructor {
 
 #[sim_citizen_derive::non_citizen(
     reason = "dynamic ADT variant value; canonical data is the variant symbol and field table",
-    kind = "marker"
+    kind = "marker",
+    descriptor = "pattern/TaggedValue"
 )]
 /// A constructed ADT value: an ADT name, a variant tag, and named field values.
 ///

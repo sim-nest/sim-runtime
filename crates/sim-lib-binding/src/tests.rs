@@ -167,6 +167,46 @@ fn letrec_handles_mutual_recursion() {
 }
 
 #[test]
+fn captured_binding_cell_is_shared_by_two_closures() {
+    let mut cx = cx();
+    let env = LexicalEnv::new();
+    let shared = Symbol::new("shared");
+
+    env.define(shared.clone(), symbol_value(&mut cx, "initial"))
+        .unwrap();
+    let writer_cell = env.capture_cell(&shared).unwrap();
+    let reader_cell = env.capture_cell(&shared).unwrap();
+
+    let writer = lexical_function_value(
+        &mut cx,
+        Symbol::new("scheme-setter"),
+        env.clone(),
+        Arc::new(move |_cx, _env, args| {
+            let value = args
+                .into_iter()
+                .next()
+                .ok_or_else(|| Error::Eval("scheme-setter expects one value".to_owned()))?;
+            writer_cell.set(value.clone())?;
+            Ok(value)
+        }),
+    )
+    .unwrap();
+    let reader = lexical_function_value(
+        &mut cx,
+        Symbol::new("cl-reader"),
+        env,
+        Arc::new(move |_cx, _env, _args| reader_cell.get()),
+    )
+    .unwrap();
+
+    let replacement = symbol_value(&mut cx, "replacement");
+    call_value(&mut cx, writer, vec![replacement.clone()]).unwrap();
+    let observed = call_value(&mut cx, reader, Vec::new()).unwrap();
+
+    assert_eq!(observed, replacement);
+}
+
+#[test]
 fn dynamic_binding_is_restored_after_escape() {
     let mut cx = cx();
     let env = DynamicEnv::new();
@@ -257,13 +297,56 @@ fn binding_organ_claims_project_to_card() {
     let list = ops.object().as_list().unwrap();
     let values = force_list_to_vec(&mut cx, list, "binding organ ops").unwrap();
 
-    assert!(values.into_iter().any(|value| {
-        value.object().as_expr(&mut cx).unwrap()
-            == Expr::Symbol(Symbol::qualified("binding", "letrec.v1"))
-    }));
+    assert_eq!(values.len(), 1);
+    assert_eq!(
+        values[0].object().as_expr(&mut cx).unwrap(),
+        Expr::Symbol(Symbol::qualified("binding", "let.v1"))
+    );
 }
 
-// ---- COOKBOOK_7 COOK7.02: the `let` binding organ (special form) ----
+#[test]
+fn binding_live_claims_match_loaded_exports() {
+    let mut cx = cx();
+    install_binding_lib(&mut cx).unwrap();
+    let lib = cx.registry().lib(&manifest_name()).unwrap().clone();
+    publish_binding_organ_claims_for_lib(&mut cx, lib.id).unwrap();
+
+    let card = card_for_ref(&mut cx, Ref::Symbol(binding_organ_symbol())).unwrap();
+    let table = card.object().as_table(&mut cx).unwrap();
+    let entries = table.object().as_table_impl().unwrap();
+    let ops = entries.get(&mut cx, Symbol::new("ops")).unwrap();
+    let list = ops.object().as_list().unwrap();
+    let card_ops = force_list_to_vec(&mut cx, list, "binding live ops")
+        .unwrap()
+        .into_iter()
+        .map(|value| value.object().as_expr(&mut cx).unwrap())
+        .collect::<Vec<_>>();
+
+    assert_eq!(card_ops.len(), binding_live_ops().len());
+
+    for (op_key, export_symbol) in binding_live_ops() {
+        let op_symbol = Symbol::qualified(
+            op_key.namespace.to_string(),
+            format!("{}.v{}", op_key.name, op_key.version),
+        );
+        assert!(
+            card_ops.contains(&Expr::Symbol(op_symbol.clone())),
+            "missing live binding claim {op_symbol}"
+        );
+        assert!(
+            lib.exports
+                .iter()
+                .any(|export| export.symbol == export_symbol),
+            "missing binding export {export_symbol}"
+        );
+        assert!(
+            cx.resolve_function(&export_symbol).is_ok(),
+            "{export_symbol}"
+        );
+    }
+}
+
+// ---- `let` binding organ (special form) ----
 
 #[test]
 fn let_special_form_binds_parallel_in_child_scope() {

@@ -9,6 +9,7 @@
 mod all_solutions;
 mod arith;
 pub mod builtins;
+pub mod capabilities;
 mod clause;
 mod codec;
 mod constraints;
@@ -27,7 +28,11 @@ mod shapes;
 mod stream;
 mod unify;
 
+pub use capabilities::{
+    logic_config_write_capability, logic_db_write_capability, logic_tool_call_capability,
+};
 pub use clause::{Clause, ClauseId, parse_clause_expr};
+pub use codec::consult_table_path;
 pub use db::LogicDb;
 pub use env::LogicEnv;
 pub use lisp::realize_logic;

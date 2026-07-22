@@ -8,6 +8,7 @@
 
 mod claims;
 mod generic;
+mod metaobject;
 mod method;
 mod runtime;
 
@@ -22,6 +23,7 @@ pub use claims::{
     publish_dispatch_organ_claims_for_lib,
 };
 pub use generic::{GenericFunction, Multimethod};
+pub use metaobject::{MetaObjectProtocol, meta_index};
 pub use method::{DispatchMethod, MethodBody, MethodRole, MethodSpecificity, compare_specificity};
 pub use runtime::generic_function_value;
 

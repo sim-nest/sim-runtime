@@ -7,7 +7,8 @@ use sim_lib_dispatch::{
 
 #[sim_citizen_derive::non_citizen(
     reason = "dynamic ISLISP instance shell; canonical data is the class symbol and slot table",
-    kind = "marker"
+    kind = "marker",
+    descriptor = "islisp/Object"
 )]
 /// Runtime shell for an ISLISP instance: a class symbol plus a slot table.
 ///

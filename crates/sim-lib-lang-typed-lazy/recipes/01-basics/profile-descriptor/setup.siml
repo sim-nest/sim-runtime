@@ -1,1 +1,9 @@
-(quote (typed-lazy profile option lazy-ref typeclass))
+(expr:map
+  [kind "language-profile"]
+  [language typed-lazy]
+  [profile lang/typed-lazy/v1]
+  [reader codec/algol]
+  [lowering typed-lazy/lowering-core]
+  [eval-policy eval/typed-lazy]
+  [organs [organ/control organ/pattern]]
+  [fidelity [standard/fidelity/typed-lazy-pattern-organ standard/fidelity/typed-lazy-full-runtime-limited]])

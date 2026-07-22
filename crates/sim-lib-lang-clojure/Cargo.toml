@@ -1,9 +1,9 @@
 [package]
 name = "sim-lib-lang-clojure"
-version = "0.1.1"
+version = "0.1.3"
 edition = "2024"
 license = "MPL-2.0"
-description = "SIM workspace package for sim lib lang clojure."
+description = "Clojure core surface profile for the SIM expression runtime."
 readme = "README.md"
 publish = true
 repository = "https://github.com/sim-nest/sim-runtime"
@@ -16,7 +16,7 @@ sim-kernel = { version = "0.1.0" }
 sim-lib-control = { version = "0.1.0", path = "../sim-lib-control" }
 sim-lib-namespace = { version = "0.1.0", path = "../sim-lib-namespace" }
 sim-lib-sequence = { version = "0.1.0", path = "../sim-lib-sequence" }
-sim-lib-standard-core = { version = "0.1.0", path = "../sim-lib-standard-core" }
+sim-lib-standard-core = { version = "0.1.2", path = "../sim-lib-standard-core" }
 sim-value = { version = "0.1.0" }
 
 [lints]

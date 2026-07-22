@@ -80,7 +80,7 @@ impl sim_citizen::Citizen for LanguageProfileValue {
     }
 
     fn citizen_arity() -> usize {
-        10
+        11
     }
 
     fn citizen_fields() -> &'static [&'static str] {
@@ -90,6 +90,7 @@ impl sim_citizen::Citizen for LanguageProfileValue {
             "lowering",
             "eval_policy",
             "organs",
+            "backing_requirements",
             "numeric_tower",
             "capabilities",
             "unsupported_forms",

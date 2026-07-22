@@ -1,1 +1,10 @@
-(quote (scheme r7rs-small profile reader))
+(expr:map
+  [kind "language-profile"]
+  [language scheme]
+  [profile lang/scheme-r7rs-small/v1]
+  [reader codec/scheme-r7rs-small]
+  [lowering scheme/lowering-core]
+  [eval-policy eval/restricted]
+  [organs [organ/control organ/binding organ/sequence organ/pattern]]
+  [numeric-tower numbers/scheme-small]
+  [fidelity [standard/partial]])

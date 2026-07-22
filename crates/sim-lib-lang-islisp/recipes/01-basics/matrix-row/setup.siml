@@ -1,1 +1,7 @@
-(quote (islisp conformance matrix-row cargo-test))
+(expr:map
+  [kind "language-matrix-row"]
+  [language islisp]
+  [profile lang/islisp-core/v1]
+  [source-cases [test/islisp/profile-declared test/islisp/runtime-gap]]
+  [expr-cases []]
+  [runner cargo-test])

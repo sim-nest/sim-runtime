@@ -5,11 +5,11 @@ use std::sync::Arc;
 use sim_kernel::{
     Cx, DefaultFactory, EagerPolicy, Error, Expr, NumberLiteral, QuoteMode, Result, ShapeMatch,
     ShapeMatchObject, Symbol, Value, capability::control_prompt_capability,
-    logic_db_write_capability,
 };
 use sim_lib_logic::{
     LogicConfig, LogicDb,
     builtins::{BuiltinTable, tabling_memo_binding},
+    logic_db_write_capability,
 };
 use sim_lib_standard_core::{
     MatrixRunReport, MatrixRunner, SourceConformanceCase, SourceObservation,
@@ -19,6 +19,31 @@ use crate::conformance_all_solutions::{
     run_bagof_empty_case, run_bagof_groups_case, run_findall_duplicates_case, run_setof_sorted_case,
 };
 use crate::{install_prolog_lib, prolog_conformance_case_symbol, prolog_matrix_row};
+
+trait GrantOutcome {
+    fn into_result(self) -> Result<()>;
+}
+
+impl GrantOutcome for () {
+    fn into_result(self) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl GrantOutcome for Result<()> {
+    fn into_result(self) -> Result<()> {
+        self
+    }
+}
+
+macro_rules! grant_into_result {
+    ($grant:expr) => {{
+        #[allow(clippy::let_unit_value)]
+        let grant_result = $grant;
+        #[allow(clippy::unit_arg)]
+        grant_result.into_result()
+    }};
+}
 
 /// Runs one Prolog source conformance case through the installed Prolog surface.
 pub fn run_prolog_conformance_case(
@@ -81,7 +106,7 @@ pub fn run_prolog_conformance_case(
 /// Runs the Prolog matrix row and publishes claim-backed cells.
 pub fn run_prolog_matrix_row(cx: &mut Cx) -> Result<MatrixRunReport> {
     let row = prolog_matrix_row();
-    let report = MatrixRunner::run_row(cx, &row, run_prolog_conformance_case);
+    let report = MatrixRunner::run_source_row(cx, &row, run_prolog_conformance_case);
     report.publish_claims(cx)?;
     Ok(report)
 }
@@ -348,8 +373,8 @@ pub(crate) fn prolog_case_cx() -> Result<Cx> {
     cx.load_lib(&sim_lib_numbers_f64::F64NumbersLib::new())?;
     sim_lib_control::install_control_policy(&mut cx);
     install_prolog_lib(&mut cx)?;
-    seat.grant(&mut cx, logic_db_write_capability());
-    seat.grant(&mut cx, control_prompt_capability());
+    grant_into_result!(seat.grant(&mut cx, logic_db_write_capability()))?;
+    grant_into_result!(seat.grant(&mut cx, control_prompt_capability()))?;
     Ok(cx)
 }
 
@@ -465,11 +490,11 @@ pub(crate) fn expr_label(expr: &Expr) -> String {
 
 #[cfg(test)]
 mod tests {
-    use sim_kernel::{ClaimPattern, Ref, Symbol, testing::bare_cx as cx};
+    use sim_kernel::{ClaimPattern, Datum, DatumStore, Ref, Symbol, testing::bare_cx as cx};
     use sim_lib_standard_core::{standard_test_capability, standard_test_result_predicate};
 
     use super::*;
-    use crate::prolog_profile_symbol;
+    use crate::{prolog_profile_symbol, prolog_surface_fidelity_symbol};
 
     #[test]
     fn prolog_matrix_row_runner_reports_all_current_cases() {
@@ -485,6 +510,30 @@ mod tests {
         assert_eq!(report.language_fidelity(&Symbol::new("prolog")), Some(1.0));
         let claims = cx.query_facts(prolog_profile_result_claims()).unwrap();
         assert_eq!(claims.len(), 19);
+        let gap_evidence = claims
+            .iter()
+            .find(|claim| {
+                cx.query_facts(ClaimPattern::exact(
+                    claim.object.clone(),
+                    sim_lib_standard_core::standard_test_case_predicate(),
+                    Ref::Symbol(prolog_conformance_case_symbol("open-list")),
+                ))
+                .map(|matches| !matches.is_empty())
+                .unwrap_or(false)
+            })
+            .map(|claim| claim.object.clone())
+            .expect("expected badge-affecting open-list gap evidence");
+        let Ref::Content(gap_evidence_id) = gap_evidence else {
+            panic!("expected content-backed evidence");
+        };
+        let Some(Datum::Node { fields, .. }) = cx.datum_store().get(&gap_evidence_id).unwrap()
+        else {
+            panic!("expected evidence datum node");
+        };
+        assert_eq!(
+            node_field(fields, "affects-badge"),
+            Some(&Datum::Symbol(prolog_surface_fidelity_symbol()))
+        );
     }
 
     fn prolog_profile_result_claims() -> ClaimPattern {
@@ -494,5 +543,11 @@ mod tests {
             object: None,
             include_revoked: false,
         }
+    }
+
+    fn node_field<'a>(fields: &'a [(Symbol, Datum)], name: &str) -> Option<&'a Datum> {
+        fields
+            .iter()
+            .find_map(|(field, value)| (field == &Symbol::new(name)).then_some(value))
     }
 }

@@ -82,7 +82,7 @@ fn registering_a_new_key_resolves_without_resolver_change() {
     table.register(BuiltinBinding {
         key: Symbol::new("bind-ok"),
         organ: Symbol::qualified("test", "binding"),
-        solve: Arc::new(|_cx, ctx, args, env| {
+        solve: Arc::new(|cx, ctx, args, env| {
             let [out] = args else {
                 return Err(sim_kernel::Error::Eval(
                     "bind-ok expects one argument".to_owned(),
@@ -90,6 +90,7 @@ fn registering_a_new_key_resolves_without_resolver_change() {
             };
             let mut next = env.clone();
             if next.unify(
+                cx,
                 out,
                 &Expr::Symbol(Symbol::new("ok")),
                 occurs_check(ctx.config),

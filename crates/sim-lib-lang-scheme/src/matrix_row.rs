@@ -2,7 +2,8 @@
 
 use sim_kernel::Symbol;
 use sim_lib_standard_core::{
-    ExprRoundTripCase, LanguageRow, LanguageRowBuilder, SourceConformanceCase, SourceExpectation,
+    ExprRoundTripCase, LanguageRow, LanguageRowBuilder, SourceConformanceCase,
+    SourceConformanceCaseKind, SourceExpectation,
 };
 
 use crate::{r7rs_small_profile, scheme_lowering_symbol, scheme_reader_symbol};
@@ -23,6 +24,7 @@ pub fn r7rs_small_stub_cases() -> Vec<SourceConformanceCase> {
             organ: scheme_reader_symbol(),
             source_name: "quote-symbol.scm".to_owned(),
             source: "'answer".to_owned(),
+            kind: SourceConformanceCaseKind::Observed,
             expectation: SourceExpectation::LowersTo("datum:symbol answer".to_owned()),
             affects_badge: Some(Symbol::qualified("standard", "partial")),
         },
@@ -31,6 +33,7 @@ pub fn r7rs_small_stub_cases() -> Vec<SourceConformanceCase> {
             organ: scheme_lowering_symbol(),
             source_name: "eval-gap.scm".to_owned(),
             source: "(eval '(+ 1 2))".to_owned(),
+            kind: SourceConformanceCaseKind::Observed,
             expectation: SourceExpectation::ExpectedGap {
                 code: Symbol::qualified("scheme", "unsupported-form"),
                 reason: "read-eval is capability gated".to_owned(),

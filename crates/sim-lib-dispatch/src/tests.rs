@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use sim_kernel::{
     CapabilityName, Cx, Expr, HintMetadata, Ref, Result, Symbol, Value,
@@ -232,6 +235,86 @@ fn cl_julia_and_clojure_profiles_reuse_one_generic() -> Result<()> {
 }
 
 #[test]
+fn meta_index_reads_table_backed_meta_slot_without_baked_in_slot_names() -> Result<()> {
+    let mut cx = cx();
+    let mut protocol = TestMetaProtocol::default();
+    let receiver = string(&mut cx, "receiver");
+    let meta_table = string(&mut cx, "meta-table");
+    let direct_key = string(&mut cx, "direct");
+    let meta_key = string(&mut cx, "fallback");
+    let slot = Symbol::qualified("dispatch-test", "index-slot");
+    let direct_value = string(&mut cx, "raw");
+    let shadow_value = string(&mut cx, "shadow");
+    let fallback_value = string(&mut cx, "meta");
+
+    protocol.insert_raw(&receiver, &direct_key, direct_value.clone());
+    protocol.insert_meta(&receiver, &slot, meta_table.clone());
+    protocol.insert_raw(&meta_table, &direct_key, shadow_value);
+    protocol.insert_raw(&meta_table, &meta_key, fallback_value.clone());
+
+    let raw = meta_index(&mut cx, &protocol, &receiver, &direct_key, &slot)?.unwrap();
+    assert_eq!(
+        raw.object().as_expr(&mut cx).unwrap(),
+        direct_value.object().as_expr(&mut cx).unwrap()
+    );
+
+    let fallback = meta_index(&mut cx, &protocol, &receiver, &meta_key, &slot)?.unwrap();
+    assert_eq!(
+        fallback.object().as_expr(&mut cx).unwrap(),
+        fallback_value.object().as_expr(&mut cx).unwrap()
+    );
+    Ok(())
+}
+
+#[test]
+fn meta_index_supports_function_backed_meta_slot() -> Result<()> {
+    let mut cx = cx();
+    let mut protocol = TestMetaProtocol::default();
+    let receiver = string(&mut cx, "receiver");
+    let key = string(&mut cx, "computed-key");
+    let slot = Symbol::qualified("dispatch-test", "call-slot");
+    let function = string(&mut cx, "function-meta");
+    let computed = string(&mut cx, "computed");
+    let reply = computed.clone();
+
+    protocol.insert_meta(&receiver, &slot, function.clone());
+    protocol.insert_function(
+        function,
+        Arc::new(move |_cx, _receiver, _key| Ok(Some(reply.clone()))),
+    );
+
+    let result = meta_index(&mut cx, &protocol, &receiver, &key, &slot)?.unwrap();
+    assert_eq!(
+        result.object().as_expr(&mut cx).unwrap(),
+        computed.object().as_expr(&mut cx).unwrap()
+    );
+    Ok(())
+}
+
+#[test]
+fn meta_index_walks_prototype_chain_through_protocol_override() -> Result<()> {
+    let mut cx = cx();
+    let mut protocol = TestMetaProtocol::recursive();
+    let child = string(&mut cx, "child");
+    let parent = string(&mut cx, "parent");
+    let grandparent = string(&mut cx, "grandparent");
+    let key = string(&mut cx, "inherited-key");
+    let slot = Symbol::qualified("dispatch-test", "parent-slot");
+    let inherited = string(&mut cx, "inherited");
+
+    protocol.insert_meta(&child, &slot, parent.clone());
+    protocol.insert_meta(&parent, &slot, grandparent.clone());
+    protocol.insert_raw(&grandparent, &key, inherited.clone());
+
+    let result = meta_index(&mut cx, &protocol, &child, &key, &slot)?.unwrap();
+    assert_eq!(
+        result.object().as_expr(&mut cx).unwrap(),
+        inherited.object().as_expr(&mut cx).unwrap()
+    );
+    Ok(())
+}
+
+#[test]
 fn dispatch_organ_claims_project_to_card() {
     let mut cx = cx();
     publish_dispatch_organ_claims(&mut cx).unwrap();
@@ -259,7 +342,71 @@ fn dispatch_organ_claims_project_to_card() {
     }));
 }
 
-// ---- COOKBOOK_7 COOK7.02: a generic as a runtime callable value ----
+type MetaFunction = Arc<dyn Fn(&mut Cx, &Value, &Value) -> Result<Option<Value>> + Send + Sync>;
+
+#[derive(Default)]
+struct TestMetaProtocol {
+    raw: HashMap<Value, HashMap<Value, Value>>,
+    meta: HashMap<(Value, Symbol), Value>,
+    functions: HashMap<Value, MetaFunction>,
+    recursive: bool,
+}
+
+impl TestMetaProtocol {
+    fn recursive() -> Self {
+        Self {
+            recursive: true,
+            ..Self::default()
+        }
+    }
+
+    fn insert_raw(&mut self, value: &Value, key: &Value, result: Value) {
+        self.raw
+            .entry(value.clone())
+            .or_default()
+            .insert(key.clone(), result);
+    }
+
+    fn insert_meta(&mut self, value: &Value, slot: &Symbol, result: Value) {
+        self.meta.insert((value.clone(), slot.clone()), result);
+    }
+
+    fn insert_function(&mut self, value: Value, function: MetaFunction) {
+        self.functions.insert(value, function);
+    }
+}
+
+impl MetaObjectProtocol for TestMetaProtocol {
+    fn raw_get(&self, _cx: &mut Cx, value: &Value, key: &Value) -> Result<Option<Value>> {
+        Ok(self
+            .raw
+            .get(value)
+            .and_then(|table| table.get(key).cloned()))
+    }
+
+    fn get_meta(&self, _cx: &mut Cx, value: &Value, slot: &Symbol) -> Result<Option<Value>> {
+        Ok(self.meta.get(&(value.clone(), slot.clone())).cloned())
+    }
+
+    fn apply_meta(
+        &self,
+        cx: &mut Cx,
+        receiver: &Value,
+        key: &Value,
+        index_slot: &Symbol,
+        meta_value: &Value,
+    ) -> Result<Option<Value>> {
+        if let Some(function) = self.functions.get(meta_value) {
+            return function(cx, receiver, key);
+        }
+        if self.recursive {
+            return meta_index(cx, self, meta_value, key, index_slot);
+        }
+        self.raw_get(cx, meta_value, key)
+    }
+}
+
+// ---- generic function as a runtime callable value ----
 
 #[test]
 fn generic_value_dispatches_most_specific_when_called() {

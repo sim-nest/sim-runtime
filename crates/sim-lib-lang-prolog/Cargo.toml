@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-lang-prolog"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "MPL-2.0"
 readme = "README.md"
@@ -9,22 +9,26 @@ publish = true
 repository = "https://github.com/sim-nest/sim-runtime"
 homepage = "https://github.com/sim-nest/sim-runtime"
 
+[features]
+generated-coverage = ["dep:sim-lib-lang-genconf"]
+
 [dependencies]
 sim-codec = { version = "0.1.0" }
 sim-codec-lisp = { version = "0.1.0" }
 sim-kernel = { version = "0.1.0" }
 sim-lib-control = { version = "0.1.0", path = "../sim-lib-control" }
 sim-lib-core = { version = "0.1.0", path = "../sim-lib-core" }
-sim-lib-lang-genconf = { version = "0.1.0", path = "../sim-lib-lang-genconf" }
+sim-lib-lang-genconf = { version = "0.1.2", path = "../sim-lib-lang-genconf", optional = true }
 sim-lib-logic = { version = "0.1.0", path = "../sim-lib-logic" }
 sim-lib-numbers-arith = { version = "0.1.0" }
 sim-lib-numbers-f64 = { version = "0.1.0" }
 sim-lib-numbers-i64 = { version = "0.1.0" }
 sim-lib-sequence = { version = "0.1.0", path = "../sim-lib-sequence" }
-sim-lib-standard-core = { version = "0.1.0", path = "../sim-lib-standard-core" }
+sim-lib-standard-core = { version = "0.1.2", path = "../sim-lib-standard-core" }
 
 [lints]
 workspace = true
 
 [dev-dependencies]
 sim-kernel = { version = "0.1.0", features = ["test-support"] }
+sim-table-fs = { version = "0.1.0" }

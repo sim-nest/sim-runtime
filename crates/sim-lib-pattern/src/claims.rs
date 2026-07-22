@@ -9,6 +9,8 @@ use sim_kernel::{
     standard::{publish_organ_claims, publish_organ_claims_for_lib},
 };
 
+use crate::match_form::MatchForm;
+
 /// Returns the organ symbol that identifies the pattern surface.
 pub fn pattern_organ_symbol() -> Symbol {
     Symbol::qualified("organ", "pattern")
@@ -39,8 +41,9 @@ pub fn pattern_exhaustive_op_key() -> OpKey {
     pattern_op_key("exhaustive")
 }
 
-/// Returns every operation key the pattern organ publishes.
-pub fn pattern_op_keys() -> Vec<OpKey> {
+/// Returns every pattern-surface operation this crate models, whether or not
+/// it is currently exported as a live runtime callable.
+pub fn pattern_declared_op_keys() -> Vec<OpKey> {
     [
         pattern_adt_op_key(),
         pattern_tag_op_key(),
@@ -49,6 +52,19 @@ pub fn pattern_op_keys() -> Vec<OpKey> {
         pattern_exhaustive_op_key(),
     ]
     .into()
+}
+
+/// Live pattern claim-to-export mappings backed by the loaded runtime surface.
+pub fn pattern_live_ops() -> Vec<(OpKey, Symbol)> {
+    vec![(pattern_match_op_key(), MatchForm::symbol())]
+}
+
+/// Returns the operation keys the pattern organ currently publishes as live claims.
+pub fn pattern_op_keys() -> Vec<OpKey> {
+    pattern_live_ops()
+        .into_iter()
+        .map(|(op_key, _export_symbol)| op_key)
+        .collect()
 }
 
 /// Publishes the pattern organ and its operation keys as kernel claims.

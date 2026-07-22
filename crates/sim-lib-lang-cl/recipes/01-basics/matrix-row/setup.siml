@@ -1,1 +1,7 @@
-(quote (common-lisp conformance matrix-row cargo-test))
+(expr:map
+  [kind "language-matrix-row"]
+  [language common-lisp]
+  [profile lang/common-lisp-lite/v1]
+  [source-cases [test/common-lisp-lite/profile-declared test/common-lisp-lite/runtime-gap]]
+  [expr-cases []]
+  [runner cargo-test])

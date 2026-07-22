@@ -6,25 +6,26 @@ Generated from Cargo metadata by `xtask crate-catalog v1`.
 
 | Package | Publish | Targets | Description |
 | --- | --- | --- | --- |
-| `sim-lib-binding` | `true` | `custom-build, lib` | SIM workspace package for sim lib binding. |
-| `sim-lib-control` | `true` | `custom-build, lib` | SIM workspace package for sim lib control. |
-| `sim-lib-core` | `true` | `custom-build, lib` | SIM workspace package for sim lib core. |
-| `sim-lib-dispatch` | `true` | `custom-build, lib` | SIM workspace package for sim lib dispatch. |
-| `sim-lib-lang-cl` | `true` | `custom-build, lib` | SIM workspace package for sim lib lang cl. |
-| `sim-lib-lang-clojure` | `true` | `custom-build, lib` | SIM workspace package for sim lib lang clojure. |
+| `sim-lib-binding` | `true` | `custom-build, lib` | Binding forms and scoped name resolution for SIM runtime evaluation. |
+| `sim-lib-control` | `true` | `custom-build, lib` | Control-flow organs for SIM async, branching, and policy-aware execution. |
+| `sim-lib-core` | `true` | `custom-build, lib` | Shared manifest and registry installation substrate for SIM libraries. |
+| `sim-lib-dispatch` | `true` | `custom-build, lib` | Generic function and method dispatch organs for SIM runtime values. |
+| `sim-lib-exec` | `true` | `custom-build, lib` | Capability-gated bounded process execution for SIM. |
+| `sim-lib-lang-cl` | `true` | `custom-build, lib` | Common Lisp surface profile for the SIM expression runtime. |
+| `sim-lib-lang-clojure` | `true` | `custom-build, lib` | Clojure core surface profile for the SIM expression runtime. |
 | `sim-lib-lang-genconf` | `true` | `custom-build, lib` | SIM generative language conformance support. |
-| `sim-lib-lang-islisp` | `true` | `custom-build, lib` | SIM workspace package for sim lib lang islisp. |
-| `sim-lib-lang-julia` | `true` | `custom-build, lib` | SIM workspace package for sim lib lang julia. |
-| `sim-lib-lang-lua` | `true` | `custom-build, lib` | SIM workspace package for sim lib lang lua. |
+| `sim-lib-lang-islisp` | `true` | `custom-build, lib` | ISLISP surface profile for the SIM expression runtime. |
+| `sim-lib-lang-julia` | `true` | `custom-build, lib` | Julia-style surface profile for the SIM expression runtime. |
+| `sim-lib-lang-lua` | `true` | `custom-build, lib` | Lua-style surface profile for the SIM expression runtime. |
 | `sim-lib-lang-matrix` | `true` | `custom-build, lib` | SIM language conformance matrix assembly crate. |
 | `sim-lib-lang-prolog` | `true` | `lib` | Prolog surface profile for the SIM runtime. |
-| `sim-lib-lang-ruby` | `true` | `custom-build, lib` | SIM workspace package for sim lib lang ruby. |
-| `sim-lib-lang-scheme` | `true` | `custom-build, lib` | SIM workspace package for sim lib lang scheme. |
-| `sim-lib-lang-typed-lazy` | `true` | `custom-build, lib` | SIM workspace package for sim lib lang typed lazy. |
-| `sim-lib-logic` | `true` | `custom-build, lib` | SIM workspace package for sim lib logic. |
-| `sim-lib-mutation` | `true` | `custom-build, lib` | SIM workspace package for sim lib mutation. |
-| `sim-lib-namespace` | `true` | `custom-build, lib` | SIM workspace package for sim lib namespace. |
-| `sim-lib-pattern` | `true` | `custom-build, lib` | SIM workspace package for sim lib pattern. |
-| `sim-lib-sequence` | `true` | `custom-build, lib` | SIM workspace package for sim lib sequence. |
-| `sim-lib-standard-core` | `true` | `cdylib, custom-build, rlib` | SIM workspace package for sim lib standard core. |
-| `xtask` | `false` | `bin` | SIM workspace package for xtask. |
+| `sim-lib-lang-ruby` | `true` | `custom-build, lib` | Ruby-style surface profile for the SIM expression runtime. |
+| `sim-lib-lang-scheme` | `true` | `custom-build, lib` | Scheme surface profile for the SIM expression runtime. |
+| `sim-lib-lang-typed-lazy` | `true` | `custom-build, lib` | Typed lazy language profile for the SIM expression runtime. |
+| `sim-lib-logic` | `true` | `custom-build, lib` | Logic programming facts, queries, unification, and backtracking for SIM. |
+| `sim-lib-mutation` | `true` | `custom-build, lib` | Tracked mutation cells and update operations for SIM runtime values. |
+| `sim-lib-namespace` | `true` | `custom-build, lib` | Namespace registration and symbol lookup support for SIM libraries. |
+| `sim-lib-pattern` | `true` | `custom-build, lib` | Shape-based pattern matching and destructuring for SIM runtime values. |
+| `sim-lib-sequence` | `true` | `custom-build, lib` | Sequence operations, lazy streams, and collection transforms for SIM. |
+| `sim-lib-standard-core` | `true` | `cdylib, custom-build, rlib` | Standard distribution core for SIM capabilities, claims, tests, and profiles. |
+| `xtask` | `false` | `bin, lib` | Repository maintenance tasks for sim-runtime. |

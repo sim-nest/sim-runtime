@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 use sim_codec::{Input, decode_tree_with_codec};
 use sim_kernel::{
-    Cx, Error, Expr, ReadPolicy, Ref, Symbol, TrustLevel, Value,
+    ClaimPattern, Cx, Error, Expr, ReadPolicy, Ref, Symbol, TrustLevel, Value,
     capability::{control_capture_capability, control_resume_capability},
     control::{control_captured_status, control_result_status, control_resumed_status},
+    standard::standard_organ_predicate,
 };
 use sim_lib_control::{ConditionHandler, install_control_policy};
 use sim_lib_namespace::NamespaceKind;
@@ -316,4 +317,65 @@ fn profile_publishes_package_and_honest_clos_mop_badge() {
             .target()
             == &Symbol::qualified("cl", "defun")
     );
+}
+
+#[test]
+fn profile_only_claims_loaded_organs_and_records_pending_backing_libs() {
+    let mut cx = cx();
+    let mut registry = ProfileRegistry::new();
+
+    let profile = install_cl_lite_profile(&mut cx, &mut registry).unwrap();
+
+    assert_eq!(
+        profile.backing_requirements,
+        vec![
+            Symbol::qualified("sim", "dispatch"),
+            Symbol::qualified("sim", "namespace"),
+            Symbol::qualified("sim", "mutation"),
+        ]
+    );
+    assert!(
+        !cx.registry()
+            .lib(&sim_lib_binding::manifest_name())
+            .unwrap()
+            .exports
+            .is_empty()
+    );
+    assert!(
+        !cx.registry()
+            .lib(&sim_lib_control::manifest_name())
+            .unwrap()
+            .exports
+            .is_empty()
+    );
+    for organ in [
+        sim_lib_binding::binding_organ_symbol(),
+        sim_lib_control::control_organ_symbol(),
+    ] {
+        assert_eq!(
+            cx.query_facts(ClaimPattern::exact(
+                Ref::Symbol(profile.symbol.clone()),
+                standard_organ_predicate(),
+                Ref::Symbol(organ),
+            ))
+            .unwrap()
+            .len(),
+            1
+        );
+    }
+    for organ in [
+        sim_lib_dispatch::dispatch_organ_symbol(),
+        sim_lib_namespace::namespace_organ_symbol(),
+        sim_lib_mutation::mutation_organ_symbol(),
+    ] {
+        assert!(
+            cx.query_facts(ClaimPattern::exact(
+                Ref::Symbol(profile.symbol.clone()),
+                standard_organ_predicate(),
+                Ref::Symbol(organ),
+            ))
+            .unwrap()
+            .is_empty()
+        );
+    }
 }

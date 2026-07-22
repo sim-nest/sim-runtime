@@ -1,9 +1,9 @@
 [package]
 name = "sim-lib-standard-core"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "MPL-2.0"
-description = "SIM workspace package for sim lib standard core."
+description = "Standard distribution core for SIM capabilities, claims, tests, and profiles."
 readme = "README.md"
 publish = true
 repository = "https://github.com/sim-nest/sim-runtime"
@@ -21,7 +21,7 @@ indexmap = "2"
 sim-citizen = { version = "0.1.0" }
 sim-codec-binary = { version = "0.1.0", optional = true }
 sim-kernel = { version = "0.1.0" }
-sim-lib-core = { version = "0.1.0" }
+sim-lib-core = { version = "0.1.0", path = "../sim-lib-core" }
 sim-value = { version = "0.1.2" }
 
 [dev-dependencies]

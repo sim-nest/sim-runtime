@@ -1,6 +1,6 @@
 //! The `let` binding special form.
 //!
-//! `let` is a COOKBOOK_7 Category B eval-policy organ: a special form that
+//! `let` is an eval-policy organ: a special form that
 //! introduces lexical bindings. Like [`crate`]'s other binding machinery it is
 //! lexical and parallel -- every initializer is evaluated in the OUTER scope, so
 //! no binding can observe another, and the body then runs in a fresh child scope.
