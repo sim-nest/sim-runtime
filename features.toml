@@ -2,6 +2,7 @@ schema = "sim.features"
 
 [enforcement.audience]
 framework = "strict"
+code = "strict"
 
 [enforcement.route]
 major_entrypoints = "advisory"
@@ -33,8 +34,10 @@ guidance = "Use this row when composing reusable runtime behavior from small loa
 claims_anchors = [
   "anchor/crate/sim-lib-binding",
   "anchor/crate/sim-lib-control",
+  "anchor/crate/sim-lib-dispatch",
   "anchor/crate/sim-lib-logic",
   "anchor/crate/sim-lib-mutation",
+  "anchor/crate/sim-lib-namespace",
   "anchor/crate/sim-lib-pattern",
   "anchor/crate/sim-lib-sequence",
   "anchor/runtime-lib/sim-lib-binding/binding-lib",
@@ -54,8 +57,15 @@ guidance = "Use this row when a framework depends on standard libraries or langu
 claims_anchors = [
   "anchor/crate/sim-lib-lang-cl",
   "anchor/crate/sim-lib-lang-clojure",
+  "anchor/crate/sim-lib-lang-genconf",
+  "anchor/crate/sim-lib-lang-islisp",
+  "anchor/crate/sim-lib-lang-julia",
+  "anchor/crate/sim-lib-lang-lua",
+  "anchor/crate/sim-lib-lang-matrix",
   "anchor/crate/sim-lib-lang-prolog",
+  "anchor/crate/sim-lib-lang-ruby",
   "anchor/crate/sim-lib-lang-scheme",
+  "anchor/crate/sim-lib-lang-typed-lazy",
   "anchor/crate/sim-lib-standard-core",
   "anchor/runtime-lib/sim-lib-lang-cl/cl-lite-reader-codec-lib",
   "anchor/runtime-lib/sim-lib-lang-clojure/clojure-edn-codec-lib",
@@ -79,6 +89,20 @@ claims_anchors = [
   "anchor/crate/sim-lib-exec",
 ]
 
+[[feature]]
+id = "feature/sim-runtime/contract-emitter"
+title = "Runtime contract emitter"
+summary = "Emit generated repository contract and index fragments for runtime crates."
+owner = "crate/xtask"
+audiences = ["code"]
+guidance = "Use this row when refreshing generated runtime contract evidence."
+claims_anchors = [
+  "anchor/crate/xtask",
+]
+supports = [
+  "feature/sim-runtime/organs",
+]
+
 [[route]]
 id = "route/add-capability-gated-read-eval"
 task = "Add capability-gated read-eval"
@@ -94,6 +118,7 @@ task = "Add a runtime organ"
 audiences = ["code", "framework"]
 steps = [
   { feature = "feature/sim-runtime/organs", why = "The organ row groups loadable binding, control, logic, pattern, mutation, and sequence behavior." },
+  { feature = "feature/sim-runtime/contract-emitter", why = "The emitter row keeps generated runtime contract evidence current." },
 ]
 
 [[route]]

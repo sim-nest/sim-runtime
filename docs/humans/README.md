@@ -21,6 +21,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 | `feature/sim-runtime/organs` | `crate/sim-lib-binding` | 0 | Provide binding, control, logic, pattern, mutation, and sequence organs as loadable runtime libraries. |
 | `feature/sim-runtime/library-loading` | `crate/sim-lib-standard-core` | 1 | Load standard and language-profile runtime libraries through stable export records. |
 | `feature/sim-runtime/host-exec` | `crate/sim-lib-exec` | 0 | Expose bounded process execution as a capability-gated host primitive outside the kernel. |
+| `feature/sim-runtime/contract-emitter` | `crate/xtask` | 0 | Emit generated repository contract and index fragments for runtime crates. |
 
 ## Surfaces
 
