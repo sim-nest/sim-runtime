@@ -6,6 +6,8 @@ use std::{
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
+// conformance: host exec primitive runs only through explicit capability checks.
+
 use sim_kernel::{Error, Expr, Symbol, testing::bare_cx};
 
 use crate::{ExecOptions, ProcResult, exec, exec_capability, proc_result_symbol};

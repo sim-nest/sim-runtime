@@ -3,6 +3,8 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
+// conformance: runtime organs prove facts through the logic library.
+
 use sim_kernel::{Cx, DefaultFactory, EagerPolicy, Expr, NumberLiteral, ShapeMatch, Symbol};
 
 use crate::{

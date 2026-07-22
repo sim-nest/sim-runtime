@@ -4,6 +4,11 @@ schema = "sim.features"
 framework = "strict"
 code = "strict"
 
+[enforcement.specimen]
+user = "strict"
+framework = "strict"
+code = "advisory"
+
 [enforcement.route]
 major_entrypoints = "advisory"
 frameworks = "advisory"
@@ -46,6 +51,9 @@ claims_anchors = [
   "anchor/runtime-lib/sim-lib-pattern/pattern-lib",
   "anchor/runtime-lib/sim-lib-sequence/sequence-lib",
 ]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-logic/src/tests/organ_proof",
+]
 
 [[feature]]
 id = "feature/sim-runtime/library-loading"
@@ -87,6 +95,9 @@ audiences = ["code", "framework"]
 guidance = "Use this row when a framework needs an explicit host process primitive."
 claims_anchors = [
   "anchor/crate/sim-lib-exec",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-exec/src/tests",
 ]
 
 [[feature]]
