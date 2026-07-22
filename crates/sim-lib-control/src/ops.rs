@@ -238,81 +238,100 @@ fn call_physical_sensing_trace(cx: &mut Cx, args: Vec<Value>) -> Result<Value> {
 
 fn physical_sensing_trace_expr() -> Expr {
     list(vec![
-        sym("physical-sensing-trace"),
-        list(vec![sym("id"), sym("a30-021-physical-sensing")]),
+        atom_or_i64("physical-sensing-trace"),
         list(vec![
-            sym("fixture"),
-            list(vec![sym("source"), sym("synthetic-sensor-stream")]),
-            list(vec![sym("media"), sym("copied-no")]),
-            list(vec![sym("device"), sym("live-device-none")]),
+            atom_or_i64("id"),
+            atom_or_i64("a30-021-physical-sensing"),
         ]),
         list(vec![
-            sym("sensor-stream"),
-            list(vec![sym("runner"), sym("fake-sensor-stream")]),
+            atom_or_i64("fixture"),
             list(vec![
-                sym("frame"),
-                sym("1"),
-                sym("position"),
-                sym("22"),
-                sym("velocity"),
-                sym("3"),
+                atom_or_i64("source"),
+                atom_or_i64("synthetic-sensor-stream"),
+            ]),
+            list(vec![atom_or_i64("media"), atom_or_i64("copied-no")]),
+            list(vec![atom_or_i64("device"), atom_or_i64("live-device-none")]),
+        ]),
+        list(vec![
+            atom_or_i64("sensor-stream"),
+            list(vec![
+                atom_or_i64("runner"),
+                atom_or_i64("fake-sensor-stream"),
             ]),
             list(vec![
-                sym("frame"),
-                sym("2"),
-                sym("position"),
-                sym("24"),
-                sym("velocity"),
-                sym("2"),
+                atom_or_i64("frame"),
+                atom_or_i64("1"),
+                atom_or_i64("position"),
+                atom_or_i64("22"),
+                atom_or_i64("velocity"),
+                atom_or_i64("3"),
             ]),
             list(vec![
-                sym("frame"),
-                sym("3"),
-                sym("position"),
-                sym("26"),
-                sym("velocity"),
-                sym("1"),
+                atom_or_i64("frame"),
+                atom_or_i64("2"),
+                atom_or_i64("position"),
+                atom_or_i64("24"),
+                atom_or_i64("velocity"),
+                atom_or_i64("2"),
+            ]),
+            list(vec![
+                atom_or_i64("frame"),
+                atom_or_i64("3"),
+                atom_or_i64("position"),
+                atom_or_i64("26"),
+                atom_or_i64("velocity"),
+                atom_or_i64("1"),
             ]),
         ]),
         list(vec![
-            sym("temporal-average"),
-            list(vec![sym("window"), sym("3")]),
-            list(vec![sym("position"), sym("24")]),
-            list(vec![sym("velocity"), sym("2")]),
+            atom_or_i64("temporal-average"),
+            list(vec![atom_or_i64("window"), atom_or_i64("3")]),
+            list(vec![atom_or_i64("position"), atom_or_i64("24")]),
+            list(vec![atom_or_i64("velocity"), atom_or_i64("2")]),
         ]),
         list(vec![
-            sym("controller"),
-            list(vec![sym("kind"), sym("proportional")]),
-            list(vec![sym("setpoint"), sym("30")]),
-            list(vec![sym("gain"), sym("2")]),
-            list(vec![sym("deadband"), sym("2")]),
-            list(vec![sym("hysteresis"), sym("enabled")]),
+            atom_or_i64("controller"),
+            list(vec![atom_or_i64("kind"), atom_or_i64("proportional")]),
+            list(vec![atom_or_i64("setpoint"), atom_or_i64("30")]),
+            list(vec![atom_or_i64("gain"), atom_or_i64("2")]),
+            list(vec![atom_or_i64("deadband"), atom_or_i64("2")]),
+            list(vec![atom_or_i64("hysteresis"), atom_or_i64("enabled")]),
         ]),
         list(vec![
-            sym("control-output"),
-            list(vec![sym("error"), sym("6")]),
-            list(vec![sym("command"), sym("increase-12")]),
-            list(vec![sym("clamped"), sym("no")]),
-            list(vec![sym("next-state"), sym("approach-setpoint")]),
-        ]),
-        list(vec![sym("answer"), sym("increase-actuator-by-12")]),
-        list(vec![
-            sym("effect-ledger"),
+            atom_or_i64("control-output"),
+            list(vec![atom_or_i64("error"), atom_or_i64("6")]),
+            list(vec![atom_or_i64("command"), atom_or_i64("increase-12")]),
+            list(vec![atom_or_i64("clamped"), atom_or_i64("no")]),
             list(vec![
-                sym("effect"),
-                sym("read-fake-sensor-stream"),
-                sym("deterministic"),
+                atom_or_i64("next-state"),
+                atom_or_i64("approach-setpoint"),
+            ]),
+        ]),
+        list(vec![
+            atom_or_i64("answer"),
+            atom_or_i64("increase-actuator-by-12"),
+        ]),
+        list(vec![
+            atom_or_i64("effect-ledger"),
+            list(vec![
+                atom_or_i64("effect"),
+                atom_or_i64("read-fake-sensor-stream"),
+                atom_or_i64("deterministic"),
             ]),
             list(vec![
-                sym("effect"),
-                sym("average-window-three"),
-                sym("pass"),
+                atom_or_i64("effect"),
+                atom_or_i64("average-window-three"),
+                atom_or_i64("pass"),
             ]),
-            list(vec![sym("effect"), sym("apply-deadband"), sym("active")]),
             list(vec![
-                sym("effect"),
-                sym("emit-control-output"),
-                sym("increase-12"),
+                atom_or_i64("effect"),
+                atom_or_i64("apply-deadband"),
+                atom_or_i64("active"),
+            ]),
+            list(vec![
+                atom_or_i64("effect"),
+                atom_or_i64("emit-control-output"),
+                atom_or_i64("increase-12"),
             ]),
         ]),
     ])
@@ -322,7 +341,7 @@ fn list(items: Vec<Expr>) -> Expr {
     Expr::List(items)
 }
 
-fn sym(name: &str) -> Expr {
+fn atom_or_i64(name: &str) -> Expr {
     if name.as_bytes().iter().all(u8::is_ascii_digit) {
         return Expr::Number(NumberLiteral {
             domain: Symbol::qualified("numbers", "i64"),
@@ -379,4 +398,23 @@ fn control_result_value(cx: &mut Cx, reference: Ref) -> Result<Value> {
 
 fn arity_error(function: &'static str, expected: &'static str) -> Error {
     Error::Eval(format!("{function} expects {expected}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use sim_kernel::{Expr, NumberLiteral, Symbol};
+
+    use super::atom_or_i64;
+
+    #[test]
+    fn atom_or_i64_preserves_fixture_atom_policy() {
+        assert_eq!(atom_or_i64("ready"), Expr::Symbol(Symbol::new("ready")));
+        assert_eq!(
+            atom_or_i64("42"),
+            Expr::Number(NumberLiteral {
+                domain: Symbol::qualified("numbers", "i64"),
+                canonical: "42".to_owned(),
+            })
+        );
+    }
 }
