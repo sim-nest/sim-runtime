@@ -17,5 +17,5 @@ Normal rows are the fast local validation surface for this repository. Slow rows
 | `package-sim-lib-standard-core-all-features` | `normal` | `package-feature` | `sim-lib-standard-core all features` | `cargo check -p sim-lib-standard-core --all-features` | Package `sim-lib-standard-core` compiles with every declared feature enabled. |
 | `package-sim-lib-lang-prolog-no-default` | `normal` | `package-feature` | `sim-lib-lang-prolog no default features` | `cargo check -p sim-lib-lang-prolog --no-default-features` | Package `sim-lib-lang-prolog` compiles with default features disabled. |
 | `package-sim-lib-lang-prolog-all-features` | `normal` | `package-feature` | `sim-lib-lang-prolog all features` | `cargo check -p sim-lib-lang-prolog --all-features` | Package `sim-lib-lang-prolog` compiles with every declared feature enabled. |
-| `group-workspace` | `normal` | `split-group` | `workspace` | `cargo check -p sim-lib-binding` | Representative package `sim-lib-binding` for repository group `workspace`. |
+| `group-workspace` | `normal` | `split-group` | `workspace` | `cargo check -p sim-incremental-core` | Representative package `sim-incremental-core` for repository group `workspace`. |
 | `slow-benches` | `slow` | `slow` | `benches` | `cargo check --benches --all-features` | Bench targets compile under the full feature closure. |

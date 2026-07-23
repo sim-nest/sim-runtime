@@ -4,6 +4,11 @@
     {
       "features": [],
       "group": "workspace",
+      "package": "sim-incremental-core"
+    },
+    {
+      "features": [],
+      "group": "workspace",
       "package": "sim-lib-binding"
     },
     {

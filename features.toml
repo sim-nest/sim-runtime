@@ -14,6 +14,23 @@ major_entrypoints = "advisory"
 frameworks = "advisory"
 
 [[feature]]
+id = "feature/sim-runtime/incremental-query-core"
+title = "Incremental query core"
+summary = "Provide the generic memo graph algorithm that runtime organs can wrap without depending on SIM value surfaces."
+owner = "crate/sim-incremental-core"
+audiences = ["code"]
+guidance = "Use this row when maintaining the dependency-light incremental calculation core. The loadable SIM organ is claimed separately once its wrapper exists."
+claims_anchors = [
+  "anchor/crate/sim-incremental-core",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-incremental-core/src/tests",
+]
+supports = [
+  "feature/sim-runtime/organs",
+]
+
+[[feature]]
 id = "feature/sim-runtime/capabilities-read-eval"
 title = "Capabilities and read-eval"
 summary = "Gate diminished read-eval and surface packing through explicit runtime libraries and capability checks."

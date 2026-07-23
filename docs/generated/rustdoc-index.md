@@ -4,6 +4,7 @@
 
 | Package | Group | Summary |
 | --- | --- | --- |
+| `sim-incremental-core` | `workspace` | Generic incremental query calculation for SIM runtime libraries. |
 | `sim-lib-binding` | `workspace` | Binding behavior for the SIM runtime: lexical, dynamic, and scoped binding. |
 | `sim-lib-control` | `workspace` | Control behavior for the SIM runtime: async, backtracking, conditions. |
 | `sim-lib-core` | `workspace` | Shared surface-pack substrate for SIM runtime libraries. |

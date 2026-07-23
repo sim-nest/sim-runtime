@@ -1,7 +1,19 @@
 {
   "generator": "xtask crate-catalog v1",
-  "package_count": 23,
+  "package_count": 24,
   "packages": [
+    {
+      "description": "Dependency-light incremental query graph with memo cutoff and bounded snapshots.",
+      "generated_readme": true,
+      "manifest": "crates/sim-incremental-core/Cargo.toml",
+      "name": "sim-incremental-core",
+      "publish": "true",
+      "readme": "crates/sim-incremental-core/README.md",
+      "root": "crates/sim-incremental-core",
+      "target_kinds": [
+        "lib"
+      ]
+    },
     {
       "description": "Binding forms and scoped name resolution for SIM runtime evaluation.",
       "generated_readme": true,

@@ -34,6 +34,12 @@ the conformance harness.
 
 ## Crates
 
+### Runtime substrates
+
+- `sim-incremental-core` -- dependency-light incremental query graph with
+  nested reads, reverse invalidation, memo cutoff, typed budgets, continuation
+  tokens, and bounded snapshots.
+
 ### Core runtime organs
 
 - `sim-lib-core` -- shared surface-pack substrate: declare exported value cards

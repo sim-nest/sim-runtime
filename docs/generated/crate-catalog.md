@@ -6,6 +6,7 @@ Generated from Cargo metadata by `xtask crate-catalog v1`.
 
 | Package | Publish | Targets | Description |
 | --- | --- | --- | --- |
+| `sim-incremental-core` | `true` | `lib` | Dependency-light incremental query graph with memo cutoff and bounded snapshots. |
 | `sim-lib-binding` | `true` | `custom-build, lib` | Binding forms and scoped name resolution for SIM runtime evaluation. |
 | `sim-lib-control` | `true` | `custom-build, lib` | Control-flow organs for SIM async, branching, and policy-aware execution. |
 | `sim-lib-core` | `true` | `custom-build, lib` | Shared manifest and registry installation substrate for SIM libraries. |

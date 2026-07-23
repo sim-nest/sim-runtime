@@ -2,6 +2,7 @@
 [workspace]
 resolver = "3"
 members = [
+  "crates/sim-incremental-core",
   "crates/sim-lib-binding",
   "crates/sim-lib-control",
   "crates/sim-lib-core",

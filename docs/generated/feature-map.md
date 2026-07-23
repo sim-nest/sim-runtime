@@ -4,6 +4,7 @@
 
 | Package | Group | Features | Workspace feature edges |
 | --- | --- | ---: | ---: |
+| `sim-incremental-core` | `workspace` | 0 | 0 |
 | `sim-lib-binding` | `workspace` | 0 | 0 |
 | `sim-lib-control` | `workspace` | 0 | 0 |
 | `sim-lib-core` | `workspace` | 0 | 0 |
