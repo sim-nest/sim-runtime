@@ -1,3 +1,5 @@
+// conformance: namespace organ imports, diagnostics, and Card projection
+
 use sim_kernel::{
     Expr, Ref, Symbol,
     card::{card_for_ref, card_kind_predicate},

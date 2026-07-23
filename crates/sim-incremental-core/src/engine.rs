@@ -56,7 +56,7 @@ where
     /// Registers a query callback function for `key`.
     pub fn register_fn<F>(&mut self, key: K, query: F)
     where
-        F: for<'a> Fn(&K, &mut QueryFrame<'a, K, V>) -> QueryResult<K, V> + 'static,
+        F: for<'a> Fn(&K, &mut QueryFrame<'a, K, V>) -> QueryResult<K, V> + Send + Sync + 'static,
     {
         self.register_query(key, Query::new(query));
     }

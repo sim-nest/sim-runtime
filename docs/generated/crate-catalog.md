@@ -12,6 +12,7 @@ Generated from Cargo metadata by `xtask crate-catalog v1`.
 | `sim-lib-core` | `true` | `custom-build, lib` | Shared manifest and registry installation substrate for SIM libraries. |
 | `sim-lib-dispatch` | `true` | `custom-build, lib` | Generic function and method dispatch organs for SIM runtime values. |
 | `sim-lib-exec` | `true` | `custom-build, lib` | Capability-gated bounded process execution for SIM. |
+| `sim-lib-incremental` | `true` | `custom-build, lib` | Loadable incremental query organ for SIM runtime expressions. |
 | `sim-lib-lang-cl` | `true` | `custom-build, lib` | Common Lisp surface profile for the SIM expression runtime. |
 | `sim-lib-lang-clojure` | `true` | `custom-build, lib` | Clojure core surface profile for the SIM expression runtime. |
 | `sim-lib-lang-genconf` | `true` | `custom-build, lib` | SIM generative language conformance support. |

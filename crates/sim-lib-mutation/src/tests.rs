@@ -1,3 +1,5 @@
+// conformance: mutation organ capability gates, mutable values, and Card projection
+
 use std::sync::Arc;
 
 use sim_kernel::{

@@ -1,0 +1,5 @@
+book = "organ/incremental"
+title = "Incremental Query Organ"
+summary = "Memoized expression queries with invalidation, missing observations, cutoff, snapshots, and metrics."
+order = 135
+chapters = ["01-basics"]

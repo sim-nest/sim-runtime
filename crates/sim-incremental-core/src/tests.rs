@@ -1,6 +1,9 @@
 // conformance: generic incremental query core behavior
 
-use std::{cell::Cell, rc::Rc};
+use std::sync::{
+    Arc,
+    atomic::{AtomicI64, AtomicUsize, Ordering},
+};
 
 use crate::{
     BudgetKind, FingerprintValue, GraphSnapshot, IncrementalEngine, IncrementalError, Observation,
@@ -9,57 +12,57 @@ use crate::{
 
 #[test]
 fn nested_reads_record_dependencies_and_reuse_memos() {
-    let leaf_runs = Rc::new(Cell::new(0));
-    let branch_runs = Rc::new(Cell::new(0));
+    let leaf_runs = Arc::new(AtomicUsize::new(0));
+    let branch_runs = Arc::new(AtomicUsize::new(0));
     let mut engine = IncrementalEngine::<&'static str, i64>::new();
-    let leaf_counter = Rc::clone(&leaf_runs);
+    let leaf_counter = Arc::clone(&leaf_runs);
     engine.register_fn("leaf", move |_, _| {
-        leaf_counter.set(leaf_counter.get() + 1);
+        leaf_counter.fetch_add(1, Ordering::Relaxed);
         Ok(2)
     });
-    let branch_counter = Rc::clone(&branch_runs);
+    let branch_counter = Arc::clone(&branch_runs);
     engine.register_fn("branch", move |_, frame| {
-        branch_counter.set(branch_counter.get() + 1);
+        branch_counter.fetch_add(1, Ordering::Relaxed);
         Ok(frame.read("leaf")? + 3)
     });
 
     assert_eq!(engine.verify("branch").unwrap(), 5);
     assert_eq!(engine.verify("branch").unwrap(), 5);
-    assert_eq!(leaf_runs.get(), 1);
-    assert_eq!(branch_runs.get(), 1);
+    assert_eq!(leaf_runs.load(Ordering::Relaxed), 1);
+    assert_eq!(branch_runs.load(Ordering::Relaxed), 1);
 }
 
 #[test]
 fn reverse_invalidation_uses_value_cutoff_before_rerunning_dependents() {
-    let source_value = Rc::new(Cell::new(1));
-    let leaf_runs = Rc::new(Cell::new(0));
-    let root_runs = Rc::new(Cell::new(0));
+    let source_value = Arc::new(AtomicI64::new(1));
+    let leaf_runs = Arc::new(AtomicUsize::new(0));
+    let root_runs = Arc::new(AtomicUsize::new(0));
     let mut engine = IncrementalEngine::<&'static str, i64>::new();
-    let source = Rc::clone(&source_value);
-    let leaf_counter = Rc::clone(&leaf_runs);
+    let source = Arc::clone(&source_value);
+    let leaf_counter = Arc::clone(&leaf_runs);
     engine.register_fn("leaf", move |_, frame| {
-        leaf_counter.set(leaf_counter.get() + 1);
+        leaf_counter.fetch_add(1, Ordering::Relaxed);
         frame.observe_epoch("source")?;
-        Ok(source.get() % 10)
+        Ok(source.load(Ordering::Relaxed) % 10)
     });
-    let root_counter = Rc::clone(&root_runs);
+    let root_counter = Arc::clone(&root_runs);
     engine.register_fn("root", move |_, frame| {
-        root_counter.set(root_counter.get() + 1);
+        root_counter.fetch_add(1, Ordering::Relaxed);
         Ok(frame.read("leaf")? * 2)
     });
 
     assert_eq!(engine.verify("root").unwrap(), 2);
-    source_value.set(11);
+    source_value.store(11, Ordering::Relaxed);
     engine.invalidate(&"source");
     assert_eq!(engine.dirty_keys(), vec!["leaf", "root"]);
     assert_eq!(engine.verify("root").unwrap(), 2);
-    assert_eq!(leaf_runs.get(), 2);
-    assert_eq!(root_runs.get(), 1);
+    assert_eq!(leaf_runs.load(Ordering::Relaxed), 2);
+    assert_eq!(root_runs.load(Ordering::Relaxed), 1);
 
-    source_value.set(12);
+    source_value.store(12, Ordering::Relaxed);
     engine.invalidate(&"source");
     assert_eq!(engine.verify("root").unwrap(), 4);
-    assert_eq!(root_runs.get(), 2);
+    assert_eq!(root_runs.load(Ordering::Relaxed), 2);
 }
 
 #[test]
@@ -304,7 +307,7 @@ enum DiffKey {
 
 #[test]
 fn randomized_differential_matches_full_recomputation() {
-    let deps = Rc::new(vec![
+    let deps = Arc::new(vec![
         vec![],
         vec![0],
         vec![0, 1],
@@ -312,18 +315,18 @@ fn randomized_differential_matches_full_recomputation() {
         vec![2, 3],
         vec![4],
     ]);
-    let sources = Rc::new(
+    let sources = Arc::new(
         (0..6)
-            .map(|value| Cell::new(value as i64))
+            .map(|value| AtomicI64::new(value as i64))
             .collect::<Vec<_>>(),
     );
     let mut engine = IncrementalEngine::<DiffKey, i64>::new();
     for index in 0..6 {
-        let deps = Rc::clone(&deps);
-        let sources = Rc::clone(&sources);
+        let deps = Arc::clone(&deps);
+        let sources = Arc::clone(&sources);
         engine.register_fn(DiffKey::Query(index), move |_, frame| {
             frame.observe(ObservationKind::Epoch, DiffKey::Source(index))?;
-            let mut sum = sources[index].get();
+            let mut sum = sources[index].load(Ordering::Relaxed);
             for dep in &deps[index] {
                 sum += frame.read(DiffKey::Query(*dep))?;
             }
@@ -334,15 +337,15 @@ fn randomized_differential_matches_full_recomputation() {
     let mut rng = Lcg::new(0x51_4d_31);
     for _ in 0..96 {
         let index = rng.next_usize(6);
-        sources[index].set(rng.next_usize(20) as i64 - 10);
+        sources[index].store(rng.next_usize(20) as i64 - 10, Ordering::Relaxed);
         engine.invalidate(&DiffKey::Source(index));
         let expected = full_recompute(5, &deps, &sources);
         assert_eq!(engine.verify(DiffKey::Query(5)).unwrap(), expected);
     }
 }
 
-fn full_recompute(index: usize, deps: &[Vec<usize>], sources: &[Cell<i64>]) -> i64 {
-    sources[index].get()
+fn full_recompute(index: usize, deps: &[Vec<usize>], sources: &[AtomicI64]) -> i64 {
+    sources[index].load(Ordering::Relaxed)
         + deps[index]
             .iter()
             .map(|dep| full_recompute(*dep, deps, sources))

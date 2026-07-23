@@ -20,6 +20,7 @@
 | `cookbook/logic` | `cookbook-recipe` | `sim-lib-logic` | Logic database, assertion, and query surfaces. |
 | `cookbook/organ/binding` | `cookbook-recipe` | `sim-lib-binding` | Binding surface concepts shared by language profiles. |
 | `cookbook/organ/dispatch` | `cookbook-recipe` | `sim-lib-dispatch` | Generic function and multimethod concepts. |
+| `cookbook/organ/incremental` | `cookbook-recipe` | `sim-lib-incremental` | Memoized expression queries with invalidation, missing observations, cutoff, snapshots, and metrics. |
 | `cookbook/organ/mutation` | `cookbook-recipe` | `sim-lib-mutation` | Cells, boxes, mutable tables, and mutable vectors. |
 | `cookbook/organ/namespace` | `cookbook-recipe` | `sim-lib-namespace` | Package, module, import, export, and shadowing surfaces. |
 | `cookbook/organ/pattern` | `cookbook-recipe` | `sim-lib-pattern` | Pattern matching and algebraic data type declarations. |

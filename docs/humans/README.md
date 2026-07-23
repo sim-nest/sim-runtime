@@ -18,8 +18,11 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 | Feature | Subject | Specimens | Summary |
 | --- | --- | ---: | --- |
 | `feature/sim-runtime/incremental-query-core` | `crate/sim-incremental-core` | 1 | Provide the generic memo graph algorithm that runtime organs can wrap without depending on SIM value surfaces. |
+| `feature/sim-runtime/incremental-query-organ` | `crate/sim-lib-incremental` | 1 | Expose incremental expression queries as a loadable SIM organ with capability-gated registration, invalidation, verification, explanation, snapshots, and metrics. |
 | `feature/sim-runtime/capabilities-read-eval` | `crate/sim-lib-core` | 1 | Gate diminished read-eval and surface packing through explicit runtime libraries and capability checks. |
-| `feature/sim-runtime/organs` | `crate/sim-lib-binding` | 1 | Provide binding, control, logic, pattern, mutation, and sequence organs as loadable runtime libraries. |
+| `feature/sim-runtime/organs` | `crate/sim-lib-binding` | 2 | Provide binding, control, logic, pattern, incremental, mutation, namespace, and sequence organs as reusable runtime behavior. |
+| `feature/sim-runtime/mutation-organ` | `crate/sim-lib-mutation` | 1 | Expose cells, boxes, mutable vectors, and mutable tables as capability-gated runtime mutation behavior. |
+| `feature/sim-runtime/namespace-organ` | `crate/sim-lib-namespace` | 1 | Expose package and module namespace records with export, import, rename, and shadow handling. |
 | `feature/sim-runtime/library-loading` | `crate/sim-lib-standard-core` | 1 | Load standard and language-profile runtime libraries through stable export records. |
 | `feature/sim-runtime/host-exec` | `crate/sim-lib-exec` | 1 | Expose bounded process execution as a capability-gated host primitive outside the kernel. |
 | `feature/sim-runtime/contract-emitter` | `crate/xtask` | 0 | Emit generated repository contract and index fragments for runtime crates. |
@@ -63,6 +66,11 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 - `crates/sim-lib-exec/recipes/01-basics/bounded-process/setup.siml`
 - `crates/sim-lib-exec/recipes/01-basics/chapter.toml`
 - `crates/sim-lib-exec/recipes/book.toml`
+- `crates/sim-lib-incremental/recipes/01-basics/chapter.toml`
+- `crates/sim-lib-incremental/recipes/01-basics/query-family/purpose.md`
+- `crates/sim-lib-incremental/recipes/01-basics/query-family/recipe.toml`
+- `crates/sim-lib-incremental/recipes/01-basics/query-family/setup.siml`
+- `crates/sim-lib-incremental/recipes/book.toml`
 - `crates/sim-lib-lang-cl/recipes/01-basics/chapter.toml`
 - `crates/sim-lib-lang-cl/recipes/01-basics/matrix-row/purpose.md`
 - `crates/sim-lib-lang-cl/recipes/01-basics/matrix-row/recipe.toml`
@@ -194,7 +202,10 @@ Source `crates/sim-incremental-core/src/tests.rs`:
 ```rust
 // conformance: generic incremental query core behavior
 
-use std::{cell::Cell, rc::Rc};
+use std::sync::{
+    Arc,
+    atomic::{AtomicI64, AtomicUsize, Ordering},
+};
 
 use crate::{
     BudgetKind, FingerprintValue, GraphSnapshot, IncrementalEngine, IncrementalError, Observation,
@@ -203,57 +214,57 @@ use crate::{
 
 #[test]
 fn nested_reads_record_dependencies_and_reuse_memos() {
-    let leaf_runs = Rc::new(Cell::new(0));
-    let branch_runs = Rc::new(Cell::new(0));
+    let leaf_runs = Arc::new(AtomicUsize::new(0));
+    let branch_runs = Arc::new(AtomicUsize::new(0));
     let mut engine = IncrementalEngine::<&'static str, i64>::new();
-    let leaf_counter = Rc::clone(&leaf_runs);
+    let leaf_counter = Arc::clone(&leaf_runs);
     engine.register_fn("leaf", move |_, _| {
-        leaf_counter.set(leaf_counter.get() + 1);
+        leaf_counter.fetch_add(1, Ordering::Relaxed);
         Ok(2)
     });
-    let branch_counter = Rc::clone(&branch_runs);
+    let branch_counter = Arc::clone(&branch_runs);
     engine.register_fn("branch", move |_, frame| {
-        branch_counter.set(branch_counter.get() + 1);
+        branch_counter.fetch_add(1, Ordering::Relaxed);
         Ok(frame.read("leaf")? + 3)
     });
 
     assert_eq!(engine.verify("branch").unwrap(), 5);
     assert_eq!(engine.verify("branch").unwrap(), 5);
-    assert_eq!(leaf_runs.get(), 1);
-    assert_eq!(branch_runs.get(), 1);
+    assert_eq!(leaf_runs.load(Ordering::Relaxed), 1);
+    assert_eq!(branch_runs.load(Ordering::Relaxed), 1);
 }
 
 #[test]
 fn reverse_invalidation_uses_value_cutoff_before_rerunning_dependents() {
-    let source_value = Rc::new(Cell::new(1));
-    let leaf_runs = Rc::new(Cell::new(0));
-    let root_runs = Rc::new(Cell::new(0));
+    let source_value = Arc::new(AtomicI64::new(1));
+    let leaf_runs = Arc::new(AtomicUsize::new(0));
+    let root_runs = Arc::new(AtomicUsize::new(0));
     let mut engine = IncrementalEngine::<&'static str, i64>::new();
-    let source = Rc::clone(&source_value);
-    let leaf_counter = Rc::clone(&leaf_runs);
+    let source = Arc::clone(&source_value);
+    let leaf_counter = Arc::clone(&leaf_runs);
     engine.register_fn("leaf", move |_, frame| {
-        leaf_counter.set(leaf_counter.get() + 1);
+        leaf_counter.fetch_add(1, Ordering::Relaxed);
         frame.observe_epoch("source")?;
-        Ok(source.get() % 10)
+        Ok(source.load(Ordering::Relaxed) % 10)
     });
-    let root_counter = Rc::clone(&root_runs);
+    let root_counter = Arc::clone(&root_runs);
     engine.register_fn("root", move |_, frame| {
-        root_counter.set(root_counter.get() + 1);
+        root_counter.fetch_add(1, Ordering::Relaxed);
         Ok(frame.read("leaf")? * 2)
     });
 
     assert_eq!(engine.verify("root").unwrap(), 2);
-    source_value.set(11);
+    source_value.store(11, Ordering::Relaxed);
     engine.invalidate(&"source");
     assert_eq!(engine.dirty_keys(), vec!["leaf", "root"]);
     assert_eq!(engine.verify("root").unwrap(), 2);
-    assert_eq!(leaf_runs.get(), 2);
-    assert_eq!(root_runs.get(), 1);
+    assert_eq!(leaf_runs.load(Ordering::Relaxed), 2);
+    assert_eq!(root_runs.load(Ordering::Relaxed), 1);
 
-    source_value.set(12);
+    source_value.store(12, Ordering::Relaxed);
     engine.invalidate(&"source");
     assert_eq!(engine.verify("root").unwrap(), 4);
-    assert_eq!(root_runs.get(), 2);
+    assert_eq!(root_runs.load(Ordering::Relaxed), 2);
 }
 
 #[test]
@@ -498,7 +509,7 @@ enum DiffKey {
 
 #[test]
 fn randomized_differential_matches_full_recomputation() {
-    let deps = Rc::new(vec![
+    let deps = Arc::new(vec![
         vec![],
         vec![0],
         vec![0, 1],
@@ -506,18 +517,18 @@ fn randomized_differential_matches_full_recomputation() {
         vec![2, 3],
         vec![4],
     ]);
-    let sources = Rc::new(
+    let sources = Arc::new(
         (0..6)
-            .map(|value| Cell::new(value as i64))
+            .map(|value| AtomicI64::new(value as i64))
             .collect::<Vec<_>>(),
     );
     let mut engine = IncrementalEngine::<DiffKey, i64>::new();
     for index in 0..6 {
-        let deps = Rc::clone(&deps);
-        let sources = Rc::clone(&sources);
+        let deps = Arc::clone(&deps);
+        let sources = Arc::clone(&sources);
         engine.register_fn(DiffKey::Query(index), move |_, frame| {
             frame.observe(ObservationKind::Epoch, DiffKey::Source(index))?;
-            let mut sum = sources[index].get();
+            let mut sum = sources[index].load(Ordering::Relaxed);
             for dep in &deps[index] {
                 sum += frame.read(DiffKey::Query(*dep))?;
             }
@@ -528,15 +539,15 @@ fn randomized_differential_matches_full_recomputation() {
     let mut rng = Lcg::new(0x51_4d_31);
     for _ in 0..96 {
         let index = rng.next_usize(6);
-        sources[index].set(rng.next_usize(20) as i64 - 10);
+        sources[index].store(rng.next_usize(20) as i64 - 10, Ordering::Relaxed);
         engine.invalidate(&DiffKey::Source(index));
         let expected = full_recompute(5, &deps, &sources);
         assert_eq!(engine.verify(DiffKey::Query(5)).unwrap(), expected);
     }
 }
 
-fn full_recompute(index: usize, deps: &[Vec<usize>], sources: &[Cell<i64>]) -> i64 {
-    sources[index].get()
+fn full_recompute(index: usize, deps: &[Vec<usize>], sources: &[AtomicI64]) -> i64 {
+    sources[index].load(Ordering::Relaxed)
         + deps[index]
             .iter()
             .map(|dep| full_recompute(*dep, deps, sources))
@@ -554,6 +565,256 @@ impl Lcg {
         self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
         ((self.0 >> 32) as usize) % limit
     }
+}
+```
+
+### `feature/sim-runtime/incremental-query-organ`
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-incremental/src/tests` is checked by `cargo test`.
+
+Source `crates/sim-lib-incremental/src/tests.rs`:
+
+```rust
+// conformance: incremental query organ callables, cutoff, reports, and Card projection
+
+use sim_kernel::{
+    Args, Cx, Error, Expr, Ref, Symbol, Value,
+    card::{card_for_ref, card_kind_predicate},
+    force_list_to_vec,
+    standard::standard_organ_kind,
+};
+
+use crate::*;
+
+use sim_kernel::testing::bare_cx as cx;
+
+fn string(cx: &mut Cx, value: &str) -> Value {
+    cx.factory().string(value.to_owned()).unwrap()
+}
+
+fn expr_value(cx: &mut Cx, expr: Expr) -> Value {
+    cx.factory().expr(expr).unwrap()
+}
+
+fn call(cx: &mut Cx, name: &str, args: Vec<Value>) -> Value {
+    let function = cx
+        .resolve_function(&Symbol::qualified("incremental", name))
+        .unwrap();
+    let callable = function.object().as_callable().unwrap();
+    callable.call(cx, Args::new(args)).unwrap()
+}
+
+fn call_err(cx: &mut Cx, name: &str, args: Vec<Value>) -> Error {
+    let function = cx
+        .resolve_function(&Symbol::qualified("incremental", name))
+        .unwrap();
+    let callable = function.object().as_callable().unwrap();
+    callable.call(cx, Args::new(args)).unwrap_err()
+}
+
+fn register_query(cx: &mut Cx, engine: &Value, key: &str, source: Expr) -> Value {
+    let key = string(cx, key);
+    let source = expr_value(cx, source);
+    call(cx, "register", vec![engine.clone(), key, source])
+}
+
+fn verify_query(cx: &mut Cx, engine: &Value, key: &str) -> Value {
+    let key = string(cx, key);
+    call(cx, "verify", vec![engine.clone(), key])
+}
+
+fn invalidate_key(cx: &mut Cx, engine: &Value, key: &str) -> Value {
+    let key = string(cx, key);
+    call(cx, "invalidate", vec![engine.clone(), key])
+}
+
+fn report(cx: &mut Cx, name: &str, engine: &Value) -> Value {
+    call(cx, name, vec![engine.clone()])
+}
+
+fn keyed_report(cx: &mut Cx, name: &str, engine: &Value, key: &str) -> Value {
+    let key = string(cx, key);
+    call(cx, name, vec![engine.clone(), key])
+}
+
+fn table_get(cx: &mut Cx, table_value: &Value, key: &str) -> Value {
+    table_value
+        .object()
+        .as_table_impl()
+        .unwrap()
+        .get(cx, Symbol::new(key))
+        .unwrap()
+}
+
+fn number_text(cx: &mut Cx, value: &Value) -> String {
+    match value.object().as_expr(cx).unwrap() {
+        Expr::Number(number) => number.canonical,
+        other => panic!("expected number, got {other:?}"),
+    }
+}
+
+fn grant_all(cx: &mut Cx) {
+    cx.grant(incremental_read_capability());
+    cx.grant(incremental_write_capability());
+    cx.grant(incremental_verify_capability());
+}
+
+fn read_expr(key: &str) -> Expr {
+    Expr::Call {
+        operator: Box::new(Expr::Symbol(Symbol::qualified("incremental", "read"))),
+        args: vec![Expr::String(key.to_owned())],
+    }
+}
+
+fn missing_expr(key: &str) -> Expr {
+    Expr::Call {
+        operator: Box::new(Expr::Symbol(Symbol::qualified("incremental", "missing"))),
+        args: vec![Expr::String(key.to_owned())],
+    }
+}
+
+#[test]
+fn callables_have_shape_contracts_and_capability_gates() {
+    let mut cx = cx();
+    install_incremental_lib(&mut cx).unwrap();
+    let engine = call(&mut cx, "engine", Vec::new());
+
+    for name in [
+        "engine",
+        "register",
+        "invalidate",
+        "verify",
+        "explain",
+        "snapshot",
+        "metrics",
+    ] {
+        let function = cx
+            .resolve_function(&Symbol::qualified("incremental", name))
+            .unwrap();
+        let callable = function.object().as_callable().unwrap();
+        assert!(
+            callable.browse_args_shape(&mut cx).unwrap().is_some(),
+            "{name}"
+        );
+        assert!(
+            callable.browse_result_shape(&mut cx).unwrap().is_some(),
+            "{name}"
+        );
+    }
+
+    let key = string(&mut cx, "leaf");
+    let source = expr_value(&mut cx, Expr::String("same".to_owned()));
+    let denied = call_err(&mut cx, "register", vec![engine.clone(), key, source]);
+    assert!(
+        matches!(denied, Error::CapabilityDenied { capability } if capability == incremental_write_capability())
+    );
+
+    cx.grant(incremental_write_capability());
+    register_query(&mut cx, &engine, "leaf", Expr::String("same".to_owned()));
+
+    let key = string(&mut cx, "leaf");
+    let denied = call_err(&mut cx, "verify", vec![engine, key]);
+    assert!(
+        matches!(denied, Error::CapabilityDenied { capability } if capability == incremental_verify_capability())
+    );
+}
+
+#[test]
+fn query_family_tracks_missing_invalidation_and_cutoff() {
+    let mut cx = cx();
+    install_incremental_lib(&mut cx).unwrap();
+    grant_all(&mut cx);
+    let engine = call(&mut cx, "engine", Vec::new());
+    register_query(&mut cx, &engine, "leaf", Expr::String("same".to_owned()));
+    register_query(&mut cx, &engine, "root", read_expr("leaf"));
+    register_query(
+        &mut cx,
+        &engine,
+        "guard",
+        Expr::Vector(vec![read_expr("root"), missing_expr("optional")]),
+    );
+
+    let verified = verify_query(&mut cx, &engine, "guard");
+    assert_eq!(
+        verified.object().as_expr(&mut cx).unwrap(),
+        Expr::Vector(vec![Expr::String("same".to_owned()), Expr::Bool(false)])
+    );
+    let metrics = report(&mut cx, "metrics", &engine);
+    let executions = table_get(&mut cx, &metrics, "executions");
+    let leaf_count = table_get(&mut cx, &executions, "leaf");
+    assert_eq!(number_text(&mut cx, &leaf_count), "1");
+    let root_count = table_get(&mut cx, &executions, "root");
+    assert_eq!(number_text(&mut cx, &root_count), "1");
+    let guard_count = table_get(&mut cx, &executions, "guard");
+    assert_eq!(number_text(&mut cx, &guard_count), "1");
+
+    verify_query(&mut cx, &engine, "guard");
+    let metrics = report(&mut cx, "metrics", &engine);
+    let executions = table_get(&mut cx, &metrics, "executions");
+    let guard_count = table_get(&mut cx, &executions, "guard");
+    assert_eq!(number_text(&mut cx, &guard_count), "1");
+
+    invalidate_key(&mut cx, &engine, "optional");
+    verify_query(&mut cx, &engine, "guard");
+    let metrics = report(&mut cx, "metrics", &engine);
+    let executions = table_get(&mut cx, &metrics, "executions");
+    let guard_count = table_get(&mut cx, &executions, "guard");
+    assert_eq!(number_text(&mut cx, &guard_count), "2");
+    let root_count = table_get(&mut cx, &executions, "root");
+    assert_eq!(number_text(&mut cx, &root_count), "1");
+}
+
+#[test]
+fn explanation_snapshot_and_card_projection_are_browseable() {
+    let mut cx = cx();
+    install_incremental_lib(&mut cx).unwrap();
+    grant_all(&mut cx);
+    let engine = call(&mut cx, "engine", Vec::new());
+    register_query(&mut cx, &engine, "leaf", Expr::String("same".to_owned()));
+    register_query(&mut cx, &engine, "root", read_expr("leaf"));
+    verify_query(&mut cx, &engine, "root");
+
+    let explain = keyed_report(&mut cx, "explain", &engine, "root");
+    assert_eq!(
+        table_get(&mut cx, &explain, "registered")
+            .object()
+            .as_expr(&mut cx)
+            .unwrap(),
+        Expr::Bool(true)
+    );
+    assert_ne!(
+        table_get(&mut cx, &explain, "fingerprint")
+            .object()
+            .as_expr(&mut cx)
+            .unwrap(),
+        Expr::Nil
+    );
+
+    let snapshot = keyed_report(&mut cx, "snapshot", &engine, "root");
+    let nodes = table_get(&mut cx, &snapshot, "nodes");
+    let list = nodes.object().as_list().unwrap();
+    let nodes = force_list_to_vec(&mut cx, list, "incremental snapshot nodes").unwrap();
+    assert_eq!(nodes.len(), 2);
+
+    let claims = cx
+        .query_facts(sim_kernel::ClaimPattern {
+            subject: Some(Ref::Symbol(incremental_organ_symbol())),
+            predicate: Some(card_kind_predicate()),
+            object: Some(Ref::Symbol(standard_organ_kind())),
+            include_revoked: false,
+        })
+        .unwrap();
+    assert_eq!(claims.len(), 1);
+    let card = card_for_ref(&mut cx, Ref::Symbol(incremental_organ_symbol())).unwrap();
+    let table = card.object().as_table(&mut cx).unwrap();
+    let entries = table.object().as_table_impl().unwrap();
+    let ops = entries.get(&mut cx, Symbol::new("ops")).unwrap();
+    let list = ops.object().as_list().unwrap();
+    let values = force_list_to_vec(&mut cx, list, "incremental organ ops").unwrap();
+    assert!(values.into_iter().any(|value| {
+        value.object().as_expr(&mut cx).unwrap()
+            == Expr::Symbol(Symbol::qualified("incremental", "register.v1"))
+    }));
 }
 ```
 
@@ -1012,6 +1273,254 @@ fn class_value_or_stub(cx: &mut Cx, id: ClassId, symbol: Symbol) -> Result<Value
 
 ### `feature/sim-runtime/organs`
 
+Specimen `spec-test/sim-runtime/crates/sim-lib-incremental/src/tests` is checked by `cargo test`.
+
+Source `crates/sim-lib-incremental/src/tests.rs`:
+
+```rust
+// conformance: incremental query organ callables, cutoff, reports, and Card projection
+
+use sim_kernel::{
+    Args, Cx, Error, Expr, Ref, Symbol, Value,
+    card::{card_for_ref, card_kind_predicate},
+    force_list_to_vec,
+    standard::standard_organ_kind,
+};
+
+use crate::*;
+
+use sim_kernel::testing::bare_cx as cx;
+
+fn string(cx: &mut Cx, value: &str) -> Value {
+    cx.factory().string(value.to_owned()).unwrap()
+}
+
+fn expr_value(cx: &mut Cx, expr: Expr) -> Value {
+    cx.factory().expr(expr).unwrap()
+}
+
+fn call(cx: &mut Cx, name: &str, args: Vec<Value>) -> Value {
+    let function = cx
+        .resolve_function(&Symbol::qualified("incremental", name))
+        .unwrap();
+    let callable = function.object().as_callable().unwrap();
+    callable.call(cx, Args::new(args)).unwrap()
+}
+
+fn call_err(cx: &mut Cx, name: &str, args: Vec<Value>) -> Error {
+    let function = cx
+        .resolve_function(&Symbol::qualified("incremental", name))
+        .unwrap();
+    let callable = function.object().as_callable().unwrap();
+    callable.call(cx, Args::new(args)).unwrap_err()
+}
+
+fn register_query(cx: &mut Cx, engine: &Value, key: &str, source: Expr) -> Value {
+    let key = string(cx, key);
+    let source = expr_value(cx, source);
+    call(cx, "register", vec![engine.clone(), key, source])
+}
+
+fn verify_query(cx: &mut Cx, engine: &Value, key: &str) -> Value {
+    let key = string(cx, key);
+    call(cx, "verify", vec![engine.clone(), key])
+}
+
+fn invalidate_key(cx: &mut Cx, engine: &Value, key: &str) -> Value {
+    let key = string(cx, key);
+    call(cx, "invalidate", vec![engine.clone(), key])
+}
+
+fn report(cx: &mut Cx, name: &str, engine: &Value) -> Value {
+    call(cx, name, vec![engine.clone()])
+}
+
+fn keyed_report(cx: &mut Cx, name: &str, engine: &Value, key: &str) -> Value {
+    let key = string(cx, key);
+    call(cx, name, vec![engine.clone(), key])
+}
+
+fn table_get(cx: &mut Cx, table_value: &Value, key: &str) -> Value {
+    table_value
+        .object()
+        .as_table_impl()
+        .unwrap()
+        .get(cx, Symbol::new(key))
+        .unwrap()
+}
+
+fn number_text(cx: &mut Cx, value: &Value) -> String {
+    match value.object().as_expr(cx).unwrap() {
+        Expr::Number(number) => number.canonical,
+        other => panic!("expected number, got {other:?}"),
+    }
+}
+
+fn grant_all(cx: &mut Cx) {
+    cx.grant(incremental_read_capability());
+    cx.grant(incremental_write_capability());
+    cx.grant(incremental_verify_capability());
+}
+
+fn read_expr(key: &str) -> Expr {
+    Expr::Call {
+        operator: Box::new(Expr::Symbol(Symbol::qualified("incremental", "read"))),
+        args: vec![Expr::String(key.to_owned())],
+    }
+}
+
+fn missing_expr(key: &str) -> Expr {
+    Expr::Call {
+        operator: Box::new(Expr::Symbol(Symbol::qualified("incremental", "missing"))),
+        args: vec![Expr::String(key.to_owned())],
+    }
+}
+
+#[test]
+fn callables_have_shape_contracts_and_capability_gates() {
+    let mut cx = cx();
+    install_incremental_lib(&mut cx).unwrap();
+    let engine = call(&mut cx, "engine", Vec::new());
+
+    for name in [
+        "engine",
+        "register",
+        "invalidate",
+        "verify",
+        "explain",
+        "snapshot",
+        "metrics",
+    ] {
+        let function = cx
+            .resolve_function(&Symbol::qualified("incremental", name))
+            .unwrap();
+        let callable = function.object().as_callable().unwrap();
+        assert!(
+            callable.browse_args_shape(&mut cx).unwrap().is_some(),
+            "{name}"
+        );
+        assert!(
+            callable.browse_result_shape(&mut cx).unwrap().is_some(),
+            "{name}"
+        );
+    }
+
+    let key = string(&mut cx, "leaf");
+    let source = expr_value(&mut cx, Expr::String("same".to_owned()));
+    let denied = call_err(&mut cx, "register", vec![engine.clone(), key, source]);
+    assert!(
+        matches!(denied, Error::CapabilityDenied { capability } if capability == incremental_write_capability())
+    );
+
+    cx.grant(incremental_write_capability());
+    register_query(&mut cx, &engine, "leaf", Expr::String("same".to_owned()));
+
+    let key = string(&mut cx, "leaf");
+    let denied = call_err(&mut cx, "verify", vec![engine, key]);
+    assert!(
+        matches!(denied, Error::CapabilityDenied { capability } if capability == incremental_verify_capability())
+    );
+}
+
+#[test]
+fn query_family_tracks_missing_invalidation_and_cutoff() {
+    let mut cx = cx();
+    install_incremental_lib(&mut cx).unwrap();
+    grant_all(&mut cx);
+    let engine = call(&mut cx, "engine", Vec::new());
+    register_query(&mut cx, &engine, "leaf", Expr::String("same".to_owned()));
+    register_query(&mut cx, &engine, "root", read_expr("leaf"));
+    register_query(
+        &mut cx,
+        &engine,
+        "guard",
+        Expr::Vector(vec![read_expr("root"), missing_expr("optional")]),
+    );
+
+    let verified = verify_query(&mut cx, &engine, "guard");
+    assert_eq!(
+        verified.object().as_expr(&mut cx).unwrap(),
+        Expr::Vector(vec![Expr::String("same".to_owned()), Expr::Bool(false)])
+    );
+    let metrics = report(&mut cx, "metrics", &engine);
+    let executions = table_get(&mut cx, &metrics, "executions");
+    let leaf_count = table_get(&mut cx, &executions, "leaf");
+    assert_eq!(number_text(&mut cx, &leaf_count), "1");
+    let root_count = table_get(&mut cx, &executions, "root");
+    assert_eq!(number_text(&mut cx, &root_count), "1");
+    let guard_count = table_get(&mut cx, &executions, "guard");
+    assert_eq!(number_text(&mut cx, &guard_count), "1");
+
+    verify_query(&mut cx, &engine, "guard");
+    let metrics = report(&mut cx, "metrics", &engine);
+    let executions = table_get(&mut cx, &metrics, "executions");
+    let guard_count = table_get(&mut cx, &executions, "guard");
+    assert_eq!(number_text(&mut cx, &guard_count), "1");
+
+    invalidate_key(&mut cx, &engine, "optional");
+    verify_query(&mut cx, &engine, "guard");
+    let metrics = report(&mut cx, "metrics", &engine);
+    let executions = table_get(&mut cx, &metrics, "executions");
+    let guard_count = table_get(&mut cx, &executions, "guard");
+    assert_eq!(number_text(&mut cx, &guard_count), "2");
+    let root_count = table_get(&mut cx, &executions, "root");
+    assert_eq!(number_text(&mut cx, &root_count), "1");
+}
+
+#[test]
+fn explanation_snapshot_and_card_projection_are_browseable() {
+    let mut cx = cx();
+    install_incremental_lib(&mut cx).unwrap();
+    grant_all(&mut cx);
+    let engine = call(&mut cx, "engine", Vec::new());
+    register_query(&mut cx, &engine, "leaf", Expr::String("same".to_owned()));
+    register_query(&mut cx, &engine, "root", read_expr("leaf"));
+    verify_query(&mut cx, &engine, "root");
+
+    let explain = keyed_report(&mut cx, "explain", &engine, "root");
+    assert_eq!(
+        table_get(&mut cx, &explain, "registered")
+            .object()
+            .as_expr(&mut cx)
+            .unwrap(),
+        Expr::Bool(true)
+    );
+    assert_ne!(
+        table_get(&mut cx, &explain, "fingerprint")
+            .object()
+            .as_expr(&mut cx)
+            .unwrap(),
+        Expr::Nil
+    );
+
+    let snapshot = keyed_report(&mut cx, "snapshot", &engine, "root");
+    let nodes = table_get(&mut cx, &snapshot, "nodes");
+    let list = nodes.object().as_list().unwrap();
+    let nodes = force_list_to_vec(&mut cx, list, "incremental snapshot nodes").unwrap();
+    assert_eq!(nodes.len(), 2);
+
+    let claims = cx
+        .query_facts(sim_kernel::ClaimPattern {
+            subject: Some(Ref::Symbol(incremental_organ_symbol())),
+            predicate: Some(card_kind_predicate()),
+            object: Some(Ref::Symbol(standard_organ_kind())),
+            include_revoked: false,
+        })
+        .unwrap();
+    assert_eq!(claims.len(), 1);
+    let card = card_for_ref(&mut cx, Ref::Symbol(incremental_organ_symbol())).unwrap();
+    let table = card.object().as_table(&mut cx).unwrap();
+    let entries = table.object().as_table_impl().unwrap();
+    let ops = entries.get(&mut cx, Symbol::new("ops")).unwrap();
+    let list = ops.object().as_list().unwrap();
+    let values = force_list_to_vec(&mut cx, list, "incremental organ ops").unwrap();
+    assert!(values.into_iter().any(|value| {
+        value.object().as_expr(&mut cx).unwrap()
+            == Expr::Symbol(Symbol::qualified("incremental", "register.v1"))
+    }));
+}
+```
+
 Specimen `spec-test/sim-runtime/crates/sim-lib-logic/src/tests/organ_proof` is checked by `cargo test`.
 
 Source `crates/sim-lib-logic/src/tests/organ_proof.rs`:
@@ -1199,6 +1708,390 @@ fn findall_query_projects_answer_template() {
             Expr::Symbol(Symbol::new("blue")),
         ])
     );
+}
+```
+
+### `feature/sim-runtime/mutation-organ`
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-mutation/src/tests` is checked by `cargo test`.
+
+Source `crates/sim-lib-mutation/src/tests.rs`:
+
+```rust
+// conformance: mutation organ capability gates, mutable values, and Card projection
+
+use std::sync::Arc;
+
+use sim_kernel::{
+    Cx, Error, Expr, Object, ObjectCompat, Ref, Symbol, Table, Value,
+    card::{card_for_ref, card_kind_predicate},
+    force_list_to_vec,
+    standard::standard_organ_kind,
+};
+use sim_lib_sequence::{
+    RuntimeIndexSource, force_sequence_bounded, persistent_vector, runtime_index_sequence,
+};
+
+use crate::*;
+
+use sim_kernel::testing::bare_cx as cx;
+
+fn string(cx: &mut Cx, value: &str) -> Value {
+    cx.factory().string(value.to_owned()).unwrap()
+}
+
+fn int(cx: &mut Cx, value: i64) -> Value {
+    cx.factory()
+        .number_literal(Symbol::qualified("test", "i64"), value.to_string())
+        .unwrap()
+}
+
+fn float(cx: &mut Cx, value: f64) -> Value {
+    cx.factory()
+        .number_literal(Symbol::qualified("test", "f64"), value.to_string())
+        .unwrap()
+}
+
+fn bool_value(cx: &mut Cx, value: bool) -> Value {
+    cx.factory().bool(value).unwrap()
+}
+
+fn expr(cx: &mut Cx, value: &Value) -> Expr {
+    value.object().as_expr(cx).unwrap()
+}
+
+#[test]
+fn mutation_requires_capability_and_then_updates() {
+    let mut cx = cx();
+    let cell = Cell::new(string(&mut cx, "old"));
+
+    let new_value = string(&mut cx, "new");
+    let denied = cell.set(&mut cx, new_value).unwrap_err();
+    assert!(
+        matches!(denied, Error::CapabilityDenied { capability } if capability == standard_mutate_capability())
+    );
+
+    cx.grant(standard_mutate_capability());
+    let new_value = string(&mut cx, "new");
+    cell.set(&mut cx, new_value).unwrap();
+    assert_eq!(
+        cell.get().unwrap().object().as_expr(&mut cx).unwrap(),
+        Expr::String("new".to_owned())
+    );
+}
+
+#[test]
+fn mutable_vectors_do_not_mutate_persistent_sequence_values() {
+    let mut cx = cx();
+    let original_value = string(&mut cx, "old");
+    let original = persistent_vector(&mut cx, vec![original_value]).unwrap();
+    let original_expr = original.object().as_expr(&mut cx).unwrap();
+    let mutable = mutable_vector_from_value(&mut cx, &original).unwrap();
+    let vector = mutable_vector_value(&mutable).unwrap();
+
+    cx.grant(standard_mutate_capability());
+    let new_value = string(&mut cx, "new");
+    vector.set(&mut cx, 0, new_value).unwrap();
+
+    assert_eq!(original.object().as_expr(&mut cx).unwrap(), original_expr);
+    assert_eq!(
+        mutable.object().as_expr(&mut cx).unwrap(),
+        Expr::Vector(vec![Expr::String("new".to_owned())])
+    );
+}
+
+#[test]
+fn boxes_and_tables_are_capability_gated() {
+    let mut cx = cx();
+    let boxed = MutableBox::new(string(&mut cx, "old"));
+    let table_value = string(&mut cx, "old");
+    let table = mutable_table(&mut cx, vec![(Symbol::new("name"), table_value)]).unwrap();
+    let table = mutable_table_value(&table).unwrap();
+
+    let denied_box_value = string(&mut cx, "new");
+    assert!(matches!(
+        boxed.set(&mut cx, denied_box_value).unwrap_err(),
+        Error::CapabilityDenied { .. }
+    ));
+    let denied_table_value = string(&mut cx, "new");
+    assert!(matches!(
+        table
+            .set(&mut cx, Symbol::new("name"), denied_table_value)
+            .unwrap_err(),
+        Error::CapabilityDenied { .. }
+    ));
+
+    cx.grant(standard_mutate_capability());
+    let boxed_value = string(&mut cx, "new");
+    boxed.set(&mut cx, boxed_value).unwrap();
+    let table_value = string(&mut cx, "new");
+    table
+        .set(&mut cx, Symbol::new("name"), table_value)
+        .unwrap();
+    assert_eq!(
+        boxed.get().unwrap().object().as_expr(&mut cx).unwrap(),
+        Expr::String("new".to_owned())
+    );
+    assert_eq!(
+        table
+            .get(&mut cx, Symbol::new("name"))
+            .unwrap()
+            .object()
+            .as_expr(&mut cx)
+            .unwrap(),
+        Expr::String("new".to_owned())
+    );
+}
+
+#[test]
+fn runtime_table_accepts_dict_keys_and_projects_array() {
+    let mut cx = cx();
+    let table = Arc::new(MutableRuntimeTable::new(DemoPolicy));
+
+    let denied_key = int(&mut cx, 1);
+    let denied_value = string(&mut cx, "denied");
+    assert!(matches!(
+        table.set(&mut cx, denied_key, denied_value).unwrap_err(),
+        Error::CapabilityDenied { .. }
+    ));
+
+    cx.grant(standard_mutate_capability());
+    let one_key = int(&mut cx, 1);
+    let one = string(&mut cx, "one");
+    table.set(&mut cx, one_key, one).unwrap();
+    let two_key = int(&mut cx, 2);
+    let two = string(&mut cx, "two");
+    table.set(&mut cx, two_key, two).unwrap();
+    let gap_key = int(&mut cx, 4);
+    let gap = string(&mut cx, "after-gap");
+    table.set(&mut cx, gap_key, gap).unwrap();
+
+    let str_key = string(&mut cx, "name");
+    let str_value = string(&mut cx, "dict");
+    table.set(&mut cx, str_key.clone(), str_value).unwrap();
+    let bool_key = bool_value(&mut cx, true);
+    let bool_value = string(&mut cx, "truth");
+    table.set(&mut cx, bool_key, bool_value).unwrap();
+    let float_key = float(&mut cx, 1.5);
+    let float_value = string(&mut cx, "float");
+    table.set(&mut cx, float_key, float_value).unwrap();
+    let object_key = cx.factory().opaque(Arc::new(TestObject("id"))).unwrap();
+    let object_value = string(&mut cx, "object");
+    table
+        .set(&mut cx, object_key.clone(), object_value)
+        .unwrap();
+
+    let str_entry = table.get(&mut cx, &str_key).unwrap().unwrap();
+    assert_eq!(expr(&mut cx, &str_entry), Expr::String("dict".to_owned()));
+    let object_runtime_key = RuntimeKey::from_value(&mut cx, &object_key)
+        .unwrap()
+        .unwrap();
+    assert!(matches!(object_runtime_key, RuntimeKey::ObjectIdentity(_)));
+    assert_eq!(
+        expr(
+            &mut cx,
+            &table
+                .get_runtime_key(&object_runtime_key)
+                .unwrap()
+                .expect("object identity entry")
+        ),
+        Expr::String("object".to_owned())
+    );
+
+    let keys = table
+        .entries_in_key_order()
+        .unwrap()
+        .into_iter()
+        .map(|(key, _)| key)
+        .collect::<Vec<_>>();
+    assert!(keys.contains(&RuntimeKey::Bool(true)));
+    assert!(keys.contains(&RuntimeKey::Integer(1)));
+    assert!(keys.contains(&RuntimeKey::Str("name".to_owned())));
+    assert!(keys.contains(&RuntimeKey::FloatBits(1.5f64.to_bits())));
+
+    let sequence = runtime_index_sequence(&mut cx, table.clone(), 1).unwrap();
+    let values = force_sequence_bounded(&mut cx, &sequence, 8, "runtime table projection").unwrap();
+    let values = values
+        .iter()
+        .map(|value| expr(&mut cx, value))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        values,
+        vec![
+            Expr::String("one".to_owned()),
+            Expr::String("two".to_owned())
+        ]
+    );
+}
+
+#[test]
+fn mutation_organ_claims_project_to_card() {
+    let mut cx = cx();
+    publish_mutation_organ_claims(&mut cx).unwrap();
+
+    let claims = cx
+        .query_facts(sim_kernel::ClaimPattern {
+            subject: Some(Ref::Symbol(mutation_organ_symbol())),
+            predicate: Some(card_kind_predicate()),
+            object: Some(Ref::Symbol(standard_organ_kind())),
+            include_revoked: false,
+        })
+        .unwrap();
+    assert_eq!(claims.len(), 1);
+
+    let card = card_for_ref(&mut cx, Ref::Symbol(mutation_organ_symbol())).unwrap();
+    let table = card.object().as_table(&mut cx).unwrap();
+    let entries = table.object().as_table_impl().unwrap();
+    let ops = entries.get(&mut cx, Symbol::new("ops")).unwrap();
+    let list = ops.object().as_list().unwrap();
+    let values = force_list_to_vec(&mut cx, list, "mutation organ ops").unwrap();
+
+    assert!(values.into_iter().any(|value| {
+        value.object().as_expr(&mut cx).unwrap()
+            == Expr::Symbol(Symbol::qualified("mutation", "set.v1"))
+    }));
+}
+
+#[derive(Clone, Copy)]
+struct DemoPolicy;
+
+impl RuntimeKeyPolicy for DemoPolicy {
+    fn key_for(&self, cx: &mut Cx, value: &Value) -> sim_kernel::Result<Option<RuntimeKey>> {
+        RuntimeKey::from_value(cx, value)
+    }
+}
+
+impl RuntimeIndexSource for MutableRuntimeTable<DemoPolicy> {
+    fn value_at_runtime_index(
+        &self,
+        _cx: &mut Cx,
+        index: i64,
+    ) -> sim_kernel::Result<Option<Value>> {
+        self.get_runtime_key(&RuntimeKey::Integer(index))
+    }
+}
+
+struct TestObject(&'static str);
+
+impl Object for TestObject {
+    fn display(&self, _cx: &mut Cx) -> sim_kernel::Result<String> {
+        Ok(format!("#<test-object {}>", self.0))
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl ObjectCompat for TestObject {}
+```
+
+### `feature/sim-runtime/namespace-organ`
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-namespace/src/tests` is checked by `cargo test`.
+
+Source `crates/sim-lib-namespace/src/tests.rs`:
+
+```rust
+// conformance: namespace organ imports, diagnostics, and Card projection
+
+use sim_kernel::{
+    Expr, Ref, Symbol,
+    card::{card_for_ref, card_kind_predicate},
+    force_list_to_vec,
+    standard::standard_organ_kind,
+};
+
+use crate::*;
+
+use sim_kernel::testing::bare_cx as cx;
+
+fn source_namespace() -> Namespace {
+    let mut source = Namespace::package(Symbol::qualified("pkg", "sequence"));
+    source
+        .define(Symbol::new("map"), Symbol::qualified("sequence", "map.v1"))
+        .unwrap();
+    source.export(Symbol::new("map")).unwrap();
+    source
+}
+
+#[test]
+fn rename_resolves_to_exported_target() {
+    let source = source_namespace();
+    let mut target = Namespace::module(Symbol::qualified("module", "user"));
+    target
+        .import_from(
+            &source,
+            &Symbol::new("map"),
+            ImportOptions::new().rename(Symbol::new("seq-map")),
+        )
+        .unwrap();
+
+    let resolved = target.resolve(&Symbol::new("seq-map")).unwrap();
+    assert_eq!(resolved.name(), &Symbol::new("seq-map"));
+    assert_eq!(resolved.target(), &Symbol::qualified("sequence", "map.v1"));
+    assert_eq!(
+        resolved.source(),
+        &NamespaceBindingSource::Import {
+            namespace: Symbol::qualified("pkg", "sequence"),
+            exported: Symbol::new("map")
+        }
+    );
+}
+
+#[test]
+fn shadow_conflicts_are_diagnostic() {
+    let source = source_namespace();
+    let mut target = Namespace::module(Symbol::qualified("module", "user"));
+    target
+        .define(Symbol::new("map"), Symbol::qualified("local", "map"))
+        .unwrap();
+
+    let err = target
+        .import_from(&source, &Symbol::new("map"), ImportOptions::new())
+        .unwrap_err();
+    assert!(format!("{err}").contains("shadow conflict"));
+    assert_eq!(target.diagnostics().len(), 1);
+    assert_eq!(
+        target.diagnostics()[0].code,
+        Some(namespace_shadow_conflict_symbol())
+    );
+}
+
+#[test]
+fn package_and_module_kinds_are_explicit() {
+    let package = Namespace::package(Symbol::qualified("pkg", "core"));
+    let module = Namespace::module(Symbol::qualified("module", "core"));
+    assert_eq!(package.kind(), NamespaceKind::Package);
+    assert_eq!(module.kind(), NamespaceKind::Module);
+}
+
+#[test]
+fn namespace_organ_claims_project_to_card() {
+    let mut cx = cx();
+    publish_namespace_organ_claims(&mut cx).unwrap();
+
+    let claims = cx
+        .query_facts(sim_kernel::ClaimPattern {
+            subject: Some(Ref::Symbol(namespace_organ_symbol())),
+            predicate: Some(card_kind_predicate()),
+            object: Some(Ref::Symbol(standard_organ_kind())),
+            include_revoked: false,
+        })
+        .unwrap();
+    assert_eq!(claims.len(), 1);
+
+    let card = card_for_ref(&mut cx, Ref::Symbol(namespace_organ_symbol())).unwrap();
+    let table = card.object().as_table(&mut cx).unwrap();
+    let entries = table.object().as_table_impl().unwrap();
+    let ops = entries.get(&mut cx, Symbol::new("ops")).unwrap();
+    let list = ops.object().as_list().unwrap();
+    let values = force_list_to_vec(&mut cx, list, "namespace organ ops").unwrap();
+
+    assert!(values.into_iter().any(|value| {
+        value.object().as_expr(&mut cx).unwrap()
+            == Expr::Symbol(Symbol::qualified("namespace", "rename.v1"))
+    }));
 }
 ```
 

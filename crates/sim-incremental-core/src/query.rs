@@ -1,23 +1,24 @@
 //! Query registration wrappers.
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::{FingerprintValue, IncrementalError, Observation, ObservationKind, QueryFrame};
 
 /// The result type returned by query callbacks.
 pub type QueryResult<K, V> = Result<V, IncrementalError<K>>;
 
-type QueryBody<K, V> = dyn for<'a> Fn(&K, &mut QueryFrame<'a, K, V>) -> QueryResult<K, V>;
+type QueryBody<K, V> =
+    dyn for<'a> Fn(&K, &mut QueryFrame<'a, K, V>) -> QueryResult<K, V> + Send + Sync;
 
 /// A registered query callback.
 pub struct Query<K, V> {
-    body: Rc<QueryBody<K, V>>,
+    body: Arc<QueryBody<K, V>>,
 }
 
 impl<K, V> Clone for Query<K, V> {
     fn clone(&self) -> Self {
         Self {
-            body: Rc::clone(&self.body),
+            body: Arc::clone(&self.body),
         }
     }
 }
@@ -27,10 +28,10 @@ impl<K, V> Query<K, V> {
     #[must_use]
     pub fn new<F>(body: F) -> Self
     where
-        F: for<'a> Fn(&K, &mut QueryFrame<'a, K, V>) -> QueryResult<K, V> + 'static,
+        F: for<'a> Fn(&K, &mut QueryFrame<'a, K, V>) -> QueryResult<K, V> + Send + Sync + 'static,
     {
         Self {
-            body: Rc::new(body),
+            body: Arc::new(body),
         }
     }
 

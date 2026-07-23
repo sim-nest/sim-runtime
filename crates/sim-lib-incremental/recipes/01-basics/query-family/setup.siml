@@ -1,0 +1,12 @@
+(expr:map
+  [kind "incremental-query-organ"]
+  [engine incremental/engine]
+  [registration
+    [(incremental/register engine "leaf" "same")
+     (incremental/register engine "root" (incremental/read "leaf"))
+     (incremental/register engine "guard" (expr:vector [(incremental/read "root") (incremental/missing "optional")]))]]
+  [verification [(incremental/verify engine "guard") (incremental/metrics engine)]]
+  [negative-dependency "optional"]
+  [invalidation (incremental/invalidate engine "optional")]
+  [cutoff "verifying unchanged roots reuses memoized values until an observed key changes"]
+  [inspection [(incremental/explain engine "guard") (incremental/snapshot engine "guard")])

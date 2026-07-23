@@ -44,6 +44,13 @@
       "summary": "Capability-gated bounded host-process execution for the SIM runtime."
     },
     {
+      "crate_name": "sim_lib_incremental",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-incremental/Cargo.toml",
+      "package": "sim-lib-incremental",
+      "summary": "Loadable incremental query organ for SIM runtime expressions."
+    },
+    {
       "crate_name": "sim_lib_lang_cl",
       "group": "workspace",
       "manifest": "crates/sim-lib-lang-cl/Cargo.toml",
