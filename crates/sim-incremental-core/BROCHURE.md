@@ -1,7 +1,6 @@
 # sim-incremental-core
 
-In one line: It is the small, generic calculation engine that remembers what a
-query read and recomputes only the parts whose evidence changed.
+In one line: It is the small, generic calculation engine that remembers what a query read and recomputes only the parts whose evidence changed.
 
 ## What it gives you
 
