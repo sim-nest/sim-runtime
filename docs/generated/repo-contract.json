@@ -1,5 +1,5 @@
 {
-  "card_count": 23,
+  "card_count": 24,
   "cards": [
     {
       "id": "browse/catalog",
@@ -98,6 +98,12 @@
       "summary": "Generic function and multimethod concepts."
     },
     {
+      "id": "cookbook/organ/incremental",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-incremental",
+      "summary": "Memoized expression queries with invalidation, missing observations, cutoff, snapshots, and metrics."
+    },
+    {
       "id": "cookbook/organ/mutation",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-mutation",
@@ -149,11 +155,13 @@
   ],
   "groups": {
     "workspace": [
+      "sim-incremental-core",
       "sim-lib-binding",
       "sim-lib-control",
       "sim-lib-core",
       "sim-lib-dispatch",
       "sim-lib-exec",
+      "sim-lib-incremental",
       "sim-lib-lang-cl",
       "sim-lib-lang-clojure",
       "sim-lib-lang-genconf",
@@ -313,8 +321,35 @@
       "reason": "transduced sequence adapter; reconstruct from the source sequence and transducer pipeline descriptor"
     }
   ],
-  "package_count": 23,
+  "package_count": 25,
   "packages": [
+    {
+      "crate_name": "sim_incremental_core",
+      "dependencies": [],
+      "description": "Dependency-light incremental query graph with memo cutoff and bounded snapshots.",
+      "features": [],
+      "group": "workspace",
+      "manifest": "crates/sim-incremental-core/Cargo.toml",
+      "name": "sim-incremental-core",
+      "publish": "true",
+      "root": "crates/sim-incremental-core",
+      "rustdoc_summary": "Generic incremental query calculation for SIM runtime libraries.",
+      "target_kinds": [
+        "lib"
+      ],
+      "targets": [
+        {
+          "crate_types": [
+            "lib"
+          ],
+          "kind": [
+            "lib"
+          ],
+          "name": "sim_incremental_core",
+          "src": "crates/sim-incremental-core/src/lib.rs"
+        }
+      ]
+    },
     {
       "crate_name": "sim_lib_binding",
       "dependencies": [],
@@ -510,6 +545,59 @@
           ],
           "name": "build-script-build",
           "src": "crates/sim-lib-exec/build.rs"
+        }
+      ]
+    },
+    {
+      "crate_name": "sim_lib_incremental",
+      "dependencies": [
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-incremental-core",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-core",
+          "rename": null,
+          "target": null
+        }
+      ],
+      "description": "Loadable incremental query organ for SIM runtime expressions.",
+      "features": [],
+      "group": "workspace",
+      "manifest": "crates/sim-lib-incremental/Cargo.toml",
+      "name": "sim-lib-incremental",
+      "publish": "true",
+      "root": "crates/sim-lib-incremental",
+      "rustdoc_summary": "Loadable incremental query organ for SIM runtime expressions.",
+      "target_kinds": [
+        "custom-build",
+        "lib"
+      ],
+      "targets": [
+        {
+          "crate_types": [
+            "lib"
+          ],
+          "kind": [
+            "lib"
+          ],
+          "name": "sim_lib_incremental",
+          "src": "crates/sim-lib-incremental/src/lib.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "custom-build"
+          ],
+          "name": "build-script-build",
+          "src": "crates/sim-lib-incremental/build.rs"
         }
       ]
     },
@@ -1636,10 +1724,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-16T00:13:38+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "1a463077b63354e790dfaeacc25a6bc330d12235",
+    "git_commit": "6435e4bceb4d44e37304fd09cfbae3aacbccd5a6",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "1a463077b63354e790dfaeacc25a6bc330d12235",
+    "source_commit": "6435e4bceb4d44e37304fd09cfbae3aacbccd5a6",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -1652,11 +1740,22 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "6949d47d59f93bb1",
+    "workspace_hash": "bf09a71a9c5e868e",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 365,
+    "workspace_hash_input_count": 387,
     "workspace_hash_inputs": [
       "Cargo.toml",
+      "crates/sim-incremental-core/Cargo.toml",
+      "crates/sim-incremental-core/src/budget.rs",
+      "crates/sim-incremental-core/src/engine.rs",
+      "crates/sim-incremental-core/src/error.rs",
+      "crates/sim-incremental-core/src/fingerprint.rs",
+      "crates/sim-incremental-core/src/lib.rs",
+      "crates/sim-incremental-core/src/observation.rs",
+      "crates/sim-incremental-core/src/query.rs",
+      "crates/sim-incremental-core/src/snapshot.rs",
+      "crates/sim-incremental-core/src/state.rs",
+      "crates/sim-incremental-core/src/tests.rs",
       "crates/sim-lib-binding/Cargo.toml",
       "crates/sim-lib-binding/build.rs",
       "crates/sim-lib-binding/recipes/01-basics/let-square/recipe.toml",
@@ -1725,6 +1824,17 @@
       "crates/sim-lib-exec/src/exec.rs",
       "crates/sim-lib-exec/src/lib.rs",
       "crates/sim-lib-exec/src/tests.rs",
+      "crates/sim-lib-incremental/Cargo.toml",
+      "crates/sim-lib-incremental/build.rs",
+      "crates/sim-lib-incremental/recipes/01-basics/query-family/recipe.toml",
+      "crates/sim-lib-incremental/recipes/book.toml",
+      "crates/sim-lib-incremental/src/cap.rs",
+      "crates/sim-lib-incremental/src/claims.rs",
+      "crates/sim-lib-incremental/src/lib.rs",
+      "crates/sim-lib-incremental/src/model.rs",
+      "crates/sim-lib-incremental/src/runtime.rs",
+      "crates/sim-lib-incremental/src/shapes.rs",
+      "crates/sim-lib-incremental/src/tests.rs",
       "crates/sim-lib-lang-cl/Cargo.toml",
       "crates/sim-lib-lang-cl/build.rs",
       "crates/sim-lib-lang-cl/recipes/01-basics/matrix-row/recipe.toml",
@@ -2023,7 +2133,7 @@
       "xtask/Cargo.toml"
     ]
   },
-  "recipe_book_count": 21,
+  "recipe_book_count": 22,
   "recipes": [
     {
       "book": "organ/binding",
@@ -2132,6 +2242,26 @@
       ],
       "summary": "Permission-gated host process runs with time and output limits.",
       "title": "Bounded Process Execution"
+    },
+    {
+      "book": "organ/incremental",
+      "book_toml": "crates/sim-lib-incremental/recipes/book.toml",
+      "card_id": "cookbook/organ/incremental",
+      "group": "workspace",
+      "package": "sim-lib-incremental",
+      "recipe_count": 1,
+      "recipes": [
+        {
+          "card_id": "organ/incremental/01-basics/query-family",
+          "codec": "lisp",
+          "id": "query-family",
+          "package": "sim-lib-incremental",
+          "recipe_toml": "crates/sim-lib-incremental/recipes/01-basics/query-family/recipe.toml",
+          "title": "Incremental query family descriptor"
+        }
+      ],
+      "summary": "Memoized expression queries with invalidation, missing observations, cutoff, snapshots, and metrics.",
+      "title": "Incremental Query Organ"
     },
     {
       "book": "lang/common-lisp",

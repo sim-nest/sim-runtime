@@ -6,11 +6,13 @@ Generated from Cargo metadata by `xtask crate-catalog v1`.
 
 | Package | Publish | Targets | Description |
 | --- | --- | --- | --- |
+| `sim-incremental-core` | `true` | `lib` | Dependency-light incremental query graph with memo cutoff and bounded snapshots. |
 | `sim-lib-binding` | `true` | `custom-build, lib` | Binding forms and scoped name resolution for SIM runtime evaluation. |
 | `sim-lib-control` | `true` | `custom-build, lib` | Control-flow organs for SIM async, branching, and policy-aware execution. |
 | `sim-lib-core` | `true` | `custom-build, lib` | Shared manifest and registry installation substrate for SIM libraries. |
 | `sim-lib-dispatch` | `true` | `custom-build, lib` | Generic function and method dispatch organs for SIM runtime values. |
 | `sim-lib-exec` | `true` | `custom-build, lib` | Capability-gated bounded process execution for SIM. |
+| `sim-lib-incremental` | `true` | `custom-build, lib` | Loadable incremental query organ for SIM runtime expressions. |
 | `sim-lib-lang-cl` | `true` | `custom-build, lib` | Common Lisp surface profile for the SIM expression runtime. |
 | `sim-lib-lang-clojure` | `true` | `custom-build, lib` | Clojure core surface profile for the SIM expression runtime. |
 | `sim-lib-lang-genconf` | `true` | `custom-build, lib` | SIM generative language conformance support. |

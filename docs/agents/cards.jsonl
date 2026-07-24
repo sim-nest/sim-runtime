@@ -28,6 +28,11 @@
 {"kind":"recipe","path":"crates/sim-lib-exec/recipes/01-basics/bounded-process/setup.siml"}
 {"kind":"recipe","path":"crates/sim-lib-exec/recipes/01-basics/chapter.toml"}
 {"kind":"recipe","path":"crates/sim-lib-exec/recipes/book.toml"}
+{"kind":"recipe","path":"crates/sim-lib-incremental/recipes/01-basics/chapter.toml"}
+{"kind":"recipe","path":"crates/sim-lib-incremental/recipes/01-basics/query-family/purpose.md"}
+{"kind":"recipe","path":"crates/sim-lib-incremental/recipes/01-basics/query-family/recipe.toml"}
+{"kind":"recipe","path":"crates/sim-lib-incremental/recipes/01-basics/query-family/setup.siml"}
+{"kind":"recipe","path":"crates/sim-lib-incremental/recipes/book.toml"}
 {"kind":"recipe","path":"crates/sim-lib-lang-cl/recipes/01-basics/chapter.toml"}
 {"kind":"recipe","path":"crates/sim-lib-lang-cl/recipes/01-basics/matrix-row/purpose.md"}
 {"kind":"recipe","path":"crates/sim-lib-lang-cl/recipes/01-basics/matrix-row/recipe.toml"}

@@ -4,11 +4,13 @@
 
 | Package | Group | Summary |
 | --- | --- | --- |
+| `sim-incremental-core` | `workspace` | Generic incremental query calculation for SIM runtime libraries. |
 | `sim-lib-binding` | `workspace` | Binding behavior for the SIM runtime: lexical, dynamic, and scoped binding. |
 | `sim-lib-control` | `workspace` | Control behavior for the SIM runtime: async, backtracking, conditions. |
 | `sim-lib-core` | `workspace` | Shared surface-pack substrate for SIM runtime libraries. |
 | `sim-lib-dispatch` | `workspace` | Generic functions and method dispatch for the SIM runtime. |
 | `sim-lib-exec` | `workspace` | Capability-gated bounded host-process execution for the SIM runtime. |
+| `sim-lib-incremental` | `workspace` | Loadable incremental query organ for SIM runtime expressions. |
 | `sim-lib-lang-cl` | `workspace` | Common Lisp surface profile for the SIM runtime. |
 | `sim-lib-lang-clojure` | `workspace` | Clojure surface profile for the SIM runtime. |
 | `sim-lib-lang-genconf` | `workspace` | Generative conformance support over the shared expression graph. |

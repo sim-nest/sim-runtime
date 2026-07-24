@@ -4,11 +4,13 @@
 
 | Package | Group | Features | Workspace feature edges |
 | --- | --- | ---: | ---: |
+| `sim-incremental-core` | `workspace` | 0 | 0 |
 | `sim-lib-binding` | `workspace` | 0 | 0 |
 | `sim-lib-control` | `workspace` | 0 | 0 |
 | `sim-lib-core` | `workspace` | 0 | 0 |
 | `sim-lib-dispatch` | `workspace` | 0 | 0 |
 | `sim-lib-exec` | `workspace` | 0 | 0 |
+| `sim-lib-incremental` | `workspace` | 0 | 0 |
 | `sim-lib-lang-cl` | `workspace` | 0 | 0 |
 | `sim-lib-lang-clojure` | `workspace` | 0 | 0 |
 | `sim-lib-lang-genconf` | `workspace` | 0 | 0 |

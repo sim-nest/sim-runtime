@@ -2,6 +2,13 @@
   "generator": "xtask repo-contract v1",
   "packages": [
     {
+      "crate_name": "sim_incremental_core",
+      "group": "workspace",
+      "manifest": "crates/sim-incremental-core/Cargo.toml",
+      "package": "sim-incremental-core",
+      "summary": "Generic incremental query calculation for SIM runtime libraries."
+    },
+    {
       "crate_name": "sim_lib_binding",
       "group": "workspace",
       "manifest": "crates/sim-lib-binding/Cargo.toml",
@@ -35,6 +42,13 @@
       "manifest": "crates/sim-lib-exec/Cargo.toml",
       "package": "sim-lib-exec",
       "summary": "Capability-gated bounded host-process execution for the SIM runtime."
+    },
+    {
+      "crate_name": "sim_lib_incremental",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-incremental/Cargo.toml",
+      "package": "sim-lib-incremental",
+      "summary": "Loadable incremental query organ for SIM runtime expressions."
     },
     {
       "crate_name": "sim_lib_lang_cl",
