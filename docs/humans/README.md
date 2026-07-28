@@ -2315,19 +2315,33 @@ fn timeout_kills_and_reports() {
 
 #[test]
 fn timeout_also_bounds_inherited_output_pipes() {
+    let pid_dir = temp_dir("inherited-pipe");
+    let pid_file = pid_dir.join("child.pid");
+
     let mut cx = bare_cx();
     cx.grant(exec_capability());
 
     let started = Instant::now();
     let err = exec(
         &mut cx,
-        &argv(&["env", "sh", "-c", "sleep 1 & printf done"]),
+        &argv(&[
+            "env",
+            "sh",
+            "-c",
+            "sleep 5 & echo $! > \"$1\"; printf done",
+            "sh",
+            pid_file.to_str().unwrap(),
+        ]),
         &ExecOptions::new(50, 1_024),
     )
     .unwrap_err();
 
     assert!(matches!(err, Error::HostError(message) if message.contains("timed out")));
     assert!(started.elapsed() < Duration::from_millis(500));
+
+    let pid = wait_for_pid(&pid_file);
+    assert_process_stops(pid);
+    let _ = fs::remove_dir_all(pid_dir);
 }
 
 #[cfg(unix)]
@@ -2356,15 +2370,7 @@ fn timeout_kills_background_children_in_the_same_process_group() {
     assert!(matches!(err, Error::HostError(message) if message.contains("timed out")));
 
     let pid = wait_for_pid(&pid_file);
-    let deadline = Instant::now() + Duration::from_secs(1);
-    while process_is_alive(pid) && Instant::now() < deadline {
-        thread::sleep(Duration::from_millis(10));
-    }
-
-    if process_is_alive(pid) {
-        force_kill(pid);
-        panic!("background child {pid} survived exec timeout");
-    }
+    assert_process_stops(pid);
 
     let _ = fs::remove_dir_all(pid_dir);
 }
@@ -2449,8 +2455,21 @@ fn wait_for_pid(path: &PathBuf) -> u32 {
 }
 
 #[cfg(unix)]
-fn process_is_alive(pid: u32) -> bool {
-    Command::new("env")
+fn assert_process_stops(pid: u32) {
+    let deadline = Instant::now() + Duration::from_secs(1);
+    while process_is_running(pid) && Instant::now() < deadline {
+        thread::sleep(Duration::from_millis(10));
+    }
+
+    if process_is_running(pid) {
+        force_kill(pid);
+        panic!("background child {pid} survived exec timeout");
+    }
+}
+
+#[cfg(unix)]
+fn process_is_running(pid: u32) -> bool {
+    let exists = Command::new("env")
         .args([
             "sh",
             "-c",
@@ -2460,7 +2479,42 @@ fn process_is_alive(pid: u32) -> bool {
         ])
         .status()
         .unwrap()
-        .success()
+        .success();
+    if !exists {
+        return false;
+    }
+
+    #[cfg(target_os = "linux")]
+    if let Ok(stat) = fs::read_to_string(format!("/proc/{pid}/stat"))
+        && matches!(linux_process_state(&stat), Some('Z') | Some('X'))
+    {
+        return false;
+    }
+
+    true
+}
+
+#[cfg(target_os = "linux")]
+fn linux_process_state(stat: &str) -> Option<char> {
+    stat.rsplit_once(')')?
+        .1
+        .split_whitespace()
+        .next()?
+        .chars()
+        .next()
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn linux_process_state_distinguishes_running_and_zombie_children() {
+    assert_eq!(
+        linux_process_state("42 (worker with ) punctuation) R 1 2 3"),
+        Some('R')
+    );
+    assert_eq!(
+        linux_process_state("43 (finished worker) Z 1 2 3"),
+        Some('Z')
+    );
 }
 
 #[cfg(unix)]

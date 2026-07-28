@@ -9,6 +9,7 @@
 //! byte cap. It is a host operation, not SIM evaluation.
 
 mod exec;
+mod timeout;
 
 pub use exec::{ExecOptions, ProcResult, exec, exec_capability, proc_result_symbol};
 
