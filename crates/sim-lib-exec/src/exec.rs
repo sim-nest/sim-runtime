@@ -15,6 +15,8 @@ use std::os::unix::process::CommandExt as _;
 
 use sim_kernel::{CapabilityName, Cx, Error, Expr, NumberLiteral, Result, Symbol};
 
+use crate::timeout::terminate_timed_out_child;
+
 /// Returns the capability required by [`exec`].
 pub fn exec_capability() -> CapabilityName {
     CapabilityName::new("exec")
@@ -385,11 +387,7 @@ fn record_child_event(
 }
 
 fn timeout_error(child: &mut Child, timeout_ms: u64, child_exited: bool) -> Error {
-    let kill_result = if child_exited {
-        Ok(())
-    } else {
-        terminate_timed_out_child(child)
-    };
+    let kill_result = terminate_timed_out_child(child, child_exited);
     let wait_result = child.wait();
     let mut message = format!("exec timed out after {timeout_ms} ms");
     if let Err(err) = kill_result {
@@ -399,49 +397,6 @@ fn timeout_error(child: &mut Child, timeout_ms: u64, child_exited: bool) -> Erro
         message.push_str(&format!("; wait failed: {err}"));
     }
     Error::HostError(message)
-}
-
-#[cfg(unix)]
-fn terminate_timed_out_child(child: &mut Child) -> io::Result<()> {
-    let pgid = child.id();
-    if pgid == 0 {
-        return child.kill();
-    }
-
-    send_process_group_signal(pgid, "TERM")?;
-    let deadline = Instant::now() + Duration::from_millis(100);
-    loop {
-        if child.try_wait()?.is_some() {
-            return Ok(());
-        }
-        if Instant::now() >= deadline {
-            break;
-        }
-        thread::sleep(Duration::from_millis(10));
-    }
-
-    send_process_group_signal(pgid, "KILL")
-}
-
-#[cfg(not(unix))]
-fn terminate_timed_out_child(child: &mut Child) -> io::Result<()> {
-    child.kill()
-}
-
-#[cfg(unix)]
-fn send_process_group_signal(pgid: u32, signal: &str) -> io::Result<()> {
-    let status = Command::new("kill")
-        .arg(format!("-{signal}"))
-        .arg("--")
-        .arg(format!("-{pgid}"))
-        .status()?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err(io::Error::other(format!(
-            "kill {signal} process group {pgid} exited with {status}"
-        )))
-    }
 }
 
 struct ChildCompletion {
