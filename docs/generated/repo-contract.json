@@ -1474,14 +1474,14 @@
           "target": null
         }
       ],
-      "description": "Tracked mutation cells and update operations for SIM runtime values.",
+      "description": "Tracked mutation containers and bounded managed-object storage for SIM runtimes.",
       "features": [],
       "group": "workspace",
       "manifest": "crates/sim-lib-mutation/Cargo.toml",
       "name": "sim-lib-mutation",
       "publish": "true",
       "root": "crates/sim-lib-mutation",
-      "rustdoc_summary": "Mutation behavior for the SIM runtime: cells, boxes, vectors, symbol-keyed tables, and runtime-keyed tables.",
+      "rustdoc_summary": "Mutation behavior for the SIM runtime: cells, boxes, vectors, tables, and a bounded managed-object arena.",
       "target_kinds": [
         "custom-build",
         "lib"
@@ -1724,10 +1724,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-16T00:13:38+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "f90cf8e313efbf30ec09cee59d2e7c200ca702b5",
+    "git_commit": "bf951828eb375014379988d3647210ef2497f241",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "f90cf8e313efbf30ec09cee59d2e7c200ca702b5",
+    "source_commit": "bf951828eb375014379988d3647210ef2497f241",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -1740,9 +1740,9 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "870b6ba86ba0ed4f",
+    "workspace_hash": "e0403bd5e23ca8a2",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 388,
+    "workspace_hash_input_count": 390,
     "workspace_hash_inputs": [
       "Cargo.toml",
       "crates/sim-incremental-core/Cargo.toml",
@@ -2062,6 +2062,8 @@
       "crates/sim-lib-mutation/src/cell.rs",
       "crates/sim-lib-mutation/src/claims.rs",
       "crates/sim-lib-mutation/src/lib.rs",
+      "crates/sim-lib-mutation/src/managed.rs",
+      "crates/sim-lib-mutation/src/managed_tests.rs",
       "crates/sim-lib-mutation/src/runtime_key.rs",
       "crates/sim-lib-mutation/src/runtime_table.rs",
       "crates/sim-lib-mutation/src/table.rs",

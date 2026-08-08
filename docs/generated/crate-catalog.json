@@ -248,7 +248,7 @@
       ]
     },
     {
-      "description": "Tracked mutation cells and update operations for SIM runtime values.",
+      "description": "Tracked mutation containers and bounded managed-object storage for SIM runtimes.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-mutation/Cargo.toml",
       "name": "sim-lib-mutation",

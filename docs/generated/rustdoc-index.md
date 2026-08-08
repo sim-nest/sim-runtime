@@ -23,7 +23,7 @@
 | `sim-lib-lang-scheme` | `workspace` | Scheme (R7RS-small) surface profile for the SIM runtime. |
 | `sim-lib-lang-typed-lazy` | `workspace` | Typed, lazy surface profile for the SIM runtime. |
 | `sim-lib-logic` | `workspace` | Logic behavior for the SIM runtime: clauses, unification, and queries. |
-| `sim-lib-mutation` | `workspace` | Mutation behavior for the SIM runtime: cells, boxes, vectors, symbol-keyed tables, and runtime-keyed tables. |
+| `sim-lib-mutation` | `workspace` | Mutation behavior for the SIM runtime: cells, boxes, vectors, tables, and a bounded managed-object arena. |
 | `sim-lib-namespace` | `workspace` | Namespace behavior for the SIM runtime: modules, packages, and imports. |
 | `sim-lib-pattern` | `workspace` | Pattern behavior for the SIM runtime over the kernel Shape protocol. |
 | `sim-lib-sequence` | `workspace` | Sequence behavior for the SIM runtime: lazy, persistent, runtime-indexed, and transducer-backed collections. |

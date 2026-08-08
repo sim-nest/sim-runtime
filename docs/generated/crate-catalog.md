@@ -25,7 +25,7 @@ Generated from Cargo metadata by `xtask crate-catalog v1`.
 | `sim-lib-lang-scheme` | `true` | `custom-build, lib` | Scheme surface profile for the SIM expression runtime. |
 | `sim-lib-lang-typed-lazy` | `true` | `custom-build, lib` | Typed lazy language profile for the SIM expression runtime. |
 | `sim-lib-logic` | `true` | `custom-build, lib` | Logic programming facts, queries, unification, and backtracking for SIM. |
-| `sim-lib-mutation` | `true` | `custom-build, lib` | Tracked mutation cells and update operations for SIM runtime values. |
+| `sim-lib-mutation` | `true` | `custom-build, lib` | Tracked mutation containers and bounded managed-object storage for SIM runtimes. |
 | `sim-lib-namespace` | `true` | `custom-build, lib` | Namespace registration and symbol lookup support for SIM libraries. |
 | `sim-lib-pattern` | `true` | `custom-build, lib` | Shape-based pattern matching and destructuring for SIM runtime values. |
 | `sim-lib-sequence` | `true` | `custom-build, lib` | Sequence operations, lazy streams, and collection transforms for SIM. |

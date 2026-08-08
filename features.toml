@@ -98,16 +98,17 @@ claims_specimens = [
 [[feature]]
 id = "feature/sim-runtime/mutation-organ"
 title = "Mutation organ"
-summary = "Expose cells, boxes, mutable vectors, and mutable tables as capability-gated runtime mutation behavior."
+summary = "Expose capability-gated mutable containers plus a bounded, allocation-deterministic managed-object arena and versioned tracing contract."
 owner = "crate/sim-lib-mutation"
 audiences = ["code", "framework"]
-guidance = "Use this row when a framework needs explicit mutable runtime state guarded by the standard mutate capability."
+guidance = "Use the containers for capability-gated runtime mutation. Use ManagedArena with HardCappedRetainPolicy when a framework needs language-neutral managed identity and a collector-facing strong, weak, ephemeron, safepoint, clearing, and teardown seam; install collection policy separately."
 claims_anchors = [
   "anchor/crate/sim-lib-mutation",
   "anchor/card/cookbook/organ/mutation",
 ]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-mutation/src/tests",
+  "spec-test/sim-runtime/crates/sim-lib-mutation/src/managed_tests",
 ]
 supports = [
   "feature/sim-runtime/organs",
