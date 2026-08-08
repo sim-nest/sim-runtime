@@ -207,6 +207,168 @@ fn captured_binding_cell_is_shared_by_two_closures() {
 }
 
 #[test]
+fn neutral_call_signature_partitions_and_defaults_arguments() {
+    let mut cx = cx();
+    let first = Symbol::new("first");
+    let optional = Symbol::new("optional");
+    let mode = Symbol::new("mode");
+    let color = Symbol::new("color");
+    let default = symbol_value(&mut cx, "default");
+    let signature = CallSignature::new()
+        .with_positional(vec![
+            CallParameter::required(first.clone()),
+            CallParameter::defaulted(optional.clone(), default.clone()),
+        ])
+        .with_named(vec![
+            CallParameter::required(mode.clone()),
+            CallParameter::defaulted(color.clone(), default.clone()),
+        ])
+        .with_positional_remainder(Remainder::Variadic(Symbol::new("rest")))
+        .with_named_remainder(Remainder::Variadic(Symbol::new("options")));
+    let first_value = symbol_value(&mut cx, "one");
+    let mode_value = symbol_value(&mut cx, "strict");
+    let extra = symbol_value(&mut cx, "extra");
+    let option_value = symbol_value(&mut cx, "enabled");
+
+    let bound = signature
+        .bind(vec![
+            CallArgument::Positional(first_value.clone()),
+            CallArgument::Positional(default.clone()),
+            CallArgument::Positional(extra.clone()),
+            CallArgument::Named(mode.clone(), mode_value.clone()),
+            CallArgument::Named(Symbol::new("trace"), option_value.clone()),
+        ])
+        .unwrap();
+
+    assert_eq!(bound.get(&first), Some(&first_value));
+    assert_eq!(bound.get(&optional), Some(&default));
+    assert_eq!(bound.get(&mode), Some(&mode_value));
+    assert_eq!(bound.get(&color), Some(&default));
+    assert_eq!(bound.positional_remainder(), &[extra]);
+    assert_eq!(
+        bound.named_remainder().get(&Symbol::new("trace")),
+        Some(&option_value)
+    );
+}
+
+#[test]
+fn neutral_call_signature_reports_stable_pre_body_diagnostics() {
+    let mut cx = cx();
+    let value = symbol_value(&mut cx, "value");
+    let required = Symbol::new("required");
+    let signature =
+        CallSignature::new().with_positional(vec![CallParameter::required(required.clone())]);
+
+    let cases = [
+        (
+            signature
+                .bind(Vec::<CallArgument>::new())
+                .unwrap_err()
+                .to_string(),
+            "call binding missing: required parameter required",
+        ),
+        (
+            signature
+                .bind(vec![
+                    CallArgument::Positional(value.clone()),
+                    CallArgument::Named(required.clone(), value.clone()),
+                ])
+                .unwrap_err()
+                .to_string(),
+            "call binding duplicate: parameter required supplied positionally and by name",
+        ),
+        (
+            signature
+                .bind(vec![
+                    CallArgument::Named(required.clone(), value.clone()),
+                    CallArgument::Positional(value.clone()),
+                ])
+                .unwrap_err()
+                .to_string(),
+            "call binding ordering: positional argument follows a named argument",
+        ),
+        (
+            signature
+                .bind(vec![
+                    CallArgument::Positional(value.clone()),
+                    CallArgument::Named(Symbol::new("zeta"), value.clone()),
+                    CallArgument::Named(Symbol::new("alpha"), value),
+                ])
+                .unwrap_err()
+                .to_string(),
+            "call binding unexpected: named argument(s): alpha, zeta",
+        ),
+    ];
+
+    for (actual, expected_suffix) in cases {
+        assert!(actual.ends_with(expected_suffix), "{actual:?}");
+    }
+}
+
+#[test]
+fn binding_cells_expose_lifecycle_immutability_and_live_aliases() {
+    let mut cx = cx();
+    let initial = symbol_value(&mut cx, "initial");
+    let replacement = symbol_value(&mut cx, "replacement");
+
+    let pending = BindingCell::uninitialized(Symbol::new("pending"));
+    assert!(matches!(
+        pending.state().unwrap(),
+        BindingCellState::Uninitialized
+    ));
+    assert!(
+        pending
+            .get()
+            .unwrap_err()
+            .to_string()
+            .contains("not initialized")
+    );
+    pending.set(initial.clone()).unwrap();
+    assert!(matches!(
+        pending.state().unwrap(),
+        BindingCellState::Initialized(_)
+    ));
+
+    let alias = BindingCell::live_alias(Symbol::new("alias"), pending.clone());
+    alias.set(replacement.clone()).unwrap();
+    assert_eq!(pending.get().unwrap(), replacement);
+    assert!(matches!(
+        alias.state().unwrap(),
+        BindingCellState::LiveAlias(_)
+    ));
+
+    let constant = BindingCell::immutable(Symbol::new("constant"), initial);
+    assert!(
+        constant
+            .set(replacement.clone())
+            .unwrap_err()
+            .to_string()
+            .contains("immutable")
+    );
+    assert!(
+        constant
+            .delete()
+            .unwrap_err()
+            .to_string()
+            .contains("immutable")
+    );
+
+    pending.delete().unwrap();
+    assert!(matches!(
+        pending.state().unwrap(),
+        BindingCellState::Deleted
+    ));
+    assert!(alias.get().unwrap_err().to_string().contains("deleted"));
+    assert!(
+        pending
+            .set(replacement)
+            .unwrap_err()
+            .to_string()
+            .contains("deleted")
+    );
+}
+
+#[test]
 fn dynamic_binding_is_restored_after_escape() {
     let mut cx = cx();
     let env = DynamicEnv::new();
