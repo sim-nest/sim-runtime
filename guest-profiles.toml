@@ -1,0 +1,56 @@
+schema = "sim.guest-profiles/v1"
+
+# Every crate that constructs a LanguageProfile is registered here. Ownership
+# must remain empty unless a reviewed feature and a distinct owning crate are
+# named in the same row; guest crates compose shared organs instead.
+[[guest]]
+crate = "sim-lib-lang-lua"
+profile = "lang/lua-core/v1"
+evidence = "crates/sim-lib-lang-lua/src/profile.rs"
+ownership = []
+
+[[guest]]
+crate = "sim-lib-lang-cl"
+profile = "lang/cl-lite/v1"
+evidence = "crates/sim-lib-lang-cl/src/profile.rs"
+ownership = []
+[[guest]]
+crate = "sim-lib-lang-clojure"
+profile = "lang/clojure-core/v1"
+evidence = "crates/sim-lib-lang-clojure/src/profile.rs"
+ownership = []
+[[guest]]
+crate = "sim-lib-lang-genconf"
+profile = "lang/generated-conformance/v1"
+evidence = "crates/sim-lib-lang-genconf/src/coverage.rs"
+ownership = []
+[[guest]]
+crate = "sim-lib-lang-islisp"
+profile = "lang/islisp/v1"
+evidence = "crates/sim-lib-lang-islisp/src/profile.rs"
+ownership = []
+[[guest]]
+crate = "sim-lib-lang-julia"
+profile = "lang/julia-core/v1"
+evidence = "crates/sim-lib-lang-julia/src/profile.rs"
+ownership = []
+[[guest]]
+crate = "sim-lib-lang-prolog"
+profile = "lang/prolog/v1"
+evidence = "crates/sim-lib-lang-prolog/src/profile.rs"
+ownership = []
+[[guest]]
+crate = "sim-lib-lang-ruby"
+profile = "lang/ruby-dsl/v1"
+evidence = "crates/sim-lib-lang-ruby/src/profile.rs"
+ownership = []
+[[guest]]
+crate = "sim-lib-lang-scheme"
+profile = "lang/scheme-r7rs-small/v1"
+evidence = "crates/sim-lib-lang-scheme/src/profile.rs"
+ownership = []
+[[guest]]
+crate = "sim-lib-lang-typed-lazy"
+profile = "lang/typed-lazy/v1"
+evidence = "crates/sim-lib-lang-typed-lazy/src/profile.rs"
+ownership = []

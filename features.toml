@@ -163,6 +163,30 @@ claims_specimens = [
 ]
 
 [[feature]]
+id = "feature/sim-runtime/guest-language-profiles"
+title = "Small guest-language profiles"
+summary = "Add source-language surfaces as readers, direct Expr lowering, checked eval policy, and shared organ composition without guest-owned runtime machinery."
+owner = "crate/sim-lib-standard-core"
+audiences = ["code", "framework"]
+guidance = "Start from Lua's checked profile and codec, register the crate in guest-profiles.toml, reuse organs, and finish by adding the profile to the shared language matrix."
+claims_anchors = [
+  "anchor/crate/sim-lib-standard-core",
+  "anchor/crate/sim-lib-lang-lua",
+  "anchor/rustdoc/sim-lib-lang-lua/lua_reader_symbol",
+  "anchor/rustdoc/sim-lib-lang-lua/lua_core_profile",
+  "anchor/crate/sim-lib-lang-matrix",
+  "anchor/rustdoc/sim-lib-lang-matrix/language_matrix",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-lang-lua/src/conformance",
+  "spec-test/sim-runtime/crates/sim-lib-lang-lua/src/lib",
+]
+supports = [
+  "feature/sim-runtime/library-loading",
+  "feature/sim-runtime/organs",
+]
+
+[[feature]]
 id = "feature/sim-runtime/host-exec"
 title = "Host exec primitive"
 summary = "Expose bounded process execution as a capability-gated host primitive outside the kernel."
@@ -206,6 +230,16 @@ audiences = ["code", "framework"]
 steps = [
   { feature = "feature/sim-runtime/organs", why = "The organ row groups reusable binding, control, logic, pattern, incremental, mutation, namespace, and sequence behavior." },
   { feature = "feature/sim-runtime/contract-emitter", why = "The emitter row keeps generated runtime contract evidence current." },
+]
+
+[[route]]
+id = "route/add-guest-language-profile"
+task = "Add a guest language profile"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/guest-language-profiles", why = "The profile row establishes the checked Lua-scale ownership boundary and points to the Lua reader and profile." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-lua/src/conformance", why = "The Lua source-codec specimen proves direct source parsing and lowering through the positive reference profile." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-lua/src/lib", why = "The Lua profile and matrix-row tests are the final shared-matrix registration specimen for a guest profile." },
 ]
 
 [[route]]
