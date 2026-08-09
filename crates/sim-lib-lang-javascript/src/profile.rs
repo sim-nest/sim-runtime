@@ -10,30 +10,15 @@ use std::sync::Arc;
 pub struct JavascriptIntrinsic {
     /// ECMAScript name.
     pub name: &'static str,
+    /// Constructor, namespace, prototype, or method.
+    pub kind: &'static str,
     /// Composed implementation boundary.
     pub backing: &'static str,
 }
 
 /// Intrinsics admitted by the thin core; later phases extend this manifest.
 pub const fn javascript_intrinsic_manifest() -> &'static [JavascriptIntrinsic] {
-    &[
-        JavascriptIntrinsic {
-            name: "Number",
-            backing: "sim-lib-numbers-f64",
-        },
-        JavascriptIntrinsic {
-            name: "BigInt",
-            backing: "sim-lib-numbers-i64",
-        },
-        JavascriptIntrinsic {
-            name: "Boolean",
-            backing: "javascript coercion policy",
-        },
-        JavascriptIntrinsic {
-            name: "String",
-            backing: "javascript coercion policy",
-        },
-    ]
+    include!(concat!(env!("OUT_DIR"), "/javascript_intrinsics.rs"))
 }
 /// Explicit unsupported surface for the current checked phase.
 pub const fn javascript_gap_catalog() -> &'static [&'static str] {
@@ -58,6 +43,7 @@ pub fn javascript_core_profile() -> LanguageProfile {
         .with_organ(OrganUse::new(sim_lib_control::control_organ_symbol()))
         .with_organ(OrganUse::new(sim_lib_mutation::mutation_organ_symbol()))
         .with_organ(OrganUse::new(sim_lib_sequence::sequence_organ_symbol()))
+        .with_organ(OrganUse::new(sim_lib_pattern::pattern_organ_symbol()))
         .with_organ(OrganUse::new(sim_lib_dispatch::dispatch_organ_symbol()))
         .requiring(sim_lib_mutation::standard_mutate_capability());
     for gap in javascript_gap_catalog() {
@@ -96,6 +82,12 @@ pub fn install_javascript_core_profile(
                 sim_lib_sequence::manifest_name(),
                 sim_lib_sequence::install_sequence_lib,
                 Some(sim_lib_sequence::publish_sequence_organ_claims_for_lib),
+            ),
+            ProfileBackingLib::loadable(
+                sim_lib_pattern::pattern_organ_symbol(),
+                sim_lib_pattern::manifest_name(),
+                sim_lib_pattern::install_pattern_lib,
+                Some(sim_lib_pattern::publish_pattern_organ_claims_for_lib),
             ),
             ProfileBackingLib::unresolved(
                 sim_lib_dispatch::dispatch_organ_symbol(),
@@ -138,9 +130,16 @@ mod tests {
     #[test]
     fn registration_is_complete() {
         let e = javascript_core_profile().checked_guest_evidence().unwrap();
-        assert_eq!(e.organs.len(), 5);
+        assert_eq!(e.organs.len(), 6);
         assert_eq!(e.capabilities.len(), 1);
         assert_eq!(e.gaps.len(), 8);
-        assert_eq!(javascript_intrinsic_manifest().len(), 4);
+        let manifest = javascript_intrinsic_manifest();
+        assert_eq!(manifest.len(), 25);
+        assert!(manifest.windows(2).all(|pair| pair[0].name != pair[1].name));
+        assert!(
+            manifest
+                .iter()
+                .all(|entry| !entry.backing.is_empty() && !entry.kind.is_empty())
+        );
     }
 }

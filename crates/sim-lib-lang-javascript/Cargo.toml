@@ -11,16 +11,19 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 
 [dependencies]
 sim-cookbook = { version = "0.2.0" }
+sim-codec-json = { version = "0.2.0" }
 sim-kernel = { version = "0.2.0" }
 sim-lib-binding = { version = "0.1.3", path = "../sim-lib-binding" }
 sim-lib-control = { version = "0.1.4", path = "../sim-lib-control" }
 sim-lib-dispatch = { version = "0.1.2", path = "../sim-lib-dispatch" }
 sim-lib-gc-tracing = { version = "0.1.0", path = "../sim-lib-gc-tracing" }
 sim-lib-mutation = { version = "0.1.3", path = "../sim-lib-mutation" }
+sim-lib-pattern = { version = "0.1.3", path = "../sim-lib-pattern" }
 sim-lib-numbers-f64 = { version = "0.3.1" }
 sim-lib-numbers-i64 = { version = "0.3.1" }
 sim-lib-sequence = { version = "0.1.3", path = "../sim-lib-sequence" }
 sim-lib-standard-core = { version = "0.1.3", path = "../sim-lib-standard-core" }
+serde_json = { version = "1", features = ["preserve_order"] }
 
 [build-dependencies]
 sim-cookbook = { version = "0.2.0" }

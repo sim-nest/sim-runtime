@@ -6,12 +6,24 @@
 //! policy and composes shared organs, number domains, managed storage, and the
 //! tracing collector; it contains no compiler, VM, Realm engine, or host loop.
 
+mod collections;
+mod json;
 mod managed;
 mod matrix_row;
 mod objects;
 mod profile;
+mod regexp;
 mod runtime;
+mod text;
 
+pub use collections::{
+    JavascriptArray, JavascriptCollectionError, JavascriptIterator, JavascriptMap, JavascriptSet,
+    JavascriptSymbol, JavascriptSymbolRegistry,
+};
+pub use json::{
+    JavascriptJsonError, JavascriptJsonValue, JsonReplacer, JsonReviver, JsonToJson,
+    parse_javascript_json, stringify_javascript_json,
+};
 pub use managed::{
     JavascriptHeap, JavascriptHeapPolicy, JavascriptManagedKind, JavascriptManagedObject,
 };
@@ -25,7 +37,12 @@ pub use profile::{
     JavascriptIntrinsic, install_javascript_core_profile, javascript_core_profile,
     javascript_gap_catalog, javascript_intrinsic_manifest, javascript_runtime_kit,
 };
+pub use regexp::{
+    JAVASCRIPT_REGEXP_SUCCESSOR, JavascriptRegExp, JavascriptRegExpError, JavascriptRegExpGap,
+    javascript_regexp_gaps,
+};
 pub use runtime::{Completion, JavascriptEvalPolicy, JavascriptState, JavascriptValue};
+pub use text::{JavascriptCodeUnitString, JavascriptTextError};
 
 /// Cookbook recipes embedded at build time.
 pub static RECIPES: sim_cookbook::EmbeddedDir =
