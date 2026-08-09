@@ -7,9 +7,11 @@ use std::{error::Error, fmt};
 use sim_lib_mutation::{ArenaError, EdgeId, ManagedId};
 
 mod collector;
+mod correctness;
 mod finalization;
 
 pub use collector::{collect, collect_with_finalization};
+pub use correctness::CorrectnessDimension;
 pub use finalization::{FinalizationRecord, FinalizationRegistry};
 
 /// Independently enforced limits for one collection.

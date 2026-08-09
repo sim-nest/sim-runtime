@@ -144,9 +144,10 @@ title = "Bounded tracing garbage collection"
 summary = "Reclaim unreachable managed-object cycles with deterministic, failure-atomic stop-the-world tracing."
 owner = "crate/sim-lib-gc-tracing"
 audiences = ["code", "framework"]
-guidance = "Use collect with explicit object, edge, stack, and work limits over a sim-lib-mutation ManagedArena. Collection plans at a safepoint and refuses before its allocation-ordered atomic sweep when the complete plan cannot be admitted."
+guidance = "Use collect with explicit object, edge, stack, clear, finalizer, and total-work limits over a sim-lib-mutation ManagedArena. Collection plans synchronously at a safepoint and refuses before its allocation-ordered atomic sweep when the complete plan cannot be admitted. Receipt determinism follows the arena's allocation-deterministic managed ids; different legal schedules must preserve safety, not identical reclamation timing. Reuse the language-neutral generated-graph and wasm-closure specimens in the crate test suite; this storage collector claims no language capability."
 claims_anchors = [
   "anchor/crate/sim-lib-gc-tracing",
+  "anchor/card/cookbook/gc-tracing",
 ]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-gc-tracing/src/tests",
@@ -294,6 +295,16 @@ claims_anchors = [
 ]
 supports = [
   "feature/sim-runtime/organs",
+]
+
+[[route]]
+id = "route/collect-language-neutral-managed-graph"
+task = "Collect a language-neutral managed graph"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/mutation-organ", why = "The mutation row supplies allocation-deterministic managed ids, graph storage, roots, weak edges, ephemerons, and safepoints without selecting a guest language." },
+  { feature = "feature/sim-runtime/gc-tracing", why = "The collector row supplies bounded synchronous tracing, atomic sweep, weak clearing, and isolated finalization admission without claiming language behavior." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-gc-tracing/src/tests", why = "The checked non-language managed-graph specimen compares generated graphs and safepoint schedules with a model tracer and proves wasm-closure collection." },
 ]
 
 [[route]]

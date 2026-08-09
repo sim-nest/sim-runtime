@@ -4839,8 +4839,8 @@ use std::sync::{Arc, Mutex};
 use sim_lib_control::{AdmissionLimit, JobQueues, RuntimeJobClass, WorkLimit};
 
 use crate::{
-    CollectionError, CollectionLimits, FinalizationRegistry, LimitKind, collect,
-    collect_with_finalization,
+    CollectionError, CollectionLimits, CorrectnessDimension, FinalizationRegistry, LimitKind,
+    collect, collect_with_finalization,
 };
 
 #[derive(Clone, Default)]
@@ -5150,6 +5150,128 @@ fn randomized_graphs_match_a_non_language_reference_model() {
             "seed {seed}"
         );
     }
+}
+
+#[test]
+fn correctness_dimensions_are_explicit_and_frozen() {
+    assert_eq!(
+        CorrectnessDimension::ALL,
+        [
+            CorrectnessDimension::Safety,
+            CorrectnessDimension::Reclamation,
+            CorrectnessDimension::WeakAndEphemeron,
+            CorrectnessDimension::Finalization,
+            CorrectnessDimension::SameScheduleDeterminism,
+            CorrectnessDimension::ScheduleIndependenceSafety,
+            CorrectnessDimension::BoundedWork,
+            CorrectnessDimension::FailureAtomicity,
+            CorrectnessDimension::WasmClosure,
+        ]
+    );
+}
+
+#[test]
+fn generated_graphs_and_legal_safepoint_schedules_match_model_tracer() {
+    for seed in 1_u64..24 {
+        for schedule in 0..4 {
+            let mut state = seed;
+            let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(24).unwrap());
+            let nodes = (0..24)
+                .map(|_| arena.allocate(Node::default()).unwrap())
+                .collect::<Vec<_>>();
+            let mut graph = vec![Vec::new(); nodes.len()];
+            for (owner, outgoing) in graph.iter_mut().enumerate() {
+                for _ in 0..2 {
+                    state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+                    let target = state as usize % nodes.len();
+                    outgoing.push(target);
+                    arena
+                        .get_mut(nodes[owner])
+                        .unwrap()
+                        .strong
+                        .push(nodes[target].id());
+                }
+            }
+            let root_indexes = [0, (seed as usize + schedule) % nodes.len()];
+            let roots = root_indexes
+                .into_iter()
+                .map(|index| arena.root(nodes[index]).unwrap())
+                .collect::<Vec<_>>();
+            if schedule & 1 != 0 {
+                let transient = arena.root(nodes[23]).unwrap();
+                arena.release_root(transient).unwrap();
+            }
+            if schedule & 2 != 0 {
+                arena.upgrade(nodes[22].downgrade()).unwrap();
+            }
+
+            let mut expected = std::collections::BTreeSet::new();
+            let mut pending = root_indexes.to_vec();
+            if schedule & 2 != 0 {
+                pending.push(22);
+            }
+            while let Some(node) = pending.pop() {
+                if expected.insert(node) {
+                    pending.extend(graph[node].iter().copied());
+                }
+            }
+            let receipt = collect(&mut arena, limits()).unwrap();
+            let actual = receipt
+                .marked
+                .iter()
+                .map(|id| id.allocation_ordinal() as usize)
+                .collect::<Vec<_>>();
+            assert_eq!(
+                actual,
+                expected.into_iter().collect::<Vec<_>>(),
+                "seed {seed}, schedule {schedule}"
+            );
+            assert!(roots.iter().all(|root| arena.get(root.handle()).is_ok()));
+        }
+    }
+}
+
+#[test]
+fn wasm_closure_collects_cycle_clears_weak_and_admits_finalizer_without_host_thread() {
+    let specimen = || {
+        let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(4).unwrap());
+        let owner = arena.allocate(Node::default()).unwrap();
+        let cycle_a = arena.allocate(Node::default()).unwrap();
+        let cycle_b = arena.allocate(Node::default()).unwrap();
+        arena.get_mut(owner).unwrap().weak.push(Some(cycle_a.id()));
+        arena.get_mut(cycle_a).unwrap().strong.push(cycle_b.id());
+        arena.get_mut(cycle_b).unwrap().strong.push(cycle_a.id());
+        let _root = arena.root(owner).unwrap();
+        let mut registry = FinalizationRegistry::default();
+        registry.register(cycle_a.id());
+        let mut jobs = JobQueues::new(AdmissionLimit(1));
+        let receipt =
+            collect_with_finalization(&mut arena, limits(), &mut registry, &mut jobs, |_| {})
+                .unwrap();
+        assert_eq!(receipt.swept, vec![cycle_a.id(), cycle_b.id()]);
+        assert_eq!(receipt.cleared_weak, vec![(owner.id(), EdgeId(0))]);
+        assert_eq!(receipt.finalization.len(), 1);
+        assert_eq!(jobs.remaining_admission(), 0);
+    };
+    specimen();
+}
+
+#[test]
+fn hard_capped_retain_refuses_at_cap_while_tracing_reclaims_cycles() {
+    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(2).unwrap());
+    let a = arena.allocate(Node::default()).unwrap();
+    let b = arena.allocate(Node::default()).unwrap();
+    arena.get_mut(a).unwrap().strong.push(b.id());
+    arena.get_mut(b).unwrap().strong.push(a.id());
+    assert_eq!(
+        arena.allocate(Node::default()).unwrap_err(),
+        sim_lib_mutation::ArenaError::CapacityExceeded { cap: 2 }
+    );
+    assert_eq!(
+        collect(&mut arena, limits()).unwrap().swept,
+        vec![a.id(), b.id()]
+    );
+    assert!(arena.allocate(Node::default()).is_ok());
 }
 ```
 
