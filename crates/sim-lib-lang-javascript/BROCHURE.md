@@ -1,8 +1,13 @@
-# Direct JavaScript, without an engine inside the engine
+# Embedded, capability-scoped ECMAScript with explicit job drains
 
-Run bounded JavaScript core programs as native SIM expressions through the
-loadable JavaScript codec and profile, with explicit capabilities and shared
-managed storage instead of Node or a foreign VM.
+Run bounded ECMAScript as native SIM expressions through the loadable JavaScript
+codec and profile. Promise and module jobs run only when the caller explicitly
+drains them to empty. There is no implicit host loop and no Node, CommonJS, npm,
+DOM, `fetch`, timers, filesystem, process, network, or ambient host IO.
+
+That containment is the product: hosts may deliberately supply capability-
+checked module roots and dynamic-source authority, while the language profile
+uses shared SIM storage and control instead of hiding a foreign VM.
 
 The standard core includes sparse arrays, iterators, Map, Set, Symbol, an exact
 UTF-16 string face, and JavaScript JSON hooks over SIM's shared organs. RegExp is

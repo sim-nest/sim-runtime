@@ -53,7 +53,7 @@
       "id": "cookbook/lang/javascript",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-lang-javascript",
-      "summary": "Bounded direct JavaScript evaluation over SIM values; not Node or a foreign engine."
+      "summary": "Embedded capability-scoped ECMAScript with explicit drains; no Node, DOM, timers, or ambient host IO."
     },
     {
       "id": "cookbook/lang/julia",

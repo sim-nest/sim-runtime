@@ -1,9 +1,15 @@
 # sim-lib-lang-javascript
 
-Thin, bounded ECMAScript core policy over lowered `codec/javascript` forms.
+Embedded, capability-scoped ECMAScript over lowered `codec/javascript` forms.
 It evaluates directly and composes SIM's shared organs, installed Number/BigInt
-domains, managed arena, and collector. It is not a compiler, VM, Node adapter,
-Realm engine, or host event loop.
+domains, managed arena, and collector. Jobs run only at an explicit bounded
+drain-to-empty checkpoint. It is not a compiler, VM, Node adapter, Realm engine,
+DOM, timer service, ambient host-IO surface, or host event loop.
+
+The public fidelity inventory scores syntax, lowering, direct evaluation,
+objects, intrinsics, jobs/modules, boundedness, and expected gaps independently.
+Its regression inventory names the checked descriptor, cycle, completion,
+collection, job, module, RegExp, UTF-16, and capability-refusal specimens.
 
 ## Standard-core boundary
 

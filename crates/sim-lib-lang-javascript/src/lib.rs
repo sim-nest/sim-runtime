@@ -7,6 +7,7 @@
 //! tracing collector; it contains no compiler, VM, Realm engine, or host loop.
 
 mod collections;
+mod fidelity;
 mod jobs;
 mod json;
 mod managed;
@@ -21,6 +22,10 @@ mod text;
 pub use collections::{
     JavascriptArray, JavascriptCollectionError, JavascriptIterator, JavascriptMap, JavascriptSet,
     JavascriptSymbol, JavascriptSymbolRegistry,
+};
+pub use fidelity::{
+    ECMA262_ORACLE, JavascriptFidelityDimension, JavascriptRegressionCase, TEST262_ORACLE,
+    javascript_fidelity_dimensions, javascript_regression_cases,
 };
 pub use jobs::{
     JavascriptAsyncFunction, JavascriptException, JavascriptGenerator, JavascriptJobClass,

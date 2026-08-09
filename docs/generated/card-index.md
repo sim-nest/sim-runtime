@@ -12,7 +12,7 @@
 | `cookbook/lang/common-lisp` | `cookbook-recipe` | `sim-lib-lang-cl` | Common Lisp lite profile, reader, package, and condition surfaces. |
 | `cookbook/lang/genconf` | `cookbook-recipe` | `sim-lib-lang-genconf` | Shared expression-space generator and codec registry recipes. |
 | `cookbook/lang/islisp` | `cookbook-recipe` | `sim-lib-lang-islisp` | ISLISP profile descriptors and dispatch fidelity. |
-| `cookbook/lang/javascript` | `cookbook-recipe` | `sim-lib-lang-javascript` | Bounded direct JavaScript evaluation over SIM values; not Node or a foreign engine. |
+| `cookbook/lang/javascript` | `cookbook-recipe` | `sim-lib-lang-javascript` | Embedded capability-scoped ECMAScript with explicit drains; no Node, DOM, timers, or ambient host IO. |
 | `cookbook/lang/julia` | `cookbook-recipe` | `sim-lib-lang-julia` | Julia core profile descriptors and dispatch behavior. |
 | `cookbook/lang/lua` | `cookbook-recipe` | `sim-lib-lang-lua` | Lua core profile descriptors, source conformance cases, tables, and coroutines. |
 | `cookbook/lang/matrix` | `cookbook-recipe` | `sim-lib-lang-matrix` | Shared conformance matrix assembly recipes. |
