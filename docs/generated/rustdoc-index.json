@@ -146,7 +146,7 @@
       "group": "workspace",
       "manifest": "crates/sim-lib-namespace/Cargo.toml",
       "package": "sim-lib-namespace",
-      "summary": "Namespace behavior for the SIM runtime: modules, packages, and imports."
+      "summary": "Namespace records and capability-aware source module lifecycle for the SIM runtime."
     },
     {
       "crate_name": "sim_lib_pattern",

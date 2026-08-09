@@ -23,7 +23,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 | `feature/sim-runtime/organs` | `crate/sim-lib-binding` | 2 | Provide binding, control, logic, pattern, incremental, mutation, namespace, and sequence organs as reusable runtime behavior. |
 | `feature/sim-runtime/mutation-organ` | `crate/sim-lib-mutation` | 2 | Expose capability-gated mutable containers plus a bounded, allocation-deterministic managed-object arena and versioned tracing contract. |
 | `feature/sim-runtime/property-mechanics` | `crate/sim-lib-dispatch` | 0 | Store ordered own properties and execute data or accessor descriptors with receiver-aware, budgeted interception. |
-| `feature/sim-runtime/namespace-organ` | `crate/sim-lib-namespace` | 1 | Expose package and module namespace records with export, import, rename, and shadow handling. |
+| `feature/sim-runtime/namespace-organ` | `crate/sim-lib-namespace` | 1 | Expose namespace records plus capability-aware, source-bound module resolution, linking, live bindings, cache lifecycle, and receipts. |
 | `feature/sim-runtime/library-loading` | `crate/sim-lib-standard-core` | 1 | Load standard and language-profile runtime libraries through stable export records. |
 | `feature/sim-runtime/guest-language-profiles` | `crate/sim-lib-standard-core` | 2 | Add source-language surfaces as readers, direct Expr lowering, checked eval policy, and shared organ composition without guest-owned runtime machinery. |
 | `feature/sim-runtime/host-exec` | `crate/sim-lib-exec` | 1 | Expose bounded process execution as a capability-gated host primitive outside the kernel. |

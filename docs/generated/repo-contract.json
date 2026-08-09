@@ -1511,15 +1511,30 @@
     },
     {
       "crate_name": "sim_lib_namespace",
-      "dependencies": [],
-      "description": "Namespace registration and symbol lookup support for SIM libraries.",
+      "dependencies": [
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-binding",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-core",
+          "rename": null,
+          "target": null
+        }
+      ],
+      "description": "Namespace records and capability-aware source module lifecycle for SIM libraries.",
       "features": [],
       "group": "workspace",
       "manifest": "crates/sim-lib-namespace/Cargo.toml",
       "name": "sim-lib-namespace",
       "publish": "true",
       "root": "crates/sim-lib-namespace",
-      "rustdoc_summary": "Namespace behavior for the SIM runtime: modules, packages, and imports.",
+      "rustdoc_summary": "Namespace records and capability-aware source module lifecycle for the SIM runtime.",
       "target_kinds": [
         "custom-build",
         "lib"
@@ -1724,10 +1739,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-16T00:13:38+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "92e0e060a9c51c87c1606e723bd5b7ca54ddd414",
+    "git_commit": "f0a297783f538c00bd66eb0ad85ed9d41cc81dff",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "92e0e060a9c51c87c1606e723bd5b7ca54ddd414",
+    "source_commit": "f0a297783f538c00bd66eb0ad85ed9d41cc81dff",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -1740,9 +1755,9 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "e60c0f540221c764",
+    "workspace_hash": "6ec1073daa91e7f4",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 397,
+    "workspace_hash_input_count": 399,
     "workspace_hash_inputs": [
       "Cargo.toml",
       "crates/sim-incremental-core/Cargo.toml",
@@ -2082,6 +2097,8 @@
       "crates/sim-lib-namespace/recipes/book.toml",
       "crates/sim-lib-namespace/src/claims.rs",
       "crates/sim-lib-namespace/src/lib.rs",
+      "crates/sim-lib-namespace/src/module/tests.rs",
+      "crates/sim-lib-namespace/src/module.rs",
       "crates/sim-lib-namespace/src/namespace.rs",
       "crates/sim-lib-namespace/src/tests.rs",
       "crates/sim-lib-pattern/Cargo.toml",

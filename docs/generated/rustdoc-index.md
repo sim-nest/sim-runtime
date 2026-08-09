@@ -8,7 +8,7 @@
 | `sim-lib-binding` | `workspace` | Binding behavior for the SIM runtime: lexical, dynamic, and scoped binding. |
 | `sim-lib-control` | `workspace` | Control behavior for the SIM runtime: async, backtracking, conditions. |
 | `sim-lib-core` | `workspace` | Shared surface-pack substrate for SIM runtime libraries. |
-| `sim-lib-dispatch` | `workspace` | Generic functions and method dispatch for the SIM runtime. |
+| `sim-lib-dispatch` | `workspace` | Generic functions, method dispatch, and neutral property mechanics for the SIM runtime. |
 | `sim-lib-exec` | `workspace` | Capability-gated bounded host-process execution for the SIM runtime. |
 | `sim-lib-incremental` | `workspace` | Loadable incremental query organ for SIM runtime expressions. |
 | `sim-lib-lang-cl` | `workspace` | Common Lisp surface profile for the SIM runtime. |
@@ -24,7 +24,7 @@
 | `sim-lib-lang-typed-lazy` | `workspace` | Typed, lazy surface profile for the SIM runtime. |
 | `sim-lib-logic` | `workspace` | Logic behavior for the SIM runtime: clauses, unification, and queries. |
 | `sim-lib-mutation` | `workspace` | Mutation behavior for the SIM runtime: cells, boxes, vectors, tables, and a bounded managed-object arena. |
-| `sim-lib-namespace` | `workspace` | Namespace behavior for the SIM runtime: modules, packages, and imports. |
+| `sim-lib-namespace` | `workspace` | Namespace records and capability-aware source module lifecycle for the SIM runtime. |
 | `sim-lib-pattern` | `workspace` | Pattern behavior for the SIM runtime over the kernel Shape protocol. |
 | `sim-lib-sequence` | `workspace` | Sequence behavior for the SIM runtime: lazy, persistent, runtime-indexed, and transducer-backed collections. |
 | `sim-lib-standard-core` | `workspace` | Standard distribution core for SIM capabilities, claims, tests, and profiles. |

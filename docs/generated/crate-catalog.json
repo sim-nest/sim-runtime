@@ -261,7 +261,7 @@
       ]
     },
     {
-      "description": "Namespace registration and symbol lookup support for SIM libraries.",
+      "description": "Namespace records and capability-aware source module lifecycle for SIM libraries.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-namespace/Cargo.toml",
       "name": "sim-lib-namespace",

@@ -132,10 +132,10 @@ supports = [
 [[feature]]
 id = "feature/sim-runtime/namespace-organ"
 title = "Namespace organ"
-summary = "Expose package and module namespace records with export, import, rename, and shadow handling."
+summary = "Expose namespace records plus capability-aware, source-bound module resolution, linking, live bindings, cache lifecycle, and receipts."
 owner = "crate/sim-lib-namespace"
 audiences = ["code", "framework"]
-guidance = "Use this row when a framework needs reusable namespace records and import diagnostics."
+guidance = "Use Namespace for static package/import records. Use ModuleLoader for source modules: supply a named Table/Dir root, codec, trusted read policy, required and diminished capabilities; retain BindingCell export edges for live replacement and inspect resolution receipts for cache, cycle, and failure decisions."
 claims_anchors = [
   "anchor/crate/sim-lib-namespace",
   "anchor/card/cookbook/organ/namespace",
