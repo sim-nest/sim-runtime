@@ -4,13 +4,14 @@ In one line: It picks the right version of an operation based on the kinds of th
 
 ## What it gives you
 
-This library lets one named operation have many implementations and choose the fitting one automatically. You describe several versions of an operation, each meant for a particular kind of value, and when the operation is called this crate looks at the actual arguments and runs the version that matches best. When more than one version could apply, it settles ties in a clear, stated order rather than by chance. The result is that you can add new behavior for new kinds of data without editing the places that already call the operation, keeping code open to growth.
+This library lets one named operation have many implementations and choose the fitting one automatically. You describe several versions of an operation, each meant for a particular kind of value, and when the operation is called this crate looks at the actual arguments and runs the version that matches best. It also supplies ordered own-property records and bounded receiver-aware data/accessor hooks while leaving inheritance order and precedence to each language profile. The result is that you can add new behavior for new kinds of data without editing the places that already call the operation, keeping code open to growth.
 
 ## Why you will be glad
 
 - One operation name can serve many kinds of data without tangled branching.
 - New cases plug in without touching existing callers or existing versions.
 - Overlapping matches resolve in a defined order, so the choice is never a guess.
+- Property access has one reusable, cycle-safe mechanical core without imposing one language's object model on another.
 
 ## Where it fits
 

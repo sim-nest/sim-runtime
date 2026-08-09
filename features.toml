@@ -116,6 +116,24 @@ supports = [
 ]
 
 [[feature]]
+id = "feature/sim-runtime/property-mechanics"
+title = "Neutral property mechanics"
+summary = "Store ordered own properties and execute data or accessor descriptors with receiver-aware, budgeted interception."
+owner = "crate/sim-lib-dispatch"
+audiences = ["code", "framework"]
+guidance = "Use PropertyStore for descriptor storage and execution over caller-owned object identities. Supply the owner order explicitly: language profiles retain responsibility for inheritance linearization, prototype traversal, and descriptor precedence. AccessContext bounds traversal and rejects recursive interception."
+claims_anchors = [
+  "anchor/crate/sim-lib-dispatch",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-dispatch/src/property_tests",
+]
+supports = [
+  "feature/sim-runtime/organs",
+  "feature/sim-runtime/mutation-organ",
+]
+
+[[feature]]
 id = "feature/sim-runtime/namespace-organ"
 title = "Namespace organ"
 summary = "Expose package and module namespace records with export, import, rename, and shadow handling."
