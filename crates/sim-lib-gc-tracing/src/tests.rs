@@ -4,21 +4,180 @@ use sim_lib_mutation::{
     EdgeId, EdgeVisitor, HardCappedRetainPolicy, ManagedArena, ManagedId, ManagedObject,
 };
 
-use crate::{CollectionError, CollectionLimits, LimitKind, collect};
+use std::sync::{Arc, Mutex};
+
+use sim_lib_control::{AdmissionLimit, JobQueues, RuntimeJobClass, WorkLimit};
+
+use crate::{
+    CollectionError, CollectionLimits, FinalizationRegistry, LimitKind, collect,
+    collect_with_finalization,
+};
 
 #[derive(Clone, Default)]
 struct Node {
     strong: Vec<ManagedId>,
+    weak: Vec<Option<ManagedId>>,
+    ephemerons: Vec<Option<(ManagedId, ManagedId)>>,
 }
 impl ManagedObject for Node {
     fn trace_edges(&self, visitor: &mut dyn EdgeVisitor) {
         for (edge, target) in self.strong.iter().copied().enumerate() {
             visitor.strong(EdgeId(edge as u32), target);
         }
+        let offset = self.strong.len();
+        for (edge, target) in self.weak.iter().enumerate() {
+            if let Some(target) = target {
+                visitor.weak(EdgeId((offset + edge) as u32), *target);
+            }
+        }
+        let offset = offset + self.weak.len();
+        for (edge, entry) in self.ephemerons.iter().enumerate() {
+            if let Some((key, value)) = entry {
+                visitor.ephemeron(EdgeId((offset + edge) as u32), *key, *value);
+            }
+        }
     }
-    fn clear_weak_edge(&mut self, _: EdgeId, _: ManagedId) -> bool {
-        false
+    fn clear_weak_edge(&mut self, edge: EdgeId, expected: ManagedId) -> bool {
+        let index = edge.0 as usize - self.strong.len();
+        self.weak.get_mut(index).is_some_and(|entry| {
+            if *entry == Some(expected) {
+                *entry = None;
+                true
+            } else {
+                false
+            }
+        })
     }
+    fn clear_ephemeron_edge(&mut self, edge: EdgeId, key: ManagedId, value: ManagedId) -> bool {
+        let index = edge.0 as usize - self.strong.len() - self.weak.len();
+        self.ephemerons.get_mut(index).is_some_and(|entry| {
+            if *entry == Some((key, value)) {
+                *entry = None;
+                true
+            } else {
+                false
+            }
+        })
+    }
+}
+
+#[test]
+fn ephemeron_fixpoint_and_kept_alive_epoch_obey_strong_liveness() {
+    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(7).unwrap());
+    let root = arena.allocate(Node::default()).unwrap();
+    let key1 = arena.allocate(Node::default()).unwrap();
+    let value1 = arena.allocate(Node::default()).unwrap();
+    let key2 = arena.allocate(Node::default()).unwrap();
+    let value2 = arena.allocate(Node::default()).unwrap();
+    let dead_key = arena.allocate(Node::default()).unwrap();
+    let dead_value = arena.allocate(Node::default()).unwrap();
+    arena.get_mut(root).unwrap().strong.push(key1.id());
+    arena.get_mut(root).unwrap().ephemerons = vec![
+        Some((key1.id(), value1.id())),
+        Some((dead_key.id(), dead_value.id())),
+    ];
+    arena.get_mut(value1).unwrap().strong.push(key2.id());
+    arena
+        .get_mut(value1)
+        .unwrap()
+        .ephemerons
+        .push(Some((key2.id(), value2.id())));
+    let _ = arena.root(root).unwrap();
+    assert_eq!(arena.upgrade(dead_value.downgrade()).unwrap(), dead_value);
+
+    let first = collect(&mut arena, limits()).unwrap();
+    assert!(first.marked.contains(&value2.id()));
+    assert!(first.marked.contains(&dead_value.id()));
+    assert_eq!(first.cleared_ephemerons, vec![(root.id(), EdgeId(2))]);
+    let second = collect(&mut arena, limits()).unwrap();
+    assert!(second.swept.contains(&dead_value.id()));
+    assert!(second.cleared_ephemerons.is_empty());
+
+    let mut quiet = ManagedArena::new(HardCappedRetainPolicy::new(1).unwrap());
+    let temporary = quiet.allocate(Node::default()).unwrap();
+    quiet.upgrade(temporary.downgrade()).unwrap();
+    assert!(collect(&mut quiet, limits()).unwrap().swept.is_empty());
+    assert_eq!(
+        collect(&mut quiet, limits()).unwrap().swept,
+        vec![temporary.id()]
+    );
+}
+
+#[test]
+fn weak_clearing_finalization_and_resurrection_are_bounded_and_at_most_once() {
+    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(3).unwrap());
+    let owner = arena.allocate(Node::default()).unwrap();
+    let dead = arena.allocate(Node::default()).unwrap();
+    arena.get_mut(owner).unwrap().weak.push(Some(dead.id()));
+    let _ = arena.root(owner).unwrap();
+    let mut registry = FinalizationRegistry::default();
+    let registration = registry.register(dead.id());
+    let mut exhausted = JobQueues::new(AdmissionLimit(0));
+    let before = arena.mutation_epoch();
+    let error =
+        collect_with_finalization(&mut arena, limits(), &mut registry, &mut exhausted, |_| {})
+            .unwrap_err();
+    assert!(matches!(error, CollectionError::Limit(ref r) if r.kind == LimitKind::Finalizers));
+    assert_eq!(arena.mutation_epoch(), before);
+    assert_eq!(arena.get(owner).unwrap().weak, vec![Some(dead.id())]);
+
+    let resurrected = Arc::new(Mutex::new(Vec::new()));
+    let callback_resurrected = resurrected.clone();
+    let mut jobs = JobQueues::new(AdmissionLimit(2));
+    let receipt = collect_with_finalization(
+        &mut arena,
+        limits(),
+        &mut registry,
+        &mut jobs,
+        move |record| {
+            callback_resurrected
+                .lock()
+                .unwrap()
+                .push(record.registration)
+        },
+    )
+    .unwrap();
+    assert_eq!(receipt.cleared_weak, vec![(owner.id(), EdgeId(0))]);
+    assert_eq!(receipt.finalization[0].registration, registration);
+    assert!(
+        resurrected.lock().unwrap().is_empty(),
+        "user code ran during collection"
+    );
+    assert!(arena.handle(dead.id()).is_err());
+    assert_eq!(
+        jobs.drain(RuntimeJobClass::Finalization, WorkLimit(1))
+            .completed
+            .len(),
+        1
+    );
+    assert_eq!(*resurrected.lock().unwrap(), vec![registration]);
+    assert!(
+        collect_with_finalization(&mut arena, limits(), &mut registry, &mut jobs, |_| {})
+            .unwrap()
+            .finalization
+            .is_empty()
+    );
+}
+
+#[test]
+fn cancelled_finalization_never_enters_the_queue() {
+    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(1).unwrap());
+    let dead = arena.allocate(Node::default()).unwrap();
+    let mut registry = FinalizationRegistry::default();
+    let registration = registry.register(dead.id());
+    assert!(registry.cancel(registration));
+    assert!(!registry.cancel(registration));
+    let mut jobs = JobQueues::new(AdmissionLimit(1));
+    let receipt = collect_with_finalization(&mut arena, limits(), &mut registry, &mut jobs, |_| {
+        panic!("cancelled finalizer ran")
+    })
+    .unwrap();
+    assert!(receipt.finalization.is_empty());
+    assert!(
+        jobs.drain(RuntimeJobClass::Finalization, WorkLimit(1))
+            .completed
+            .is_empty()
+    );
 }
 
 fn limits() -> CollectionLimits {
@@ -27,6 +186,8 @@ fn limits() -> CollectionLimits {
         edges: 40_000,
         stack: 20_000,
         work: 100_000,
+        clears: 40_000,
+        finalizers: 20_000,
     }
 }
 
@@ -85,6 +246,8 @@ fn admission_failure_is_repeatable_and_leaves_graph_untouched() {
         edges: 0,
         stack: 3,
         work: 10,
+        clears: 3,
+        finalizers: 3,
     };
     let first = collect(&mut arena, tight).unwrap_err();
     let second = collect(&mut arena, tight).unwrap_err();

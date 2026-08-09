@@ -39,7 +39,7 @@ pub use coroutine::{Coroutine, CoroutineFrame, CoroutineFrameStep, CoroutineLane
 pub use generator::{Generator, GeneratorStep};
 pub use jobs::{
     AdmissionLimit, CheckpointError, CheckpointReceipt, DrainReceipt, JobId, JobQueues, JobReceipt,
-    JobStatus, WorkLimit,
+    JobStatus, RuntimeJobClass, WorkLimit,
 };
 pub use model::{ContinuationValue, ControlResultValue};
 pub use nonlocal::{LabeledPrompt, NonLocalExit, NonLocalExitKind, escape_to_label};

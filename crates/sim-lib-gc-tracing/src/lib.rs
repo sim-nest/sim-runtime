@@ -2,9 +2,15 @@
 #![deny(missing_docs)]
 //! Bounded stop-the-world tracing collection for managed arenas.
 
-use std::{collections::BTreeSet, error::Error, fmt};
+use std::{error::Error, fmt};
 
-use sim_lib_mutation::{ArenaError, EdgeId, EdgeVisitor, ManagedArena, ManagedId, ManagedObject};
+use sim_lib_mutation::{ArenaError, EdgeId, ManagedId};
+
+mod collector;
+mod finalization;
+
+pub use collector::{collect, collect_with_finalization};
+pub use finalization::{FinalizationRecord, FinalizationRegistry};
 
 /// Independently enforced limits for one collection.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -17,6 +23,10 @@ pub struct CollectionLimits {
     pub stack: usize,
     /// Maximum charged root, object, edge, ephemeron, and sweep operations.
     pub work: usize,
+    /// Maximum weak and ephemeron entries cleared.
+    pub clears: usize,
+    /// Maximum finalization records produced and admitted.
+    pub finalizers: usize,
 }
 
 /// A resource class which refused collection.
@@ -30,6 +40,10 @@ pub enum LimitKind {
     Stack,
     /// Total charged operations.
     Work,
+    /// Weak and ephemeron clears.
+    Clears,
+    /// Finalization records.
+    Finalizers,
 }
 
 /// Inspectable evidence for a collection refused before mutation.
@@ -58,6 +72,12 @@ pub struct CollectionReceipt {
     pub edges: usize,
     /// Total charged operations.
     pub work: usize,
+    /// Weak edges cleared as `(owner, edge)`.
+    pub cleared_weak: Vec<(ManagedId, EdgeId)>,
+    /// Ephemerons cleared as `(owner, edge)`.
+    pub cleared_ephemerons: Vec<(ManagedId, EdgeId)>,
+    /// Finalization records admitted after arena mutation completed.
+    pub finalization: Vec<FinalizationRecord>,
 }
 
 /// A fail-closed collection error.
@@ -86,136 +106,6 @@ impl From<ArenaError> for CollectionError {
     fn from(value: ArenaError) -> Self {
         Self::Arena(value)
     }
-}
-
-#[derive(Default)]
-struct Edges {
-    strong: Vec<ManagedId>,
-    ephemerons: Vec<(ManagedId, ManagedId)>,
-    count: usize,
-}
-impl EdgeVisitor for Edges {
-    fn strong(&mut self, _: EdgeId, target: ManagedId) {
-        self.count += 1;
-        self.strong.push(target);
-    }
-    fn weak(&mut self, _: EdgeId, _: ManagedId) {
-        self.count += 1;
-    }
-    fn ephemeron(&mut self, _: EdgeId, key: ManagedId, value: ManagedId) {
-        self.count += 1;
-        self.ephemerons.push((key, value));
-    }
-}
-
-fn charge(
-    epoch: u64,
-    kind: LimitKind,
-    limit: usize,
-    required: usize,
-) -> Result<(), CollectionError> {
-    if required > limit {
-        Err(CollectionError::Limit(FailureReceipt {
-            mutation_epoch: epoch,
-            kind,
-            limit,
-            required,
-        }))
-    } else {
-        Ok(())
-    }
-}
-
-/// Performs a complete bounded collection, mutating only after the plan succeeds.
-pub fn collect<T: ManagedObject>(
-    arena: &mut ManagedArena<T>,
-    limits: CollectionLimits,
-) -> Result<CollectionReceipt, CollectionError> {
-    let (plan, _) = arena.safepoint(|snapshot| {
-        let epoch = snapshot.mutation_epoch();
-        let all = snapshot.objects().collect::<Vec<_>>();
-        charge(epoch, LimitKind::Objects, limits.objects, all.len())?;
-        let mut marked = BTreeSet::new();
-        let mut pending = snapshot.roots().collect::<Vec<_>>();
-        charge(epoch, LimitKind::Stack, limits.stack, pending.len())?;
-        let mut edge_count = 0usize;
-        let mut work = pending.len();
-        charge(epoch, LimitKind::Work, limits.work, work)?;
-        let mut ephemerons = Vec::new();
-        while let Some(id) = pending.pop() {
-            if !marked.insert(id) {
-                continue;
-            }
-            let mut found = Edges::default();
-            snapshot.visit_edges(id, &mut found)?;
-            edge_count = edge_count.saturating_add(found.count);
-            charge(epoch, LimitKind::Edges, limits.edges, edge_count)?;
-            work = work.saturating_add(1 + found.count);
-            charge(epoch, LimitKind::Work, limits.work, work)?;
-            for target in found.strong {
-                snapshot.visit_edges(target, &mut Edges::default())?;
-                if !marked.contains(&target) {
-                    pending.push(target);
-                }
-            }
-            charge(epoch, LimitKind::Stack, limits.stack, pending.len())?;
-            ephemerons.extend(found.ephemerons);
-        }
-        loop {
-            let mut changed = false;
-            for &(key, value) in &ephemerons {
-                work = work.saturating_add(1);
-                charge(epoch, LimitKind::Work, limits.work, work)?;
-                if marked.contains(&key) && !marked.contains(&value) {
-                    pending.push(value);
-                    changed = true;
-                }
-            }
-            if !changed {
-                break;
-            }
-            while let Some(id) = pending.pop() {
-                if !marked.insert(id) {
-                    continue;
-                }
-                let mut found = Edges::default();
-                snapshot.visit_edges(id, &mut found)?;
-                edge_count = edge_count.saturating_add(found.count);
-                charge(epoch, LimitKind::Edges, limits.edges, edge_count)?;
-                work = work.saturating_add(1 + found.count);
-                charge(epoch, LimitKind::Work, limits.work, work)?;
-                for target in found.strong {
-                    snapshot.visit_edges(target, &mut Edges::default())?;
-                    if !marked.contains(&target) {
-                        pending.push(target);
-                    }
-                }
-                ephemerons.extend(found.ephemerons);
-                charge(epoch, LimitKind::Stack, limits.stack, pending.len())?;
-            }
-        }
-        let swept = all
-            .iter()
-            .copied()
-            .filter(|id| !marked.contains(id))
-            .collect::<Vec<_>>();
-        work = work.saturating_add(swept.len());
-        charge(epoch, LimitKind::Work, limits.work, work)?;
-        Ok::<_, CollectionError>((epoch, all, marked, edge_count, work))
-    })?;
-    let (epoch, all, marked, edges, work) = plan?;
-    let swept = all
-        .into_iter()
-        .filter(|id| !marked.contains(id))
-        .collect::<Vec<_>>();
-    arena.sweep_at_epoch(epoch, &swept)?;
-    Ok(CollectionReceipt {
-        mutation_epoch: epoch,
-        marked: marked.into_iter().collect(),
-        swept,
-        edges,
-        work,
-    })
 }
 
 #[cfg(test)]

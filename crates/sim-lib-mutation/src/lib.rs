@@ -32,9 +32,9 @@ pub use claims::{
     publish_mutation_organ_claims, publish_mutation_organ_claims_for_lib,
 };
 pub use managed::{
-    ArenaError, EdgeId, EdgeVisitor, HardCappedRetainPolicy, ManagedArena, ManagedHandle,
-    ManagedId, ManagedObject, RootId, RootedHandle, SafepointReceipt, TeardownReceipt,
-    TraceContractVersion, TraceSnapshot, WeakHandle,
+    ArenaError, CollectionMutationReceipt, EdgeId, EdgeVisitor, HardCappedRetainPolicy,
+    ManagedArena, ManagedHandle, ManagedId, ManagedObject, RootId, RootedHandle, SafepointReceipt,
+    TeardownReceipt, TraceContractVersion, TraceSnapshot, WeakHandle,
 };
 pub use runtime_key::{PrimitiveRuntimeKeyPolicy, RuntimeKey, RuntimeKeyPolicy};
 pub use runtime_table::{MutableRuntimeTable, mutable_runtime_table, mutable_runtime_table_value};

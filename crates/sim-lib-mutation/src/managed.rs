@@ -102,6 +102,17 @@ pub trait ManagedObject {
     /// the same request must return `false`, giving collectors at-most-once
     /// weak-clear semantics.
     fn clear_weak_edge(&mut self, edge: EdgeId, expected: ManagedId) -> bool;
+
+    /// Clears one ephemeron entry if it still has the expected key and value.
+    /// Repeating a successful request must return `false`.
+    fn clear_ephemeron_edge(
+        &mut self,
+        _edge: EdgeId,
+        _expected_key: ManagedId,
+        _expected_value: ManagedId,
+    ) -> bool {
+        false
+    }
 }
 
 /// The only built-in policy: retain objects until explicit teardown, while
@@ -175,6 +186,7 @@ impl Error for ArenaError {}
 /// An immutable, complete tracing view taken at a safepoint.
 pub struct TraceSnapshot<'a, T> {
     roots: Vec<ManagedId>,
+    kept_alive: Vec<ManagedId>,
     objects: &'a BTreeMap<ManagedId, T>,
     mutation_epoch: u64,
 }
@@ -187,6 +199,11 @@ impl<T: ManagedObject> TraceSnapshot<'_, T> {
     /// Enumerates roots in root-registration order.
     pub fn roots(&self) -> impl ExactSizeIterator<Item = ManagedId> + '_ {
         self.roots.iter().copied()
+    }
+
+    /// Enumerates successful weak dereferences kept alive for this epoch.
+    pub fn kept_alive(&self) -> impl ExactSizeIterator<Item = ManagedId> + '_ {
+        self.kept_alive.iter().copied()
     }
 
     /// Enumerates live objects in allocation order.
@@ -228,6 +245,16 @@ pub struct TeardownReceipt {
     pub roots: Vec<RootId>,
 }
 
+/// Atomic collector mutation evidence.
+pub struct CollectionMutationReceipt {
+    /// Weak entries cleared as owner and edge identities.
+    pub cleared_weak: Vec<(ManagedId, EdgeId)>,
+    /// Ephemeron entries cleared as owner and edge identities.
+    pub cleared_ephemerons: Vec<(ManagedId, EdgeId)>,
+    /// Objects removed in allocation order.
+    pub swept: Vec<ManagedId>,
+}
+
 /// Bounded storage for managed objects, independent of language and collector policy.
 pub struct ManagedArena<T> {
     policy: HardCappedRetainPolicy,
@@ -237,6 +264,7 @@ pub struct ManagedArena<T> {
     mutation_epoch: u64,
     objects: BTreeMap<ManagedId, T>,
     roots: BTreeMap<RootId, ManagedId>,
+    kept_alive: BTreeMap<ManagedId, u64>,
 }
 
 impl<T> ManagedArena<T> {
@@ -250,6 +278,7 @@ impl<T> ManagedArena<T> {
             mutation_epoch: 0,
             objects: BTreeMap::new(),
             roots: BTreeMap::new(),
+            kept_alive: BTreeMap::new(),
         }
     }
 
@@ -319,11 +348,12 @@ impl<T> ManagedArena<T> {
     }
 
     /// Upgrades a weak handle only while its object remains live.
-    pub fn upgrade(&self, weak: WeakHandle) -> Result<ManagedHandle, ArenaError> {
-        self.objects
-            .contains_key(&weak.id)
-            .then_some(ManagedHandle { id: weak.id })
-            .ok_or(ArenaError::StaleHandle(weak.id))
+    pub fn upgrade(&mut self, weak: WeakHandle) -> Result<ManagedHandle, ArenaError> {
+        if !self.objects.contains_key(&weak.id) {
+            return Err(ArenaError::StaleHandle(weak.id));
+        }
+        self.kept_alive.insert(weak.id, self.mutation_epoch);
+        Ok(ManagedHandle { id: weak.id })
     }
 
     /// Resolves a tracing identity to a live handle for collector operations.
@@ -429,6 +459,76 @@ impl<T> ManagedArena<T> {
         Ok(objects.to_vec())
     }
 
+    /// Applies a collector plan atomically at `expected_epoch`.
+    ///
+    /// Kept-alive objects from that epoch are retained. Weak and ephemeron
+    /// entries are cleared before unreachable objects are removed, and every
+    /// conditional clear is intrinsically at most once.
+    pub fn apply_collection_at_epoch(
+        &mut self,
+        expected_epoch: u64,
+        weak: &[(ManagedId, EdgeId, ManagedId)],
+        ephemerons: &[(ManagedId, EdgeId, ManagedId, ManagedId)],
+        swept: &[ManagedId],
+    ) -> Result<CollectionMutationReceipt, ArenaError>
+    where
+        T: ManagedObject,
+    {
+        if self.mutation_epoch != expected_epoch {
+            return Err(ArenaError::MutationEpochChanged {
+                expected: expected_epoch,
+                actual: self.mutation_epoch,
+            });
+        }
+        let kept = self
+            .kept_alive
+            .iter()
+            .filter_map(|(id, epoch)| (*epoch == expected_epoch).then_some(*id))
+            .collect::<std::collections::BTreeSet<_>>();
+        let actual_swept = swept
+            .iter()
+            .copied()
+            .filter(|id| !kept.contains(id))
+            .collect::<Vec<_>>();
+        for id in &actual_swept {
+            if !self.objects.contains_key(id) {
+                return Err(ArenaError::StaleHandle(*id));
+            }
+            if self.roots.values().any(|rooted| rooted == id) {
+                return Err(ArenaError::ObjectRooted(*id));
+            }
+        }
+        if !weak.is_empty() || !ephemerons.is_empty() || !actual_swept.is_empty() {
+            self.advance_mutation_epoch()?;
+        }
+        let mut cleared_weak = Vec::new();
+        for &(owner, edge, target) in weak {
+            if let Some(object) = self.objects.get_mut(&owner)
+                && object.clear_weak_edge(edge, target)
+            {
+                cleared_weak.push((owner, edge));
+            }
+        }
+        let mut cleared_ephemerons = Vec::new();
+        for &(owner, edge, key, value) in ephemerons {
+            if let Some(object) = self.objects.get_mut(&owner)
+                && object.clear_ephemeron_edge(edge, key, value)
+            {
+                cleared_ephemerons.push((owner, edge));
+            }
+        }
+        for id in &actual_swept {
+            self.objects.remove(id);
+        }
+        self.kept_alive
+            .retain(|id, epoch| self.objects.contains_key(id) && *epoch != expected_epoch);
+        Ok(CollectionMutationReceipt {
+            cleared_weak,
+            cleared_ephemerons,
+            swept: actual_swept,
+        })
+    }
+
     /// Runs a read-only tracing callback at a deterministic safepoint.
     pub fn safepoint<R>(
         &mut self,
@@ -444,6 +544,11 @@ impl<T> ManagedArena<T> {
         let roots = self.roots.values().copied().collect::<Vec<_>>();
         let snapshot = TraceSnapshot {
             roots: roots.clone(),
+            kept_alive: self
+                .kept_alive
+                .iter()
+                .filter_map(|(id, epoch)| (*epoch == self.mutation_epoch).then_some(*id))
+                .collect(),
             objects: &self.objects,
             mutation_epoch: self.mutation_epoch,
         };
@@ -468,6 +573,7 @@ impl<T> ManagedArena<T> {
         }
         self.objects.clear();
         self.roots.clear();
+        self.kept_alive.clear();
         receipt
     }
 }

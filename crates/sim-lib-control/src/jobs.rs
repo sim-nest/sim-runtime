@@ -12,6 +12,15 @@ pub struct AdmissionLimit(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WorkLimit(pub usize);
 
+/// Runtime-owned queue classes which must never share a FIFO.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum RuntimeJobClass {
+    /// Collector-produced finalization work.
+    Finalization,
+    /// A language microtask class, isolated by its stable profile name.
+    LanguageMicrotask(&'static str),
+}
+
 /// Recorded lifecycle state for a job.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JobStatus {
@@ -86,6 +95,11 @@ impl<K: Clone + Ord> JobQueues<K> {
             admitted: 0,
             admission,
         }
+    }
+
+    /// Returns capacity remaining under the lifetime admission bound.
+    pub fn remaining_admission(&self) -> usize {
+        self.admission.0.saturating_sub(self.admitted)
     }
 
     /// Enqueues one job at the tail of its class FIFO.

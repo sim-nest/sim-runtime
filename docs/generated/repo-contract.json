@@ -561,6 +561,13 @@
         {
           "kind": "normal",
           "optional": false,
+          "package": "sim-lib-control",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
           "package": "sim-lib-mutation",
           "rename": null,
           "target": null
@@ -1802,10 +1809,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-16T00:13:38+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "c6505d49adc8f939100027ee9bf99b2b5c962b91",
+    "git_commit": "f19e2c3e9d05dab3887b772be0078bcf60a24754",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "c6505d49adc8f939100027ee9bf99b2b5c962b91",
+    "source_commit": "f19e2c3e9d05dab3887b772be0078bcf60a24754",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -1818,9 +1825,9 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "c755fb4b38971d73",
+    "workspace_hash": "a3d8cc3d885dff07",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 404,
+    "workspace_hash_input_count": 406,
     "workspace_hash_inputs": [
       "Cargo.toml",
       "crates/sim-incremental-core/Cargo.toml",
@@ -1913,6 +1920,8 @@
       "crates/sim-lib-gc-tracing/Cargo.toml",
       "crates/sim-lib-gc-tracing/recipes/01-collection/bounded-cycle/recipe.toml",
       "crates/sim-lib-gc-tracing/recipes/book.toml",
+      "crates/sim-lib-gc-tracing/src/collector.rs",
+      "crates/sim-lib-gc-tracing/src/finalization.rs",
       "crates/sim-lib-gc-tracing/src/lib.rs",
       "crates/sim-lib-gc-tracing/src/tests.rs",
       "crates/sim-lib-incremental/Cargo.toml",
