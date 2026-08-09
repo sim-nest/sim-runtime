@@ -1,8 +1,18 @@
 # sim-lib-lang-python
 
-Thin, bounded Python core evaluation for SIM. Source enters through
+Embedded, capability-scoped, agent-authored Python scripting over SIM values.
+It is deliberately not a CPython replacement. Thin, bounded Python core
+evaluation enters through
 `codec/python`; the profile directly interprets the stable lowering and composes
 shared runtime organs, numbers, managed arena, and optional tracing collection.
+
+`PYTHON_FIDELITY` reports syntax, lowering, direct evaluation, object/control,
+module/library, boundedness, and expected gaps separately. `PYTHON_EVIDENCE_CASES`
+publishes frozen call, cycle, exception, generator, matching, import, and
+capability-refusal cases. CPython 3.14.6 supplied offline expected values for
+simple differential cases only; it is never linked, imported, spawned, or used
+as a fallback. There is no bytecode, compiler IR, optimizer, project graph, or
+private language organ.
 
 ## Capability-gated `eval`, `exec`, and imports
 

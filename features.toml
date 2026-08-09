@@ -301,10 +301,10 @@ supports = [
 [[feature]]
 id = "feature/sim-runtime/python-authorized-library-core"
 title = "Capability-gated Python library core"
-summary = "Compose ordered structural matching, supplied-root modules, a matrix-derived library manifest, and diminished eval/exec without ambient Python authority."
+summary = "Run embedded, capability-scoped, agent-authored Python over SIM values with ordered matching, supplied-root modules, and diminished eval/exec."
 owner = "crate/sim-lib-lang-python"
 audiences = ["code", "framework"]
-guidance = "Use match_expr only for cases faithfully represented by Shape captures and ordered guards. Use PythonModulePolicy with a caller-supplied Dir and DynamicPython with a host-authored DynamicAdmission. Inspect python_library_manifest before assuming a builtin or module exists; explicit absences never fall back to CPython or host access."
+guidance = "Start here for embedded Python scripting, not CPython replacement compatibility. Source enters through codec/python; eval and exec require read-eval plus host-authored diminished DynamicAdmission. Use match_expr only for Shape-represented ordered cases, PythonModulePolicy only with a caller-supplied Dir, and inspect PYTHON_FIDELITY and python_library_manifest before claiming behavior. Explicit absences never fall back to CPython or host access."
 claims_anchors = [
   "anchor/crate/sim-lib-lang-python",
   "anchor/crate/sim-lib-namespace",

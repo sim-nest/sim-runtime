@@ -7,6 +7,7 @@
 //! lowering and composes the shared binding, control, mutation, sequence,
 //! dispatch, number, arena, and tracing-collector contracts.
 
+mod fidelity;
 mod library_core;
 mod managed;
 mod matrix_row;
@@ -18,6 +19,10 @@ mod runtime;
 #[cfg(test)]
 mod tests;
 
+pub use fidelity::{
+    PYTHON_EVIDENCE_CASES, PYTHON_EXTERNAL_ORACLE, PYTHON_FIDELITY, PythonEvidenceCase,
+    PythonFidelity,
+};
 pub use library_core::{
     DynamicAdmission, DynamicPython, MatchCase, MatchOutcome, PythonLibraryManifest,
     PythonModuleAdmission, PythonModulePolicy, PythonSurface, PythonSurfaceState, match_expr,

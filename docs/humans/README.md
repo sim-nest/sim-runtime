@@ -30,7 +30,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 | `feature/sim-runtime/library-loading` | `crate/sim-lib-standard-core` | 1 | Load standard and language-profile runtime libraries through stable export records. |
 | `feature/sim-runtime/guest-language-profiles` | `crate/sim-lib-standard-core` | 2 | Add source-language surfaces as readers, direct Expr lowering, checked eval policy, and shared organ composition without guest-owned runtime machinery. |
 | `feature/sim-runtime/python-object-control-policy` | `crate/sim-lib-lang-python` | 2 | Compose Python classes, C3, descriptors, bound methods, super, checked exceptions, context cleanup, generators, coroutines, and cyclic collection over shared runtime organs. |
-| `feature/sim-runtime/python-authorized-library-core` | `crate/sim-lib-lang-python` | 0 | Compose ordered structural matching, supplied-root modules, a matrix-derived library manifest, and diminished eval/exec without ambient Python authority. |
+| `feature/sim-runtime/python-authorized-library-core` | `crate/sim-lib-lang-python` | 0 | Run embedded, capability-scoped, agent-authored Python over SIM values with ordered matching, supplied-root modules, and diminished eval/exec. |
 | `feature/sim-runtime/host-exec` | `crate/sim-lib-exec` | 1 | Expose bounded process execution as a capability-gated host primitive outside the kernel. |
 | `feature/sim-runtime/contract-emitter` | `crate/xtask` | 0 | Emit generated repository contract and index fragments for runtime crates. |
 

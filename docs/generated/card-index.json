@@ -71,7 +71,7 @@
       "id": "cookbook/lang/python",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-lang-python",
-      "summary": "Source-only Python programs through codec/python and the installed profile."
+      "summary": "Capability-scoped, agent-authored Python over SIM values; not a CPython replacement."
     },
     {
       "id": "cookbook/lang/ruby",
