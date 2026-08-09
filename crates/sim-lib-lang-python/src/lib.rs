@@ -7,6 +7,7 @@
 //! lowering and composes the shared binding, control, mutation, sequence,
 //! dispatch, number, arena, and tracing-collector contracts.
 
+mod library_core;
 mod managed;
 mod matrix_row;
 mod objects;
@@ -17,6 +18,11 @@ mod runtime;
 #[cfg(test)]
 mod tests;
 
+pub use library_core::{
+    DynamicAdmission, DynamicPython, MatchCase, MatchOutcome, PythonLibraryManifest,
+    PythonModuleAdmission, PythonModulePolicy, PythonSurface, PythonSurfaceState, match_expr,
+    python_library_manifest,
+};
 pub use managed::{PythonHeap, PythonHeapPolicy, PythonManagedKind, PythonManagedObject};
 pub use matrix_row::{python_core_matrix_row, python_core_source_cases};
 pub use objects::{

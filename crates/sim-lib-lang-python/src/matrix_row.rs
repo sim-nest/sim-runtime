@@ -21,6 +21,10 @@ pub fn python_core_source_cases() -> Vec<SourceConformanceCase> {
         ("objects-c3-descriptors-super", "class Root:\n    answer = 40\nclass Add(Root):\n    @property\n    def value(self): return super().answer + 2\nAdd().value\n", "42"),
         ("exception-context-cleanup", "try:\n    raise ValueError('root')\nexcept ValueError as cause:\n    try:\n        raise RuntimeError('outer') from cause\n    finally:\n        answer = 42\nanswer\n", "42"),
         ("generator-send-close", "def values():\n    item = yield 1\n    try:\n        yield item\n    finally:\n        cleanup = 42\ng = values()\nnext(g)\ng.send(42)\ng.close()\ncleanup\n", "42"),
+        ("structural-match-sequence-guard", "match [40, 2]:\n    case [left, right] if right == 2:\n        answer = left + right\nanswer\n", "42"),
+        ("source-module", "from supplied import answer\nanswer\n", "42"),
+        ("authorized-dynamic-eval", "eval('40 + 2')\n", "42"),
+        ("authorized-dynamic-exec", "exec('answer = 42')\nanswer\n", "42"),
     ].into_iter().map(|(name, source, expected)| SourceConformanceCase {
         symbol: Symbol::qualified("test/python-core", name),
         organ: Symbol::qualified("codec", "python"),
@@ -37,7 +41,7 @@ mod tests {
     fn row_is_source_backed() {
         let row = python_core_matrix_row();
         assert_eq!(row.language, Symbol::new("python"));
-        assert_eq!(row.cases.len(), 6);
+        assert_eq!(row.cases.len(), 10);
         assert!(
             row.cases
                 .iter()
