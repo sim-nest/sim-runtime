@@ -67,6 +67,11 @@
 {"kind":"recipe","path":"crates/sim-lib-lang-islisp/recipes/01-basics/profile-descriptor/recipe.toml"}
 {"kind":"recipe","path":"crates/sim-lib-lang-islisp/recipes/01-basics/profile-descriptor/setup.siml"}
 {"kind":"recipe","path":"crates/sim-lib-lang-islisp/recipes/book.toml"}
+{"kind":"recipe","path":"crates/sim-lib-lang-javascript/recipes/01-basics/chapter.toml"}
+{"kind":"recipe","path":"crates/sim-lib-lang-javascript/recipes/01-basics/source-core/purpose.md"}
+{"kind":"recipe","path":"crates/sim-lib-lang-javascript/recipes/01-basics/source-core/recipe.toml"}
+{"kind":"recipe","path":"crates/sim-lib-lang-javascript/recipes/01-basics/source-core/setup.js"}
+{"kind":"recipe","path":"crates/sim-lib-lang-javascript/recipes/book.toml"}
 {"kind":"recipe","path":"crates/sim-lib-lang-julia/recipes/01-basics/chapter.toml"}
 {"kind":"recipe","path":"crates/sim-lib-lang-julia/recipes/01-basics/matrix-row/purpose.md"}
 {"kind":"recipe","path":"crates/sim-lib-lang-julia/recipes/01-basics/matrix-row/recipe.toml"}

@@ -1,5 +1,5 @@
 {
-  "card_count": 26,
+  "card_count": 27,
   "cards": [
     {
       "id": "browse/catalog",
@@ -48,6 +48,12 @@
       "kind": "cookbook-recipe",
       "owner": "sim-lib-lang-islisp",
       "summary": "ISLISP profile descriptors and dispatch fidelity."
+    },
+    {
+      "id": "cookbook/lang/javascript",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-lang-javascript",
+      "summary": "Bounded direct JavaScript evaluation over SIM values; not Node or a foreign engine."
     },
     {
       "id": "cookbook/lang/julia",

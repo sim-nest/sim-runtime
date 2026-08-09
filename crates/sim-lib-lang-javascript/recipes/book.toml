@@ -1,0 +1,5 @@
+book = "lang/javascript"
+title = "Embedded JavaScript Core"
+summary = "Bounded direct JavaScript evaluation over SIM values; not Node or a foreign engine."
+order = 195
+chapters = ["01-basics"]

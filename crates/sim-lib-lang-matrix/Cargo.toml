@@ -16,6 +16,7 @@ sim-lib-lang-cl = { version = "0.1.4", path = "../sim-lib-lang-cl" }
 sim-lib-lang-clojure = { version = "0.1.4", path = "../sim-lib-lang-clojure" }
 sim-lib-lang-islisp = { version = "0.1.4", path = "../sim-lib-lang-islisp" }
 sim-lib-lang-julia = { version = "0.1.3", path = "../sim-lib-lang-julia" }
+sim-lib-lang-javascript = { version = "0.1.0", path = "../sim-lib-lang-javascript" }
 sim-lib-lang-lua = { version = "0.1.3", path = "../sim-lib-lang-lua" }
 sim-lib-lang-prolog = { version = "0.1.3", path = "../sim-lib-lang-prolog" }
 sim-lib-lang-python = { version = "0.1.0", path = "../sim-lib-lang-python" }

@@ -16,6 +16,7 @@
 | `sim-lib-lang-clojure` | `workspace` | 0 | 0 |
 | `sim-lib-lang-genconf` | `workspace` | 0 | 0 |
 | `sim-lib-lang-islisp` | `workspace` | 0 | 0 |
+| `sim-lib-lang-javascript` | `workspace` | 0 | 0 |
 | `sim-lib-lang-julia` | `workspace` | 0 | 0 |
 | `sim-lib-lang-lua` | `workspace` | 0 | 0 |
 | `sim-lib-lang-matrix` | `workspace` | 0 | 0 |

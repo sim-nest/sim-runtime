@@ -12,10 +12,11 @@
 | `cookbook/lang/common-lisp` | `cookbook-recipe` | `sim-lib-lang-cl` | Common Lisp lite profile, reader, package, and condition surfaces. |
 | `cookbook/lang/genconf` | `cookbook-recipe` | `sim-lib-lang-genconf` | Shared expression-space generator and codec registry recipes. |
 | `cookbook/lang/islisp` | `cookbook-recipe` | `sim-lib-lang-islisp` | ISLISP profile descriptors and dispatch fidelity. |
+| `cookbook/lang/javascript` | `cookbook-recipe` | `sim-lib-lang-javascript` | Bounded direct JavaScript evaluation over SIM values; not Node or a foreign engine. |
 | `cookbook/lang/julia` | `cookbook-recipe` | `sim-lib-lang-julia` | Julia core profile descriptors and dispatch behavior. |
 | `cookbook/lang/lua` | `cookbook-recipe` | `sim-lib-lang-lua` | Lua core profile descriptors, source conformance cases, tables, and coroutines. |
 | `cookbook/lang/matrix` | `cookbook-recipe` | `sim-lib-lang-matrix` | Shared conformance matrix assembly recipes. |
-| `cookbook/lang/python` | `cookbook-recipe` | `sim-lib-lang-python` | Source-only Python programs through codec/python and the installed profile. |
+| `cookbook/lang/python` | `cookbook-recipe` | `sim-lib-lang-python` | Capability-scoped, agent-authored Python over SIM values; not a CPython replacement. |
 | `cookbook/lang/ruby` | `cookbook-recipe` | `sim-lib-lang-ruby` | Ruby DSL profile descriptors and block-control behavior. |
 | `cookbook/lang/scheme` | `cookbook-recipe` | `sim-lib-lang-scheme` | R7RS-small profile descriptors and reader surface. |
 | `cookbook/lang/typed-lazy` | `cookbook-recipe` | `sim-lib-lang-typed-lazy` | Typed lazy profile descriptors, ADTs, lazy refs, and typeclasses. |

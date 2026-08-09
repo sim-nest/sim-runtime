@@ -86,6 +86,13 @@
       "summary": "ISLISP surface profile for the SIM runtime."
     },
     {
+      "crate_name": "sim_lib_lang_javascript",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-javascript/Cargo.toml",
+      "package": "sim-lib-lang-javascript",
+      "summary": "Thin, direct JavaScript core profile over lowered codec/javascript forms."
+    },
+    {
       "crate_name": "sim_lib_lang_julia",
       "group": "workspace",
       "manifest": "crates/sim-lib-lang-julia/Cargo.toml",

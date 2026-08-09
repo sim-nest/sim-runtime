@@ -1,0 +1,3 @@
+title = "Direct source evaluation"
+order = 10
+summary = "Enter through codec/javascript and evaluate its lowering with the thin profile."

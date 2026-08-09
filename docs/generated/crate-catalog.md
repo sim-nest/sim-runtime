@@ -18,6 +18,7 @@ Generated from Cargo metadata by `xtask crate-catalog v1`.
 | `sim-lib-lang-clojure` | `true` | `custom-build, lib` | Clojure core surface profile for the SIM expression runtime. |
 | `sim-lib-lang-genconf` | `true` | `custom-build, lib` | SIM generative language conformance support. |
 | `sim-lib-lang-islisp` | `true` | `custom-build, lib` | ISLISP surface profile for the SIM expression runtime. |
+| `sim-lib-lang-javascript` | `true` | `custom-build, lib` | Thin direct JavaScript core profile for the SIM expression runtime. |
 | `sim-lib-lang-julia` | `true` | `custom-build, lib` | Julia-style surface profile for the SIM expression runtime. |
 | `sim-lib-lang-lua` | `true` | `custom-build, lib` | Lua-style surface profile for the SIM expression runtime. |
 | `sim-lib-lang-matrix` | `true` | `custom-build, lib` | SIM language conformance matrix assembly crate. |

@@ -1,0 +1,26 @@
+#![forbid(unsafe_code)]
+#![deny(missing_docs)]
+//! Thin, direct JavaScript core profile over lowered `codec/javascript` forms.
+//!
+//! Syntax remains owned by the codec. This crate owns only bounded ECMAScript
+//! policy and composes shared organs, number domains, managed storage, and the
+//! tracing collector; it contains no compiler, VM, Realm engine, or host loop.
+
+mod managed;
+mod matrix_row;
+mod profile;
+mod runtime;
+
+pub use managed::{
+    JavascriptHeap, JavascriptHeapPolicy, JavascriptManagedKind, JavascriptManagedObject,
+};
+pub use matrix_row::{javascript_core_matrix_row, javascript_core_source_cases};
+pub use profile::{
+    JavascriptIntrinsic, install_javascript_core_profile, javascript_core_profile,
+    javascript_gap_catalog, javascript_intrinsic_manifest, javascript_runtime_kit,
+};
+pub use runtime::{Completion, JavascriptEvalPolicy, JavascriptState, JavascriptValue};
+
+/// Cookbook recipes embedded at build time.
+pub static RECIPES: sim_cookbook::EmbeddedDir =
+    include!(concat!(env!("OUT_DIR"), "/cookbook_recipes.rs"));

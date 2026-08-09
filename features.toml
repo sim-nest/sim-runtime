@@ -14,6 +14,16 @@ major_entrypoints = "advisory"
 frameworks = "advisory"
 
 [[feature]]
+id = "feature/sim-runtime/javascript-core-profile"
+title = "Thin JavaScript core profile"
+summary = "Directly evaluate bounded codec/javascript core forms through shared runtime organs, number domains, and managed cyclic storage."
+owner = "crate/sim-lib-lang-javascript"
+audiences = ["code", "framework"]
+guidance = "Use this profile for bounded single-agent ECMAScript core evaluation. Enter through codec/javascript and compose shared organs, installed numbers, and managed tracing; do not add an engine, VM, Realm substrate, or foreign runtime."
+claims_anchors = ["anchor/crate/sim-lib-lang-javascript"]
+supports = ["feature/sim-runtime/guest-language-profiles", "feature/sim-runtime/organs", "feature/sim-runtime/gc-tracing"]
+
+[[feature]]
 id = "feature/sim-runtime/incremental-query-core"
 title = "Incremental query core"
 summary = "Provide the generic memo graph algorithm that runtime organs can wrap without depending on SIM value surfaces."

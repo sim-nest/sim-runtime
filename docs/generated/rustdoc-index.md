@@ -16,6 +16,7 @@
 | `sim-lib-lang-clojure` | `workspace` | Clojure surface profile for the SIM runtime. |
 | `sim-lib-lang-genconf` | `workspace` | Generative conformance support over the shared expression graph. |
 | `sim-lib-lang-islisp` | `workspace` | ISLISP surface profile for the SIM runtime. |
+| `sim-lib-lang-javascript` | `workspace` | Thin, direct JavaScript core profile over lowered codec/javascript forms. |
 | `sim-lib-lang-julia` | `workspace` | Julia surface profile for the SIM runtime. |
 | `sim-lib-lang-lua` | `workspace` | Lua surface profile for the SIM runtime. |
 | `sim-lib-lang-matrix` | `workspace` | Assembly point for the SIM language conformance matrix. |

@@ -64,6 +64,11 @@
     {
       "features": [],
       "group": "workspace",
+      "package": "sim-lib-lang-javascript"
+    },
+    {
+      "features": [],
+      "group": "workspace",
       "package": "sim-lib-lang-julia"
     },
     {
