@@ -4,9 +4,27 @@ use sim_lib_mutation::{
     ManagedObject,
 };
 
+/// Language-visible role of a managed Python allocation.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum PythonManagedKind {
+    /// An instance or class object.
+    #[default]
+    Instance,
+    /// A closure environment.
+    Closure,
+    /// A suspended or executing frame.
+    Frame,
+    /// An exception, traceback, or exception group.
+    Exception,
+    /// A mutable container.
+    Container,
+}
+
 /// Cyclic mutable Python payload held exclusively in the shared managed arena.
 #[derive(Clone, Debug, Default)]
 pub struct PythonManagedObject {
+    /// Language-visible allocation role; collection does not special-case it.
+    pub kind: PythonManagedKind,
     /// Strong links to other Python objects.
     pub edges: Vec<ManagedId>,
 }
@@ -63,6 +81,19 @@ impl PythonHeap {
     ) -> Result<ManagedHandle, sim_lib_mutation::ArenaError> {
         self.arena.allocate(value)
     }
+    /// Add a strong language edge between two managed values.
+    pub fn connect(
+        &mut self,
+        from: ManagedHandle,
+        to: ManagedHandle,
+    ) -> Result<(), sim_lib_mutation::ArenaError> {
+        self.arena.get_mut(from)?.edges.push(to.id());
+        Ok(())
+    }
+    /// Return the number of live managed allocations.
+    pub fn live_len(&self) -> usize {
+        self.arena.len()
+    }
     /// Return selected policy.
     pub const fn policy(&self) -> PythonHeapPolicy {
         self.policy
@@ -116,5 +147,36 @@ mod tests {
         heap.allocate(PythonManagedObject::default()).unwrap();
         let receipt = heap.collect().unwrap().unwrap();
         assert_eq!(receipt.swept.len(), 1);
+    }
+
+    #[test]
+    fn heterogeneous_language_cycle_is_reclaimed_without_observable_mutation() {
+        let mut heap = PythonHeap::standard(8, limits()).unwrap();
+        let kinds = [
+            PythonManagedKind::Instance,
+            PythonManagedKind::Closure,
+            PythonManagedKind::Frame,
+            PythonManagedKind::Exception,
+            PythonManagedKind::Container,
+        ];
+        let handles: Vec<_> = kinds
+            .into_iter()
+            .map(|kind| {
+                heap.allocate(PythonManagedObject {
+                    kind,
+                    edges: vec![],
+                })
+                .unwrap()
+            })
+            .collect();
+        for pair in handles.windows(2) {
+            heap.connect(pair[0], pair[1]).unwrap();
+        }
+        heap.connect(handles[4], handles[0]).unwrap();
+        let visible_result = 42;
+        let receipt = heap.collect().unwrap().unwrap();
+        assert_eq!(receipt.swept.len(), 5);
+        assert_eq!(heap.live_len(), 0);
+        assert_eq!(visible_result, 42);
     }
 }
