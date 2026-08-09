@@ -5,10 +5,10 @@ use sim_kernel::Symbol;
 use crate::language_matrix;
 
 #[test]
-fn language_matrix_has_exactly_nine_rows() {
+fn language_matrix_has_exactly_eleven_rows() {
     let matrix = language_matrix();
 
-    assert_eq!(matrix.language_count(), 9);
+    assert_eq!(matrix.language_count(), 11);
 }
 
 #[test]
@@ -32,8 +32,10 @@ fn language_matrix_rows_are_populated() {
         "common-lisp",
         "clojure",
         "islisp",
+        "javascript",
         "julia",
         "lua",
+        "python",
         "ruby",
         "typed-lazy",
         "prolog",
