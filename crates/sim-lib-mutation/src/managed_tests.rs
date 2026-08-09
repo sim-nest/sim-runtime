@@ -287,6 +287,29 @@ fn object_inventory_is_allocation_order_even_after_removal() {
 }
 
 #[test]
+fn epoch_guarded_sweep_validates_every_slot_before_mutation() {
+    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(4).unwrap());
+    let live = arena.allocate(Node::default()).unwrap();
+    let garbage = arena.allocate(Node::default()).unwrap();
+    let epoch = arena.mutation_epoch();
+    let rooted = arena.root(live).unwrap();
+
+    assert!(matches!(
+        arena.sweep_at_epoch(epoch, &[garbage.id()]),
+        Err(ArenaError::MutationEpochChanged { .. })
+    ));
+    assert_eq!(arena.len(), 2);
+
+    let current = arena.mutation_epoch();
+    assert_eq!(
+        arena.sweep_at_epoch(current, &[garbage.id()]).unwrap(),
+        vec![garbage.id()]
+    );
+    assert_eq!(arena.len(), 1);
+    assert_eq!(arena.release_root(rooted).unwrap(), live);
+}
+
+#[test]
 fn invalid_policy_is_closed() {
     assert_eq!(HardCappedRetainPolicy::new(0), Err(ArenaError::InvalidCap));
     let policy = HardCappedRetainPolicy::new(9).unwrap();

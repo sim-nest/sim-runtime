@@ -1,6 +1,6 @@
 {
   "generator": "xtask crate-catalog v1",
-  "package_count": 25,
+  "package_count": 26,
   "packages": [
     {
       "description": "Dependency-light incremental query graph with memo cutoff and bounded snapshots.",
@@ -76,6 +76,18 @@
       "root": "crates/sim-lib-exec",
       "target_kinds": [
         "custom-build",
+        "lib"
+      ]
+    },
+    {
+      "description": "Bounded deterministic tracing garbage collection for SIM managed arenas.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-gc-tracing/Cargo.toml",
+      "name": "sim-lib-gc-tracing",
+      "publish": "true",
+      "readme": "crates/sim-lib-gc-tracing/README.md",
+      "root": "crates/sim-lib-gc-tracing",
+      "target_kinds": [
         "lib"
       ]
     },

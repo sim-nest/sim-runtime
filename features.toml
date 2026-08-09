@@ -139,6 +139,23 @@ supports = [
 ]
 
 [[feature]]
+id = "feature/sim-runtime/gc-tracing"
+title = "Bounded tracing garbage collection"
+summary = "Reclaim unreachable managed-object cycles with deterministic, failure-atomic stop-the-world tracing."
+owner = "crate/sim-lib-gc-tracing"
+audiences = ["code", "framework"]
+guidance = "Use collect with explicit object, edge, stack, and work limits over a sim-lib-mutation ManagedArena. Collection plans at a safepoint and refuses before its allocation-ordered atomic sweep when the complete plan cannot be admitted."
+claims_anchors = [
+  "anchor/crate/sim-lib-gc-tracing",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-gc-tracing/src/tests",
+]
+supports = [
+  "feature/sim-runtime/organs",
+]
+
+[[feature]]
 id = "feature/sim-runtime/mutation-organ"
 title = "Mutation organ"
 summary = "Expose capability-gated mutable containers plus a bounded, allocation-deterministic managed-object arena and versioned tracing contract."
@@ -155,6 +172,7 @@ claims_specimens = [
 ]
 supports = [
   "feature/sim-runtime/organs",
+  "feature/sim-runtime/gc-tracing",
 ]
 
 [[feature]]

@@ -7,6 +7,7 @@
 | `browse/catalog` | `browse-root` | `workspace` | root browse catalog |
 | `cookbook/control` | `cookbook-recipe` | `sim-lib-control` | Prompt, capture, abort, and resume surfaces. |
 | `cookbook/core` | `cookbook-recipe` | `sim-lib-core` | Quoting, evaluation, and collection basics. |
+| `cookbook/gc-tracing` | `cookbook-recipe` | `sim-lib-gc-tracing` | Bound and audit managed-arena cycle collection. |
 | `cookbook/lang/clojure` | `cookbook-recipe` | `sim-lib-lang-clojure` | Clojure core profile, EDN reader, namespace, and sequence surfaces. |
 | `cookbook/lang/common-lisp` | `cookbook-recipe` | `sim-lib-lang-cl` | Common Lisp lite profile, reader, package, and condition surfaces. |
 | `cookbook/lang/genconf` | `cookbook-recipe` | `sim-lib-lang-genconf` | Shared expression-space generator and codec registry recipes. |

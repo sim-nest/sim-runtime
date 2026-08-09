@@ -28,6 +28,11 @@
 {"kind":"recipe","path":"crates/sim-lib-exec/recipes/01-basics/bounded-process/setup.siml"}
 {"kind":"recipe","path":"crates/sim-lib-exec/recipes/01-basics/chapter.toml"}
 {"kind":"recipe","path":"crates/sim-lib-exec/recipes/book.toml"}
+{"kind":"recipe","path":"crates/sim-lib-gc-tracing/recipes/01-collection/bounded-cycle/purpose.md"}
+{"kind":"recipe","path":"crates/sim-lib-gc-tracing/recipes/01-collection/bounded-cycle/recipe.toml"}
+{"kind":"recipe","path":"crates/sim-lib-gc-tracing/recipes/01-collection/bounded-cycle/setup.siml"}
+{"kind":"recipe","path":"crates/sim-lib-gc-tracing/recipes/01-collection/chapter.toml"}
+{"kind":"recipe","path":"crates/sim-lib-gc-tracing/recipes/book.toml"}
 {"kind":"recipe","path":"crates/sim-lib-incremental/recipes/01-basics/chapter.toml"}
 {"kind":"recipe","path":"crates/sim-lib-incremental/recipes/01-basics/query-family/purpose.md"}
 {"kind":"recipe","path":"crates/sim-lib-incremental/recipes/01-basics/query-family/recipe.toml"}

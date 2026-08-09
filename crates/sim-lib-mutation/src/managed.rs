@@ -144,6 +144,13 @@ pub enum ArenaError {
     StaleRoot(RootId),
     /// A rooted object cannot be removed.
     ObjectRooted(ManagedId),
+    /// Collection was planned against a different graph state.
+    MutationEpochChanged {
+        /// Epoch used to prepare the operation.
+        expected: u64,
+        /// Current arena epoch.
+        actual: u64,
+    },
 }
 
 impl fmt::Display for ArenaError {
@@ -155,6 +162,10 @@ impl fmt::Display for ArenaError {
             Self::StaleHandle(id) => write!(f, "stale managed handle {}", id.0),
             Self::StaleRoot(id) => write!(f, "stale managed root {}", id.0),
             Self::ObjectRooted(id) => write!(f, "managed object {} is rooted", id.0),
+            Self::MutationEpochChanged { expected, actual } => write!(
+                f,
+                "managed arena mutation epoch changed from {expected} to {actual}"
+            ),
         }
     }
 }
@@ -165,9 +176,14 @@ impl Error for ArenaError {}
 pub struct TraceSnapshot<'a, T> {
     roots: Vec<ManagedId>,
     objects: &'a BTreeMap<ManagedId, T>,
+    mutation_epoch: u64,
 }
 
 impl<T: ManagedObject> TraceSnapshot<'_, T> {
+    /// Returns the arena mutation epoch captured by this snapshot.
+    pub const fn mutation_epoch(&self) -> u64 {
+        self.mutation_epoch
+    }
     /// Enumerates roots in root-registration order.
     pub fn roots(&self) -> impl ExactSizeIterator<Item = ManagedId> + '_ {
         self.roots.iter().copied()
@@ -218,6 +234,7 @@ pub struct ManagedArena<T> {
     next_id: u64,
     next_root: u64,
     next_safepoint: u64,
+    mutation_epoch: u64,
     objects: BTreeMap<ManagedId, T>,
     roots: BTreeMap<RootId, ManagedId>,
 }
@@ -230,6 +247,7 @@ impl<T> ManagedArena<T> {
             next_id: 0,
             next_root: 0,
             next_safepoint: 0,
+            mutation_epoch: 0,
             objects: BTreeMap::new(),
             roots: BTreeMap::new(),
         }
@@ -250,6 +268,19 @@ impl<T> ManagedArena<T> {
         self.objects.is_empty()
     }
 
+    /// Returns the epoch advanced by every graph-affecting arena mutation.
+    pub const fn mutation_epoch(&self) -> u64 {
+        self.mutation_epoch
+    }
+
+    fn advance_mutation_epoch(&mut self) -> Result<(), ArenaError> {
+        self.mutation_epoch = self
+            .mutation_epoch
+            .checked_add(1)
+            .ok_or(ArenaError::IdentityExhausted)?;
+        Ok(())
+    }
+
     /// Allocates atomically after checking the cap and identity space.
     pub fn allocate(&mut self, object: T) -> Result<ManagedHandle, ArenaError> {
         if self.objects.len() >= self.policy.max_objects {
@@ -262,6 +293,7 @@ impl<T> ManagedArena<T> {
             .checked_add(1)
             .ok_or(ArenaError::IdentityExhausted)?;
         let id = ManagedId(self.next_id);
+        self.advance_mutation_epoch()?;
         self.objects.insert(id, object);
         self.next_id = next;
         Ok(ManagedHandle { id })
@@ -276,9 +308,14 @@ impl<T> ManagedArena<T> {
 
     /// Returns a mutable object reference, refusing stale handles.
     pub fn get_mut(&mut self, handle: ManagedHandle) -> Result<&mut T, ArenaError> {
-        self.objects
+        if !self.objects.contains_key(&handle.id) {
+            return Err(ArenaError::StaleHandle(handle.id));
+        }
+        self.advance_mutation_epoch()?;
+        Ok(self
+            .objects
             .get_mut(&handle.id)
-            .ok_or(ArenaError::StaleHandle(handle.id))
+            .expect("validated managed id"))
     }
 
     /// Upgrades a weak handle only while its object remains live.
@@ -305,6 +342,7 @@ impl<T> ManagedArena<T> {
             .checked_add(1)
             .ok_or(ArenaError::IdentityExhausted)?;
         let root = RootId(self.next_root);
+        self.advance_mutation_epoch()?;
         self.roots.insert(root, handle.id);
         self.next_root = next;
         Ok(RootedHandle { root, handle })
@@ -314,6 +352,7 @@ impl<T> ManagedArena<T> {
     pub fn release_root(&mut self, rooted: RootedHandle) -> Result<ManagedHandle, ArenaError> {
         match self.roots.get(&rooted.root) {
             Some(id) if *id == rooted.handle.id => {
+                self.advance_mutation_epoch()?;
                 self.roots.remove(&rooted.root);
                 Ok(rooted.handle)
             }
@@ -326,9 +365,15 @@ impl<T> ManagedArena<T> {
         if self.roots.values().any(|id| *id == handle.id) {
             return Err(ArenaError::ObjectRooted(handle.id));
         }
-        self.objects
+        if !self.objects.contains_key(&handle.id) {
+            return Err(ArenaError::StaleHandle(handle.id));
+        }
+        self.advance_mutation_epoch()?;
+        let removed = self
+            .objects
             .remove(&handle.id)
-            .ok_or(ArenaError::StaleHandle(handle.id))
+            .expect("validated managed id");
+        Ok(removed)
     }
 
     /// Clears a weak edge through the owning object's at-most-once operation.
@@ -341,7 +386,47 @@ impl<T> ManagedArena<T> {
     where
         T: ManagedObject,
     {
-        Ok(self.get_mut(owner)?.clear_weak_edge(edge, expected.id))
+        if !self.objects.contains_key(&owner.id) {
+            return Err(ArenaError::StaleHandle(owner.id));
+        }
+        self.advance_mutation_epoch()?;
+        let cleared = self
+            .objects
+            .get_mut(&owner.id)
+            .expect("validated managed id")
+            .clear_weak_edge(edge, expected.id);
+        Ok(cleared)
+    }
+
+    /// Atomically removes an allocation-ordered set selected from `expected_epoch`.
+    ///
+    /// Every identity and root condition is checked before the first slot changes.
+    pub fn sweep_at_epoch(
+        &mut self,
+        expected_epoch: u64,
+        objects: &[ManagedId],
+    ) -> Result<Vec<ManagedId>, ArenaError> {
+        if self.mutation_epoch != expected_epoch {
+            return Err(ArenaError::MutationEpochChanged {
+                expected: expected_epoch,
+                actual: self.mutation_epoch,
+            });
+        }
+        for id in objects {
+            if !self.objects.contains_key(id) {
+                return Err(ArenaError::StaleHandle(*id));
+            }
+            if self.roots.values().any(|rooted| rooted == id) {
+                return Err(ArenaError::ObjectRooted(*id));
+            }
+        }
+        if !objects.is_empty() {
+            self.advance_mutation_epoch()?;
+        }
+        for id in objects {
+            self.objects.remove(id);
+        }
+        Ok(objects.to_vec())
     }
 
     /// Runs a read-only tracing callback at a deterministic safepoint.
@@ -360,6 +445,7 @@ impl<T> ManagedArena<T> {
         let snapshot = TraceSnapshot {
             roots: roots.clone(),
             objects: &self.objects,
+            mutation_epoch: self.mutation_epoch,
         };
         let result = trace(&snapshot);
         let receipt = SafepointReceipt {
@@ -377,6 +463,9 @@ impl<T> ManagedArena<T> {
             objects: self.objects.keys().copied().collect(),
             roots: self.roots.keys().copied().collect(),
         };
+        if !self.objects.is_empty() || !self.roots.is_empty() {
+            self.mutation_epoch = self.mutation_epoch.saturating_add(1);
+        }
         self.objects.clear();
         self.roots.clear();
         receipt

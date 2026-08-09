@@ -1,0 +1,3 @@
+title = "Collection"
+order = 10
+summary = "Plan a bounded collection before atomic sweep."

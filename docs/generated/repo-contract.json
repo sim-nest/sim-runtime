@@ -1,5 +1,5 @@
 {
-  "card_count": 24,
+  "card_count": 25,
   "cards": [
     {
       "id": "browse/catalog",
@@ -18,6 +18,12 @@
       "kind": "cookbook-recipe",
       "owner": "sim-lib-core",
       "summary": "Quoting, evaluation, and collection basics."
+    },
+    {
+      "id": "cookbook/gc-tracing",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-gc-tracing",
+      "summary": "Bound and audit managed-arena cycle collection."
     },
     {
       "id": "cookbook/lang/clojure",
@@ -161,6 +167,7 @@
       "sim-lib-core",
       "sim-lib-dispatch",
       "sim-lib-exec",
+      "sim-lib-gc-tracing",
       "sim-lib-incremental",
       "sim-lib-lang-cl",
       "sim-lib-lang-clojure",
@@ -321,7 +328,7 @@
       "reason": "transduced sequence adapter; reconstruct from the source sequence and transducer pipeline descriptor"
     }
   ],
-  "package_count": 25,
+  "package_count": 26,
   "packages": [
     {
       "crate_name": "sim_incremental_core",
@@ -545,6 +552,41 @@
           ],
           "name": "build-script-build",
           "src": "crates/sim-lib-exec/build.rs"
+        }
+      ]
+    },
+    {
+      "crate_name": "sim_lib_gc_tracing",
+      "dependencies": [
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-mutation",
+          "rename": null,
+          "target": null
+        }
+      ],
+      "description": "Bounded deterministic tracing garbage collection for SIM managed arenas.",
+      "features": [],
+      "group": "workspace",
+      "manifest": "crates/sim-lib-gc-tracing/Cargo.toml",
+      "name": "sim-lib-gc-tracing",
+      "publish": "true",
+      "root": "crates/sim-lib-gc-tracing",
+      "rustdoc_summary": "Bounded stop-the-world tracing collection for managed arenas.",
+      "target_kinds": [
+        "lib"
+      ],
+      "targets": [
+        {
+          "crate_types": [
+            "lib"
+          ],
+          "kind": [
+            "lib"
+          ],
+          "name": "sim_lib_gc_tracing",
+          "src": "crates/sim-lib-gc-tracing/src/lib.rs"
         }
       ]
     },
@@ -1760,10 +1802,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-16T00:13:38+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "6bc596b38344fc9532eb336aefb3485458fead0e",
+    "git_commit": "c6505d49adc8f939100027ee9bf99b2b5c962b91",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "6bc596b38344fc9532eb336aefb3485458fead0e",
+    "source_commit": "c6505d49adc8f939100027ee9bf99b2b5c962b91",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -1776,9 +1818,9 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "d9663396d85e5ec5",
+    "workspace_hash": "c755fb4b38971d73",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 399,
+    "workspace_hash_input_count": 404,
     "workspace_hash_inputs": [
       "Cargo.toml",
       "crates/sim-incremental-core/Cargo.toml",
@@ -1868,6 +1910,11 @@
       "crates/sim-lib-exec/src/lib.rs",
       "crates/sim-lib-exec/src/tests.rs",
       "crates/sim-lib-exec/src/timeout.rs",
+      "crates/sim-lib-gc-tracing/Cargo.toml",
+      "crates/sim-lib-gc-tracing/recipes/01-collection/bounded-cycle/recipe.toml",
+      "crates/sim-lib-gc-tracing/recipes/book.toml",
+      "crates/sim-lib-gc-tracing/src/lib.rs",
+      "crates/sim-lib-gc-tracing/src/tests.rs",
       "crates/sim-lib-incremental/Cargo.toml",
       "crates/sim-lib-incremental/build.rs",
       "crates/sim-lib-incremental/recipes/01-basics/query-family/recipe.toml",
@@ -2181,7 +2228,7 @@
       "xtask/Cargo.toml"
     ]
   },
-  "recipe_book_count": 22,
+  "recipe_book_count": 23,
   "recipes": [
     {
       "book": "organ/binding",
@@ -2290,6 +2337,26 @@
       ],
       "summary": "Permission-gated host process runs with time and output limits.",
       "title": "Bounded Process Execution"
+    },
+    {
+      "book": "gc-tracing",
+      "book_toml": "crates/sim-lib-gc-tracing/recipes/book.toml",
+      "card_id": "cookbook/gc-tracing",
+      "group": "workspace",
+      "package": "sim-lib-gc-tracing",
+      "recipe_count": 1,
+      "recipes": [
+        {
+          "card_id": "gc-tracing/01-collection/bounded-cycle",
+          "codec": "lisp",
+          "id": "bounded-cycle",
+          "package": "sim-lib-gc-tracing",
+          "recipe_toml": "crates/sim-lib-gc-tracing/recipes/01-collection/bounded-cycle/recipe.toml",
+          "title": "Reclaim an unreachable cycle"
+        }
+      ],
+      "summary": "Bound and audit managed-arena cycle collection.",
+      "title": "Tracing garbage collection"
     },
     {
       "book": "organ/incremental",

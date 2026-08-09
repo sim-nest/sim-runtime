@@ -1,0 +1,5 @@
+book = "gc-tracing"
+title = "Tracing garbage collection"
+summary = "Bound and audit managed-arena cycle collection."
+order = 66
+chapters = ["01-collection"]

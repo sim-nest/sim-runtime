@@ -44,6 +44,13 @@
       "summary": "Capability-gated bounded host-process execution for the SIM runtime."
     },
     {
+      "crate_name": "sim_lib_gc_tracing",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-gc-tracing/Cargo.toml",
+      "package": "sim-lib-gc-tracing",
+      "summary": "Bounded stop-the-world tracing collection for managed arenas."
+    },
+    {
       "crate_name": "sim_lib_incremental",
       "group": "workspace",
       "manifest": "crates/sim-lib-incremental/Cargo.toml",

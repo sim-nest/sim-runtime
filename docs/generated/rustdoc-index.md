@@ -10,6 +10,7 @@
 | `sim-lib-core` | `workspace` | Shared surface-pack substrate for SIM runtime libraries. |
 | `sim-lib-dispatch` | `workspace` | Generic functions, method dispatch, and neutral property mechanics for the SIM runtime. |
 | `sim-lib-exec` | `workspace` | Capability-gated bounded host-process execution for the SIM runtime. |
+| `sim-lib-gc-tracing` | `workspace` | Bounded stop-the-world tracing collection for managed arenas. |
 | `sim-lib-incremental` | `workspace` | Loadable incremental query organ for SIM runtime expressions. |
 | `sim-lib-lang-cl` | `workspace` | Common Lisp surface profile for the SIM runtime. |
 | `sim-lib-lang-clojure` | `workspace` | Clojure surface profile for the SIM runtime. |
