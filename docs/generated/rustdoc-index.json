@@ -34,7 +34,7 @@
       "group": "workspace",
       "manifest": "crates/sim-lib-dispatch/Cargo.toml",
       "package": "sim-lib-dispatch",
-      "summary": "Generic functions and method dispatch for the SIM runtime."
+      "summary": "Generic functions, method dispatch, and neutral property mechanics for the SIM runtime."
     },
     {
       "crate_name": "sim_lib_exec",
