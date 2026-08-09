@@ -14,6 +14,8 @@ pub enum JavascriptManagedKind {
     Environment,
     /// Iterator or suspended frame.
     Frame,
+    /// Callable identity whose edges include its captured environment.
+    Function,
 }
 /// Cyclic JavaScript payload stored exclusively by the shared arena.
 #[derive(Clone, Debug, Default)]

@@ -176,6 +176,16 @@ pub struct PropertyStore<O, K, V, H> {
     objects: Vec<PropertyObject<O, K, V, H>>,
 }
 
+impl<O, K, V, H> PropertyStore<O, K, V, H> {
+    /// Creates an empty property store without imposing `Default` on its
+    /// caller-owned identity, key, value, or hook types.
+    pub const fn new() -> Self {
+        Self {
+            objects: Vec::new(),
+        }
+    }
+}
+
 impl<O, K, V, H> PropertyStore<O, K, V, H>
 where
     O: Clone + Eq + Hash,

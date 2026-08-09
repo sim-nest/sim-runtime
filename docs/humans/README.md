@@ -17,7 +17,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 
 | Feature | Subject | Specimens | Summary |
 | --- | --- | ---: | --- |
-| `feature/sim-runtime/javascript-core-profile` | `crate/sim-lib-lang-javascript` | 0 | Directly evaluate bounded codec/javascript core forms through shared runtime organs, number domains, and managed cyclic storage. |
+| `feature/sim-runtime/javascript-core-profile` | `crate/sim-lib-lang-javascript` | 0 | Directly evaluate bounded codec/javascript core forms and ordinary object policy through shared runtime organs, descriptor dispatch, and managed cyclic storage. |
 | `feature/sim-runtime/incremental-query-core` | `crate/sim-incremental-core` | 1 | Provide the generic memo graph algorithm that runtime organs can wrap without depending on SIM value surfaces. |
 | `feature/sim-runtime/incremental-query-organ` | `crate/sim-lib-incremental` | 1 | Expose incremental expression queries as a loadable SIM organ with capability-gated registration, invalidation, verification, explanation, snapshots, and metrics. |
 | `feature/sim-runtime/capabilities-read-eval` | `crate/sim-lib-core` | 1 | Gate diminished read-eval and surface packing through explicit runtime libraries and capability checks. |

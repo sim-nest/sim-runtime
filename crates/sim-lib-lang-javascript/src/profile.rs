@@ -44,6 +44,8 @@ pub const fn javascript_gap_catalog() -> &'static [&'static str] {
         "host-event-loop",
         "weak-apis",
         "retain-policy-leaks-cycles",
+        "proxy-invariants",
+        "exotic-object-invariants",
     ]
 }
 /// Build the inspectable JavaScript language profile.
@@ -138,7 +140,7 @@ mod tests {
         let e = javascript_core_profile().checked_guest_evidence().unwrap();
         assert_eq!(e.organs.len(), 5);
         assert_eq!(e.capabilities.len(), 1);
-        assert_eq!(e.gaps.len(), 6);
+        assert_eq!(e.gaps.len(), 8);
         assert_eq!(javascript_intrinsic_manifest().len(), 4);
     }
 }

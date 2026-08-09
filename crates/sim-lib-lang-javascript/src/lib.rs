@@ -8,6 +8,7 @@
 
 mod managed;
 mod matrix_row;
+mod objects;
 mod profile;
 mod runtime;
 
@@ -15,6 +16,11 @@ pub use managed::{
     JavascriptHeap, JavascriptHeapPolicy, JavascriptManagedKind, JavascriptManagedObject,
 };
 pub use matrix_row::{javascript_core_matrix_row, javascript_core_source_cases};
+pub use objects::{
+    JavascriptFunction, JavascriptFunctionKind, JavascriptObjectError, JavascriptObjectGap,
+    JavascriptObjects, JavascriptPropertyKey, JavascriptThis,
+    javascript_callable_shape_constraints, javascript_object_gaps,
+};
 pub use profile::{
     JavascriptIntrinsic, install_javascript_core_profile, javascript_core_profile,
     javascript_gap_catalog, javascript_intrinsic_manifest, javascript_runtime_kit,

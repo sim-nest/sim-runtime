@@ -16,10 +16,10 @@ frameworks = "advisory"
 [[feature]]
 id = "feature/sim-runtime/javascript-core-profile"
 title = "Thin JavaScript core profile"
-summary = "Directly evaluate bounded codec/javascript core forms through shared runtime organs, number domains, and managed cyclic storage."
+summary = "Directly evaluate bounded codec/javascript core forms and ordinary object policy through shared runtime organs, descriptor dispatch, and managed cyclic storage."
 owner = "crate/sim-lib-lang-javascript"
 audiences = ["code", "framework"]
-guidance = "Use this profile for bounded single-agent ECMAScript core evaluation. Enter through codec/javascript and compose shared organs, installed numbers, and managed tracing; do not add an engine, VM, Realm substrate, or foreign runtime."
+guidance = "Use this profile for bounded single-agent ECMAScript core evaluation. Enter through codec/javascript and compose shared binding, descriptor dispatch, managed identity, and tracing mechanics for closures, ordinary functions, prototypes, arrays, classes, and the declared private-name subset. Callable browse Shapes remain neutral, and Proxy and exotic-object invariants are explicit gaps; do not add an engine, VM, Realm substrate, TypeScript policy, or foreign runtime."
 claims_anchors = ["anchor/crate/sim-lib-lang-javascript"]
 supports = ["feature/sim-runtime/guest-language-profiles", "feature/sim-runtime/organs", "feature/sim-runtime/gc-tracing"]
 
