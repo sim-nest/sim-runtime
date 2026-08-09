@@ -91,8 +91,51 @@ claims_anchors = [
   "anchor/runtime-lib/sim-lib-sequence/sequence-lib",
 ]
 claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-binding/src/tests",
+  "spec-test/sim-runtime/crates/sim-lib-control/src/organ_tests",
   "spec-test/sim-runtime/crates/sim-lib-incremental/src/tests",
   "spec-test/sim-runtime/crates/sim-lib-logic/src/tests/organ_proof",
+  "spec-test/sim-runtime/crates/sim-lib-namespace/src/module/tests",
+]
+
+[[feature]]
+id = "feature/sim-runtime/binding-organ"
+title = "Language-neutral binding organ"
+summary = "Bind declared calls and maintain lexical, dynamic, recursive, and live binding cells without guest-language ownership."
+owner = "crate/sim-lib-binding"
+audiences = ["code", "framework"]
+guidance = "Use CallSignature and BindingCell as the shared binding boundary. Guest profiles declare policy and lowering only; they do not copy argument partitioning, recursive initialization, or live export cells."
+claims_anchors = [
+  "anchor/crate/sim-lib-binding",
+  "anchor/runtime-lib/sim-lib-binding/binding-lib",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-binding/src/tests",
+  "spec-test/sim-runtime/crates/sim-lib-namespace/src/module/tests",
+]
+supports = [
+  "feature/sim-runtime/organs",
+  "feature/sim-runtime/guest-language-profiles",
+]
+
+[[feature]]
+id = "feature/sim-runtime/control-organ"
+title = "Language-neutral control and job organ"
+summary = "Drive bounded resumable frames, cleanup-safe unwind, and explicitly checkpointed typed FIFO jobs."
+owner = "crate/sim-lib-control"
+audiences = ["code", "framework"]
+guidance = "Use ResumableFrame and JobQueues for shared suspension and caller-driven work. Guest profiles select policy and translate surface forms; they do not install private schedulers or queues."
+claims_anchors = [
+  "anchor/crate/sim-lib-control",
+  "anchor/runtime-lib/sim-lib-control/control-lib",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-control/src/organ_tests",
+  "spec-test/sim-runtime/crates/sim-lib-namespace/src/module/tests",
+]
+supports = [
+  "feature/sim-runtime/organs",
+  "feature/sim-runtime/guest-language-profiles",
 ]
 
 [[feature]]
@@ -124,6 +167,10 @@ guidance = "Use PropertyStore for descriptor storage and execution over caller-o
 claims_anchors = [
   "anchor/crate/sim-lib-dispatch",
 ]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-dispatch/src/property_tests",
+  "spec-test/sim-runtime/crates/sim-lib-namespace/src/module/tests",
+]
 supports = [
   "feature/sim-runtime/organs",
   "feature/sim-runtime/mutation-organ",
@@ -142,6 +189,7 @@ claims_anchors = [
 ]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-namespace/src/tests",
+  "spec-test/sim-runtime/crates/sim-lib-namespace/src/module/tests",
 ]
 supports = [
   "feature/sim-runtime/organs",
@@ -184,7 +232,7 @@ title = "Small guest-language profiles"
 summary = "Add source-language surfaces as readers, direct Expr lowering, checked eval policy, and shared organ composition without guest-owned runtime machinery."
 owner = "crate/sim-lib-standard-core"
 audiences = ["code", "framework"]
-guidance = "Start from Lua's checked profile and codec, register the crate in guest-profiles.toml, reuse organs, and finish by adding the profile to the shared language matrix."
+guidance = "Start from the checked LanguageProfile and GuestProfileEvidence thin-profile contract, follow Lua's codec and profile as the no-compiler reference, register the crate in guest-profiles.toml, reuse organs, and finish by adding the profile to the shared language matrix."
 claims_anchors = [
   "anchor/crate/sim-lib-standard-core",
   "anchor/crate/sim-lib-lang-lua",
@@ -253,7 +301,8 @@ id = "route/add-guest-language-profile"
 task = "Add a guest language profile"
 audiences = ["code", "framework"]
 steps = [
-  { feature = "feature/sim-runtime/guest-language-profiles", why = "The profile row establishes the checked Lua-scale ownership boundary and points to the Lua reader and profile." },
+  { feature = "feature/sim-runtime/guest-language-profiles", why = "The profile row establishes the checked thin-profile ownership boundary before any guest-specific work and points to Lua as the no-compiler reference." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-standard-core/src/tests", why = "The shared profile specimen fails closed unless reader, lowering, eval policy, organ reuse, capabilities, and gaps are explicit." },
   { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-lua/src/conformance", why = "The Lua source-codec specimen proves direct source parsing and lowering through the positive reference profile." },
   { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-lua/src/lib", why = "The Lua profile and matrix-row tests are the final shared-matrix registration specimen for a guest profile." },
 ]

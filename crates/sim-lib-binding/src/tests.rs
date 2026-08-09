@@ -1,3 +1,5 @@
+// conformance: language-neutral binding, call partitioning, and live cell lifecycle.
+
 use std::sync::Arc;
 
 use sim_kernel::{

@@ -1,3 +1,5 @@
+// conformance: ordered language-neutral data and accessor descriptor mechanics.
+
 use std::convert::Infallible;
 
 use crate::*;

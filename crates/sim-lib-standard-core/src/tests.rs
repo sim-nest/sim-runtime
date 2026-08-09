@@ -1,3 +1,5 @@
+// conformance: checked thin-profile contract and standard profile records.
+
 use std::sync::Arc;
 
 use sim_codec::{Input, decode_with_codec};

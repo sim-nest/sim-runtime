@@ -1513,6 +1513,27 @@
       "crate_name": "sim_lib_namespace",
       "dependencies": [
         {
+          "kind": "dev",
+          "optional": false,
+          "package": "sim-lib-control",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "dev",
+          "optional": false,
+          "package": "sim-lib-dispatch",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "dev",
+          "optional": false,
+          "package": "sim-lib-mutation",
+          "rename": null,
+          "target": null
+        },
+        {
           "kind": "normal",
           "optional": false,
           "package": "sim-lib-binding",
@@ -1739,10 +1760,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-16T00:13:38+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "f0a297783f538c00bd66eb0ad85ed9d41cc81dff",
+    "git_commit": "6bc596b38344fc9532eb336aefb3485458fead0e",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "f0a297783f538c00bd66eb0ad85ed9d41cc81dff",
+    "source_commit": "6bc596b38344fc9532eb336aefb3485458fead0e",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -1755,7 +1776,7 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "6ec1073daa91e7f4",
+    "workspace_hash": "d9663396d85e5ec5",
     "workspace_hash_algorithm": "fnv1a64",
     "workspace_hash_input_count": 399,
     "workspace_hash_inputs": [

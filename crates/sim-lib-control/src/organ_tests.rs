@@ -1,3 +1,5 @@
+// conformance: bounded resumable frames, unwind, and typed job checkpoints.
+
 use std::sync::{Arc, Mutex};
 
 use super::{

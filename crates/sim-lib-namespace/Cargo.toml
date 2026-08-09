@@ -21,6 +21,9 @@ workspace = true
 
 [dev-dependencies]
 sim-codec-lisp = { version = "0.2.0" }
+sim-lib-control = { version = "0.1.3", path = "../sim-lib-control" }
+sim-lib-dispatch = { version = "0.1.2", path = "../sim-lib-dispatch" }
+sim-lib-mutation = { version = "0.1.2", path = "../sim-lib-mutation" }
 
 [build-dependencies]
 sim-cookbook = { version = "0.2.0" }
