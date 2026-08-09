@@ -6,6 +6,8 @@
 //! policy and composes shared organs, number domains, managed storage, and the
 //! tracing collector; it contains no compiler, VM, Realm engine, or host loop.
 
+// conformance: the crate test suite checks the bounded JavaScript core profile.
+
 mod collections;
 mod fidelity;
 mod jobs;

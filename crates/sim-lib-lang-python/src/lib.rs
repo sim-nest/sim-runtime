@@ -7,6 +7,8 @@
 //! lowering and composes the shared binding, control, mutation, sequence,
 //! dispatch, number, arena, and tracing-collector contracts.
 
+// conformance: the crate test suite checks the authorized Python library core.
+
 mod fidelity;
 mod library_core;
 mod managed;

@@ -6,6 +6,8 @@ use sim_lib_dispatch::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 
+// conformance: Python object policy checks classes, descriptors, methods, and super.
+
 /// Value stored by the checked object model.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub enum PythonObjectValue {

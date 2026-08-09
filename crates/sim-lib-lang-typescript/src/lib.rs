@@ -6,6 +6,8 @@
 //! projects only a bounded faithful annotation vocabulary to observational
 //! Shape metadata, and delegates execution to `sim-lib-lang-javascript`.
 
+// conformance: the crate test suite checks bounded TypeScript notation and erasure.
+
 mod fidelity;
 mod metadata;
 mod profile;

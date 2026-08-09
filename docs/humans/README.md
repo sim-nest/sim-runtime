@@ -17,22 +17,22 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 
 | Feature | Subject | Specimens | Summary |
 | --- | --- | ---: | --- |
-| `feature/sim-runtime/javascript-core-profile` | `crate/sim-lib-lang-javascript` | 0 | Run embedded, capability-scoped ECMAScript over SIM values with ordinary objects, exact UTF-16 strings, explicit drain-to-empty jobs, authorized source modules, and no Node, DOM, timers, ambient host IO, or implicit event loop. |
-| `feature/sim-runtime/typescript-notation-profile` | `crate/sim-lib-lang-typescript` | 0 | TypeScript notation; does not type-check. Load admitted notation by direct JavaScript erasure while retaining faithful, non-enforcing Shape metadata and explicit compiler gaps. |
+| `feature/sim-runtime/javascript-core-profile` | `crate/sim-lib-lang-javascript` | 1 | Run embedded, capability-scoped ECMAScript over SIM values with ordinary objects, exact UTF-16 strings, explicit drain-to-empty jobs, authorized source modules, and no Node, DOM, timers, ambient host IO, or implicit event loop. |
+| `feature/sim-runtime/typescript-notation-profile` | `crate/sim-lib-lang-typescript` | 1 | TypeScript notation; does not type-check. Load admitted notation by direct JavaScript erasure while retaining faithful, non-enforcing Shape metadata and explicit compiler gaps. |
 | `feature/sim-runtime/incremental-query-core` | `crate/sim-incremental-core` | 1 | Provide the generic memo graph algorithm that runtime organs can wrap without depending on SIM value surfaces. |
 | `feature/sim-runtime/incremental-query-organ` | `crate/sim-lib-incremental` | 1 | Expose incremental expression queries as a loadable SIM organ with capability-gated registration, invalidation, verification, explanation, snapshots, and metrics. |
 | `feature/sim-runtime/capabilities-read-eval` | `crate/sim-lib-core` | 1 | Gate diminished read-eval and surface packing through explicit runtime libraries and capability checks. |
-| `feature/sim-runtime/organs` | `crate/sim-lib-binding` | 5 | Provide binding, control, logic, pattern, incremental, mutation, namespace, and sequence organs as reusable runtime behavior. |
-| `feature/sim-runtime/binding-organ` | `crate/sim-lib-binding` | 2 | Bind declared calls and maintain lexical, dynamic, recursive, and live binding cells without guest-language ownership. |
-| `feature/sim-runtime/control-organ` | `crate/sim-lib-control` | 2 | Drive bounded resumable frames, cleanup-safe unwind, and explicitly checkpointed typed FIFO jobs. |
+| `feature/sim-runtime/organs` | `crate/sim-lib-binding` | 1 | Provide binding, control, logic, pattern, incremental, mutation, namespace, and sequence organs as reusable runtime behavior. |
+| `feature/sim-runtime/binding-organ` | `crate/sim-lib-binding` | 1 | Bind declared calls and maintain lexical, dynamic, recursive, and live binding cells without guest-language ownership. |
+| `feature/sim-runtime/control-organ` | `crate/sim-lib-control` | 1 | Drive bounded resumable frames, cleanup-safe unwind, and explicitly checkpointed typed FIFO jobs. |
 | `feature/sim-runtime/gc-tracing` | `crate/sim-lib-gc-tracing` | 1 | Reclaim unreachable managed-object cycles with deterministic, failure-atomic stop-the-world tracing. |
 | `feature/sim-runtime/mutation-organ` | `crate/sim-lib-mutation` | 2 | Expose capability-gated mutable containers plus a bounded, allocation-deterministic managed-object arena and versioned tracing contract. |
-| `feature/sim-runtime/property-mechanics` | `crate/sim-lib-dispatch` | 2 | Store ordered own properties and execute data or accessor descriptors with receiver-aware, budgeted interception. |
+| `feature/sim-runtime/property-mechanics` | `crate/sim-lib-dispatch` | 1 | Store ordered own properties and execute data or accessor descriptors with receiver-aware, budgeted interception. |
 | `feature/sim-runtime/namespace-organ` | `crate/sim-lib-namespace` | 2 | Expose namespace records plus capability-aware, source-bound module resolution, linking, live bindings, cache lifecycle, and receipts. |
 | `feature/sim-runtime/library-loading` | `crate/sim-lib-standard-core` | 1 | Load standard and language-profile runtime libraries through stable export records. |
 | `feature/sim-runtime/guest-language-profiles` | `crate/sim-lib-standard-core` | 2 | Add source-language surfaces as readers, direct Expr lowering, checked eval policy, and shared organ composition without guest-owned runtime machinery. |
-| `feature/sim-runtime/python-object-control-policy` | `crate/sim-lib-lang-python` | 2 | Compose Python classes, C3, descriptors, bound methods, super, checked exceptions, context cleanup, generators, coroutines, and cyclic collection over shared runtime organs. |
-| `feature/sim-runtime/python-authorized-library-core` | `crate/sim-lib-lang-python` | 0 | Run embedded, capability-scoped, agent-authored Python over SIM values with ordered matching, supplied-root modules, and diminished eval/exec. |
+| `feature/sim-runtime/python-object-control-policy` | `crate/sim-lib-lang-python` | 1 | Compose Python classes, C3, descriptors, bound methods, super, checked exceptions, context cleanup, generators, coroutines, and cyclic collection over shared runtime organs. |
+| `feature/sim-runtime/python-authorized-library-core` | `crate/sim-lib-lang-python` | 1 | Run embedded, capability-scoped, agent-authored Python over SIM values with ordered matching, supplied-root modules, and diminished eval/exec. |
 | `feature/sim-runtime/host-exec` | `crate/sim-lib-exec` | 1 | Expose bounded process execution as a capability-gated host primitive outside the kernel. |
 | `feature/sim-runtime/contract-emitter` | `crate/xtask` | 0 | Emit generated repository contract and index fragments for runtime crates. |
 
@@ -233,6 +233,124 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 - `crates/sim-lib-standard-core/recipes/book.toml`
 
 ## Worked Examples
+
+### `feature/sim-runtime/javascript-core-profile`
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-lang-javascript/src/lib` is checked by `cargo test`.
+
+Source `crates/sim-lib-lang-javascript/src/lib.rs`:
+
+```rust
+#![forbid(unsafe_code)]
+#![deny(missing_docs)]
+//! Thin, direct JavaScript core profile over lowered `codec/javascript` forms.
+//!
+//! Syntax remains owned by the codec. This crate owns only bounded ECMAScript
+//! policy and composes shared organs, number domains, managed storage, and the
+//! tracing collector; it contains no compiler, VM, Realm engine, or host loop.
+
+// conformance: the crate test suite checks the bounded JavaScript core profile.
+
+mod collections;
+mod fidelity;
+mod jobs;
+mod json;
+mod managed;
+mod matrix_row;
+mod modules;
+mod objects;
+mod profile;
+mod regexp;
+mod runtime;
+mod text;
+
+pub use collections::{
+    JavascriptArray, JavascriptCollectionError, JavascriptIterator, JavascriptMap, JavascriptSet,
+    JavascriptSymbol, JavascriptSymbolRegistry,
+};
+pub use fidelity::{
+    ECMA262_ORACLE, JavascriptFidelityDimension, JavascriptRegressionCase, TEST262_ORACLE,
+    javascript_fidelity_dimensions, javascript_regression_cases,
+};
+pub use jobs::{
+    JavascriptAsyncFunction, JavascriptException, JavascriptGenerator, JavascriptJobClass,
+    JavascriptJobs, JavascriptPromise, JavascriptPromiseState,
+};
+pub use json::{
+    JavascriptJsonError, JavascriptJsonValue, JsonReplacer, JsonReviver, JsonToJson,
+    parse_javascript_json, stringify_javascript_json,
+};
+pub use managed::{
+    JavascriptHeap, JavascriptHeapPolicy, JavascriptManagedKind, JavascriptManagedObject,
+};
+pub use matrix_row::{javascript_core_matrix_row, javascript_core_source_cases};
+pub use modules::{
+    DynamicJavascript, JavascriptDynamicAdmission, JavascriptModuleAdmission,
+    JavascriptModulePolicy,
+};
+pub use objects::{
+    JavascriptFunction, JavascriptFunctionKind, JavascriptObjectError, JavascriptObjectGap,
+    JavascriptObjects, JavascriptPropertyKey, JavascriptThis,
+    javascript_callable_shape_constraints, javascript_object_gaps,
+};
+pub use profile::{
+    JavascriptIntrinsic, install_javascript_core_profile, javascript_core_profile,
+    javascript_gap_catalog, javascript_intrinsic_manifest, javascript_runtime_kit,
+};
+pub use regexp::{
+    JAVASCRIPT_REGEXP_SUCCESSOR, JavascriptRegExp, JavascriptRegExpError, JavascriptRegExpGap,
+    javascript_regexp_gaps,
+};
+pub use runtime::{Completion, JavascriptEvalPolicy, JavascriptState, JavascriptValue};
+pub use text::{JavascriptCodeUnitString, JavascriptTextError};
+
+/// Cookbook recipes embedded at build time.
+pub static RECIPES: sim_cookbook::EmbeddedDir =
+    include!(concat!(env!("OUT_DIR"), "/cookbook_recipes.rs"));
+```
+
+### `feature/sim-runtime/typescript-notation-profile`
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-lang-typescript/src/lib` is checked by `cargo test`.
+
+Source `crates/sim-lib-lang-typescript/src/lib.rs`:
+
+```rust
+#![forbid(unsafe_code)]
+#![deny(missing_docs)]
+//! TypeScript notation over the unchanged JavaScript evaluator.
+//!
+//! The codec owns parsing and direct erasure. This crate retains provenance,
+//! projects only a bounded faithful annotation vocabulary to observational
+//! Shape metadata, and delegates execution to `sim-lib-lang-javascript`.
+
+// conformance: the crate test suite checks bounded TypeScript notation and erasure.
+
+mod fidelity;
+mod metadata;
+mod profile;
+mod runtime;
+
+pub use fidelity::{
+    TYPESCRIPT_EXTERNAL_ORACLE, TypeScriptFidelityDimension, typescript_fidelity_dimensions,
+};
+pub use metadata::{
+    AnnotationMetadata, AnnotationProvenance, ProjectedShape, attach_browse_signature,
+    project_annotation,
+};
+pub use profile::{
+    install_typescript_notation_profile, typescript_gap_manifest, typescript_notation_profile,
+    typescript_profile_symbol,
+};
+pub use runtime::{TypeScriptNotation, TypeScriptProgram};
+
+/// Cookbook recipes embedded at build time.
+pub static RECIPES: sim_cookbook::EmbeddedDir =
+    include!(concat!(env!("OUT_DIR"), "/cookbook_recipes.rs"));
+
+#[cfg(test)]
+mod tests;
+```
 
 ### `feature/sim-runtime/incremental-query-core`
 
@@ -1314,1052 +1432,6 @@ fn class_value_or_stub(cx: &mut Cx, id: ClassId, symbol: Symbol) -> Result<Value
 
 ### `feature/sim-runtime/organs`
 
-Specimen `spec-test/sim-runtime/crates/sim-lib-binding/src/tests` is checked by `cargo test`.
-
-Source `crates/sim-lib-binding/src/tests.rs`:
-
-```rust
-// conformance: language-neutral binding, call partitioning, and live cell lifecycle.
-
-use std::sync::Arc;
-
-use sim_kernel::{
-    Args, Cx, Error, Expr, NumberLiteral, Ref, Result, Symbol,
-    card::{card_for_ref, card_kind_predicate},
-    force_list_to_vec,
-    standard::standard_organ_kind,
-};
-
-use crate::*;
-
-use sim_kernel::testing::bare_cx as cx;
-
-fn number(cx: &mut Cx, value: u64) -> sim_kernel::Value {
-    cx.factory()
-        .number_literal(Symbol::qualified("test", "u64"), value.to_string())
-        .unwrap()
-}
-
-fn bool_value(cx: &mut Cx, value: bool) -> sim_kernel::Value {
-    cx.factory().bool(value).unwrap()
-}
-
-fn symbol_value(cx: &mut Cx, name: &str) -> sim_kernel::Value {
-    cx.factory().symbol(Symbol::new(name)).unwrap()
-}
-
-fn number_from_value(cx: &mut Cx, value: &sim_kernel::Value) -> u64 {
-    let Expr::Number(NumberLiteral { canonical, .. }) = value.object().as_expr(cx).unwrap() else {
-        panic!("expected number value");
-    };
-    canonical.parse().unwrap()
-}
-
-fn bool_from_value(cx: &mut Cx, value: &sim_kernel::Value) -> bool {
-    let Expr::Bool(value) = value.object().as_expr(cx).unwrap() else {
-        panic!("expected bool value");
-    };
-    value
-}
-
-fn call_value(
-    cx: &mut Cx,
-    function: sim_kernel::Value,
-    args: Vec<sim_kernel::Value>,
-) -> Result<sim_kernel::Value> {
-    let Some(callable) = function.object().as_callable() else {
-        return Err(Error::TypeMismatch {
-            expected: "callable binding value",
-            found: "non-callable",
-        });
-    };
-    callable.call(cx, Args::new(args))
-}
-
-#[test]
-fn lexical_let_star_sees_prior_bindings() {
-    let mut cx = cx();
-    let env = LexicalEnv::new();
-    let x = Symbol::new("x");
-    let y = Symbol::new("y");
-
-    let result = eval_let_star(
-        &mut cx,
-        &env,
-        vec![
-            {
-                let x = x.clone();
-                (
-                    x,
-                    Box::new(|cx: &mut Cx, _env: &LexicalEnv| Ok(number(cx, 2)))
-                        as BindingInitializer,
-                )
-            },
-            {
-                let x = x.clone();
-                let y = y.clone();
-                (
-                    y,
-                    Box::new(move |cx: &mut Cx, env: &LexicalEnv| {
-                        let left = number_from_value(cx, &env.lookup(&x)?);
-                        Ok(number(cx, left + 3))
-                    }) as BindingInitializer,
-                )
-            },
-        ],
-        |_cx, env| env.lookup(&y),
-    )
-    .unwrap();
-
-    assert_eq!(number_from_value(&mut cx, &result), 5);
-}
-
-#[test]
-fn letrec_handles_mutual_recursion() {
-    let mut cx = cx();
-    let root = LexicalEnv::new();
-    let even = Symbol::new("even?");
-    let odd = Symbol::new("odd?");
-
-    let result = eval_letrec(
-        &mut cx,
-        &root,
-        vec![
-            {
-                let even = even.clone();
-                let odd = odd.clone();
-                (
-                    even.clone(),
-                    Box::new(move |cx: &mut Cx, env: &LexicalEnv| {
-                        let captured = env.clone();
-                        let name = even.clone();
-                        let peer = odd.clone();
-                        lexical_function_value(
-                            cx,
-                            name,
-                            captured,
-                            Arc::new(move |cx, env, args| {
-                                let n = number_from_value(cx, &args[0]);
-                                if n == 0 {
-                                    return Ok(bool_value(cx, true));
-                                }
-                                let next = number(cx, n - 1);
-                                let peer_function = env.lookup(&peer)?;
-                                call_value(cx, peer_function, vec![next])
-                            }),
-                        )
-                    }) as BindingInitializer,
-                )
-            },
-            {
-                let even = even.clone();
-                let odd = odd.clone();
-                (
-                    odd.clone(),
-                    Box::new(move |cx: &mut Cx, env: &LexicalEnv| {
-                        let captured = env.clone();
-                        let name = odd.clone();
-                        let peer = even.clone();
-                        lexical_function_value(
-                            cx,
-                            name,
-                            captured,
-                            Arc::new(move |cx, env, args| {
-                                let n = number_from_value(cx, &args[0]);
-                                if n == 0 {
-                                    return Ok(bool_value(cx, false));
-                                }
-                                let next = number(cx, n - 1);
-                                let peer_function = env.lookup(&peer)?;
-                                call_value(cx, peer_function, vec![next])
-                            }),
-                        )
-                    }) as BindingInitializer,
-                )
-            },
-        ],
-        |cx, env| {
-            let arg = number(cx, 8);
-            let function = env.lookup(&even)?;
-            call_value(cx, function, vec![arg])
-        },
-    )
-    .unwrap();
-
-    assert!(bool_from_value(&mut cx, &result));
-}
-
-#[test]
-fn captured_binding_cell_is_shared_by_two_closures() {
-    let mut cx = cx();
-    let env = LexicalEnv::new();
-    let shared = Symbol::new("shared");
-
-    env.define(shared.clone(), symbol_value(&mut cx, "initial"))
-        .unwrap();
-    let writer_cell = env.capture_cell(&shared).unwrap();
-    let reader_cell = env.capture_cell(&shared).unwrap();
-
-    let writer = lexical_function_value(
-        &mut cx,
-        Symbol::new("scheme-setter"),
-        env.clone(),
-        Arc::new(move |_cx, _env, args| {
-            let value = args
-                .into_iter()
-                .next()
-                .ok_or_else(|| Error::Eval("scheme-setter expects one value".to_owned()))?;
-            writer_cell.set(value.clone())?;
-            Ok(value)
-        }),
-    )
-    .unwrap();
-    let reader = lexical_function_value(
-        &mut cx,
-        Symbol::new("cl-reader"),
-        env,
-        Arc::new(move |_cx, _env, _args| reader_cell.get()),
-    )
-    .unwrap();
-
-    let replacement = symbol_value(&mut cx, "replacement");
-    call_value(&mut cx, writer, vec![replacement.clone()]).unwrap();
-    let observed = call_value(&mut cx, reader, Vec::new()).unwrap();
-
-    assert_eq!(observed, replacement);
-}
-
-#[test]
-fn neutral_call_signature_partitions_and_defaults_arguments() {
-    let mut cx = cx();
-    let first = Symbol::new("first");
-    let optional = Symbol::new("optional");
-    let mode = Symbol::new("mode");
-    let color = Symbol::new("color");
-    let default = symbol_value(&mut cx, "default");
-    let signature = CallSignature::new()
-        .with_positional(vec![
-            CallParameter::required(first.clone()),
-            CallParameter::defaulted(optional.clone(), default.clone()),
-        ])
-        .with_named(vec![
-            CallParameter::required(mode.clone()),
-            CallParameter::defaulted(color.clone(), default.clone()),
-        ])
-        .with_positional_remainder(Remainder::Variadic(Symbol::new("rest")))
-        .with_named_remainder(Remainder::Variadic(Symbol::new("options")));
-    let first_value = symbol_value(&mut cx, "one");
-    let mode_value = symbol_value(&mut cx, "strict");
-    let extra = symbol_value(&mut cx, "extra");
-    let option_value = symbol_value(&mut cx, "enabled");
-
-    let bound = signature
-        .bind(vec![
-            CallArgument::Positional(first_value.clone()),
-            CallArgument::Positional(default.clone()),
-            CallArgument::Positional(extra.clone()),
-            CallArgument::Named(mode.clone(), mode_value.clone()),
-            CallArgument::Named(Symbol::new("trace"), option_value.clone()),
-        ])
-        .unwrap();
-
-    assert_eq!(bound.get(&first), Some(&first_value));
-    assert_eq!(bound.get(&optional), Some(&default));
-    assert_eq!(bound.get(&mode), Some(&mode_value));
-    assert_eq!(bound.get(&color), Some(&default));
-    assert_eq!(bound.positional_remainder(), &[extra]);
-    assert_eq!(
-        bound.named_remainder().get(&Symbol::new("trace")),
-        Some(&option_value)
-    );
-}
-
-#[test]
-fn neutral_call_signature_reports_stable_pre_body_diagnostics() {
-    let mut cx = cx();
-    let value = symbol_value(&mut cx, "value");
-    let required = Symbol::new("required");
-    let signature =
-        CallSignature::new().with_positional(vec![CallParameter::required(required.clone())]);
-
-    let cases = [
-        (
-            signature
-                .bind(Vec::<CallArgument>::new())
-                .unwrap_err()
-                .to_string(),
-            "call binding missing: required parameter required",
-        ),
-        (
-            signature
-                .bind(vec![
-                    CallArgument::Positional(value.clone()),
-                    CallArgument::Named(required.clone(), value.clone()),
-                ])
-                .unwrap_err()
-                .to_string(),
-            "call binding duplicate: parameter required supplied positionally and by name",
-        ),
-        (
-            signature
-                .bind(vec![
-                    CallArgument::Named(required.clone(), value.clone()),
-                    CallArgument::Positional(value.clone()),
-                ])
-                .unwrap_err()
-                .to_string(),
-            "call binding ordering: positional argument follows a named argument",
-        ),
-        (
-            signature
-                .bind(vec![
-                    CallArgument::Positional(value.clone()),
-                    CallArgument::Named(Symbol::new("zeta"), value.clone()),
-                    CallArgument::Named(Symbol::new("alpha"), value),
-                ])
-                .unwrap_err()
-                .to_string(),
-            "call binding unexpected: named argument(s): alpha, zeta",
-        ),
-    ];
-
-    for (actual, expected_suffix) in cases {
-        assert!(actual.ends_with(expected_suffix), "{actual:?}");
-    }
-}
-
-#[test]
-fn binding_cells_expose_lifecycle_immutability_and_live_aliases() {
-    let mut cx = cx();
-    let initial = symbol_value(&mut cx, "initial");
-    let replacement = symbol_value(&mut cx, "replacement");
-
-    let pending = BindingCell::uninitialized(Symbol::new("pending"));
-    assert!(matches!(
-        pending.state().unwrap(),
-        BindingCellState::Uninitialized
-    ));
-    assert!(
-        pending
-            .get()
-            .unwrap_err()
-            .to_string()
-            .contains("not initialized")
-    );
-    pending.set(initial.clone()).unwrap();
-    assert!(matches!(
-        pending.state().unwrap(),
-        BindingCellState::Initialized(_)
-    ));
-
-    let alias = BindingCell::live_alias(Symbol::new("alias"), pending.clone());
-    alias.set(replacement.clone()).unwrap();
-    assert_eq!(pending.get().unwrap(), replacement);
-    assert!(matches!(
-        alias.state().unwrap(),
-        BindingCellState::LiveAlias(_)
-    ));
-
-    let constant = BindingCell::immutable(Symbol::new("constant"), initial);
-    assert!(
-        constant
-            .set(replacement.clone())
-            .unwrap_err()
-            .to_string()
-            .contains("immutable")
-    );
-    assert!(
-        constant
-            .delete()
-            .unwrap_err()
-            .to_string()
-            .contains("immutable")
-    );
-
-    pending.delete().unwrap();
-    assert!(matches!(
-        pending.state().unwrap(),
-        BindingCellState::Deleted
-    ));
-    assert!(alias.get().unwrap_err().to_string().contains("deleted"));
-    assert!(
-        pending
-            .set(replacement)
-            .unwrap_err()
-            .to_string()
-            .contains("deleted")
-    );
-}
-
-#[test]
-fn dynamic_binding_is_restored_after_escape() {
-    let mut cx = cx();
-    let env = DynamicEnv::new();
-    let fluid = Symbol::new("fluid");
-
-    let outer = symbol_value(&mut cx, "outer");
-    let inner = symbol_value(&mut cx, "inner");
-    let escaped = env.with_bindings(vec![(fluid.clone(), outer.clone())], || {
-        assert_eq!(env.lookup(&fluid)?.unwrap(), outer);
-        let result: Result<()> = env.with_bindings(vec![(fluid.clone(), inner)], || {
-            assert!(env.lookup(&fluid)?.is_some());
-            Err(Error::Eval("simulated non-local escape".to_owned()))
-        });
-        assert!(result.is_err());
-        assert_eq!(env.lookup(&fluid)?.unwrap(), outer);
-        Ok(())
-    });
-
-    escaped.unwrap();
-    assert!(env.lookup(&fluid).unwrap().is_none());
-}
-
-#[test]
-fn parameters_respect_control_dynamic_extent() {
-    let mut cx = cx();
-    let parameter = Parameter::new(
-        Symbol::new("current-output"),
-        symbol_value(&mut cx, "default"),
-    );
-    let temporary = symbol_value(&mut cx, "temporary");
-
-    let result: Result<()> = parameter.with_value(temporary, || {
-        assert_eq!(
-            parameter.get()?.object().as_expr(&mut cx).unwrap(),
-            Expr::Symbol(Symbol::new("temporary"))
-        );
-        Err(Error::Eval("simulated control escape".to_owned()))
-    });
-
-    assert!(result.is_err());
-    assert_eq!(
-        parameter.get().unwrap().object().as_expr(&mut cx).unwrap(),
-        Expr::Symbol(Symbol::new("default"))
-    );
-}
-
-#[test]
-fn profile_options_select_binding_and_hygiene_modes() {
-    let modes = BindingProfileModes::from_options(&[
-        (
-            Symbol::new("scope"),
-            Expr::Symbol(Symbol::qualified("binding", "dynamic")),
-        ),
-        (
-            Symbol::new("hygiene"),
-            Expr::Symbol(Symbol::qualified("binding", "explicit")),
-        ),
-    ])
-    .unwrap();
-
-    assert_eq!(modes.scope, BindingScopeMode::Dynamic);
-    assert_eq!(modes.hygiene, HygieneMode::Explicit);
-    assert_eq!(
-        BindingProfileModes::default().scope,
-        BindingScopeMode::Lexical
-    );
-}
-
-#[test]
-fn binding_organ_claims_project_to_card() {
-    let mut cx = cx();
-    publish_binding_organ_claims(&mut cx).unwrap();
-
-    let claims = cx
-        .query_facts(sim_kernel::ClaimPattern {
-            subject: Some(Ref::Symbol(binding_organ_symbol())),
-            predicate: Some(card_kind_predicate()),
-            object: Some(Ref::Symbol(standard_organ_kind())),
-            include_revoked: false,
-        })
-        .unwrap();
-    assert_eq!(claims.len(), 1);
-
-    let card = card_for_ref(&mut cx, Ref::Symbol(binding_organ_symbol())).unwrap();
-    let table = card.object().as_table(&mut cx).unwrap();
-    let entries = table.object().as_table_impl().unwrap();
-    let ops = entries.get(&mut cx, Symbol::new("ops")).unwrap();
-    let list = ops.object().as_list().unwrap();
-    let values = force_list_to_vec(&mut cx, list, "binding organ ops").unwrap();
-
-    assert_eq!(values.len(), 1);
-    assert_eq!(
-        values[0].object().as_expr(&mut cx).unwrap(),
-        Expr::Symbol(Symbol::qualified("binding", "let.v1"))
-    );
-}
-
-#[test]
-fn binding_live_claims_match_loaded_exports() {
-    let mut cx = cx();
-    install_binding_lib(&mut cx).unwrap();
-    let lib = cx.registry().lib(&manifest_name()).unwrap().clone();
-    publish_binding_organ_claims_for_lib(&mut cx, lib.id).unwrap();
-
-    let card = card_for_ref(&mut cx, Ref::Symbol(binding_organ_symbol())).unwrap();
-    let table = card.object().as_table(&mut cx).unwrap();
-    let entries = table.object().as_table_impl().unwrap();
-    let ops = entries.get(&mut cx, Symbol::new("ops")).unwrap();
-    let list = ops.object().as_list().unwrap();
-    let card_ops = force_list_to_vec(&mut cx, list, "binding live ops")
-        .unwrap()
-        .into_iter()
-        .map(|value| value.object().as_expr(&mut cx).unwrap())
-        .collect::<Vec<_>>();
-
-    assert_eq!(card_ops.len(), binding_live_ops().len());
-
-    for (op_key, export_symbol) in binding_live_ops() {
-        let op_symbol = Symbol::qualified(
-            op_key.namespace.to_string(),
-            format!("{}.v{}", op_key.name, op_key.version),
-        );
-        assert!(
-            card_ops.contains(&Expr::Symbol(op_symbol.clone())),
-            "missing live binding claim {op_symbol}"
-        );
-        assert!(
-            lib.exports
-                .iter()
-                .any(|export| export.symbol == export_symbol),
-            "missing binding export {export_symbol}"
-        );
-        assert!(
-            cx.resolve_function(&export_symbol).is_ok(),
-            "{export_symbol}"
-        );
-    }
-}
-
-// ---- `let` binding organ (special form) ----
-
-#[test]
-fn let_special_form_binds_parallel_in_child_scope() {
-    use sim_kernel::{DefaultFactory, EagerPolicy};
-
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
-    install_binding_lib(&mut cx).unwrap();
-
-    let sym = |name: &str| Expr::Symbol(Symbol::new(name));
-    let clause = |name: &str, init: Expr| Expr::List(vec![sym(name), init]);
-    let let_call = |bindings: Expr, body: Vec<Expr>| {
-        let mut args = vec![bindings];
-        args.extend(body);
-        Expr::Call {
-            operator: Box::new(sym("let")),
-            args,
-        }
-    };
-    let s = |text: &str| Expr::String(text.to_owned());
-
-    // Single binding, body reads it back.
-    let single = cx
-        .eval_expr(let_call(
-            Expr::List(vec![clause("x", s("five"))]),
-            vec![sym("x")],
-        ))
-        .unwrap();
-    assert_eq!(single.object().as_expr(&mut cx).unwrap(), s("five"));
-
-    // Parallel bindings: both are visible in the body.
-    let parallel = cx
-        .eval_expr(let_call(
-            Expr::List(vec![clause("x", s("a")), clause("y", s("b"))]),
-            vec![sym("y")],
-        ))
-        .unwrap();
-    assert_eq!(parallel.object().as_expr(&mut cx).unwrap(), s("b"));
-
-    // The binding is scoped: an outer `x` is shadowed inside and restored after.
-    let outer = cx.factory().string("outer".to_owned()).unwrap();
-    cx.env_mut().define(Symbol::new("x"), outer);
-    let shadowed = cx
-        .eval_expr(let_call(
-            Expr::List(vec![clause("x", s("inner"))]),
-            vec![sym("x")],
-        ))
-        .unwrap();
-    assert_eq!(shadowed.object().as_expr(&mut cx).unwrap(), s("inner"));
-    assert_eq!(
-        cx.env()
-            .get(&Symbol::new("x"))
-            .unwrap()
-            .object()
-            .as_expr(&mut cx)
-            .unwrap(),
-        s("outer"),
-        "outer binding must be restored after let"
-    );
-
-    // Applying `let` to already-evaluated args is a usage error (special form).
-    let form = cx.resolve_function(&Symbol::new("let")).unwrap();
-    let err = form
-        .object()
-        .as_callable()
-        .unwrap()
-        .call(&mut cx, Args::new(vec![]))
-        .unwrap_err();
-    assert!(matches!(err, Error::Eval(msg) if msg.contains("special form")));
-}
-```
-
-Specimen `spec-test/sim-runtime/crates/sim-lib-control/src/organ_tests` is checked by `cargo test`.
-
-Source `crates/sim-lib-control/src/organ_tests.rs`:
-
-```rust
-// conformance: bounded resumable frames, unwind, and typed job checkpoints.
-
-use std::sync::{Arc, Mutex};
-
-use super::{
-    AdmissionLimit, CheckpointError, CleanupStack, FrameError, FrameLimits, JobQueues,
-    ResumableFrame, ResumePacket, ResumeResult, Unwind, WorkLimit,
-};
-
-#[test]
-fn resumable_packet_supports_all_inputs_and_terminal_outcomes() {
-    let seen = Arc::new(Mutex::new(Vec::new()));
-    let driver_seen = seen.clone();
-    let mut frame = ResumableFrame::new(
-        FrameLimits { depth: 2, work: 2 },
-        move |packet: ResumePacket<&'static str, &'static str>, budget: &mut super::StepBudget| {
-            budget.charge_work()?;
-            driver_seen.lock().unwrap().push(packet.clone());
-            match packet {
-                ResumePacket::Start => Ok(ResumeResult::Yielded("ready")),
-                ResumePacket::Send(value) => Ok(ResumeResult::Yielded(value)),
-                ResumePacket::Throw(error) => Ok(ResumeResult::Failed(error)),
-                ResumePacket::Close => Ok(ResumeResult::Returned("closed")),
-            }
-        },
-    );
-    assert_eq!(
-        frame.resume::<_, &str, _>(ResumePacket::Start),
-        Ok(ResumeResult::Yielded("ready"))
-    );
-    assert_eq!(
-        frame.resume::<_, &str, _>(ResumePacket::Send("sent")),
-        Ok(ResumeResult::Yielded("sent"))
-    );
-    assert_eq!(
-        frame.resume::<&str, _, &str>(ResumePacket::Throw("raised")),
-        Ok(ResumeResult::Failed("raised"))
-    );
-    assert_eq!(
-        frame.resume::<_, &str, _>(ResumePacket::Close),
-        Err(FrameError::AlreadyComplete)
-    );
-    assert_eq!(
-        *seen.lock().unwrap(),
-        vec![
-            ResumePacket::Start,
-            ResumePacket::Send("sent"),
-            ResumePacket::Throw("raised")
-        ]
-    );
-
-    let mut closing = ResumableFrame::new(
-        FrameLimits { depth: 1, work: 1 },
-        |packet: ResumePacket<&'static str, &'static str>, budget: &mut super::StepBudget| {
-            budget.charge_work()?;
-            match packet {
-                ResumePacket::Start => Ok(ResumeResult::Yielded("open")),
-                ResumePacket::Close => Ok(ResumeResult::Returned("closed")),
-                ResumePacket::Send(value) => Ok(ResumeResult::Yielded(value)),
-                ResumePacket::Throw(error) => Ok(ResumeResult::Failed(error)),
-            }
-        },
-    );
-    assert_eq!(
-        closing.resume::<_, &str, &str>(ResumePacket::Start),
-        Ok(ResumeResult::Yielded("open"))
-    );
-    assert_eq!(
-        closing.resume::<&str, _, &str>(ResumePacket::Close),
-        Ok(ResumeResult::Returned("closed"))
-    );
-}
-
-#[test]
-fn frame_limits_and_double_start_fail_closed() {
-    let mut frame = ResumableFrame::new(
-        FrameLimits { depth: 0, work: 1 },
-        |_packet: ResumePacket<(), ()>, budget: &mut super::StepBudget| {
-            budget.enter()?;
-            Ok(ResumeResult::<(), (), ()>::Returned(()))
-        },
-    );
-    assert_eq!(
-        frame.resume(ResumePacket::Start),
-        Err(FrameError::DepthExhausted)
-    );
-    assert_eq!(
-        frame.resume(ResumePacket::Start),
-        Err(FrameError::AlreadyStarted)
-    );
-
-    let mut frame = ResumableFrame::new(
-        FrameLimits { depth: 1, work: 0 },
-        |_packet: ResumePacket<(), ()>, budget: &mut super::StepBudget| {
-            budget.charge_work()?;
-            Ok(ResumeResult::<(), (), ()>::Returned(()))
-        },
-    );
-    assert_eq!(
-        frame.resume(ResumePacket::Start),
-        Err(FrameError::WorkExhausted)
-    );
-}
-
-#[test]
-fn nested_cleanup_is_lifo_for_every_unwind_reason() {
-    type Reason = Unwind<&'static str, &'static str, &'static str, &'static str>;
-    let reasons = [
-        Reason::Return("return"),
-        Reason::Break("break"),
-        Reason::Continue("continue"),
-        Reason::Exception("exception"),
-        Reason::Cancelled,
-        Reason::Closed,
-    ];
-    for reason in reasons {
-        let order = Arc::new(Mutex::new(Vec::new()));
-        let mut stack = CleanupStack::new();
-        for marker in ["outer", "inner"] {
-            let order = order.clone();
-            stack.push(move |_reason: &Reason| order.lock().unwrap().push(marker));
-        }
-        assert_eq!(stack.unwind(reason.clone()), reason);
-        assert_eq!(*order.lock().unwrap(), vec!["inner", "outer"]);
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-enum Class {
-    Microtask,
-    Finalization,
-}
-
-#[test]
-fn typed_jobs_preserve_fifo_cancel_and_class_isolation() {
-    let output = Arc::new(Mutex::new(Vec::new()));
-    let mut jobs = JobQueues::new(AdmissionLimit(4));
-    let first = {
-        let output = output.clone();
-        jobs.enqueue(Class::Microtask, move |_| {
-            output.lock().unwrap().push("micro-1")
-        })
-        .unwrap()
-    };
-    let finalizer = {
-        let output = output.clone();
-        jobs.enqueue(Class::Finalization, move |_| {
-            output.lock().unwrap().push("finalizer")
-        })
-        .unwrap()
-    };
-    let cancelled = jobs
-        .enqueue(Class::Microtask, |_| panic!("cancelled job ran"))
-        .unwrap();
-    jobs.cancel(cancelled.id);
-    let drain = jobs.drain(Class::Microtask, WorkLimit(2));
-    assert_eq!(drain.completed, vec![first.id]);
-    assert!(!drain.pending);
-    assert_eq!(*output.lock().unwrap(), vec!["micro-1"]);
-    assert_eq!(
-        jobs.checkpoint(Class::Finalization, WorkLimit(1))
-            .unwrap()
-            .completed,
-        vec![finalizer.id]
-    );
-    assert_eq!(*output.lock().unwrap(), vec!["micro-1", "finalizer"]);
-}
-
-#[test]
-fn checkpoint_drains_reentrant_jobs_and_enforces_both_bounds() {
-    let output = Arc::new(Mutex::new(Vec::new()));
-    let mut jobs = JobQueues::new(AdmissionLimit(3));
-    let outer_output = output.clone();
-    jobs.enqueue(Class::Microtask, move |jobs| {
-        outer_output.lock().unwrap().push("outer");
-        let inner_output = outer_output.clone();
-        jobs.enqueue(Class::Microtask, move |_| {
-            inner_output.lock().unwrap().push("inner")
-        })
-        .unwrap();
-    })
-    .unwrap();
-    let receipt = jobs.checkpoint(Class::Microtask, WorkLimit(2)).unwrap();
-    assert_eq!(receipt.completed.len(), 2);
-    assert_eq!(*output.lock().unwrap(), vec!["outer", "inner"]);
-
-    jobs.enqueue(Class::Microtask, |_| {}).unwrap();
-    assert_eq!(
-        jobs.enqueue(Class::Microtask, |_| {}),
-        Err(CheckpointError::AdmissionExhausted)
-    );
-
-    let mut jobs = JobQueues::new(AdmissionLimit(2));
-    jobs.enqueue(Class::Microtask, |jobs| {
-        jobs.enqueue(Class::Microtask, |_| {}).unwrap();
-    })
-    .unwrap();
-    assert_eq!(
-        jobs.checkpoint(Class::Microtask, WorkLimit(1)),
-        Err(CheckpointError::WorkExhausted)
-    );
-}
-```
-
-Specimen `spec-test/sim-runtime/crates/sim-lib-incremental/src/tests` is checked by `cargo test`.
-
-Source `crates/sim-lib-incremental/src/tests.rs`:
-
-```rust
-// conformance: incremental query organ callables, cutoff, reports, and Card projection
-
-use sim_kernel::{
-    Args, Cx, Error, Expr, Ref, Symbol, Value,
-    card::{card_for_ref, card_kind_predicate},
-    force_list_to_vec,
-    standard::standard_organ_kind,
-};
-
-use crate::*;
-
-use sim_kernel::testing::bare_cx as cx;
-
-fn string(cx: &mut Cx, value: &str) -> Value {
-    cx.factory().string(value.to_owned()).unwrap()
-}
-
-fn expr_value(cx: &mut Cx, expr: Expr) -> Value {
-    cx.factory().expr(expr).unwrap()
-}
-
-fn call(cx: &mut Cx, name: &str, args: Vec<Value>) -> Value {
-    let function = cx
-        .resolve_function(&Symbol::qualified("incremental", name))
-        .unwrap();
-    let callable = function.object().as_callable().unwrap();
-    callable.call(cx, Args::new(args)).unwrap()
-}
-
-fn call_err(cx: &mut Cx, name: &str, args: Vec<Value>) -> Error {
-    let function = cx
-        .resolve_function(&Symbol::qualified("incremental", name))
-        .unwrap();
-    let callable = function.object().as_callable().unwrap();
-    callable.call(cx, Args::new(args)).unwrap_err()
-}
-
-fn register_query(cx: &mut Cx, engine: &Value, key: &str, source: Expr) -> Value {
-    let key = string(cx, key);
-    let source = expr_value(cx, source);
-    call(cx, "register", vec![engine.clone(), key, source])
-}
-
-fn verify_query(cx: &mut Cx, engine: &Value, key: &str) -> Value {
-    let key = string(cx, key);
-    call(cx, "verify", vec![engine.clone(), key])
-}
-
-fn invalidate_key(cx: &mut Cx, engine: &Value, key: &str) -> Value {
-    let key = string(cx, key);
-    call(cx, "invalidate", vec![engine.clone(), key])
-}
-
-fn report(cx: &mut Cx, name: &str, engine: &Value) -> Value {
-    call(cx, name, vec![engine.clone()])
-}
-
-fn keyed_report(cx: &mut Cx, name: &str, engine: &Value, key: &str) -> Value {
-    let key = string(cx, key);
-    call(cx, name, vec![engine.clone(), key])
-}
-
-fn table_get(cx: &mut Cx, table_value: &Value, key: &str) -> Value {
-    table_value
-        .object()
-        .as_table_impl()
-        .unwrap()
-        .get(cx, Symbol::new(key))
-        .unwrap()
-}
-
-fn number_text(cx: &mut Cx, value: &Value) -> String {
-    match value.object().as_expr(cx).unwrap() {
-        Expr::Number(number) => number.canonical,
-        other => panic!("expected number, got {other:?}"),
-    }
-}
-
-fn grant_all(cx: &mut Cx) {
-    cx.grant(incremental_read_capability());
-    cx.grant(incremental_write_capability());
-    cx.grant(incremental_verify_capability());
-}
-
-fn read_expr(key: &str) -> Expr {
-    Expr::Call {
-        operator: Box::new(Expr::Symbol(Symbol::qualified("incremental", "read"))),
-        args: vec![Expr::String(key.to_owned())],
-    }
-}
-
-fn missing_expr(key: &str) -> Expr {
-    Expr::Call {
-        operator: Box::new(Expr::Symbol(Symbol::qualified("incremental", "missing"))),
-        args: vec![Expr::String(key.to_owned())],
-    }
-}
-
-#[test]
-fn callables_have_shape_contracts_and_capability_gates() {
-    let mut cx = cx();
-    install_incremental_lib(&mut cx).unwrap();
-    let engine = call(&mut cx, "engine", Vec::new());
-
-    for name in [
-        "engine",
-        "register",
-        "invalidate",
-        "verify",
-        "explain",
-        "snapshot",
-        "metrics",
-    ] {
-        let function = cx
-            .resolve_function(&Symbol::qualified("incremental", name))
-            .unwrap();
-        let callable = function.object().as_callable().unwrap();
-        assert!(
-            callable.browse_args_shape(&mut cx).unwrap().is_some(),
-            "{name}"
-        );
-        assert!(
-            callable.browse_result_shape(&mut cx).unwrap().is_some(),
-            "{name}"
-        );
-    }
-
-    let key = string(&mut cx, "leaf");
-    let source = expr_value(&mut cx, Expr::String("same".to_owned()));
-    let denied = call_err(&mut cx, "register", vec![engine.clone(), key, source]);
-    assert!(
-        matches!(denied, Error::CapabilityDenied { capability } if capability == incremental_write_capability())
-    );
-
-    cx.grant(incremental_write_capability());
-    register_query(&mut cx, &engine, "leaf", Expr::String("same".to_owned()));
-
-    let key = string(&mut cx, "leaf");
-    let denied = call_err(&mut cx, "verify", vec![engine, key]);
-    assert!(
-        matches!(denied, Error::CapabilityDenied { capability } if capability == incremental_verify_capability())
-    );
-}
-
-#[test]
-fn query_family_tracks_missing_invalidation_and_cutoff() {
-    let mut cx = cx();
-    install_incremental_lib(&mut cx).unwrap();
-    grant_all(&mut cx);
-    let engine = call(&mut cx, "engine", Vec::new());
-    register_query(&mut cx, &engine, "leaf", Expr::String("same".to_owned()));
-    register_query(&mut cx, &engine, "root", read_expr("leaf"));
-    register_query(
-        &mut cx,
-        &engine,
-        "guard",
-        Expr::Vector(vec![read_expr("root"), missing_expr("optional")]),
-    );
-
-    let verified = verify_query(&mut cx, &engine, "guard");
-    assert_eq!(
-        verified.object().as_expr(&mut cx).unwrap(),
-        Expr::Vector(vec![Expr::String("same".to_owned()), Expr::Bool(false)])
-    );
-    let metrics = report(&mut cx, "metrics", &engine);
-    let executions = table_get(&mut cx, &metrics, "executions");
-    let leaf_count = table_get(&mut cx, &executions, "leaf");
-    assert_eq!(number_text(&mut cx, &leaf_count), "1");
-    let root_count = table_get(&mut cx, &executions, "root");
-    assert_eq!(number_text(&mut cx, &root_count), "1");
-    let guard_count = table_get(&mut cx, &executions, "guard");
-    assert_eq!(number_text(&mut cx, &guard_count), "1");
-
-    verify_query(&mut cx, &engine, "guard");
-    let metrics = report(&mut cx, "metrics", &engine);
-    let executions = table_get(&mut cx, &metrics, "executions");
-    let guard_count = table_get(&mut cx, &executions, "guard");
-    assert_eq!(number_text(&mut cx, &guard_count), "1");
-
-    invalidate_key(&mut cx, &engine, "optional");
-    verify_query(&mut cx, &engine, "guard");
-    let metrics = report(&mut cx, "metrics", &engine);
-    let executions = table_get(&mut cx, &metrics, "executions");
-    let guard_count = table_get(&mut cx, &executions, "guard");
-    assert_eq!(number_text(&mut cx, &guard_count), "2");
-    let root_count = table_get(&mut cx, &executions, "root");
-    assert_eq!(number_text(&mut cx, &root_count), "1");
-}
-
-#[test]
-fn explanation_snapshot_and_card_projection_are_browseable() {
-    let mut cx = cx();
-    install_incremental_lib(&mut cx).unwrap();
-    grant_all(&mut cx);
-    let engine = call(&mut cx, "engine", Vec::new());
-    register_query(&mut cx, &engine, "leaf", Expr::String("same".to_owned()));
-    register_query(&mut cx, &engine, "root", read_expr("leaf"));
-    verify_query(&mut cx, &engine, "root");
-
-    let explain = keyed_report(&mut cx, "explain", &engine, "root");
-    assert_eq!(
-        table_get(&mut cx, &explain, "registered")
-            .object()
-            .as_expr(&mut cx)
-            .unwrap(),
-        Expr::Bool(true)
-    );
-    assert_ne!(
-        table_get(&mut cx, &explain, "fingerprint")
-            .object()
-            .as_expr(&mut cx)
-            .unwrap(),
-        Expr::Nil
-    );
-
-    let snapshot = keyed_report(&mut cx, "snapshot", &engine, "root");
-    let nodes = table_get(&mut cx, &snapshot, "nodes");
-    let list = nodes.object().as_list().unwrap();
-    let nodes = force_list_to_vec(&mut cx, list, "incremental snapshot nodes").unwrap();
-    assert_eq!(nodes.len(), 2);
-
-    let claims = cx
-        .query_facts(sim_kernel::ClaimPattern {
-            subject: Some(Ref::Symbol(incremental_organ_symbol())),
-            predicate: Some(card_kind_predicate()),
-            object: Some(Ref::Symbol(standard_organ_kind())),
-            include_revoked: false,
-        })
-        .unwrap();
-    assert_eq!(claims.len(), 1);
-    let card = card_for_ref(&mut cx, Ref::Symbol(incremental_organ_symbol())).unwrap();
-    let table = card.object().as_table(&mut cx).unwrap();
-    let entries = table.object().as_table_impl().unwrap();
-    let ops = entries.get(&mut cx, Symbol::new("ops")).unwrap();
-    let list = ops.object().as_list().unwrap();
-    let values = force_list_to_vec(&mut cx, list, "incremental organ ops").unwrap();
-    assert!(values.into_iter().any(|value| {
-        value.object().as_expr(&mut cx).unwrap()
-            == Expr::Symbol(Symbol::qualified("incremental", "register.v1"))
-    }));
-}
-```
-
 Specimen `spec-test/sim-runtime/crates/sim-lib-logic/src/tests/organ_proof` is checked by `cargo test`.
 
 Source `crates/sim-lib-logic/src/tests/organ_proof.rs`:
@@ -2546,506 +1618,6 @@ fn findall_query_projects_answer_template() {
             Expr::Symbol(Symbol::new("green")),
             Expr::Symbol(Symbol::new("blue")),
         ])
-    );
-}
-```
-
-Specimen `spec-test/sim-runtime/crates/sim-lib-namespace/src/module/tests` is checked by `cargo test`.
-
-Source `crates/sim-lib-namespace/src/module/tests.rs`:
-
-```rust
-// conformance: source module lifecycle and cross-organ language-neutral composition.
-
-use std::{
-    collections::BTreeMap,
-    sync::{Arc, RwLock},
-};
-
-use sim_codec_lisp::LispCodecLib;
-use sim_kernel::{
-    ClassId, ClassRef, DefaultFactory, EagerPolicy, Object, ObjectCompat, Table, TrustLevel, Value,
-    read_eval_capability,
-};
-use sim_lib_binding::{CallArgument, CallParameter, CallSignature};
-use sim_lib_control::{
-    AdmissionLimit, FrameLimits, JobQueues, ResumableFrame, ResumePacket, ResumeResult, WorkLimit,
-};
-use sim_lib_dispatch::{DataDescriptor, Descriptor, PropertyStore};
-use sim_lib_mutation::{
-    EdgeId, EdgeVisitor, HardCappedRetainPolicy, ManagedArena, ManagedId, ManagedObject,
-};
-
-use super::*;
-
-#[derive(Default)]
-struct MemoryDir {
-    files: RwLock<BTreeMap<Symbol, Value>>,
-    dirs: RwLock<BTreeMap<Symbol, Arc<MemoryDir>>>,
-}
-
-impl MemoryDir {
-    fn directory(&self, cx: &mut Cx, name: &str) -> Arc<Self> {
-        let dir = Arc::new(Self::default());
-        self.dirs
-            .write()
-            .unwrap()
-            .insert(Symbol::new(name), dir.clone());
-        let _ = cx;
-        dir
-    }
-
-    fn source(&self, cx: &mut Cx, name: &str, source: &str) {
-        self.files.write().unwrap().insert(
-            Symbol::new(name),
-            cx.factory().string(source.to_owned()).unwrap(),
-        );
-    }
-}
-
-impl Object for MemoryDir {
-    fn display(&self, _cx: &mut Cx) -> Result<String> {
-        Ok("memory-module-root".to_owned())
-    }
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
-
-impl ObjectCompat for MemoryDir {
-    fn class(&self, cx: &mut Cx) -> Result<ClassRef> {
-        cx.factory()
-            .class_stub(ClassId(0), Symbol::qualified("test", "ModuleRoot"))
-    }
-    fn as_table_impl(&self) -> Option<&dyn Table> {
-        Some(self)
-    }
-    fn as_dir(&self) -> Option<&dyn Dir> {
-        Some(self)
-    }
-}
-
-impl Table for MemoryDir {
-    fn backend_symbol(&self) -> Symbol {
-        Symbol::qualified("test", "module-root")
-    }
-    fn get(&self, cx: &mut Cx, key: Symbol) -> Result<Value> {
-        self.files
-            .read()
-            .unwrap()
-            .get(&key)
-            .cloned()
-            .map_or_else(|| cx.factory().nil(), Ok)
-    }
-    fn set(&self, _cx: &mut Cx, key: Symbol, value: Value) -> Result<()> {
-        self.files.write().unwrap().insert(key, value);
-        Ok(())
-    }
-    fn has(&self, _cx: &mut Cx, key: Symbol) -> Result<bool> {
-        Ok(self.files.read().unwrap().contains_key(&key))
-    }
-    fn del(&self, cx: &mut Cx, key: Symbol) -> Result<Value> {
-        self.files
-            .write()
-            .unwrap()
-            .remove(&key)
-            .map_or_else(|| cx.factory().nil(), Ok)
-    }
-    fn keys(&self, _cx: &mut Cx) -> Result<Vec<Symbol>> {
-        Ok(self.files.read().unwrap().keys().cloned().collect())
-    }
-    fn entries(&self, _cx: &mut Cx) -> Result<Vec<(Symbol, Value)>> {
-        Ok(self
-            .files
-            .read()
-            .unwrap()
-            .iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect())
-    }
-    fn len(&self, _cx: &mut Cx) -> Result<usize> {
-        Ok(self.files.read().unwrap().len())
-    }
-    fn clear(&self, _cx: &mut Cx) -> Result<()> {
-        self.files.write().unwrap().clear();
-        Ok(())
-    }
-}
-
-impl Dir for MemoryDir {
-    fn mkdir(&self, cx: &mut Cx, name: Symbol) -> Result<Value> {
-        let dir = self.directory(cx, &name.name);
-        cx.factory().opaque(dir)
-    }
-    fn opendir(&self, cx: &mut Cx, name: Symbol) -> Result<Option<Value>> {
-        self.dirs
-            .read()
-            .unwrap()
-            .get(&name)
-            .cloned()
-            .map(|dir| cx.factory().opaque(dir))
-            .transpose()
-    }
-    fn rmdir(&self, cx: &mut Cx, name: Symbol) -> Result<Value> {
-        self.dirs
-            .write()
-            .unwrap()
-            .remove(&name)
-            .map_or_else(|| cx.factory().nil(), |dir| cx.factory().opaque(dir))
-    }
-    fn is_dir(&self, _cx: &mut Cx, name: Symbol) -> Result<bool> {
-        Ok(self.dirs.read().unwrap().contains_key(&name))
-    }
-}
-
-fn context() -> Cx {
-    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
-    seat.grant(&mut cx, module_load_capability()).unwrap();
-    seat.grant(&mut cx, read_eval_capability()).unwrap();
-    cx.load_lib(&LispCodecLib::new(sim_kernel::CodecId(31)).unwrap())
-        .unwrap();
-    cx
-}
-
-fn request(
-    root: Arc<MemoryDir>,
-    specifier: &str,
-    importer: Option<ModuleIdentity>,
-) -> ModuleRequest {
-    ModuleRequest {
-        root_id: Symbol::new("fixture"),
-        root,
-        importer,
-        specifier: specifier.to_owned(),
-        codec: Symbol::qualified("codec", "lisp"),
-        read_policy: ReadPolicy {
-            trust: TrustLevel::TrustedSource,
-            capabilities: CapabilitySet::new().grant(read_eval_capability()),
-        },
-        requires: vec![module_load_capability()],
-        allow: CapabilitySet::new()
-            .grant(read_eval_capability())
-            .grant(module_load_capability()),
-    }
-}
-
-fn value_expr(cx: &mut Cx, module: &ModuleInstance) -> Expr {
-    module
-        .default_export()
-        .get()
-        .unwrap()
-        .object()
-        .as_expr(cx)
-        .unwrap()
-}
-
-#[test]
-fn relative_resolution_and_root_escape_are_explicit() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    let pkg = root.directory(&mut cx, "pkg");
-    pkg.source(&mut cx, "sibling.sim", "\"relative\"");
-    let importer = ModuleIdentity {
-        root: Symbol::new("fixture"),
-        path: "pkg/main.sim".to_owned(),
-    };
-    let loader = ModuleLoader::new();
-    let loaded = loader
-        .load(
-            &mut cx,
-            request(root.clone(), "./sibling.sim", Some(importer.clone())),
-        )
-        .unwrap();
-    assert_eq!(loaded.identity.path(), "pkg/sibling.sim");
-    assert_eq!(
-        value_expr(&mut cx, &loaded),
-        Expr::String("relative".to_owned())
-    );
-    let error = loader
-        .load(&mut cx, request(root, "../../escape.sim", Some(importer)))
-        .unwrap_err();
-    assert!(error.to_string().contains("escapes supplied root"));
-}
-
-#[test]
-fn failure_is_cached_and_receipted_deterministically() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut cx, "bad.sim", "(");
-    let loader = ModuleLoader::new();
-    let first = loader
-        .load(&mut cx, request(root.clone(), "bad.sim", None))
-        .unwrap_err()
-        .to_string();
-    root.source(&mut cx, "bad.sim", "\"repaired but cached\"");
-    let second = loader
-        .load(&mut cx, request(root, "bad.sim", None))
-        .unwrap_err()
-        .to_string();
-    assert_eq!(first, second);
-    assert_eq!(
-        loader
-            .receipts()
-            .unwrap()
-            .iter()
-            .map(|r| r.outcome)
-            .collect::<Vec<_>>(),
-        vec![
-            ModuleResolutionOutcome::Failed,
-            ModuleResolutionOutcome::Failed
-        ]
-    );
-}
-
-#[test]
-fn replacement_updates_existing_live_binding() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut cx, "live.sim", "\"one\"");
-    let loader = ModuleLoader::new();
-    let first = loader
-        .load(&mut cx, request(root.clone(), "live.sim", None))
-        .unwrap();
-    let edge = first.default_export().clone();
-    root.source(&mut cx, "live.sim", "\"two\"");
-    let second = loader
-        .reload(&mut cx, request(root, "live.sim", None))
-        .unwrap();
-    assert_eq!(second.generation(), 2);
-    assert_eq!(
-        edge.get().unwrap().object().as_expr(&mut cx).unwrap(),
-        Expr::String("two".to_owned())
-    );
-}
-
-#[test]
-fn initializing_cycle_has_stable_receipt_without_storage_access() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    let loader = ModuleLoader::new();
-    let identity = ModuleIdentity {
-        root: Symbol::new("fixture"),
-        path: "cycle.sim".to_owned(),
-    };
-    loader.state.lock().unwrap().cache.insert(
-        identity.clone(),
-        CacheState::Initializing {
-            owner: std::thread::current().id(),
-            generation: 7,
-        },
-    );
-    let error = loader
-        .load(&mut cx, request(root, "cycle.sim", None))
-        .unwrap_err();
-    assert_eq!(
-        error.to_string(),
-        "evaluation error: module cycle at fixture:cycle.sim"
-    );
-    let receipt = loader.receipts().unwrap().pop().unwrap();
-    assert_eq!(
-        (receipt.generation, receipt.outcome),
-        (7, ModuleResolutionOutcome::Cycle)
-    );
-}
-
-#[test]
-fn cache_hit_reuses_one_linked_generation() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut cx, "shared.sim", "\"shared\"");
-    let loader = ModuleLoader::new();
-    let first = loader
-        .load(&mut cx, request(root.clone(), "shared.sim", None))
-        .unwrap();
-    let second = loader
-        .load(&mut cx, request(root, "shared.sim", None))
-        .unwrap();
-    assert_eq!(first.generation(), second.generation());
-    assert_eq!(
-        loader.receipts().unwrap().last().unwrap().outcome,
-        ModuleResolutionOutcome::CacheHit
-    );
-}
-
-#[test]
-fn concurrent_requests_share_one_initialization() {
-    let mut seed_cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut seed_cx, "concurrent.sim", "\"once\"");
-    let loader = Arc::new(ModuleLoader::new());
-    let workers = (0..8)
-        .map(|_| {
-            let root = root.clone();
-            let loader = loader.clone();
-            std::thread::spawn(move || {
-                let mut cx = context();
-                loader
-                    .load(&mut cx, request(root, "concurrent.sim", None))
-                    .unwrap()
-                    .generation()
-            })
-        })
-        .collect::<Vec<_>>();
-    assert!(
-        workers
-            .into_iter()
-            .all(|worker| worker.join().unwrap() == 1)
-    );
-    let receipts = loader.receipts().unwrap();
-    assert_eq!(
-        receipts
-            .iter()
-            .filter(|r| r.outcome == ModuleResolutionOutcome::Linked)
-            .count(),
-        1
-    );
-    assert_eq!(
-        receipts
-            .iter()
-            .filter(|r| r.outcome == ModuleResolutionOutcome::CacheHit)
-            .count(),
-        7
-    );
-}
-
-#[derive(Debug)]
-struct CompositionNode;
-
-impl ManagedObject for CompositionNode {
-    fn trace_edges(&self, _visitor: &mut dyn EdgeVisitor) {}
-
-    fn clear_weak_edge(&mut self, _edge: EdgeId, _expected: ManagedId) -> bool {
-        false
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-enum CompositionJob {
-    Microtask,
-    Finalization,
-}
-
-#[test]
-fn language_neutral_organs_compose_through_one_source_module_lifecycle() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut cx, "component.sim", "\"generation-one\"");
-
-    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(2).unwrap());
-    let managed = arena.allocate(CompositionNode).unwrap();
-    let rooted = arena.root(managed).unwrap();
-
-    let parameter = Symbol::new("component");
-    let argument = cx.factory().string("bound-component".to_owned()).unwrap();
-    let bound = CallSignature::new()
-        .with_positional(vec![CallParameter::required(parameter.clone())])
-        .bind([CallArgument::Positional(argument.clone())])
-        .unwrap();
-    assert!(
-        bound
-            .get(&parameter)
-            .is_some_and(|value| value == &argument)
-    );
-
-    let mut properties: PropertyStore<&str, &str, u64, ()> = PropertyStore::default();
-    let generation = "generation";
-    properties
-        .define(
-            &"component",
-            generation,
-            Descriptor::Data(DataDescriptor {
-                value: 1,
-                writable: true,
-                enumerable: true,
-                configurable: false,
-            }),
-        )
-        .unwrap();
-    assert!(matches!(
-        properties.own(&"component", &generation),
-        Some(Descriptor::Data(DataDescriptor { value, configurable: false, .. }))
-            if *value == managed.id().allocation_ordinal() + 1
-    ));
-
-    let loader = ModuleLoader::new();
-    let first = loader
-        .load(&mut cx, request(root.clone(), "component.sim", None))
-        .unwrap();
-    let live_export = first.default_export().clone();
-    assert_eq!(
-        value_expr(&mut cx, &first),
-        Expr::String("generation-one".to_owned())
-    );
-
-    let mut frame = ResumableFrame::new(
-        FrameLimits { depth: 1, work: 2 },
-        |packet: ResumePacket<u64, ()>, budget: &mut sim_lib_control::StepBudget| {
-            budget.charge_work()?;
-            match packet {
-                ResumePacket::Start => Ok(ResumeResult::Yielded(1)),
-                ResumePacket::Send(generation) => Ok(ResumeResult::Returned(generation)),
-                ResumePacket::Throw(()) => Ok(ResumeResult::Failed(())),
-                ResumePacket::Close => Ok(ResumeResult::Returned(0)),
-            }
-        },
-    );
-    assert_eq!(
-        frame.resume(ResumePacket::Start),
-        Ok(ResumeResult::Yielded(1))
-    );
-
-    let mut jobs = JobQueues::new(AdmissionLimit(3));
-    jobs.enqueue(CompositionJob::Microtask, |jobs| {
-        jobs.enqueue(CompositionJob::Microtask, |_| {}).unwrap();
-    })
-    .unwrap();
-    jobs.enqueue(CompositionJob::Finalization, |_| {}).unwrap();
-    let checkpoint = jobs
-        .checkpoint(CompositionJob::Microtask, WorkLimit(2))
-        .unwrap();
-    assert_eq!(checkpoint.completed.len(), 2);
-    assert!(
-        jobs.drain(CompositionJob::Finalization, WorkLimit(0))
-            .completed
-            .is_empty()
-    );
-
-    root.source(&mut cx, "component.sim", "\"generation-two\"");
-    let second = loader
-        .reload(&mut cx, request(root, "component.sim", None))
-        .unwrap();
-    assert_eq!(
-        frame.resume(ResumePacket::Send(second.generation())),
-        Ok(ResumeResult::Returned(2))
-    );
-    assert_eq!(
-        live_export
-            .get()
-            .unwrap()
-            .object()
-            .as_expr(&mut cx)
-            .unwrap(),
-        Expr::String("generation-two".to_owned())
-    );
-
-    let (_, safepoint) = arena
-        .safepoint(|snapshot| snapshot.objects().count())
-        .unwrap();
-    assert_eq!(safepoint.roots, vec![managed.id()]);
-    arena.release_root(rooted).unwrap();
-    let teardown = arena.teardown();
-    assert_eq!(teardown.objects, vec![managed.id()]);
-    assert_eq!(
-        loader
-            .receipts()
-            .unwrap()
-            .iter()
-            .map(|receipt| receipt.outcome)
-            .collect::<Vec<_>>(),
-        [
-            ModuleResolutionOutcome::Linked,
-            ModuleResolutionOutcome::Linked
-        ]
     );
 }
 ```
@@ -3641,506 +2213,6 @@ fn let_special_form_binds_parallel_in_child_scope() {
 }
 ```
 
-Specimen `spec-test/sim-runtime/crates/sim-lib-namespace/src/module/tests` is checked by `cargo test`.
-
-Source `crates/sim-lib-namespace/src/module/tests.rs`:
-
-```rust
-// conformance: source module lifecycle and cross-organ language-neutral composition.
-
-use std::{
-    collections::BTreeMap,
-    sync::{Arc, RwLock},
-};
-
-use sim_codec_lisp::LispCodecLib;
-use sim_kernel::{
-    ClassId, ClassRef, DefaultFactory, EagerPolicy, Object, ObjectCompat, Table, TrustLevel, Value,
-    read_eval_capability,
-};
-use sim_lib_binding::{CallArgument, CallParameter, CallSignature};
-use sim_lib_control::{
-    AdmissionLimit, FrameLimits, JobQueues, ResumableFrame, ResumePacket, ResumeResult, WorkLimit,
-};
-use sim_lib_dispatch::{DataDescriptor, Descriptor, PropertyStore};
-use sim_lib_mutation::{
-    EdgeId, EdgeVisitor, HardCappedRetainPolicy, ManagedArena, ManagedId, ManagedObject,
-};
-
-use super::*;
-
-#[derive(Default)]
-struct MemoryDir {
-    files: RwLock<BTreeMap<Symbol, Value>>,
-    dirs: RwLock<BTreeMap<Symbol, Arc<MemoryDir>>>,
-}
-
-impl MemoryDir {
-    fn directory(&self, cx: &mut Cx, name: &str) -> Arc<Self> {
-        let dir = Arc::new(Self::default());
-        self.dirs
-            .write()
-            .unwrap()
-            .insert(Symbol::new(name), dir.clone());
-        let _ = cx;
-        dir
-    }
-
-    fn source(&self, cx: &mut Cx, name: &str, source: &str) {
-        self.files.write().unwrap().insert(
-            Symbol::new(name),
-            cx.factory().string(source.to_owned()).unwrap(),
-        );
-    }
-}
-
-impl Object for MemoryDir {
-    fn display(&self, _cx: &mut Cx) -> Result<String> {
-        Ok("memory-module-root".to_owned())
-    }
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
-
-impl ObjectCompat for MemoryDir {
-    fn class(&self, cx: &mut Cx) -> Result<ClassRef> {
-        cx.factory()
-            .class_stub(ClassId(0), Symbol::qualified("test", "ModuleRoot"))
-    }
-    fn as_table_impl(&self) -> Option<&dyn Table> {
-        Some(self)
-    }
-    fn as_dir(&self) -> Option<&dyn Dir> {
-        Some(self)
-    }
-}
-
-impl Table for MemoryDir {
-    fn backend_symbol(&self) -> Symbol {
-        Symbol::qualified("test", "module-root")
-    }
-    fn get(&self, cx: &mut Cx, key: Symbol) -> Result<Value> {
-        self.files
-            .read()
-            .unwrap()
-            .get(&key)
-            .cloned()
-            .map_or_else(|| cx.factory().nil(), Ok)
-    }
-    fn set(&self, _cx: &mut Cx, key: Symbol, value: Value) -> Result<()> {
-        self.files.write().unwrap().insert(key, value);
-        Ok(())
-    }
-    fn has(&self, _cx: &mut Cx, key: Symbol) -> Result<bool> {
-        Ok(self.files.read().unwrap().contains_key(&key))
-    }
-    fn del(&self, cx: &mut Cx, key: Symbol) -> Result<Value> {
-        self.files
-            .write()
-            .unwrap()
-            .remove(&key)
-            .map_or_else(|| cx.factory().nil(), Ok)
-    }
-    fn keys(&self, _cx: &mut Cx) -> Result<Vec<Symbol>> {
-        Ok(self.files.read().unwrap().keys().cloned().collect())
-    }
-    fn entries(&self, _cx: &mut Cx) -> Result<Vec<(Symbol, Value)>> {
-        Ok(self
-            .files
-            .read()
-            .unwrap()
-            .iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect())
-    }
-    fn len(&self, _cx: &mut Cx) -> Result<usize> {
-        Ok(self.files.read().unwrap().len())
-    }
-    fn clear(&self, _cx: &mut Cx) -> Result<()> {
-        self.files.write().unwrap().clear();
-        Ok(())
-    }
-}
-
-impl Dir for MemoryDir {
-    fn mkdir(&self, cx: &mut Cx, name: Symbol) -> Result<Value> {
-        let dir = self.directory(cx, &name.name);
-        cx.factory().opaque(dir)
-    }
-    fn opendir(&self, cx: &mut Cx, name: Symbol) -> Result<Option<Value>> {
-        self.dirs
-            .read()
-            .unwrap()
-            .get(&name)
-            .cloned()
-            .map(|dir| cx.factory().opaque(dir))
-            .transpose()
-    }
-    fn rmdir(&self, cx: &mut Cx, name: Symbol) -> Result<Value> {
-        self.dirs
-            .write()
-            .unwrap()
-            .remove(&name)
-            .map_or_else(|| cx.factory().nil(), |dir| cx.factory().opaque(dir))
-    }
-    fn is_dir(&self, _cx: &mut Cx, name: Symbol) -> Result<bool> {
-        Ok(self.dirs.read().unwrap().contains_key(&name))
-    }
-}
-
-fn context() -> Cx {
-    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
-    seat.grant(&mut cx, module_load_capability()).unwrap();
-    seat.grant(&mut cx, read_eval_capability()).unwrap();
-    cx.load_lib(&LispCodecLib::new(sim_kernel::CodecId(31)).unwrap())
-        .unwrap();
-    cx
-}
-
-fn request(
-    root: Arc<MemoryDir>,
-    specifier: &str,
-    importer: Option<ModuleIdentity>,
-) -> ModuleRequest {
-    ModuleRequest {
-        root_id: Symbol::new("fixture"),
-        root,
-        importer,
-        specifier: specifier.to_owned(),
-        codec: Symbol::qualified("codec", "lisp"),
-        read_policy: ReadPolicy {
-            trust: TrustLevel::TrustedSource,
-            capabilities: CapabilitySet::new().grant(read_eval_capability()),
-        },
-        requires: vec![module_load_capability()],
-        allow: CapabilitySet::new()
-            .grant(read_eval_capability())
-            .grant(module_load_capability()),
-    }
-}
-
-fn value_expr(cx: &mut Cx, module: &ModuleInstance) -> Expr {
-    module
-        .default_export()
-        .get()
-        .unwrap()
-        .object()
-        .as_expr(cx)
-        .unwrap()
-}
-
-#[test]
-fn relative_resolution_and_root_escape_are_explicit() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    let pkg = root.directory(&mut cx, "pkg");
-    pkg.source(&mut cx, "sibling.sim", "\"relative\"");
-    let importer = ModuleIdentity {
-        root: Symbol::new("fixture"),
-        path: "pkg/main.sim".to_owned(),
-    };
-    let loader = ModuleLoader::new();
-    let loaded = loader
-        .load(
-            &mut cx,
-            request(root.clone(), "./sibling.sim", Some(importer.clone())),
-        )
-        .unwrap();
-    assert_eq!(loaded.identity.path(), "pkg/sibling.sim");
-    assert_eq!(
-        value_expr(&mut cx, &loaded),
-        Expr::String("relative".to_owned())
-    );
-    let error = loader
-        .load(&mut cx, request(root, "../../escape.sim", Some(importer)))
-        .unwrap_err();
-    assert!(error.to_string().contains("escapes supplied root"));
-}
-
-#[test]
-fn failure_is_cached_and_receipted_deterministically() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut cx, "bad.sim", "(");
-    let loader = ModuleLoader::new();
-    let first = loader
-        .load(&mut cx, request(root.clone(), "bad.sim", None))
-        .unwrap_err()
-        .to_string();
-    root.source(&mut cx, "bad.sim", "\"repaired but cached\"");
-    let second = loader
-        .load(&mut cx, request(root, "bad.sim", None))
-        .unwrap_err()
-        .to_string();
-    assert_eq!(first, second);
-    assert_eq!(
-        loader
-            .receipts()
-            .unwrap()
-            .iter()
-            .map(|r| r.outcome)
-            .collect::<Vec<_>>(),
-        vec![
-            ModuleResolutionOutcome::Failed,
-            ModuleResolutionOutcome::Failed
-        ]
-    );
-}
-
-#[test]
-fn replacement_updates_existing_live_binding() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut cx, "live.sim", "\"one\"");
-    let loader = ModuleLoader::new();
-    let first = loader
-        .load(&mut cx, request(root.clone(), "live.sim", None))
-        .unwrap();
-    let edge = first.default_export().clone();
-    root.source(&mut cx, "live.sim", "\"two\"");
-    let second = loader
-        .reload(&mut cx, request(root, "live.sim", None))
-        .unwrap();
-    assert_eq!(second.generation(), 2);
-    assert_eq!(
-        edge.get().unwrap().object().as_expr(&mut cx).unwrap(),
-        Expr::String("two".to_owned())
-    );
-}
-
-#[test]
-fn initializing_cycle_has_stable_receipt_without_storage_access() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    let loader = ModuleLoader::new();
-    let identity = ModuleIdentity {
-        root: Symbol::new("fixture"),
-        path: "cycle.sim".to_owned(),
-    };
-    loader.state.lock().unwrap().cache.insert(
-        identity.clone(),
-        CacheState::Initializing {
-            owner: std::thread::current().id(),
-            generation: 7,
-        },
-    );
-    let error = loader
-        .load(&mut cx, request(root, "cycle.sim", None))
-        .unwrap_err();
-    assert_eq!(
-        error.to_string(),
-        "evaluation error: module cycle at fixture:cycle.sim"
-    );
-    let receipt = loader.receipts().unwrap().pop().unwrap();
-    assert_eq!(
-        (receipt.generation, receipt.outcome),
-        (7, ModuleResolutionOutcome::Cycle)
-    );
-}
-
-#[test]
-fn cache_hit_reuses_one_linked_generation() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut cx, "shared.sim", "\"shared\"");
-    let loader = ModuleLoader::new();
-    let first = loader
-        .load(&mut cx, request(root.clone(), "shared.sim", None))
-        .unwrap();
-    let second = loader
-        .load(&mut cx, request(root, "shared.sim", None))
-        .unwrap();
-    assert_eq!(first.generation(), second.generation());
-    assert_eq!(
-        loader.receipts().unwrap().last().unwrap().outcome,
-        ModuleResolutionOutcome::CacheHit
-    );
-}
-
-#[test]
-fn concurrent_requests_share_one_initialization() {
-    let mut seed_cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut seed_cx, "concurrent.sim", "\"once\"");
-    let loader = Arc::new(ModuleLoader::new());
-    let workers = (0..8)
-        .map(|_| {
-            let root = root.clone();
-            let loader = loader.clone();
-            std::thread::spawn(move || {
-                let mut cx = context();
-                loader
-                    .load(&mut cx, request(root, "concurrent.sim", None))
-                    .unwrap()
-                    .generation()
-            })
-        })
-        .collect::<Vec<_>>();
-    assert!(
-        workers
-            .into_iter()
-            .all(|worker| worker.join().unwrap() == 1)
-    );
-    let receipts = loader.receipts().unwrap();
-    assert_eq!(
-        receipts
-            .iter()
-            .filter(|r| r.outcome == ModuleResolutionOutcome::Linked)
-            .count(),
-        1
-    );
-    assert_eq!(
-        receipts
-            .iter()
-            .filter(|r| r.outcome == ModuleResolutionOutcome::CacheHit)
-            .count(),
-        7
-    );
-}
-
-#[derive(Debug)]
-struct CompositionNode;
-
-impl ManagedObject for CompositionNode {
-    fn trace_edges(&self, _visitor: &mut dyn EdgeVisitor) {}
-
-    fn clear_weak_edge(&mut self, _edge: EdgeId, _expected: ManagedId) -> bool {
-        false
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-enum CompositionJob {
-    Microtask,
-    Finalization,
-}
-
-#[test]
-fn language_neutral_organs_compose_through_one_source_module_lifecycle() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut cx, "component.sim", "\"generation-one\"");
-
-    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(2).unwrap());
-    let managed = arena.allocate(CompositionNode).unwrap();
-    let rooted = arena.root(managed).unwrap();
-
-    let parameter = Symbol::new("component");
-    let argument = cx.factory().string("bound-component".to_owned()).unwrap();
-    let bound = CallSignature::new()
-        .with_positional(vec![CallParameter::required(parameter.clone())])
-        .bind([CallArgument::Positional(argument.clone())])
-        .unwrap();
-    assert!(
-        bound
-            .get(&parameter)
-            .is_some_and(|value| value == &argument)
-    );
-
-    let mut properties: PropertyStore<&str, &str, u64, ()> = PropertyStore::default();
-    let generation = "generation";
-    properties
-        .define(
-            &"component",
-            generation,
-            Descriptor::Data(DataDescriptor {
-                value: 1,
-                writable: true,
-                enumerable: true,
-                configurable: false,
-            }),
-        )
-        .unwrap();
-    assert!(matches!(
-        properties.own(&"component", &generation),
-        Some(Descriptor::Data(DataDescriptor { value, configurable: false, .. }))
-            if *value == managed.id().allocation_ordinal() + 1
-    ));
-
-    let loader = ModuleLoader::new();
-    let first = loader
-        .load(&mut cx, request(root.clone(), "component.sim", None))
-        .unwrap();
-    let live_export = first.default_export().clone();
-    assert_eq!(
-        value_expr(&mut cx, &first),
-        Expr::String("generation-one".to_owned())
-    );
-
-    let mut frame = ResumableFrame::new(
-        FrameLimits { depth: 1, work: 2 },
-        |packet: ResumePacket<u64, ()>, budget: &mut sim_lib_control::StepBudget| {
-            budget.charge_work()?;
-            match packet {
-                ResumePacket::Start => Ok(ResumeResult::Yielded(1)),
-                ResumePacket::Send(generation) => Ok(ResumeResult::Returned(generation)),
-                ResumePacket::Throw(()) => Ok(ResumeResult::Failed(())),
-                ResumePacket::Close => Ok(ResumeResult::Returned(0)),
-            }
-        },
-    );
-    assert_eq!(
-        frame.resume(ResumePacket::Start),
-        Ok(ResumeResult::Yielded(1))
-    );
-
-    let mut jobs = JobQueues::new(AdmissionLimit(3));
-    jobs.enqueue(CompositionJob::Microtask, |jobs| {
-        jobs.enqueue(CompositionJob::Microtask, |_| {}).unwrap();
-    })
-    .unwrap();
-    jobs.enqueue(CompositionJob::Finalization, |_| {}).unwrap();
-    let checkpoint = jobs
-        .checkpoint(CompositionJob::Microtask, WorkLimit(2))
-        .unwrap();
-    assert_eq!(checkpoint.completed.len(), 2);
-    assert!(
-        jobs.drain(CompositionJob::Finalization, WorkLimit(0))
-            .completed
-            .is_empty()
-    );
-
-    root.source(&mut cx, "component.sim", "\"generation-two\"");
-    let second = loader
-        .reload(&mut cx, request(root, "component.sim", None))
-        .unwrap();
-    assert_eq!(
-        frame.resume(ResumePacket::Send(second.generation())),
-        Ok(ResumeResult::Returned(2))
-    );
-    assert_eq!(
-        live_export
-            .get()
-            .unwrap()
-            .object()
-            .as_expr(&mut cx)
-            .unwrap(),
-        Expr::String("generation-two".to_owned())
-    );
-
-    let (_, safepoint) = arena
-        .safepoint(|snapshot| snapshot.objects().count())
-        .unwrap();
-    assert_eq!(safepoint.roots, vec![managed.id()]);
-    arena.release_root(rooted).unwrap();
-    let teardown = arena.teardown();
-    assert_eq!(teardown.objects, vec![managed.id()]);
-    assert_eq!(
-        loader
-            .receipts()
-            .unwrap()
-            .iter()
-            .map(|receipt| receipt.outcome)
-            .collect::<Vec<_>>(),
-        [
-            ModuleResolutionOutcome::Linked,
-            ModuleResolutionOutcome::Linked
-        ]
-    );
-}
-```
-
 ### `feature/sim-runtime/control-organ`
 
 Specimen `spec-test/sim-runtime/crates/sim-lib-control/src/organ_tests` is checked by `cargo test`.
@@ -4348,506 +2420,6 @@ fn checkpoint_drains_reentrant_jobs_and_enforces_both_bounds() {
     assert_eq!(
         jobs.checkpoint(Class::Microtask, WorkLimit(1)),
         Err(CheckpointError::WorkExhausted)
-    );
-}
-```
-
-Specimen `spec-test/sim-runtime/crates/sim-lib-namespace/src/module/tests` is checked by `cargo test`.
-
-Source `crates/sim-lib-namespace/src/module/tests.rs`:
-
-```rust
-// conformance: source module lifecycle and cross-organ language-neutral composition.
-
-use std::{
-    collections::BTreeMap,
-    sync::{Arc, RwLock},
-};
-
-use sim_codec_lisp::LispCodecLib;
-use sim_kernel::{
-    ClassId, ClassRef, DefaultFactory, EagerPolicy, Object, ObjectCompat, Table, TrustLevel, Value,
-    read_eval_capability,
-};
-use sim_lib_binding::{CallArgument, CallParameter, CallSignature};
-use sim_lib_control::{
-    AdmissionLimit, FrameLimits, JobQueues, ResumableFrame, ResumePacket, ResumeResult, WorkLimit,
-};
-use sim_lib_dispatch::{DataDescriptor, Descriptor, PropertyStore};
-use sim_lib_mutation::{
-    EdgeId, EdgeVisitor, HardCappedRetainPolicy, ManagedArena, ManagedId, ManagedObject,
-};
-
-use super::*;
-
-#[derive(Default)]
-struct MemoryDir {
-    files: RwLock<BTreeMap<Symbol, Value>>,
-    dirs: RwLock<BTreeMap<Symbol, Arc<MemoryDir>>>,
-}
-
-impl MemoryDir {
-    fn directory(&self, cx: &mut Cx, name: &str) -> Arc<Self> {
-        let dir = Arc::new(Self::default());
-        self.dirs
-            .write()
-            .unwrap()
-            .insert(Symbol::new(name), dir.clone());
-        let _ = cx;
-        dir
-    }
-
-    fn source(&self, cx: &mut Cx, name: &str, source: &str) {
-        self.files.write().unwrap().insert(
-            Symbol::new(name),
-            cx.factory().string(source.to_owned()).unwrap(),
-        );
-    }
-}
-
-impl Object for MemoryDir {
-    fn display(&self, _cx: &mut Cx) -> Result<String> {
-        Ok("memory-module-root".to_owned())
-    }
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
-
-impl ObjectCompat for MemoryDir {
-    fn class(&self, cx: &mut Cx) -> Result<ClassRef> {
-        cx.factory()
-            .class_stub(ClassId(0), Symbol::qualified("test", "ModuleRoot"))
-    }
-    fn as_table_impl(&self) -> Option<&dyn Table> {
-        Some(self)
-    }
-    fn as_dir(&self) -> Option<&dyn Dir> {
-        Some(self)
-    }
-}
-
-impl Table for MemoryDir {
-    fn backend_symbol(&self) -> Symbol {
-        Symbol::qualified("test", "module-root")
-    }
-    fn get(&self, cx: &mut Cx, key: Symbol) -> Result<Value> {
-        self.files
-            .read()
-            .unwrap()
-            .get(&key)
-            .cloned()
-            .map_or_else(|| cx.factory().nil(), Ok)
-    }
-    fn set(&self, _cx: &mut Cx, key: Symbol, value: Value) -> Result<()> {
-        self.files.write().unwrap().insert(key, value);
-        Ok(())
-    }
-    fn has(&self, _cx: &mut Cx, key: Symbol) -> Result<bool> {
-        Ok(self.files.read().unwrap().contains_key(&key))
-    }
-    fn del(&self, cx: &mut Cx, key: Symbol) -> Result<Value> {
-        self.files
-            .write()
-            .unwrap()
-            .remove(&key)
-            .map_or_else(|| cx.factory().nil(), Ok)
-    }
-    fn keys(&self, _cx: &mut Cx) -> Result<Vec<Symbol>> {
-        Ok(self.files.read().unwrap().keys().cloned().collect())
-    }
-    fn entries(&self, _cx: &mut Cx) -> Result<Vec<(Symbol, Value)>> {
-        Ok(self
-            .files
-            .read()
-            .unwrap()
-            .iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect())
-    }
-    fn len(&self, _cx: &mut Cx) -> Result<usize> {
-        Ok(self.files.read().unwrap().len())
-    }
-    fn clear(&self, _cx: &mut Cx) -> Result<()> {
-        self.files.write().unwrap().clear();
-        Ok(())
-    }
-}
-
-impl Dir for MemoryDir {
-    fn mkdir(&self, cx: &mut Cx, name: Symbol) -> Result<Value> {
-        let dir = self.directory(cx, &name.name);
-        cx.factory().opaque(dir)
-    }
-    fn opendir(&self, cx: &mut Cx, name: Symbol) -> Result<Option<Value>> {
-        self.dirs
-            .read()
-            .unwrap()
-            .get(&name)
-            .cloned()
-            .map(|dir| cx.factory().opaque(dir))
-            .transpose()
-    }
-    fn rmdir(&self, cx: &mut Cx, name: Symbol) -> Result<Value> {
-        self.dirs
-            .write()
-            .unwrap()
-            .remove(&name)
-            .map_or_else(|| cx.factory().nil(), |dir| cx.factory().opaque(dir))
-    }
-    fn is_dir(&self, _cx: &mut Cx, name: Symbol) -> Result<bool> {
-        Ok(self.dirs.read().unwrap().contains_key(&name))
-    }
-}
-
-fn context() -> Cx {
-    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
-    seat.grant(&mut cx, module_load_capability()).unwrap();
-    seat.grant(&mut cx, read_eval_capability()).unwrap();
-    cx.load_lib(&LispCodecLib::new(sim_kernel::CodecId(31)).unwrap())
-        .unwrap();
-    cx
-}
-
-fn request(
-    root: Arc<MemoryDir>,
-    specifier: &str,
-    importer: Option<ModuleIdentity>,
-) -> ModuleRequest {
-    ModuleRequest {
-        root_id: Symbol::new("fixture"),
-        root,
-        importer,
-        specifier: specifier.to_owned(),
-        codec: Symbol::qualified("codec", "lisp"),
-        read_policy: ReadPolicy {
-            trust: TrustLevel::TrustedSource,
-            capabilities: CapabilitySet::new().grant(read_eval_capability()),
-        },
-        requires: vec![module_load_capability()],
-        allow: CapabilitySet::new()
-            .grant(read_eval_capability())
-            .grant(module_load_capability()),
-    }
-}
-
-fn value_expr(cx: &mut Cx, module: &ModuleInstance) -> Expr {
-    module
-        .default_export()
-        .get()
-        .unwrap()
-        .object()
-        .as_expr(cx)
-        .unwrap()
-}
-
-#[test]
-fn relative_resolution_and_root_escape_are_explicit() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    let pkg = root.directory(&mut cx, "pkg");
-    pkg.source(&mut cx, "sibling.sim", "\"relative\"");
-    let importer = ModuleIdentity {
-        root: Symbol::new("fixture"),
-        path: "pkg/main.sim".to_owned(),
-    };
-    let loader = ModuleLoader::new();
-    let loaded = loader
-        .load(
-            &mut cx,
-            request(root.clone(), "./sibling.sim", Some(importer.clone())),
-        )
-        .unwrap();
-    assert_eq!(loaded.identity.path(), "pkg/sibling.sim");
-    assert_eq!(
-        value_expr(&mut cx, &loaded),
-        Expr::String("relative".to_owned())
-    );
-    let error = loader
-        .load(&mut cx, request(root, "../../escape.sim", Some(importer)))
-        .unwrap_err();
-    assert!(error.to_string().contains("escapes supplied root"));
-}
-
-#[test]
-fn failure_is_cached_and_receipted_deterministically() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut cx, "bad.sim", "(");
-    let loader = ModuleLoader::new();
-    let first = loader
-        .load(&mut cx, request(root.clone(), "bad.sim", None))
-        .unwrap_err()
-        .to_string();
-    root.source(&mut cx, "bad.sim", "\"repaired but cached\"");
-    let second = loader
-        .load(&mut cx, request(root, "bad.sim", None))
-        .unwrap_err()
-        .to_string();
-    assert_eq!(first, second);
-    assert_eq!(
-        loader
-            .receipts()
-            .unwrap()
-            .iter()
-            .map(|r| r.outcome)
-            .collect::<Vec<_>>(),
-        vec![
-            ModuleResolutionOutcome::Failed,
-            ModuleResolutionOutcome::Failed
-        ]
-    );
-}
-
-#[test]
-fn replacement_updates_existing_live_binding() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut cx, "live.sim", "\"one\"");
-    let loader = ModuleLoader::new();
-    let first = loader
-        .load(&mut cx, request(root.clone(), "live.sim", None))
-        .unwrap();
-    let edge = first.default_export().clone();
-    root.source(&mut cx, "live.sim", "\"two\"");
-    let second = loader
-        .reload(&mut cx, request(root, "live.sim", None))
-        .unwrap();
-    assert_eq!(second.generation(), 2);
-    assert_eq!(
-        edge.get().unwrap().object().as_expr(&mut cx).unwrap(),
-        Expr::String("two".to_owned())
-    );
-}
-
-#[test]
-fn initializing_cycle_has_stable_receipt_without_storage_access() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    let loader = ModuleLoader::new();
-    let identity = ModuleIdentity {
-        root: Symbol::new("fixture"),
-        path: "cycle.sim".to_owned(),
-    };
-    loader.state.lock().unwrap().cache.insert(
-        identity.clone(),
-        CacheState::Initializing {
-            owner: std::thread::current().id(),
-            generation: 7,
-        },
-    );
-    let error = loader
-        .load(&mut cx, request(root, "cycle.sim", None))
-        .unwrap_err();
-    assert_eq!(
-        error.to_string(),
-        "evaluation error: module cycle at fixture:cycle.sim"
-    );
-    let receipt = loader.receipts().unwrap().pop().unwrap();
-    assert_eq!(
-        (receipt.generation, receipt.outcome),
-        (7, ModuleResolutionOutcome::Cycle)
-    );
-}
-
-#[test]
-fn cache_hit_reuses_one_linked_generation() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut cx, "shared.sim", "\"shared\"");
-    let loader = ModuleLoader::new();
-    let first = loader
-        .load(&mut cx, request(root.clone(), "shared.sim", None))
-        .unwrap();
-    let second = loader
-        .load(&mut cx, request(root, "shared.sim", None))
-        .unwrap();
-    assert_eq!(first.generation(), second.generation());
-    assert_eq!(
-        loader.receipts().unwrap().last().unwrap().outcome,
-        ModuleResolutionOutcome::CacheHit
-    );
-}
-
-#[test]
-fn concurrent_requests_share_one_initialization() {
-    let mut seed_cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut seed_cx, "concurrent.sim", "\"once\"");
-    let loader = Arc::new(ModuleLoader::new());
-    let workers = (0..8)
-        .map(|_| {
-            let root = root.clone();
-            let loader = loader.clone();
-            std::thread::spawn(move || {
-                let mut cx = context();
-                loader
-                    .load(&mut cx, request(root, "concurrent.sim", None))
-                    .unwrap()
-                    .generation()
-            })
-        })
-        .collect::<Vec<_>>();
-    assert!(
-        workers
-            .into_iter()
-            .all(|worker| worker.join().unwrap() == 1)
-    );
-    let receipts = loader.receipts().unwrap();
-    assert_eq!(
-        receipts
-            .iter()
-            .filter(|r| r.outcome == ModuleResolutionOutcome::Linked)
-            .count(),
-        1
-    );
-    assert_eq!(
-        receipts
-            .iter()
-            .filter(|r| r.outcome == ModuleResolutionOutcome::CacheHit)
-            .count(),
-        7
-    );
-}
-
-#[derive(Debug)]
-struct CompositionNode;
-
-impl ManagedObject for CompositionNode {
-    fn trace_edges(&self, _visitor: &mut dyn EdgeVisitor) {}
-
-    fn clear_weak_edge(&mut self, _edge: EdgeId, _expected: ManagedId) -> bool {
-        false
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-enum CompositionJob {
-    Microtask,
-    Finalization,
-}
-
-#[test]
-fn language_neutral_organs_compose_through_one_source_module_lifecycle() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut cx, "component.sim", "\"generation-one\"");
-
-    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(2).unwrap());
-    let managed = arena.allocate(CompositionNode).unwrap();
-    let rooted = arena.root(managed).unwrap();
-
-    let parameter = Symbol::new("component");
-    let argument = cx.factory().string("bound-component".to_owned()).unwrap();
-    let bound = CallSignature::new()
-        .with_positional(vec![CallParameter::required(parameter.clone())])
-        .bind([CallArgument::Positional(argument.clone())])
-        .unwrap();
-    assert!(
-        bound
-            .get(&parameter)
-            .is_some_and(|value| value == &argument)
-    );
-
-    let mut properties: PropertyStore<&str, &str, u64, ()> = PropertyStore::default();
-    let generation = "generation";
-    properties
-        .define(
-            &"component",
-            generation,
-            Descriptor::Data(DataDescriptor {
-                value: 1,
-                writable: true,
-                enumerable: true,
-                configurable: false,
-            }),
-        )
-        .unwrap();
-    assert!(matches!(
-        properties.own(&"component", &generation),
-        Some(Descriptor::Data(DataDescriptor { value, configurable: false, .. }))
-            if *value == managed.id().allocation_ordinal() + 1
-    ));
-
-    let loader = ModuleLoader::new();
-    let first = loader
-        .load(&mut cx, request(root.clone(), "component.sim", None))
-        .unwrap();
-    let live_export = first.default_export().clone();
-    assert_eq!(
-        value_expr(&mut cx, &first),
-        Expr::String("generation-one".to_owned())
-    );
-
-    let mut frame = ResumableFrame::new(
-        FrameLimits { depth: 1, work: 2 },
-        |packet: ResumePacket<u64, ()>, budget: &mut sim_lib_control::StepBudget| {
-            budget.charge_work()?;
-            match packet {
-                ResumePacket::Start => Ok(ResumeResult::Yielded(1)),
-                ResumePacket::Send(generation) => Ok(ResumeResult::Returned(generation)),
-                ResumePacket::Throw(()) => Ok(ResumeResult::Failed(())),
-                ResumePacket::Close => Ok(ResumeResult::Returned(0)),
-            }
-        },
-    );
-    assert_eq!(
-        frame.resume(ResumePacket::Start),
-        Ok(ResumeResult::Yielded(1))
-    );
-
-    let mut jobs = JobQueues::new(AdmissionLimit(3));
-    jobs.enqueue(CompositionJob::Microtask, |jobs| {
-        jobs.enqueue(CompositionJob::Microtask, |_| {}).unwrap();
-    })
-    .unwrap();
-    jobs.enqueue(CompositionJob::Finalization, |_| {}).unwrap();
-    let checkpoint = jobs
-        .checkpoint(CompositionJob::Microtask, WorkLimit(2))
-        .unwrap();
-    assert_eq!(checkpoint.completed.len(), 2);
-    assert!(
-        jobs.drain(CompositionJob::Finalization, WorkLimit(0))
-            .completed
-            .is_empty()
-    );
-
-    root.source(&mut cx, "component.sim", "\"generation-two\"");
-    let second = loader
-        .reload(&mut cx, request(root, "component.sim", None))
-        .unwrap();
-    assert_eq!(
-        frame.resume(ResumePacket::Send(second.generation())),
-        Ok(ResumeResult::Returned(2))
-    );
-    assert_eq!(
-        live_export
-            .get()
-            .unwrap()
-            .object()
-            .as_expr(&mut cx)
-            .unwrap(),
-        Expr::String("generation-two".to_owned())
-    );
-
-    let (_, safepoint) = arena
-        .safepoint(|snapshot| snapshot.objects().count())
-        .unwrap();
-    assert_eq!(safepoint.roots, vec![managed.id()]);
-    arena.release_root(rooted).unwrap();
-    let teardown = arena.teardown();
-    assert_eq!(teardown.objects, vec![managed.id()]);
-    assert_eq!(
-        loader
-            .receipts()
-            .unwrap()
-            .iter()
-            .map(|receipt| receipt.outcome)
-            .collect::<Vec<_>>(),
-        [
-            ModuleResolutionOutcome::Linked,
-            ModuleResolutionOutcome::Linked
-        ]
     );
 }
 ```
@@ -6190,506 +3762,6 @@ fn caller_policy_can_model_prototype_lookup_and_own_shadowing() {
 }
 ```
 
-Specimen `spec-test/sim-runtime/crates/sim-lib-namespace/src/module/tests` is checked by `cargo test`.
-
-Source `crates/sim-lib-namespace/src/module/tests.rs`:
-
-```rust
-// conformance: source module lifecycle and cross-organ language-neutral composition.
-
-use std::{
-    collections::BTreeMap,
-    sync::{Arc, RwLock},
-};
-
-use sim_codec_lisp::LispCodecLib;
-use sim_kernel::{
-    ClassId, ClassRef, DefaultFactory, EagerPolicy, Object, ObjectCompat, Table, TrustLevel, Value,
-    read_eval_capability,
-};
-use sim_lib_binding::{CallArgument, CallParameter, CallSignature};
-use sim_lib_control::{
-    AdmissionLimit, FrameLimits, JobQueues, ResumableFrame, ResumePacket, ResumeResult, WorkLimit,
-};
-use sim_lib_dispatch::{DataDescriptor, Descriptor, PropertyStore};
-use sim_lib_mutation::{
-    EdgeId, EdgeVisitor, HardCappedRetainPolicy, ManagedArena, ManagedId, ManagedObject,
-};
-
-use super::*;
-
-#[derive(Default)]
-struct MemoryDir {
-    files: RwLock<BTreeMap<Symbol, Value>>,
-    dirs: RwLock<BTreeMap<Symbol, Arc<MemoryDir>>>,
-}
-
-impl MemoryDir {
-    fn directory(&self, cx: &mut Cx, name: &str) -> Arc<Self> {
-        let dir = Arc::new(Self::default());
-        self.dirs
-            .write()
-            .unwrap()
-            .insert(Symbol::new(name), dir.clone());
-        let _ = cx;
-        dir
-    }
-
-    fn source(&self, cx: &mut Cx, name: &str, source: &str) {
-        self.files.write().unwrap().insert(
-            Symbol::new(name),
-            cx.factory().string(source.to_owned()).unwrap(),
-        );
-    }
-}
-
-impl Object for MemoryDir {
-    fn display(&self, _cx: &mut Cx) -> Result<String> {
-        Ok("memory-module-root".to_owned())
-    }
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
-
-impl ObjectCompat for MemoryDir {
-    fn class(&self, cx: &mut Cx) -> Result<ClassRef> {
-        cx.factory()
-            .class_stub(ClassId(0), Symbol::qualified("test", "ModuleRoot"))
-    }
-    fn as_table_impl(&self) -> Option<&dyn Table> {
-        Some(self)
-    }
-    fn as_dir(&self) -> Option<&dyn Dir> {
-        Some(self)
-    }
-}
-
-impl Table for MemoryDir {
-    fn backend_symbol(&self) -> Symbol {
-        Symbol::qualified("test", "module-root")
-    }
-    fn get(&self, cx: &mut Cx, key: Symbol) -> Result<Value> {
-        self.files
-            .read()
-            .unwrap()
-            .get(&key)
-            .cloned()
-            .map_or_else(|| cx.factory().nil(), Ok)
-    }
-    fn set(&self, _cx: &mut Cx, key: Symbol, value: Value) -> Result<()> {
-        self.files.write().unwrap().insert(key, value);
-        Ok(())
-    }
-    fn has(&self, _cx: &mut Cx, key: Symbol) -> Result<bool> {
-        Ok(self.files.read().unwrap().contains_key(&key))
-    }
-    fn del(&self, cx: &mut Cx, key: Symbol) -> Result<Value> {
-        self.files
-            .write()
-            .unwrap()
-            .remove(&key)
-            .map_or_else(|| cx.factory().nil(), Ok)
-    }
-    fn keys(&self, _cx: &mut Cx) -> Result<Vec<Symbol>> {
-        Ok(self.files.read().unwrap().keys().cloned().collect())
-    }
-    fn entries(&self, _cx: &mut Cx) -> Result<Vec<(Symbol, Value)>> {
-        Ok(self
-            .files
-            .read()
-            .unwrap()
-            .iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect())
-    }
-    fn len(&self, _cx: &mut Cx) -> Result<usize> {
-        Ok(self.files.read().unwrap().len())
-    }
-    fn clear(&self, _cx: &mut Cx) -> Result<()> {
-        self.files.write().unwrap().clear();
-        Ok(())
-    }
-}
-
-impl Dir for MemoryDir {
-    fn mkdir(&self, cx: &mut Cx, name: Symbol) -> Result<Value> {
-        let dir = self.directory(cx, &name.name);
-        cx.factory().opaque(dir)
-    }
-    fn opendir(&self, cx: &mut Cx, name: Symbol) -> Result<Option<Value>> {
-        self.dirs
-            .read()
-            .unwrap()
-            .get(&name)
-            .cloned()
-            .map(|dir| cx.factory().opaque(dir))
-            .transpose()
-    }
-    fn rmdir(&self, cx: &mut Cx, name: Symbol) -> Result<Value> {
-        self.dirs
-            .write()
-            .unwrap()
-            .remove(&name)
-            .map_or_else(|| cx.factory().nil(), |dir| cx.factory().opaque(dir))
-    }
-    fn is_dir(&self, _cx: &mut Cx, name: Symbol) -> Result<bool> {
-        Ok(self.dirs.read().unwrap().contains_key(&name))
-    }
-}
-
-fn context() -> Cx {
-    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
-    seat.grant(&mut cx, module_load_capability()).unwrap();
-    seat.grant(&mut cx, read_eval_capability()).unwrap();
-    cx.load_lib(&LispCodecLib::new(sim_kernel::CodecId(31)).unwrap())
-        .unwrap();
-    cx
-}
-
-fn request(
-    root: Arc<MemoryDir>,
-    specifier: &str,
-    importer: Option<ModuleIdentity>,
-) -> ModuleRequest {
-    ModuleRequest {
-        root_id: Symbol::new("fixture"),
-        root,
-        importer,
-        specifier: specifier.to_owned(),
-        codec: Symbol::qualified("codec", "lisp"),
-        read_policy: ReadPolicy {
-            trust: TrustLevel::TrustedSource,
-            capabilities: CapabilitySet::new().grant(read_eval_capability()),
-        },
-        requires: vec![module_load_capability()],
-        allow: CapabilitySet::new()
-            .grant(read_eval_capability())
-            .grant(module_load_capability()),
-    }
-}
-
-fn value_expr(cx: &mut Cx, module: &ModuleInstance) -> Expr {
-    module
-        .default_export()
-        .get()
-        .unwrap()
-        .object()
-        .as_expr(cx)
-        .unwrap()
-}
-
-#[test]
-fn relative_resolution_and_root_escape_are_explicit() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    let pkg = root.directory(&mut cx, "pkg");
-    pkg.source(&mut cx, "sibling.sim", "\"relative\"");
-    let importer = ModuleIdentity {
-        root: Symbol::new("fixture"),
-        path: "pkg/main.sim".to_owned(),
-    };
-    let loader = ModuleLoader::new();
-    let loaded = loader
-        .load(
-            &mut cx,
-            request(root.clone(), "./sibling.sim", Some(importer.clone())),
-        )
-        .unwrap();
-    assert_eq!(loaded.identity.path(), "pkg/sibling.sim");
-    assert_eq!(
-        value_expr(&mut cx, &loaded),
-        Expr::String("relative".to_owned())
-    );
-    let error = loader
-        .load(&mut cx, request(root, "../../escape.sim", Some(importer)))
-        .unwrap_err();
-    assert!(error.to_string().contains("escapes supplied root"));
-}
-
-#[test]
-fn failure_is_cached_and_receipted_deterministically() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut cx, "bad.sim", "(");
-    let loader = ModuleLoader::new();
-    let first = loader
-        .load(&mut cx, request(root.clone(), "bad.sim", None))
-        .unwrap_err()
-        .to_string();
-    root.source(&mut cx, "bad.sim", "\"repaired but cached\"");
-    let second = loader
-        .load(&mut cx, request(root, "bad.sim", None))
-        .unwrap_err()
-        .to_string();
-    assert_eq!(first, second);
-    assert_eq!(
-        loader
-            .receipts()
-            .unwrap()
-            .iter()
-            .map(|r| r.outcome)
-            .collect::<Vec<_>>(),
-        vec![
-            ModuleResolutionOutcome::Failed,
-            ModuleResolutionOutcome::Failed
-        ]
-    );
-}
-
-#[test]
-fn replacement_updates_existing_live_binding() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut cx, "live.sim", "\"one\"");
-    let loader = ModuleLoader::new();
-    let first = loader
-        .load(&mut cx, request(root.clone(), "live.sim", None))
-        .unwrap();
-    let edge = first.default_export().clone();
-    root.source(&mut cx, "live.sim", "\"two\"");
-    let second = loader
-        .reload(&mut cx, request(root, "live.sim", None))
-        .unwrap();
-    assert_eq!(second.generation(), 2);
-    assert_eq!(
-        edge.get().unwrap().object().as_expr(&mut cx).unwrap(),
-        Expr::String("two".to_owned())
-    );
-}
-
-#[test]
-fn initializing_cycle_has_stable_receipt_without_storage_access() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    let loader = ModuleLoader::new();
-    let identity = ModuleIdentity {
-        root: Symbol::new("fixture"),
-        path: "cycle.sim".to_owned(),
-    };
-    loader.state.lock().unwrap().cache.insert(
-        identity.clone(),
-        CacheState::Initializing {
-            owner: std::thread::current().id(),
-            generation: 7,
-        },
-    );
-    let error = loader
-        .load(&mut cx, request(root, "cycle.sim", None))
-        .unwrap_err();
-    assert_eq!(
-        error.to_string(),
-        "evaluation error: module cycle at fixture:cycle.sim"
-    );
-    let receipt = loader.receipts().unwrap().pop().unwrap();
-    assert_eq!(
-        (receipt.generation, receipt.outcome),
-        (7, ModuleResolutionOutcome::Cycle)
-    );
-}
-
-#[test]
-fn cache_hit_reuses_one_linked_generation() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut cx, "shared.sim", "\"shared\"");
-    let loader = ModuleLoader::new();
-    let first = loader
-        .load(&mut cx, request(root.clone(), "shared.sim", None))
-        .unwrap();
-    let second = loader
-        .load(&mut cx, request(root, "shared.sim", None))
-        .unwrap();
-    assert_eq!(first.generation(), second.generation());
-    assert_eq!(
-        loader.receipts().unwrap().last().unwrap().outcome,
-        ModuleResolutionOutcome::CacheHit
-    );
-}
-
-#[test]
-fn concurrent_requests_share_one_initialization() {
-    let mut seed_cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut seed_cx, "concurrent.sim", "\"once\"");
-    let loader = Arc::new(ModuleLoader::new());
-    let workers = (0..8)
-        .map(|_| {
-            let root = root.clone();
-            let loader = loader.clone();
-            std::thread::spawn(move || {
-                let mut cx = context();
-                loader
-                    .load(&mut cx, request(root, "concurrent.sim", None))
-                    .unwrap()
-                    .generation()
-            })
-        })
-        .collect::<Vec<_>>();
-    assert!(
-        workers
-            .into_iter()
-            .all(|worker| worker.join().unwrap() == 1)
-    );
-    let receipts = loader.receipts().unwrap();
-    assert_eq!(
-        receipts
-            .iter()
-            .filter(|r| r.outcome == ModuleResolutionOutcome::Linked)
-            .count(),
-        1
-    );
-    assert_eq!(
-        receipts
-            .iter()
-            .filter(|r| r.outcome == ModuleResolutionOutcome::CacheHit)
-            .count(),
-        7
-    );
-}
-
-#[derive(Debug)]
-struct CompositionNode;
-
-impl ManagedObject for CompositionNode {
-    fn trace_edges(&self, _visitor: &mut dyn EdgeVisitor) {}
-
-    fn clear_weak_edge(&mut self, _edge: EdgeId, _expected: ManagedId) -> bool {
-        false
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-enum CompositionJob {
-    Microtask,
-    Finalization,
-}
-
-#[test]
-fn language_neutral_organs_compose_through_one_source_module_lifecycle() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut cx, "component.sim", "\"generation-one\"");
-
-    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(2).unwrap());
-    let managed = arena.allocate(CompositionNode).unwrap();
-    let rooted = arena.root(managed).unwrap();
-
-    let parameter = Symbol::new("component");
-    let argument = cx.factory().string("bound-component".to_owned()).unwrap();
-    let bound = CallSignature::new()
-        .with_positional(vec![CallParameter::required(parameter.clone())])
-        .bind([CallArgument::Positional(argument.clone())])
-        .unwrap();
-    assert!(
-        bound
-            .get(&parameter)
-            .is_some_and(|value| value == &argument)
-    );
-
-    let mut properties: PropertyStore<&str, &str, u64, ()> = PropertyStore::default();
-    let generation = "generation";
-    properties
-        .define(
-            &"component",
-            generation,
-            Descriptor::Data(DataDescriptor {
-                value: 1,
-                writable: true,
-                enumerable: true,
-                configurable: false,
-            }),
-        )
-        .unwrap();
-    assert!(matches!(
-        properties.own(&"component", &generation),
-        Some(Descriptor::Data(DataDescriptor { value, configurable: false, .. }))
-            if *value == managed.id().allocation_ordinal() + 1
-    ));
-
-    let loader = ModuleLoader::new();
-    let first = loader
-        .load(&mut cx, request(root.clone(), "component.sim", None))
-        .unwrap();
-    let live_export = first.default_export().clone();
-    assert_eq!(
-        value_expr(&mut cx, &first),
-        Expr::String("generation-one".to_owned())
-    );
-
-    let mut frame = ResumableFrame::new(
-        FrameLimits { depth: 1, work: 2 },
-        |packet: ResumePacket<u64, ()>, budget: &mut sim_lib_control::StepBudget| {
-            budget.charge_work()?;
-            match packet {
-                ResumePacket::Start => Ok(ResumeResult::Yielded(1)),
-                ResumePacket::Send(generation) => Ok(ResumeResult::Returned(generation)),
-                ResumePacket::Throw(()) => Ok(ResumeResult::Failed(())),
-                ResumePacket::Close => Ok(ResumeResult::Returned(0)),
-            }
-        },
-    );
-    assert_eq!(
-        frame.resume(ResumePacket::Start),
-        Ok(ResumeResult::Yielded(1))
-    );
-
-    let mut jobs = JobQueues::new(AdmissionLimit(3));
-    jobs.enqueue(CompositionJob::Microtask, |jobs| {
-        jobs.enqueue(CompositionJob::Microtask, |_| {}).unwrap();
-    })
-    .unwrap();
-    jobs.enqueue(CompositionJob::Finalization, |_| {}).unwrap();
-    let checkpoint = jobs
-        .checkpoint(CompositionJob::Microtask, WorkLimit(2))
-        .unwrap();
-    assert_eq!(checkpoint.completed.len(), 2);
-    assert!(
-        jobs.drain(CompositionJob::Finalization, WorkLimit(0))
-            .completed
-            .is_empty()
-    );
-
-    root.source(&mut cx, "component.sim", "\"generation-two\"");
-    let second = loader
-        .reload(&mut cx, request(root, "component.sim", None))
-        .unwrap();
-    assert_eq!(
-        frame.resume(ResumePacket::Send(second.generation())),
-        Ok(ResumeResult::Returned(2))
-    );
-    assert_eq!(
-        live_export
-            .get()
-            .unwrap()
-            .object()
-            .as_expr(&mut cx)
-            .unwrap(),
-        Expr::String("generation-two".to_owned())
-    );
-
-    let (_, safepoint) = arena
-        .safepoint(|snapshot| snapshot.objects().count())
-        .unwrap();
-    assert_eq!(safepoint.roots, vec![managed.id()]);
-    arena.release_root(rooted).unwrap();
-    let teardown = arena.teardown();
-    assert_eq!(teardown.objects, vec![managed.id()]);
-    assert_eq!(
-        loader
-            .receipts()
-            .unwrap()
-            .iter()
-            .map(|receipt| receipt.outcome)
-            .collect::<Vec<_>>(),
-        [
-            ModuleResolutionOutcome::Linked,
-            ModuleResolutionOutcome::Linked
-        ]
-    );
-}
-```
-
 ### `feature/sim-runtime/namespace-organ`
 
 Specimen `spec-test/sim-runtime/crates/sim-lib-namespace/src/tests` is checked by `cargo test`.
@@ -7727,718 +4799,460 @@ mod tests;
 
 ### `feature/sim-runtime/python-object-control-policy`
 
-Specimen `spec-test/sim-runtime/crates/sim-lib-dispatch/src/property_tests` is checked by `cargo test`.
+Specimen `spec-test/sim-runtime/crates/sim-lib-lang-python/src/objects` is checked by `cargo test`.
 
-Source `crates/sim-lib-dispatch/src/property_tests.rs`:
+Source `crates/sim-lib-lang-python/src/objects.rs`:
 
 ```rust
-// conformance: ordered language-neutral data and accessor descriptor mechanics.
+//! Python object policy over the language-neutral property store.
 
-use std::convert::Infallible;
+use sim_lib_dispatch::{
+    AccessContext, AccessError, AccessorDescriptor, DataDescriptor, Descriptor, PropertyHook,
+    PropertyStore,
+};
+use std::collections::{BTreeMap, BTreeSet};
 
-use crate::*;
+// conformance: Python object policy checks classes, descriptors, methods, and super.
 
-type Store = PropertyStore<&'static str, &'static str, i32, &'static str>;
-
-fn data(value: i32, writable: bool, configurable: bool) -> Descriptor<i32, &'static str> {
-    Descriptor::Data(DataDescriptor {
-        value,
-        writable,
-        enumerable: true,
-        configurable,
-    })
+/// Value stored by the checked object model.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub enum PythonObjectValue {
+    /// Python `None`.
+    #[default]
+    None,
+    /// A bounded integer specimen value.
+    Int(i64),
+    /// Text.
+    String(String),
+    /// An object identity.
+    Object(u64),
+    /// A function identity.
+    Function(u64),
+    /// A receiver-bound function.
+    BoundMethod {
+        /// Underlying function identity.
+        function: u64,
+        /// Bound instance identity.
+        receiver: u64,
+    },
 }
 
-fn accessor(get: Option<&'static str>, set: Option<&'static str>) -> Descriptor<i32, &'static str> {
-    Descriptor::Accessor(AccessorDescriptor {
-        get,
-        set,
-        enumerable: true,
-        configurable: true,
-    })
+/// Hook token used to prove descriptor receiver behavior.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct DescriptorHook {
+    /// Stable hook name.
+    pub name: String,
+    /// Value produced by a getter.
+    pub value: PythonObjectValue,
+}
+
+/// A declared Python class and its C3-linearized bases.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PythonClass {
+    /// Stable class identity.
+    pub id: u64,
+    /// Display name.
+    pub name: String,
+    /// Direct bases in declaration order.
+    pub bases: Vec<u64>,
+    /// C3 method resolution order, including this class.
+    pub mro: Vec<u64>,
+}
+
+/// Failure to construct a consistent class hierarchy.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ClassError {
+    /// A base class is unknown.
+    UnknownBase(u64),
+    /// The requested bases have no consistent C3 linearization.
+    InconsistentMro,
+}
+
+/// Checked attribute failure.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AttributeError {
+    /// The object identity is unknown.
+    UnknownObject(u64),
+    /// The class identity is unknown.
+    UnknownClass(u64),
+    /// No attribute was found.
+    Missing(String),
+    /// Shared descriptor traversal failed.
+    Access,
 }
 
 #[derive(Default)]
 struct Hooks {
-    calls: Vec<(AccessKind, &'static str, &'static str)>,
-    set_value: Option<i32>,
+    seen_receivers: Vec<u64>,
 }
-
-impl PropertyHook<&'static str, &'static str, i32, &'static str> for Hooks {
-    type Error = Infallible;
-
+impl PropertyHook<u64, String, PythonObjectValue, DescriptorHook> for Hooks {
+    type Error = ();
     fn get(
         &mut self,
-        _context: &mut AccessContext<&'static str, &'static str>,
-        hook: &&'static str,
-        receiver: &&'static str,
-        key: &&'static str,
-    ) -> Result<i32, AccessError<Self::Error>> {
-        self.calls.push((AccessKind::Get, receiver, key));
-        Ok(if *hook == "forty-two" { 42 } else { 0 })
+        _: &mut AccessContext<u64, String>,
+        hook: &DescriptorHook,
+        receiver: &u64,
+        _: &String,
+    ) -> Result<PythonObjectValue, AccessError<Self::Error>> {
+        self.seen_receivers.push(*receiver);
+        Ok(hook.value.clone())
     }
-
     fn set(
         &mut self,
-        _context: &mut AccessContext<&'static str, &'static str>,
-        _hook: &&'static str,
-        receiver: &&'static str,
-        key: &&'static str,
-        value: i32,
+        _: &mut AccessContext<u64, String>,
+        _: &DescriptorHook,
+        receiver: &u64,
+        _: &String,
+        _: PythonObjectValue,
     ) -> Result<(), AccessError<Self::Error>> {
-        self.calls.push((AccessKind::Set, receiver, key));
-        self.set_value = Some(value);
+        self.seen_receivers.push(*receiver);
         Ok(())
     }
 }
 
-#[test]
-fn own_records_define_delete_and_keep_deterministic_order() {
-    let mut store = Store::default();
-    store.define(&"object", "b", data(2, true, true)).unwrap();
-    store.define(&"object", "a", data(1, true, true)).unwrap();
-    store.define(&"object", "b", data(3, true, true)).unwrap();
-    assert_eq!(store.own_keys(&"object", false), ["b", "a"]);
-    assert!(store.delete(&"object", &"b").unwrap());
-    store.define(&"object", "b", data(4, true, true)).unwrap();
-    assert_eq!(store.own_keys(&"object", false), ["a", "b"]);
-
-    store
-        .define(&"object", "fixed", data(7, false, false))
-        .unwrap();
-    assert_eq!(
-        store.define(&"object", "fixed", data(8, false, false)),
-        Err(DefineError::InvariantViolation)
-    );
-    assert_eq!(
-        store.delete(&"object", &"fixed"),
-        Err(DefineError::InvariantViolation)
-    );
+/// Python class and instance policy using shared property mechanics.
+#[derive(Default)]
+pub struct PythonObjectSpace {
+    classes: BTreeMap<u64, PythonClass>,
+    instances: BTreeMap<u64, u64>,
+    properties: PropertyStore<u64, String, PythonObjectValue, DescriptorHook>,
+    hooks: Hooks,
 }
 
-#[test]
-fn inherited_accessors_receive_original_receiver() {
-    let mut store = Store::default();
-    store
-        .define(
-            &"type",
-            "answer",
-            accessor(Some("forty-two"), Some("capture")),
-        )
-        .unwrap();
-    let mut hooks = Hooks::default();
-    let mut context = AccessContext::new(8);
-    assert_eq!(
-        store
-            .get(
-                &["instance", "type"],
-                &"instance",
-                &"answer",
-                &mut context,
-                &mut hooks,
-            )
-            .unwrap(),
-        Some(42)
-    );
-    assert!(
-        store
-            .set(
-                &["instance", "type"],
-                &"instance",
-                &"answer",
-                9,
-                &mut context,
-                &mut hooks,
-            )
-            .unwrap()
-    );
-    assert_eq!(
-        hooks.calls,
-        [
-            (AccessKind::Get, "instance", "answer"),
-            (AccessKind::Set, "instance", "answer"),
-        ]
-    );
-    assert_eq!(hooks.set_value, Some(9));
-}
-
-#[test]
-fn explicit_owner_order_is_bounded_and_cycle_safe() {
-    let mut store = Store::default();
-    store.define(&"root", "key", data(5, true, true)).unwrap();
-    let mut hooks = Hooks::default();
-    let mut context = AccessContext::new(4);
-    assert_eq!(
-        store
-            .get(
-                &["child", "child", "root"],
-                &"child",
-                &"key",
-                &mut context,
-                &mut hooks,
-            )
-            .unwrap(),
-        Some(5)
-    );
-    assert_eq!(context.remaining(), 1);
-
-    let mut exhausted = AccessContext::new(1);
-    assert_eq!(
-        store.get(
-            &["child", "root"],
-            &"child",
-            &"key",
-            &mut exhausted,
-            &mut hooks,
-        ),
-        Err(AccessError::BudgetExhausted)
-    );
-}
-
-#[test]
-fn interception_reentry_is_rejected_within_shared_budget() {
-    let mut context = AccessContext::new(3);
-    let result: Result<(), AccessError<Infallible>> =
-        context.intercept(AccessKind::Get, &"receiver", &"key", |context| {
-            context.intercept(AccessKind::Get, &"receiver", &"key", |_| Ok(()))
-        });
-    assert_eq!(result, Err(AccessError::RecursiveReentry));
-    assert_eq!(context.remaining(), 1);
-}
-
-#[test]
-fn caller_policy_can_model_type_bound_data_and_non_data_precedence() {
-    let mut store = Store::default();
-    store
-        .define(&"type", "data", accessor(Some("forty-two"), Some("set")))
-        .unwrap();
-    store
-        .define(&"instance", "data", data(1, true, true))
-        .unwrap();
-    store
-        .define(&"type", "non-data", accessor(Some("forty-two"), None))
-        .unwrap();
-    store
-        .define(&"instance", "non-data", data(2, true, true))
-        .unwrap();
-    let mut hooks = Hooks::default();
-
-    // A profile chooses type-first for a data descriptor.
-    assert_eq!(
-        store
-            .get(
-                &["type", "instance"],
-                &"instance",
-                &"data",
-                &mut AccessContext::new(8),
-                &mut hooks,
-            )
-            .unwrap(),
-        Some(42)
-    );
-    // The same profile chooses instance-first for a non-data descriptor.
-    assert_eq!(
-        store
-            .get(
-                &["instance", "type"],
-                &"instance",
-                &"non-data",
-                &mut AccessContext::new(8),
-                &mut hooks,
-            )
-            .unwrap(),
-        Some(2)
-    );
-}
-
-#[test]
-fn caller_policy_can_model_prototype_lookup_and_own_shadowing() {
-    let mut store = Store::default();
-    store
-        .define(&"prototype", "name", data(10, true, true))
-        .unwrap();
-    let mut hooks = Hooks::default();
-    let owners = ["object", "prototype"];
-    assert_eq!(
-        store
-            .get(
-                &owners,
-                &"object",
-                &"name",
-                &mut AccessContext::new(4),
-                &mut hooks,
-            )
-            .unwrap(),
-        Some(10)
-    );
-    store
-        .define(&"object", "name", data(20, true, true))
-        .unwrap();
-    assert_eq!(
-        store
-            .get(
-                &owners,
-                &"object",
-                &"name",
-                &mut AccessContext::new(4),
-                &mut hooks,
-            )
-            .unwrap(),
-        Some(20)
-    );
-}
-```
-
-Specimen `spec-test/sim-runtime/crates/sim-lib-gc-tracing/src/tests` is checked by `cargo test`.
-
-Source `crates/sim-lib-gc-tracing/src/tests.rs`:
-
-```rust
-// conformance: bounded stop-the-world tracing collection.
-
-use sim_lib_mutation::{
-    EdgeId, EdgeVisitor, HardCappedRetainPolicy, ManagedArena, ManagedId, ManagedObject,
-};
-
-use std::sync::{Arc, Mutex};
-
-use sim_lib_control::{AdmissionLimit, JobQueues, RuntimeJobClass, WorkLimit};
-
-use crate::{
-    CollectionError, CollectionLimits, CorrectnessDimension, FinalizationRegistry, LimitKind,
-    collect, collect_with_finalization,
-};
-
-#[derive(Clone, Default)]
-struct Node {
-    strong: Vec<ManagedId>,
-    weak: Vec<Option<ManagedId>>,
-    ephemerons: Vec<Option<(ManagedId, ManagedId)>>,
-}
-impl ManagedObject for Node {
-    fn trace_edges(&self, visitor: &mut dyn EdgeVisitor) {
-        for (edge, target) in self.strong.iter().copied().enumerate() {
-            visitor.strong(EdgeId(edge as u32), target);
+impl PythonObjectSpace {
+    /// Declare a class and compute its C3 MRO.
+    pub fn define_class(
+        &mut self,
+        id: u64,
+        name: impl Into<String>,
+        bases: Vec<u64>,
+    ) -> Result<(), ClassError> {
+        let mut sequences = Vec::new();
+        for base in &bases {
+            sequences.push(
+                self.classes
+                    .get(base)
+                    .ok_or(ClassError::UnknownBase(*base))?
+                    .mro
+                    .clone(),
+            );
         }
-        let offset = self.strong.len();
-        for (edge, target) in self.weak.iter().enumerate() {
-            if let Some(target) = target {
-                visitor.weak(EdgeId((offset + edge) as u32), *target);
-            }
+        sequences.push(bases.clone());
+        let mut mro = vec![id];
+        mro.extend(c3_merge(sequences)?);
+        self.classes.insert(
+            id,
+            PythonClass {
+                id,
+                name: name.into(),
+                bases,
+                mro,
+            },
+        );
+        Ok(())
+    }
+
+    /// Allocate an instance of a known class.
+    pub fn instantiate(&mut self, object: u64, class: u64) -> Result<(), AttributeError> {
+        if !self.classes.contains_key(&class) {
+            return Err(AttributeError::UnknownClass(class));
         }
-        let offset = offset + self.weak.len();
-        for (edge, entry) in self.ephemerons.iter().enumerate() {
-            if let Some((key, value)) = entry {
-                visitor.ephemeron(EdgeId((offset + edge) as u32), *key, *value);
-            }
-        }
+        self.instances.insert(object, class);
+        Ok(())
     }
-    fn clear_weak_edge(&mut self, edge: EdgeId, expected: ManagedId) -> bool {
-        let index = edge.0 as usize - self.strong.len();
-        self.weak.get_mut(index).is_some_and(|entry| {
-            if *entry == Some(expected) {
-                *entry = None;
-                true
-            } else {
-                false
-            }
-        })
+
+    /// Return a declared class.
+    pub fn class(&self, id: u64) -> Option<&PythonClass> {
+        self.classes.get(&id)
     }
-    fn clear_ephemeron_edge(&mut self, edge: EdgeId, key: ManagedId, value: ManagedId) -> bool {
-        let index = edge.0 as usize - self.strong.len() - self.weak.len();
-        self.ephemerons.get_mut(index).is_some_and(|entry| {
-            if *entry == Some((key, value)) {
-                *entry = None;
-                true
-            } else {
-                false
-            }
-        })
+
+    /// Define a plain instance or class attribute.
+    pub fn define_value(&mut self, owner: u64, key: impl Into<String>, value: PythonObjectValue) {
+        self.properties
+            .define(
+                &owner,
+                key.into(),
+                Descriptor::Data(DataDescriptor {
+                    value,
+                    writable: true,
+                    enumerable: true,
+                    configurable: true,
+                }),
+            )
+            .expect("configurable Python value accepts replacement");
     }
-}
 
-#[test]
-fn ephemeron_fixpoint_and_kept_alive_epoch_obey_strong_liveness() {
-    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(7).unwrap());
-    let root = arena.allocate(Node::default()).unwrap();
-    let key1 = arena.allocate(Node::default()).unwrap();
-    let value1 = arena.allocate(Node::default()).unwrap();
-    let key2 = arena.allocate(Node::default()).unwrap();
-    let value2 = arena.allocate(Node::default()).unwrap();
-    let dead_key = arena.allocate(Node::default()).unwrap();
-    let dead_value = arena.allocate(Node::default()).unwrap();
-    arena.get_mut(root).unwrap().strong.push(key1.id());
-    arena.get_mut(root).unwrap().ephemerons = vec![
-        Some((key1.id(), value1.id())),
-        Some((dead_key.id(), dead_value.id())),
-    ];
-    arena.get_mut(value1).unwrap().strong.push(key2.id());
-    arena
-        .get_mut(value1)
-        .unwrap()
-        .ephemerons
-        .push(Some((key2.id(), value2.id())));
-    let _ = arena.root(root).unwrap();
-    assert_eq!(arena.upgrade(dead_value.downgrade()).unwrap(), dead_value);
-
-    let first = collect(&mut arena, limits()).unwrap();
-    assert!(first.marked.contains(&value2.id()));
-    assert!(first.marked.contains(&dead_value.id()));
-    assert_eq!(first.cleared_ephemerons, vec![(root.id(), EdgeId(2))]);
-    let second = collect(&mut arena, limits()).unwrap();
-    assert!(second.swept.contains(&dead_value.id()));
-    assert!(second.cleared_ephemerons.is_empty());
-
-    let mut quiet = ManagedArena::new(HardCappedRetainPolicy::new(1).unwrap());
-    let temporary = quiet.allocate(Node::default()).unwrap();
-    quiet.upgrade(temporary.downgrade()).unwrap();
-    assert!(collect(&mut quiet, limits()).unwrap().swept.is_empty());
-    assert_eq!(
-        collect(&mut quiet, limits()).unwrap().swept,
-        vec![temporary.id()]
-    );
-}
-
-#[test]
-fn weak_clearing_finalization_and_resurrection_are_bounded_and_at_most_once() {
-    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(3).unwrap());
-    let owner = arena.allocate(Node::default()).unwrap();
-    let dead = arena.allocate(Node::default()).unwrap();
-    arena.get_mut(owner).unwrap().weak.push(Some(dead.id()));
-    let _ = arena.root(owner).unwrap();
-    let mut registry = FinalizationRegistry::default();
-    let registration = registry.register(dead.id());
-    let mut exhausted = JobQueues::new(AdmissionLimit(0));
-    let before = arena.mutation_epoch();
-    let error =
-        collect_with_finalization(&mut arena, limits(), &mut registry, &mut exhausted, |_| {})
-            .unwrap_err();
-    assert!(matches!(error, CollectionError::Limit(ref r) if r.kind == LimitKind::Finalizers));
-    assert_eq!(arena.mutation_epoch(), before);
-    assert_eq!(arena.get(owner).unwrap().weak, vec![Some(dead.id())]);
-
-    let resurrected = Arc::new(Mutex::new(Vec::new()));
-    let callback_resurrected = resurrected.clone();
-    let mut jobs = JobQueues::new(AdmissionLimit(2));
-    let receipt = collect_with_finalization(
-        &mut arena,
-        limits(),
-        &mut registry,
-        &mut jobs,
-        move |record| {
-            callback_resurrected
-                .lock()
-                .unwrap()
-                .push(record.registration)
-        },
-    )
-    .unwrap();
-    assert_eq!(receipt.cleared_weak, vec![(owner.id(), EdgeId(0))]);
-    assert_eq!(receipt.finalization[0].registration, registration);
-    assert!(
-        resurrected.lock().unwrap().is_empty(),
-        "user code ran during collection"
-    );
-    assert!(arena.handle(dead.id()).is_err());
-    assert_eq!(
-        jobs.drain(RuntimeJobClass::Finalization, WorkLimit(1))
-            .completed
-            .len(),
-        1
-    );
-    assert_eq!(*resurrected.lock().unwrap(), vec![registration]);
-    assert!(
-        collect_with_finalization(&mut arena, limits(), &mut registry, &mut jobs, |_| {})
-            .unwrap()
-            .finalization
-            .is_empty()
-    );
-}
-
-#[test]
-fn cancelled_finalization_never_enters_the_queue() {
-    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(1).unwrap());
-    let dead = arena.allocate(Node::default()).unwrap();
-    let mut registry = FinalizationRegistry::default();
-    let registration = registry.register(dead.id());
-    assert!(registry.cancel(registration));
-    assert!(!registry.cancel(registration));
-    let mut jobs = JobQueues::new(AdmissionLimit(1));
-    let receipt = collect_with_finalization(&mut arena, limits(), &mut registry, &mut jobs, |_| {
-        panic!("cancelled finalizer ran")
-    })
-    .unwrap();
-    assert!(receipt.finalization.is_empty());
-    assert!(
-        jobs.drain(RuntimeJobClass::Finalization, WorkLimit(1))
-            .completed
-            .is_empty()
-    );
-}
-
-fn limits() -> CollectionLimits {
-    CollectionLimits {
-        objects: 20_000,
-        edges: 40_000,
-        stack: 20_000,
-        work: 100_000,
-        clears: 40_000,
-        finalizers: 20_000,
+    /// Define a Python data or non-data descriptor on a class.
+    pub fn define_descriptor(
+        &mut self,
+        class: u64,
+        key: impl Into<String>,
+        getter: DescriptorHook,
+        data: bool,
+    ) {
+        self.properties
+            .define(
+                &class,
+                key.into(),
+                Descriptor::Accessor(AccessorDescriptor {
+                    get: Some(getter),
+                    set: data.then(|| DescriptorHook {
+                        name: "set".into(),
+                        value: PythonObjectValue::None,
+                    }),
+                    enumerable: true,
+                    configurable: true,
+                }),
+            )
+            .expect("configurable Python descriptor accepts replacement");
     }
-}
 
-#[test]
-fn roots_shared_subgraphs_and_unreachable_cycles_are_collected() {
-    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(8).unwrap());
-    let root = arena.allocate(Node::default()).unwrap();
-    let left = arena.allocate(Node::default()).unwrap();
-    let right = arena.allocate(Node::default()).unwrap();
-    let shared = arena.allocate(Node::default()).unwrap();
-    let cycle_a = arena.allocate(Node::default()).unwrap();
-    let cycle_b = arena.allocate(Node::default()).unwrap();
-    arena.get_mut(root).unwrap().strong = vec![left.id(), right.id()];
-    arena.get_mut(left).unwrap().strong = vec![shared.id()];
-    arena.get_mut(right).unwrap().strong = vec![shared.id()];
-    arena.get_mut(cycle_a).unwrap().strong = vec![cycle_b.id()];
-    arena.get_mut(cycle_b).unwrap().strong = vec![cycle_a.id()];
-    let _rooted = arena.root(root).unwrap();
-
-    let receipt = collect(&mut arena, limits()).unwrap();
-    assert_eq!(
-        receipt.marked,
-        vec![root.id(), left.id(), right.id(), shared.id()]
-    );
-    assert_eq!(receipt.swept, vec![cycle_a.id(), cycle_b.id()]);
-    assert_eq!(arena.len(), 4);
-    assert!(arena.handle(cycle_a.id()).is_err());
-}
-
-#[test]
-fn deep_graph_uses_the_bounded_iterative_stack() {
-    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(12_000).unwrap());
-    let mut nodes = Vec::new();
-    for _ in 0..12_000 {
-        nodes.push(arena.allocate(Node::default()).unwrap());
-    }
-    for pair in nodes.windows(2) {
-        arena.get_mut(pair[0]).unwrap().strong.push(pair[1].id());
-    }
-    let _rooted = arena.root(nodes[0]).unwrap();
-    let receipt = collect(&mut arena, limits()).unwrap();
-    assert_eq!(receipt.marked.len(), 12_000);
-    assert!(receipt.swept.is_empty());
-}
-
-#[test]
-fn admission_failure_is_repeatable_and_leaves_graph_untouched() {
-    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(3).unwrap());
-    let a = arena.allocate(Node::default()).unwrap();
-    let b = arena.allocate(Node::default()).unwrap();
-    arena.get_mut(a).unwrap().strong.push(b.id());
-    let rooted = arena.root(a).unwrap();
-    let before_epoch = arena.mutation_epoch();
-    let tight = CollectionLimits {
-        objects: 3,
-        edges: 0,
-        stack: 3,
-        work: 10,
-        clears: 3,
-        finalizers: 3,
-    };
-    let first = collect(&mut arena, tight).unwrap_err();
-    let second = collect(&mut arena, tight).unwrap_err();
-    assert_eq!(first, second);
-    assert!(matches!(first, CollectionError::Limit(ref r) if r.kind == LimitKind::Edges));
-    assert_eq!(arena.mutation_epoch(), before_epoch);
-    assert_eq!(arena.len(), 2);
-    assert_eq!(arena.release_root(rooted).unwrap(), a);
-}
-
-#[test]
-fn root_churn_and_identical_schedules_produce_identical_receipts() {
-    fn specimen() -> (crate::CollectionReceipt, usize) {
-        let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(5).unwrap());
-        let a = arena.allocate(Node::default()).unwrap();
-        let b = arena.allocate(Node::default()).unwrap();
-        let stale = arena.allocate(Node::default()).unwrap();
-        arena.get_mut(a).unwrap().strong.push(b.id());
-        let transient = arena.root(stale).unwrap();
-        arena.release_root(transient).unwrap();
-        let _rooted = arena.root(a).unwrap();
-        let receipt = collect(&mut arena, limits()).unwrap();
-        assert!(arena.handle(stale.id()).is_err());
-        (receipt, arena.len())
-    }
-    assert_eq!(specimen(), specimen());
-}
-
-#[test]
-fn randomized_graphs_match_a_non_language_reference_model() {
-    for seed in 1_u64..40 {
-        let mut state = seed;
-        let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(48).unwrap());
-        let nodes = (0..48)
-            .map(|_| arena.allocate(Node::default()).unwrap())
-            .collect::<Vec<_>>();
-        let mut model = vec![Vec::<usize>::new(); 48];
-        for (owner, edges) in model.iter_mut().enumerate() {
-            for _ in 0..3 {
-                state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
-                let target = (state as usize) % 48;
-                edges.push(target);
-                arena
-                    .get_mut(nodes[owner])
-                    .unwrap()
-                    .strong
-                    .push(nodes[target].id());
-            }
-        }
-        let roots = [0, (seed as usize) % 48];
-        for root in roots {
-            let _ = arena.root(nodes[root]).unwrap();
-        }
-        let mut expected = std::collections::BTreeSet::new();
-        let mut pending = roots.to_vec();
-        while let Some(node) = pending.pop() {
-            if expected.insert(node) {
-                pending.extend(model[node].iter().copied());
-            }
-        }
-        let receipt = collect(&mut arena, limits()).unwrap();
-        let actual = receipt
-            .marked
+    /// Resolve an attribute with Python data-descriptor, instance, non-data,
+    /// and class-value precedence.
+    pub fn get(&mut self, object: u64, key: &str) -> Result<PythonObjectValue, AttributeError> {
+        let class = *self
+            .instances
+            .get(&object)
+            .ok_or(AttributeError::UnknownObject(object))?;
+        let mro = self
+            .classes
+            .get(&class)
+            .ok_or(AttributeError::UnknownClass(class))?
+            .mro
+            .clone();
+        let key = key.to_owned();
+        let descriptor_owner = mro
             .iter()
-            .map(|id| id.allocation_ordinal() as usize)
-            .collect::<Vec<_>>();
+            .find(|owner| self.properties.own(owner, &key).is_some())
+            .copied();
+        if let Some(owner) = descriptor_owner
+            && matches!(self.properties.own(&owner, &key), Some(Descriptor::Accessor(a)) if a.set.is_some())
+        {
+            return self.read(&[owner], object, &key);
+        }
+        if self.properties.own(&object, &key).is_some() {
+            return self.read(&[object], object, &key);
+        }
+        let value = self.read(&mro, object, &key)?;
+        Ok(match value {
+            PythonObjectValue::Function(function) => PythonObjectValue::BoundMethod {
+                function,
+                receiver: object,
+            },
+            other => other,
+        })
+    }
+
+    /// Resolve as `super(Current, object)`, starting after `Current` in the MRO.
+    pub fn get_super(
+        &mut self,
+        current: u64,
+        object: u64,
+        key: &str,
+    ) -> Result<PythonObjectValue, AttributeError> {
+        let class = *self
+            .instances
+            .get(&object)
+            .ok_or(AttributeError::UnknownObject(object))?;
+        let mro = &self
+            .classes
+            .get(&class)
+            .ok_or(AttributeError::UnknownClass(class))?
+            .mro;
+        let at = mro
+            .iter()
+            .position(|candidate| *candidate == current)
+            .ok_or(AttributeError::UnknownClass(current))?;
+        let owners = mro[at + 1..].to_vec();
+        let value = self.read(&owners, object, &key.to_owned())?;
+        Ok(match value {
+            PythonObjectValue::Function(function) => PythonObjectValue::BoundMethod {
+                function,
+                receiver: object,
+            },
+            other => other,
+        })
+    }
+
+    fn read(
+        &mut self,
+        owners: &[u64],
+        receiver: u64,
+        key: &String,
+    ) -> Result<PythonObjectValue, AttributeError> {
+        self.properties
+            .get(
+                owners,
+                &receiver,
+                key,
+                &mut AccessContext::new(64),
+                &mut self.hooks,
+            )
+            .map_err(|_| AttributeError::Access)?
+            .ok_or_else(|| AttributeError::Missing(key.clone()))
+    }
+}
+
+fn c3_merge(mut sequences: Vec<Vec<u64>>) -> Result<Vec<u64>, ClassError> {
+    let mut result = Vec::new();
+    loop {
+        sequences.retain(|sequence| !sequence.is_empty());
+        if sequences.is_empty() {
+            return Ok(result);
+        }
+        let candidate = sequences
+            .iter()
+            .map(|sequence| sequence[0])
+            .find(|candidate| {
+                sequences
+                    .iter()
+                    .all(|sequence| !sequence[1..].contains(candidate))
+            })
+            .ok_or(ClassError::InconsistentMro)?;
+        result.push(candidate);
+        for sequence in &mut sequences {
+            if sequence.first() == Some(&candidate) {
+                sequence.remove(0);
+            }
+        }
+        let unique: BTreeSet<_> = result.iter().copied().collect();
+        if unique.len() != result.len() {
+            return Err(ClassError::InconsistentMro);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn value(value: i64) -> PythonObjectValue {
+        PythonObjectValue::Int(value)
+    }
+    #[test]
+    fn c3_descriptors_binding_and_super_share_property_mechanics() {
+        let mut space = PythonObjectSpace::default();
+        space.define_class(1, "object", vec![]).unwrap();
+        space.define_class(2, "Left", vec![1]).unwrap();
+        space.define_class(3, "Right", vec![1]).unwrap();
+        space.define_class(4, "Diamond", vec![2, 3]).unwrap();
+        assert_eq!(space.class(4).unwrap().mro, vec![4, 2, 3, 1]);
+        space.instantiate(10, 4).unwrap();
+        space.define_descriptor(
+            2,
+            "data",
+            DescriptorHook {
+                name: "data".into(),
+                value: value(1),
+            },
+            true,
+        );
+        space.define_descriptor(
+            2,
+            "nondata",
+            DescriptorHook {
+                name: "nondata".into(),
+                value: value(2),
+            },
+            false,
+        );
+        space.define_value(10, "data", value(11));
+        space.define_value(10, "nondata", value(22));
+        assert_eq!(space.get(10, "data"), Ok(value(1)));
+        assert_eq!(space.get(10, "nondata"), Ok(value(22)));
+        space.define_value(3, "method", PythonObjectValue::Function(7));
         assert_eq!(
-            actual,
-            expected.into_iter().collect::<Vec<_>>(),
-            "seed {seed}"
+            space.get_super(2, 10, "method"),
+            Ok(PythonObjectValue::BoundMethod {
+                function: 7,
+                receiver: 10
+            })
+        );
+        assert_eq!(space.hooks.seen_receivers, vec![10]);
+    }
+
+    #[test]
+    fn inconsistent_c3_fails_explicitly() {
+        let mut space = PythonObjectSpace::default();
+        space.define_class(1, "object", vec![]).unwrap();
+        space.define_class(2, "A", vec![1]).unwrap();
+        space.define_class(3, "B", vec![1]).unwrap();
+        space.define_class(4, "AB", vec![2, 3]).unwrap();
+        space.define_class(5, "BA", vec![3, 2]).unwrap();
+        assert_eq!(
+            space.define_class(6, "Impossible", vec![4, 5]),
+            Err(ClassError::InconsistentMro)
         );
     }
 }
+```
 
-#[test]
-fn correctness_dimensions_are_explicit_and_frozen() {
-    assert_eq!(
-        CorrectnessDimension::ALL,
-        [
-            CorrectnessDimension::Safety,
-            CorrectnessDimension::Reclamation,
-            CorrectnessDimension::WeakAndEphemeron,
-            CorrectnessDimension::Finalization,
-            CorrectnessDimension::SameScheduleDeterminism,
-            CorrectnessDimension::ScheduleIndependenceSafety,
-            CorrectnessDimension::BoundedWork,
-            CorrectnessDimension::FailureAtomicity,
-            CorrectnessDimension::WasmClosure,
-        ]
-    );
-}
+### `feature/sim-runtime/python-authorized-library-core`
 
-#[test]
-fn generated_graphs_and_legal_safepoint_schedules_match_model_tracer() {
-    for seed in 1_u64..24 {
-        for schedule in 0..4 {
-            let mut state = seed;
-            let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(24).unwrap());
-            let nodes = (0..24)
-                .map(|_| arena.allocate(Node::default()).unwrap())
-                .collect::<Vec<_>>();
-            let mut graph = vec![Vec::new(); nodes.len()];
-            for (owner, outgoing) in graph.iter_mut().enumerate() {
-                for _ in 0..2 {
-                    state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
-                    let target = state as usize % nodes.len();
-                    outgoing.push(target);
-                    arena
-                        .get_mut(nodes[owner])
-                        .unwrap()
-                        .strong
-                        .push(nodes[target].id());
-                }
-            }
-            let root_indexes = [0, (seed as usize + schedule) % nodes.len()];
-            let roots = root_indexes
-                .into_iter()
-                .map(|index| arena.root(nodes[index]).unwrap())
-                .collect::<Vec<_>>();
-            if schedule & 1 != 0 {
-                let transient = arena.root(nodes[23]).unwrap();
-                arena.release_root(transient).unwrap();
-            }
-            if schedule & 2 != 0 {
-                arena.upgrade(nodes[22].downgrade()).unwrap();
-            }
+Specimen `spec-test/sim-runtime/crates/sim-lib-lang-python/src/lib` is checked by `cargo test`.
 
-            let mut expected = std::collections::BTreeSet::new();
-            let mut pending = root_indexes.to_vec();
-            if schedule & 2 != 0 {
-                pending.push(22);
-            }
-            while let Some(node) = pending.pop() {
-                if expected.insert(node) {
-                    pending.extend(graph[node].iter().copied());
-                }
-            }
-            let receipt = collect(&mut arena, limits()).unwrap();
-            let actual = receipt
-                .marked
-                .iter()
-                .map(|id| id.allocation_ordinal() as usize)
-                .collect::<Vec<_>>();
-            assert_eq!(
-                actual,
-                expected.into_iter().collect::<Vec<_>>(),
-                "seed {seed}, schedule {schedule}"
-            );
-            assert!(roots.iter().all(|root| arena.get(root.handle()).is_ok()));
-        }
-    }
-}
+Source `crates/sim-lib-lang-python/src/lib.rs`:
 
-#[test]
-fn wasm_closure_collects_cycle_clears_weak_and_admits_finalizer_without_host_thread() {
-    let specimen = || {
-        let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(4).unwrap());
-        let owner = arena.allocate(Node::default()).unwrap();
-        let cycle_a = arena.allocate(Node::default()).unwrap();
-        let cycle_b = arena.allocate(Node::default()).unwrap();
-        arena.get_mut(owner).unwrap().weak.push(Some(cycle_a.id()));
-        arena.get_mut(cycle_a).unwrap().strong.push(cycle_b.id());
-        arena.get_mut(cycle_b).unwrap().strong.push(cycle_a.id());
-        let _root = arena.root(owner).unwrap();
-        let mut registry = FinalizationRegistry::default();
-        registry.register(cycle_a.id());
-        let mut jobs = JobQueues::new(AdmissionLimit(1));
-        let receipt =
-            collect_with_finalization(&mut arena, limits(), &mut registry, &mut jobs, |_| {})
-                .unwrap();
-        assert_eq!(receipt.swept, vec![cycle_a.id(), cycle_b.id()]);
-        assert_eq!(receipt.cleared_weak, vec![(owner.id(), EdgeId(0))]);
-        assert_eq!(receipt.finalization.len(), 1);
-        assert_eq!(jobs.remaining_admission(), 0);
-    };
-    specimen();
-}
+```rust
+#![forbid(unsafe_code)]
+#![deny(missing_docs)]
+//! Thin, direct Python core profile over lowered `codec/python` expressions.
+//!
+//! This crate intentionally has no instruction format, compiler, or foreign
+//! runtime. The codec owns syntax; this profile evaluates its stable token
+//! lowering and composes the shared binding, control, mutation, sequence,
+//! dispatch, number, arena, and tracing-collector contracts.
 
-#[test]
-fn hard_capped_retain_refuses_at_cap_while_tracing_reclaims_cycles() {
-    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(2).unwrap());
-    let a = arena.allocate(Node::default()).unwrap();
-    let b = arena.allocate(Node::default()).unwrap();
-    arena.get_mut(a).unwrap().strong.push(b.id());
-    arena.get_mut(b).unwrap().strong.push(a.id());
-    assert_eq!(
-        arena.allocate(Node::default()).unwrap_err(),
-        sim_lib_mutation::ArenaError::CapacityExceeded { cap: 2 }
-    );
-    assert_eq!(
-        collect(&mut arena, limits()).unwrap().swept,
-        vec![a.id(), b.id()]
-    );
-    assert!(arena.allocate(Node::default()).is_ok());
-}
+// conformance: the crate test suite checks the authorized Python library core.
+
+mod fidelity;
+mod library_core;
+mod managed;
+mod matrix_row;
+mod objects;
+mod profile;
+mod resumable;
+mod runtime;
+
+#[cfg(test)]
+mod tests;
+
+pub use fidelity::{
+    PYTHON_EVIDENCE_CASES, PYTHON_EXTERNAL_ORACLE, PYTHON_FIDELITY, PythonEvidenceCase,
+    PythonFidelity,
+};
+pub use library_core::{
+    DynamicAdmission, DynamicPython, MatchCase, MatchOutcome, PythonLibraryManifest,
+    PythonModuleAdmission, PythonModulePolicy, PythonSurface, PythonSurfaceState, match_expr,
+    python_library_manifest,
+};
+pub use managed::{PythonHeap, PythonHeapPolicy, PythonManagedKind, PythonManagedObject};
+pub use matrix_row::{python_core_matrix_row, python_core_source_cases};
+pub use objects::{
+    AttributeError, ClassError, DescriptorHook, PythonClass, PythonObjectSpace, PythonObjectValue,
+};
+pub use profile::{install_python_core_profile, python_core_profile, python_profile_symbol};
+pub use resumable::{
+    ContextManager, PythonException, PythonExceptionGroup, PythonGenerator, PythonGeneratorError,
+    PythonGeneratorStep, PythonIterator, run_with_context,
+};
+pub use runtime::{Annotation, PythonEvalPolicy, PythonFunction, PythonValue};
+
+/// Deliberately unsupported Python object and control edges.
+pub const PYTHON_OBJECT_CONTROL_GAPS: &[&str] = &[
+    "custom metaclass construction and __prepare__",
+    "dynamic descriptor protocol mutation after class creation",
+    "weak-reference callbacks and proxy objects",
+    "language-visible __del__ finalizers and resurrection",
+    "async event-loop scheduling and async-generator hooks",
+];
+
+/// A scheduler-free Python coroutine frame using the same checked send/throw
+/// transition contract as a generator.
+pub type PythonCoroutine<T, D> = PythonGenerator<T, D>;
+
+/// Cookbook recipes for this profile, embedded at build time.
+pub static RECIPES: sim_cookbook::EmbeddedDir =
+    include!(concat!(env!("OUT_DIR"), "/cookbook_recipes.rs"));
 ```
 
 ### `feature/sim-runtime/host-exec`
