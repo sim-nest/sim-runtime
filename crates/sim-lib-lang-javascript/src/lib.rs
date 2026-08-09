@@ -7,9 +7,11 @@
 //! tracing collector; it contains no compiler, VM, Realm engine, or host loop.
 
 mod collections;
+mod jobs;
 mod json;
 mod managed;
 mod matrix_row;
+mod modules;
 mod objects;
 mod profile;
 mod regexp;
@@ -20,6 +22,10 @@ pub use collections::{
     JavascriptArray, JavascriptCollectionError, JavascriptIterator, JavascriptMap, JavascriptSet,
     JavascriptSymbol, JavascriptSymbolRegistry,
 };
+pub use jobs::{
+    JavascriptAsyncFunction, JavascriptException, JavascriptGenerator, JavascriptJobClass,
+    JavascriptJobs, JavascriptPromise, JavascriptPromiseState,
+};
 pub use json::{
     JavascriptJsonError, JavascriptJsonValue, JsonReplacer, JsonReviver, JsonToJson,
     parse_javascript_json, stringify_javascript_json,
@@ -28,6 +34,10 @@ pub use managed::{
     JavascriptHeap, JavascriptHeapPolicy, JavascriptManagedKind, JavascriptManagedObject,
 };
 pub use matrix_row::{javascript_core_matrix_row, javascript_core_source_cases};
+pub use modules::{
+    DynamicJavascript, JavascriptDynamicAdmission, JavascriptModuleAdmission,
+    JavascriptModulePolicy,
+};
 pub use objects::{
     JavascriptFunction, JavascriptFunctionKind, JavascriptObjectError, JavascriptObjectGap,
     JavascriptObjects, JavascriptPropertyKey, JavascriptThis,
