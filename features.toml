@@ -26,7 +26,7 @@ supports = ["feature/sim-runtime/guest-language-profiles", "feature/sim-runtime/
 [[feature]]
 id = "feature/sim-runtime/typescript-notation-profile"
 title = "TypeScript notation over JavaScript evaluation"
-summary = "Load admitted TypeScript notation by direct JavaScript erasure while retaining faithful, non-enforcing Shape metadata and explicit compiler gaps."
+summary = "TypeScript notation; does not type-check. Load admitted notation by direct JavaScript erasure while retaining faithful, non-enforcing Shape metadata and explicit compiler gaps."
 owner = "crate/sim-lib-lang-typescript"
 audiences = ["code", "framework"]
 guidance = "Use codec/typescript to produce an erased JavaScript graph and annotation provenance, then install language/typescript-notation. The profile delegates evaluation unchanged to the JavaScript direct-eval policy and uses sim-shape's neutral BrowseSignature only for observational callable metadata. It performs no binding, inference, narrowing, assignability, source preflight, compiler diagnostics, emit, runtime type guard, object model, module cache, or independent evaluation."
@@ -362,6 +362,15 @@ claims_anchors = [
 ]
 supports = [
   "feature/sim-runtime/organs",
+]
+
+[[route]]
+id = "route/use-typescript-notation"
+task = "Use TypeScript notation; does not type-check"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/typescript-notation-profile", why = "TypeScript notation; does not type-check. The profile erases admitted notation directly to the unchanged JavaScript evaluator and retains only faithful browse metadata." },
+  { specimen = "recipe/sim-runtime/crates/sim-lib-lang-typescript/01-basics/browsable-metadata", why = "The notation-plus-metadata recipe is the terminal public specimen." },
 ]
 
 [[route]]

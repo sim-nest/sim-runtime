@@ -6,10 +6,14 @@
 //! projects only a bounded faithful annotation vocabulary to observational
 //! Shape metadata, and delegates execution to `sim-lib-lang-javascript`.
 
+mod fidelity;
 mod metadata;
 mod profile;
 mod runtime;
 
+pub use fidelity::{
+    TYPESCRIPT_EXTERNAL_ORACLE, TypeScriptFidelityDimension, typescript_fidelity_dimensions,
+};
 pub use metadata::{
     AnnotationMetadata, AnnotationProvenance, ProjectedShape, attach_browse_signature,
     project_annotation,

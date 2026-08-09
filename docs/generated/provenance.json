@@ -3,10 +3,10 @@
   "generated_by": "cargo run -p xtask -- simdoc",
   "generation_timestamp": "2026-07-16T00:13:38+02:00",
   "generator": "xtask repo-contract v1",
-  "git_commit": "ff5b5e33abc5a544f75a2f1c8d8f84efb7b44e21",
+  "git_commit": "0b3b6cbc93ece718e9325726bc6c64f807dd55e8",
   "repo": "sim-runtime",
   "schema": "sim.provenance.v1",
-  "source_commit": "ff5b5e33abc5a544f75a2f1c8d8f84efb7b44e21",
+  "source_commit": "0b3b6cbc93ece718e9325726bc6c64f807dd55e8",
   "source_remote": "https://github.com/sim-nest/sim-runtime",
   "validation_commands": [
     "cargo fmt --all --check",
@@ -19,9 +19,9 @@
     "cargo run -p xtask -- validation-matrix --check --repo .",
     "cargo run -p xtask -- crate-catalog --check --repo ."
   ],
-  "workspace_hash": "dc624da991b57363",
+  "workspace_hash": "4336f2bc99957ea3",
   "workspace_hash_algorithm": "fnv1a64",
-  "workspace_hash_input_count": 451,
+  "workspace_hash_input_count": 452,
   "workspace_hash_inputs": [
     "Cargo.toml",
     "crates/sim-incremental-core/Cargo.toml",
@@ -343,6 +343,7 @@
     "crates/sim-lib-lang-typescript/recipes/01-basics/erased-execution/recipe.toml",
     "crates/sim-lib-lang-typescript/recipes/01-basics/unsupported-type-gap/recipe.toml",
     "crates/sim-lib-lang-typescript/recipes/book.toml",
+    "crates/sim-lib-lang-typescript/src/fidelity.rs",
     "crates/sim-lib-lang-typescript/src/lib.rs",
     "crates/sim-lib-lang-typescript/src/metadata.rs",
     "crates/sim-lib-lang-typescript/src/profile.rs",

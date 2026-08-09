@@ -162,10 +162,26 @@ fn crate_has_no_independent_runtime_or_compiler_products() {
         include_str!("metadata.rs"),
         include_str!("runtime.rs")
     );
-    for forbidden_dependency in ["typescript =", "swc", "deno", "node"] {
+    for forbidden_dependency in [
+        "typescript =",
+        "typescript-eslint",
+        "swc",
+        "oxc",
+        "deno",
+        "node",
+    ] {
         assert!(!manifest.contains(forbidden_dependency));
     }
     for forbidden_declaration in [
+        "struct Binder",
+        "struct ScopeGraph",
+        "struct Inference",
+        "struct Narrowing",
+        "struct Assignability",
+        "struct Preflight",
+        "struct Emitter",
+        "struct ProjectCache",
+        "struct LanguageServer",
         "struct TypeChecker",
         "struct ModuleCache",
         "enum TypeScriptValue",

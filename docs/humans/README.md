@@ -18,7 +18,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 | Feature | Subject | Specimens | Summary |
 | --- | --- | ---: | --- |
 | `feature/sim-runtime/javascript-core-profile` | `crate/sim-lib-lang-javascript` | 0 | Run embedded, capability-scoped ECMAScript over SIM values with ordinary objects, exact UTF-16 strings, explicit drain-to-empty jobs, authorized source modules, and no Node, DOM, timers, ambient host IO, or implicit event loop. |
-| `feature/sim-runtime/typescript-notation-profile` | `crate/sim-lib-lang-typescript` | 0 | Load admitted TypeScript notation by direct JavaScript erasure while retaining faithful, non-enforcing Shape metadata and explicit compiler gaps. |
+| `feature/sim-runtime/typescript-notation-profile` | `crate/sim-lib-lang-typescript` | 0 | TypeScript notation; does not type-check. Load admitted notation by direct JavaScript erasure while retaining faithful, non-enforcing Shape metadata and explicit compiler gaps. |
 | `feature/sim-runtime/incremental-query-core` | `crate/sim-incremental-core` | 1 | Provide the generic memo graph algorithm that runtime organs can wrap without depending on SIM value surfaces. |
 | `feature/sim-runtime/incremental-query-organ` | `crate/sim-lib-incremental` | 1 | Expose incremental expression queries as a loadable SIM organ with capability-gated registration, invalidation, verification, explanation, snapshots, and metrics. |
 | `feature/sim-runtime/capabilities-read-eval` | `crate/sim-lib-core` | 1 | Gate diminished read-eval and surface packing through explicit runtime libraries and capability checks. |
