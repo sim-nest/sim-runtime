@@ -18,6 +18,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 | Feature | Subject | Specimens | Summary |
 | --- | --- | ---: | --- |
 | `feature/sim-runtime/javascript-core-profile` | `crate/sim-lib-lang-javascript` | 0 | Run embedded, capability-scoped ECMAScript over SIM values with ordinary objects, exact UTF-16 strings, explicit drain-to-empty jobs, authorized source modules, and no Node, DOM, timers, ambient host IO, or implicit event loop. |
+| `feature/sim-runtime/typescript-notation-profile` | `crate/sim-lib-lang-typescript` | 0 | Load admitted TypeScript notation by direct JavaScript erasure while retaining faithful, non-enforcing Shape metadata and explicit compiler gaps. |
 | `feature/sim-runtime/incremental-query-core` | `crate/sim-incremental-core` | 1 | Provide the generic memo graph algorithm that runtime organs can wrap without depending on SIM value surfaces. |
 | `feature/sim-runtime/incremental-query-organ` | `crate/sim-lib-incremental` | 1 | Expose incremental expression queries as a loadable SIM organ with capability-gated registration, invalidation, verification, explanation, snapshots, and metrics. |
 | `feature/sim-runtime/capabilities-read-eval` | `crate/sim-lib-core` | 1 | Gate diminished read-eval and surface packing through explicit runtime libraries and capability checks. |
@@ -186,6 +187,20 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 - `crates/sim-lib-lang-typed-lazy/recipes/01-basics/profile-descriptor/recipe.toml`
 - `crates/sim-lib-lang-typed-lazy/recipes/01-basics/profile-descriptor/setup.siml`
 - `crates/sim-lib-lang-typed-lazy/recipes/book.toml`
+- `crates/sim-lib-lang-typescript/recipes/01-basics/browsable-metadata/purpose.md`
+- `crates/sim-lib-lang-typescript/recipes/01-basics/browsable-metadata/recipe.toml`
+- `crates/sim-lib-lang-typescript/recipes/01-basics/browsable-metadata/setup.ts`
+- `crates/sim-lib-lang-typescript/recipes/01-basics/chapter.toml`
+- `crates/sim-lib-lang-typescript/recipes/01-basics/code-producing-syntax-gap/purpose.md`
+- `crates/sim-lib-lang-typescript/recipes/01-basics/code-producing-syntax-gap/recipe.toml`
+- `crates/sim-lib-lang-typescript/recipes/01-basics/code-producing-syntax-gap/setup.ts`
+- `crates/sim-lib-lang-typescript/recipes/01-basics/erased-execution/purpose.md`
+- `crates/sim-lib-lang-typescript/recipes/01-basics/erased-execution/recipe.toml`
+- `crates/sim-lib-lang-typescript/recipes/01-basics/erased-execution/setup.ts`
+- `crates/sim-lib-lang-typescript/recipes/01-basics/unsupported-type-gap/purpose.md`
+- `crates/sim-lib-lang-typescript/recipes/01-basics/unsupported-type-gap/recipe.toml`
+- `crates/sim-lib-lang-typescript/recipes/01-basics/unsupported-type-gap/setup.ts`
+- `crates/sim-lib-lang-typescript/recipes/book.toml`
 - `crates/sim-lib-logic/recipes/01-basics/chapter.toml`
 - `crates/sim-lib-logic/recipes/01-basics/query-descriptor/purpose.md`
 - `crates/sim-lib-logic/recipes/01-basics/query-descriptor/recipe.toml`

@@ -20,6 +20,7 @@
 | `cookbook/lang/ruby` | `cookbook-recipe` | `sim-lib-lang-ruby` | Ruby DSL profile descriptors and block-control behavior. |
 | `cookbook/lang/scheme` | `cookbook-recipe` | `sim-lib-lang-scheme` | R7RS-small profile descriptors and reader surface. |
 | `cookbook/lang/typed-lazy` | `cookbook-recipe` | `sim-lib-lang-typed-lazy` | Typed lazy profile descriptors, ADTs, lazy refs, and typeclasses. |
+| `cookbook/lang/typescript` | `cookbook-recipe` | `sim-lib-lang-typescript` | TypeScript notation over JavaScript evaluation; no type checker or independent runtime. |
 | `cookbook/logic` | `cookbook-recipe` | `sim-lib-logic` | Logic database, assertion, and query surfaces. |
 | `cookbook/organ/binding` | `cookbook-recipe` | `sim-lib-binding` | Binding surface concepts shared by language profiles. |
 | `cookbook/organ/dispatch` | `cookbook-recipe` | `sim-lib-dispatch` | Generic function and multimethod concepts. |

@@ -1,0 +1,8 @@
+id = "typescript-browsable-metadata"
+title = "Browse a non-enforcing signature"
+codec = "typescript"
+setup = "setup.ts"
+purpose = "purpose.md"
+order = 20
+tags = ["typescript", "shape", "metadata", "browse-only"]
+requires = ["codec/typescript", "language/typescript-notation"]

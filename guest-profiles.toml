@@ -16,6 +16,12 @@ evidence = "crates/sim-lib-lang-python/src/profile.rs"
 ownership = []
 
 [[guest]]
+crate = "sim-lib-lang-typescript"
+profile = "language/typescript-notation"
+evidence = "crates/sim-lib-lang-typescript/src/profile.rs"
+ownership = []
+
+[[guest]]
 crate = "sim-lib-lang-lua"
 profile = "lang/lua-core/v1"
 evidence = "crates/sim-lib-lang-lua/src/profile.rs"

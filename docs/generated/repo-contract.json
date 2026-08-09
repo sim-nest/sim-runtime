@@ -1,5 +1,5 @@
 {
-  "card_count": 27,
+  "card_count": 28,
   "cards": [
     {
       "id": "browse/catalog",
@@ -98,6 +98,12 @@
       "summary": "Typed lazy profile descriptors, ADTs, lazy refs, and typeclasses."
     },
     {
+      "id": "cookbook/lang/typescript",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-lang-typescript",
+      "summary": "TypeScript notation over JavaScript evaluation; no type checker or independent runtime."
+    },
+    {
       "id": "cookbook/logic",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-logic",
@@ -194,6 +200,7 @@
       "sim-lib-lang-ruby",
       "sim-lib-lang-scheme",
       "sim-lib-lang-typed-lazy",
+      "sim-lib-lang-typescript",
       "sim-lib-logic",
       "sim-lib-mutation",
       "sim-lib-namespace",
@@ -342,7 +349,7 @@
       "reason": "transduced sequence adapter; reconstruct from the source sequence and transducer pipeline descriptor"
     }
   ],
-  "package_count": 28,
+  "package_count": 29,
   "packages": [
     {
       "crate_name": "sim_incremental_core",
@@ -1692,6 +1699,59 @@
       ]
     },
     {
+      "crate_name": "sim_lib_lang_typescript",
+      "dependencies": [
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-lang-javascript",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-standard-core",
+          "rename": null,
+          "target": null
+        }
+      ],
+      "description": "TypeScript notation profile over SIM's JavaScript evaluator and Shape metadata.",
+      "features": [],
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-typescript/Cargo.toml",
+      "name": "sim-lib-lang-typescript",
+      "publish": "true",
+      "root": "crates/sim-lib-lang-typescript",
+      "rustdoc_summary": "TypeScript notation over the unchanged JavaScript evaluator.",
+      "target_kinds": [
+        "custom-build",
+        "lib"
+      ],
+      "targets": [
+        {
+          "crate_types": [
+            "lib"
+          ],
+          "kind": [
+            "lib"
+          ],
+          "name": "sim_lib_lang_typescript",
+          "src": "crates/sim-lib-lang-typescript/src/lib.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "custom-build"
+          ],
+          "name": "build-script-build",
+          "src": "crates/sim-lib-lang-typescript/build.rs"
+        }
+      ]
+    },
+    {
       "crate_name": "sim_lib_logic",
       "dependencies": [
         {
@@ -2048,10 +2108,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-16T00:13:38+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "ef011d96b0a85c0c83270a0dc61c603d5e5d0fe8",
+    "git_commit": "ff5b5e33abc5a544f75a2f1c8d8f84efb7b44e21",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "ef011d96b0a85c0c83270a0dc61c603d5e5d0fe8",
+    "source_commit": "ff5b5e33abc5a544f75a2f1c8d8f84efb7b44e21",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -2064,9 +2124,9 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "c9ffd13b4e336df1",
+    "workspace_hash": "dc624da991b57363",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 439,
+    "workspace_hash_input_count": 451,
     "workspace_hash_inputs": [
       "Cargo.toml",
       "crates/sim-incremental-core/Cargo.toml",
@@ -2381,6 +2441,18 @@
       "crates/sim-lib-lang-typed-lazy/src/runtime.rs",
       "crates/sim-lib-lang-typed-lazy/src/symbols.rs",
       "crates/sim-lib-lang-typed-lazy/src/tests.rs",
+      "crates/sim-lib-lang-typescript/Cargo.toml",
+      "crates/sim-lib-lang-typescript/build.rs",
+      "crates/sim-lib-lang-typescript/recipes/01-basics/browsable-metadata/recipe.toml",
+      "crates/sim-lib-lang-typescript/recipes/01-basics/code-producing-syntax-gap/recipe.toml",
+      "crates/sim-lib-lang-typescript/recipes/01-basics/erased-execution/recipe.toml",
+      "crates/sim-lib-lang-typescript/recipes/01-basics/unsupported-type-gap/recipe.toml",
+      "crates/sim-lib-lang-typescript/recipes/book.toml",
+      "crates/sim-lib-lang-typescript/src/lib.rs",
+      "crates/sim-lib-lang-typescript/src/metadata.rs",
+      "crates/sim-lib-lang-typescript/src/profile.rs",
+      "crates/sim-lib-lang-typescript/src/runtime.rs",
+      "crates/sim-lib-lang-typescript/src/tests.rs",
       "crates/sim-lib-logic/Cargo.toml",
       "crates/sim-lib-logic/build.rs",
       "crates/sim-lib-logic/recipes/01-basics/query-descriptor/recipe.toml",
@@ -2509,7 +2581,7 @@
       "xtask/Cargo.toml"
     ]
   },
-  "recipe_book_count": 25,
+  "recipe_book_count": 26,
   "recipes": [
     {
       "book": "organ/binding",
@@ -3010,6 +3082,50 @@
       ],
       "summary": "Typed lazy profile descriptors, ADTs, lazy refs, and typeclasses.",
       "title": "Typed Lazy Profile"
+    },
+    {
+      "book": "lang/typescript",
+      "book_toml": "crates/sim-lib-lang-typescript/recipes/book.toml",
+      "card_id": "cookbook/lang/typescript",
+      "group": "workspace",
+      "package": "sim-lib-lang-typescript",
+      "recipe_count": 4,
+      "recipes": [
+        {
+          "card_id": "lang/typescript/01-basics/typescript-browsable-metadata",
+          "codec": "typescript",
+          "id": "typescript-browsable-metadata",
+          "package": "sim-lib-lang-typescript",
+          "recipe_toml": "crates/sim-lib-lang-typescript/recipes/01-basics/browsable-metadata/recipe.toml",
+          "title": "Browse a non-enforcing signature"
+        },
+        {
+          "card_id": "lang/typescript/01-basics/typescript-code-producing-syntax-gap",
+          "codec": "typescript",
+          "id": "typescript-code-producing-syntax-gap",
+          "package": "sim-lib-lang-typescript",
+          "recipe_toml": "crates/sim-lib-lang-typescript/recipes/01-basics/code-producing-syntax-gap/recipe.toml",
+          "title": "Reject code-producing TypeScript syntax"
+        },
+        {
+          "card_id": "lang/typescript/01-basics/typescript-erased-execution",
+          "codec": "typescript",
+          "id": "typescript-erased-execution",
+          "package": "sim-lib-lang-typescript",
+          "recipe_toml": "crates/sim-lib-lang-typescript/recipes/01-basics/erased-execution/recipe.toml",
+          "title": "Run erased TypeScript as JavaScript"
+        },
+        {
+          "card_id": "lang/typescript/01-basics/typescript-unsupported-type-gap",
+          "codec": "typescript",
+          "id": "typescript-unsupported-type-gap",
+          "package": "sim-lib-lang-typescript",
+          "recipe_toml": "crates/sim-lib-lang-typescript/recipes/01-basics/unsupported-type-gap/recipe.toml",
+          "title": "Keep a checker-dependent type as a gap"
+        }
+      ],
+      "summary": "TypeScript notation over JavaScript evaluation; no type checker or independent runtime.",
+      "title": "TypeScript Notation"
     },
     {
       "book": "logic",

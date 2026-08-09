@@ -25,6 +25,7 @@
 | `sim-lib-lang-ruby` | `workspace` | Ruby DSL surface profile for the SIM runtime. |
 | `sim-lib-lang-scheme` | `workspace` | Scheme (R7RS-small) surface profile for the SIM runtime. |
 | `sim-lib-lang-typed-lazy` | `workspace` | Typed, lazy surface profile for the SIM runtime. |
+| `sim-lib-lang-typescript` | `workspace` | TypeScript notation over the unchanged JavaScript evaluator. |
 | `sim-lib-logic` | `workspace` | Logic behavior for the SIM runtime: clauses, unification, and queries. |
 | `sim-lib-mutation` | `workspace` | Mutation behavior for the SIM runtime: cells, boxes, vectors, tables, and a bounded managed-object arena. |
 | `sim-lib-namespace` | `workspace` | Namespace records and capability-aware source module lifecycle for the SIM runtime. |

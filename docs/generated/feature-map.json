@@ -122,6 +122,11 @@
     {
       "features": [],
       "group": "workspace",
+      "package": "sim-lib-lang-typescript"
+    },
+    {
+      "features": [],
+      "group": "workspace",
       "package": "sim-lib-logic"
     },
     {

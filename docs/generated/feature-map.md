@@ -25,6 +25,7 @@
 | `sim-lib-lang-ruby` | `workspace` | 0 | 0 |
 | `sim-lib-lang-scheme` | `workspace` | 0 | 0 |
 | `sim-lib-lang-typed-lazy` | `workspace` | 0 | 0 |
+| `sim-lib-lang-typescript` | `workspace` | 0 | 0 |
 | `sim-lib-logic` | `workspace` | 0 | 0 |
 | `sim-lib-mutation` | `workspace` | 0 | 0 |
 | `sim-lib-namespace` | `workspace` | 0 | 0 |

@@ -1,5 +1,5 @@
 {
-  "card_count": 27,
+  "card_count": 28,
   "cards": [
     {
       "id": "browse/catalog",
@@ -96,6 +96,12 @@
       "kind": "cookbook-recipe",
       "owner": "sim-lib-lang-typed-lazy",
       "summary": "Typed lazy profile descriptors, ADTs, lazy refs, and typeclasses."
+    },
+    {
+      "id": "cookbook/lang/typescript",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-lang-typescript",
+      "summary": "TypeScript notation over JavaScript evaluation; no type checker or independent runtime."
     },
     {
       "id": "cookbook/logic",

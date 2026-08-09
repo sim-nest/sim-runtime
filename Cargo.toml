@@ -19,6 +19,7 @@ members = [
   "crates/sim-lib-lang-lua",
   "crates/sim-lib-lang-matrix",
   "crates/sim-lib-lang-python",
+  "crates/sim-lib-lang-typescript",
   "crates/sim-lib-lang-prolog",
   "crates/sim-lib-lang-ruby",
   "crates/sim-lib-lang-scheme",

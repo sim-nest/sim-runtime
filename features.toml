@@ -24,6 +24,16 @@ claims_anchors = ["anchor/crate/sim-lib-lang-javascript"]
 supports = ["feature/sim-runtime/guest-language-profiles", "feature/sim-runtime/organs", "feature/sim-runtime/gc-tracing"]
 
 [[feature]]
+id = "feature/sim-runtime/typescript-notation-profile"
+title = "TypeScript notation over JavaScript evaluation"
+summary = "Load admitted TypeScript notation by direct JavaScript erasure while retaining faithful, non-enforcing Shape metadata and explicit compiler gaps."
+owner = "crate/sim-lib-lang-typescript"
+audiences = ["code", "framework"]
+guidance = "Use codec/typescript to produce an erased JavaScript graph and annotation provenance, then install language/typescript-notation. The profile delegates evaluation unchanged to the JavaScript direct-eval policy and uses sim-shape's neutral BrowseSignature only for observational callable metadata. It performs no binding, inference, narrowing, assignability, source preflight, compiler diagnostics, emit, runtime type guard, object model, module cache, or independent evaluation."
+claims_anchors = ["anchor/crate/sim-lib-lang-typescript"]
+supports = ["feature/sim-runtime/javascript-core-profile", "feature/sim-runtime/guest-language-profiles"]
+
+[[feature]]
 id = "feature/sim-runtime/incremental-query-core"
 title = "Incremental query core"
 summary = "Provide the generic memo graph algorithm that runtime organs can wrap without depending on SIM value surfaces."

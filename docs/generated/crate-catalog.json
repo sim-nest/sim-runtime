@@ -1,6 +1,6 @@
 {
   "generator": "xtask crate-catalog v1",
-  "package_count": 28,
+  "package_count": 29,
   "packages": [
     {
       "description": "Dependency-light incremental query graph with memo cutoff and bounded snapshots.",
@@ -267,6 +267,19 @@
       "publish": "true",
       "readme": "crates/sim-lib-lang-typed-lazy/README.md",
       "root": "crates/sim-lib-lang-typed-lazy",
+      "target_kinds": [
+        "custom-build",
+        "lib"
+      ]
+    },
+    {
+      "description": "TypeScript notation profile over SIM's JavaScript evaluator and Shape metadata.",
+      "generated_readme": false,
+      "manifest": "crates/sim-lib-lang-typescript/Cargo.toml",
+      "name": "sim-lib-lang-typescript",
+      "publish": "true",
+      "readme": "crates/sim-lib-lang-typescript/README.md",
+      "root": "crates/sim-lib-lang-typescript",
       "target_kinds": [
         "custom-build",
         "lib"

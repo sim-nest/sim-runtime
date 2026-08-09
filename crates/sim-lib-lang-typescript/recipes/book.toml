@@ -1,0 +1,5 @@
+book = "lang/typescript"
+title = "TypeScript Notation"
+summary = "TypeScript notation over JavaScript evaluation; no type checker or independent runtime."
+order = 196
+chapters = ["01-basics"]

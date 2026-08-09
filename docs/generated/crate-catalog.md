@@ -27,6 +27,7 @@ Generated from Cargo metadata by `xtask crate-catalog v1`.
 | `sim-lib-lang-ruby` | `true` | `custom-build, lib` | Ruby-style surface profile for the SIM expression runtime. |
 | `sim-lib-lang-scheme` | `true` | `custom-build, lib` | Scheme surface profile for the SIM expression runtime. |
 | `sim-lib-lang-typed-lazy` | `true` | `custom-build, lib` | Typed lazy language profile for the SIM expression runtime. |
+| `sim-lib-lang-typescript` | `true` | `custom-build, lib` | TypeScript notation profile over SIM's JavaScript evaluator and Shape metadata. |
 | `sim-lib-logic` | `true` | `custom-build, lib` | Logic programming facts, queries, unification, and backtracking for SIM. |
 | `sim-lib-mutation` | `true` | `custom-build, lib` | Tracked mutation containers and bounded managed-object storage for SIM runtimes. |
 | `sim-lib-namespace` | `true` | `custom-build, lib` | Namespace records and capability-aware source module lifecycle for SIM libraries. |

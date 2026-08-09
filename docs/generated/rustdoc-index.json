@@ -149,6 +149,13 @@
       "summary": "Typed, lazy surface profile for the SIM runtime."
     },
     {
+      "crate_name": "sim_lib_lang_typescript",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-typescript/Cargo.toml",
+      "package": "sim-lib-lang-typescript",
+      "summary": "TypeScript notation over the unchanged JavaScript evaluator."
+    },
+    {
       "crate_name": "sim_lib_logic",
       "group": "workspace",
       "manifest": "crates/sim-lib-logic/Cargo.toml",
