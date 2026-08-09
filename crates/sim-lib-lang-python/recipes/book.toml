@@ -1,0 +1,5 @@
+book = "lang/python"
+title = "Python Core Profile"
+summary = "Source-only Python programs through codec/python and the installed profile."
+order = 190
+chapters = ["01-basics"]

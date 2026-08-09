@@ -100,6 +100,11 @@
 {"kind":"recipe","path":"crates/sim-lib-lang-matrix/recipes/01-basics/runtime-language-matrix/recipe.toml"}
 {"kind":"recipe","path":"crates/sim-lib-lang-matrix/recipes/01-basics/runtime-language-matrix/setup.siml"}
 {"kind":"recipe","path":"crates/sim-lib-lang-matrix/recipes/book.toml"}
+{"kind":"recipe","path":"crates/sim-lib-lang-python/recipes/01-basics/chapter.toml"}
+{"kind":"recipe","path":"crates/sim-lib-lang-python/recipes/01-basics/source-core/purpose.md"}
+{"kind":"recipe","path":"crates/sim-lib-lang-python/recipes/01-basics/source-core/recipe.toml"}
+{"kind":"recipe","path":"crates/sim-lib-lang-python/recipes/01-basics/source-core/setup.py"}
+{"kind":"recipe","path":"crates/sim-lib-lang-python/recipes/book.toml"}
 {"kind":"recipe","path":"crates/sim-lib-lang-ruby/recipes/01-basics/chapter.toml"}
 {"kind":"recipe","path":"crates/sim-lib-lang-ruby/recipes/01-basics/matrix-row/purpose.md"}
 {"kind":"recipe","path":"crates/sim-lib-lang-ruby/recipes/01-basics/matrix-row/recipe.toml"}

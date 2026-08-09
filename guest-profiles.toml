@@ -4,6 +4,12 @@ schema = "sim.guest-profiles/v1"
 # must remain empty unless a reviewed feature and a distinct owning crate are
 # named in the same row; guest crates compose shared organs instead.
 [[guest]]
+crate = "sim-lib-lang-python"
+profile = "lang/python-core/v1"
+evidence = "crates/sim-lib-lang-python/src/profile.rs"
+ownership = []
+
+[[guest]]
 crate = "sim-lib-lang-lua"
 profile = "lang/lua-core/v1"
 evidence = "crates/sim-lib-lang-lua/src/profile.rs"

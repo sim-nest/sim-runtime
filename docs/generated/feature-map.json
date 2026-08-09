@@ -97,6 +97,11 @@
     {
       "features": [],
       "group": "workspace",
+      "package": "sim-lib-lang-python"
+    },
+    {
+      "features": [],
+      "group": "workspace",
       "package": "sim-lib-lang-ruby"
     },
     {

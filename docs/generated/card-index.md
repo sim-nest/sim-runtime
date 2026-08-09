@@ -15,6 +15,7 @@
 | `cookbook/lang/julia` | `cookbook-recipe` | `sim-lib-lang-julia` | Julia core profile descriptors and dispatch behavior. |
 | `cookbook/lang/lua` | `cookbook-recipe` | `sim-lib-lang-lua` | Lua core profile descriptors, source conformance cases, tables, and coroutines. |
 | `cookbook/lang/matrix` | `cookbook-recipe` | `sim-lib-lang-matrix` | Shared conformance matrix assembly recipes. |
+| `cookbook/lang/python` | `cookbook-recipe` | `sim-lib-lang-python` | Source-only Python programs through codec/python and the installed profile. |
 | `cookbook/lang/ruby` | `cookbook-recipe` | `sim-lib-lang-ruby` | Ruby DSL profile descriptors and block-control behavior. |
 | `cookbook/lang/scheme` | `cookbook-recipe` | `sim-lib-lang-scheme` | R7RS-small profile descriptors and reader surface. |
 | `cookbook/lang/typed-lazy` | `cookbook-recipe` | `sim-lib-lang-typed-lazy` | Typed lazy profile descriptors, ADTs, lazy refs, and typeclasses. |

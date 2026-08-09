@@ -20,6 +20,7 @@
 | `sim-lib-lang-lua` | `workspace` | 0 | 0 |
 | `sim-lib-lang-matrix` | `workspace` | 0 | 0 |
 | `sim-lib-lang-prolog` | `workspace` | 1 | 1 |
+| `sim-lib-lang-python` | `workspace` | 0 | 0 |
 | `sim-lib-lang-ruby` | `workspace` | 0 | 0 |
 | `sim-lib-lang-scheme` | `workspace` | 0 | 0 |
 | `sim-lib-lang-typed-lazy` | `workspace` | 0 | 0 |

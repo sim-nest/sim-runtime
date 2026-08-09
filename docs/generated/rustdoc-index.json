@@ -114,6 +114,13 @@
       "summary": "Prolog surface profile for the SIM runtime."
     },
     {
+      "crate_name": "sim_lib_lang_python",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-python/Cargo.toml",
+      "package": "sim-lib-lang-python",
+      "summary": "Thin, direct Python core profile over lowered codec/python expressions."
+    },
+    {
       "crate_name": "sim_lib_lang_ruby",
       "group": "workspace",
       "manifest": "crates/sim-lib-lang-ruby/Cargo.toml",

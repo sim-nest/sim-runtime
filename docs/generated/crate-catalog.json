@@ -1,6 +1,6 @@
 {
   "generator": "xtask crate-catalog v1",
-  "package_count": 26,
+  "package_count": 27,
   "packages": [
     {
       "description": "Dependency-light incremental query graph with memo cutoff and bounded snapshots.",
@@ -204,6 +204,19 @@
       "readme": "crates/sim-lib-lang-prolog/README.md",
       "root": "crates/sim-lib-lang-prolog",
       "target_kinds": [
+        "lib"
+      ]
+    },
+    {
+      "description": "Thin Python core profile for the SIM expression runtime.",
+      "generated_readme": false,
+      "manifest": "crates/sim-lib-lang-python/Cargo.toml",
+      "name": "sim-lib-lang-python",
+      "publish": "true",
+      "readme": "crates/sim-lib-lang-python/README.md",
+      "root": "crates/sim-lib-lang-python",
+      "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },

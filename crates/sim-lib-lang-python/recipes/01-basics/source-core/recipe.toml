@@ -1,0 +1,8 @@
+id = "python-source-core"
+title = "Evaluate Python source through the thin profile"
+codec = "python"
+setup = "setup.py"
+purpose = "purpose.md"
+order = 10
+tags = ["python", "profile", "direct-eval"]
+requires = ["codec/python", "lang/python-core/v1"]

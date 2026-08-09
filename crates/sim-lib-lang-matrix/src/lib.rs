@@ -8,6 +8,7 @@ use sim_lib_lang_islisp::islisp_matrix_row;
 use sim_lib_lang_julia::julia_core_matrix_row;
 use sim_lib_lang_lua::lua_core_matrix_row;
 use sim_lib_lang_prolog::prolog_matrix_row;
+use sim_lib_lang_python::python_core_matrix_row;
 use sim_lib_lang_ruby::ruby_dsl_matrix_row;
 use sim_lib_lang_scheme::r7rs_small_matrix_row;
 use sim_lib_lang_typed_lazy::typed_lazy_matrix_row;
@@ -25,6 +26,7 @@ pub fn language_matrix() -> ConformanceMatrix {
     matrix.register(ruby_dsl_matrix_row());
     matrix.register(typed_lazy_matrix_row());
     matrix.register(prolog_matrix_row());
+    matrix.register(python_core_matrix_row());
     matrix
 }
 

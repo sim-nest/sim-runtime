@@ -22,6 +22,7 @@ Generated from Cargo metadata by `xtask crate-catalog v1`.
 | `sim-lib-lang-lua` | `true` | `custom-build, lib` | Lua-style surface profile for the SIM expression runtime. |
 | `sim-lib-lang-matrix` | `true` | `custom-build, lib` | SIM language conformance matrix assembly crate. |
 | `sim-lib-lang-prolog` | `true` | `lib` | Prolog surface profile for the SIM runtime. |
+| `sim-lib-lang-python` | `true` | `custom-build, lib` | Thin Python core profile for the SIM expression runtime. |
 | `sim-lib-lang-ruby` | `true` | `custom-build, lib` | Ruby-style surface profile for the SIM expression runtime. |
 | `sim-lib-lang-scheme` | `true` | `custom-build, lib` | Scheme surface profile for the SIM expression runtime. |
 | `sim-lib-lang-typed-lazy` | `true` | `custom-build, lib` | Typed lazy language profile for the SIM expression runtime. |

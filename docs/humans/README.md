@@ -143,6 +143,11 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 - `crates/sim-lib-lang-matrix/recipes/01-basics/runtime-language-matrix/recipe.toml`
 - `crates/sim-lib-lang-matrix/recipes/01-basics/runtime-language-matrix/setup.siml`
 - `crates/sim-lib-lang-matrix/recipes/book.toml`
+- `crates/sim-lib-lang-python/recipes/01-basics/chapter.toml`
+- `crates/sim-lib-lang-python/recipes/01-basics/source-core/purpose.md`
+- `crates/sim-lib-lang-python/recipes/01-basics/source-core/recipe.toml`
+- `crates/sim-lib-lang-python/recipes/01-basics/source-core/setup.py`
+- `crates/sim-lib-lang-python/recipes/book.toml`
 - `crates/sim-lib-lang-ruby/recipes/01-basics/chapter.toml`
 - `crates/sim-lib-lang-ruby/recipes/01-basics/matrix-row/purpose.md`
 - `crates/sim-lib-lang-ruby/recipes/01-basics/matrix-row/recipe.toml`

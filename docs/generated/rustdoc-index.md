@@ -20,6 +20,7 @@
 | `sim-lib-lang-lua` | `workspace` | Lua surface profile for the SIM runtime. |
 | `sim-lib-lang-matrix` | `workspace` | Assembly point for the SIM language conformance matrix. |
 | `sim-lib-lang-prolog` | `workspace` | Prolog surface profile for the SIM runtime. |
+| `sim-lib-lang-python` | `workspace` | Thin, direct Python core profile over lowered codec/python expressions. |
 | `sim-lib-lang-ruby` | `workspace` | Ruby DSL surface profile for the SIM runtime. |
 | `sim-lib-lang-scheme` | `workspace` | Scheme (R7RS-small) surface profile for the SIM runtime. |
 | `sim-lib-lang-typed-lazy` | `workspace` | Typed, lazy surface profile for the SIM runtime. |

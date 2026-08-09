@@ -1,5 +1,5 @@
 {
-  "card_count": 25,
+  "card_count": 26,
   "cards": [
     {
       "id": "browse/catalog",
@@ -66,6 +66,12 @@
       "kind": "cookbook-recipe",
       "owner": "sim-lib-lang-matrix",
       "summary": "Shared conformance matrix assembly recipes."
+    },
+    {
+      "id": "cookbook/lang/python",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-lang-python",
+      "summary": "Source-only Python programs through codec/python and the installed profile."
     },
     {
       "id": "cookbook/lang/ruby",

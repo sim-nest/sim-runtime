@@ -1,0 +1,3 @@
+title = "Direct source evaluation"
+order = 10
+summary = "Decode with codec/python, install lang/python-core/v1, and evaluate directly."

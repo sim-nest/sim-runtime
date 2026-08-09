@@ -255,6 +255,7 @@ guidance = "Start from the checked LanguageProfile and GuestProfileEvidence thin
 claims_anchors = [
   "anchor/crate/sim-lib-standard-core",
   "anchor/crate/sim-lib-lang-lua",
+  "anchor/crate/sim-lib-lang-python",
   "anchor/rustdoc/sim-lib-lang-lua/lua_reader_symbol",
   "anchor/rustdoc/sim-lib-lang-lua/lua_core_profile",
   "anchor/crate/sim-lib-lang-matrix",
