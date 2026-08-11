@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-namespace"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 license = "MPL-2.0"
 description = "Namespace records and capability-aware source module lifecycle for SIM libraries."
@@ -12,9 +12,9 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 [dependencies]
 sim-cookbook = { version = "0.2.0" }
 sim-kernel = { version = "0.2.0" }
-sim-lib-binding = { version = "0.1.3", path = "../sim-lib-binding" }
-sim-lib-core = { version = "0.1.3", path = "../sim-lib-core" }
-sim-shape = { version = "0.2.0" }
+sim-lib-binding = { version = "0.1.4", path = "../sim-lib-binding" }
+sim-lib-core = { version = "0.1.4", path = "../sim-lib-core" }
+sim-shape = { version = "0.2.1" }
 
 [lints]
 workspace = true
