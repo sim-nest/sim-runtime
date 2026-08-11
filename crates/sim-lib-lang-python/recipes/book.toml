@@ -1,0 +1,5 @@
+book = "lang/python"
+title = "Embedded Python Scripting"
+summary = "Capability-scoped, agent-authored Python over SIM values; not a CPython replacement."
+order = 190
+chapters = ["01-basics"]

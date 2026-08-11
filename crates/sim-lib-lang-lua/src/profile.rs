@@ -111,3 +111,19 @@ pub fn install_lua_core_profile(
         &[],
     )
 }
+
+#[cfg(test)]
+mod evidence_tests {
+    use super::*;
+
+    #[test]
+    fn lua_profile_is_complete_guest_evidence() {
+        let evidence = lua_core_profile().checked_guest_evidence().unwrap();
+        assert_eq!(evidence.reader, lua_reader_symbol());
+        assert_eq!(evidence.lowering, lua_lowering_symbol());
+        assert_eq!(evidence.eval_policy, lua_eval_policy_symbol());
+        assert_eq!(evidence.organs.len(), 5);
+        assert_eq!(evidence.capabilities.len(), 1);
+        assert_eq!(evidence.gaps.len(), 3);
+    }
+}

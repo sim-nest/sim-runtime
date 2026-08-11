@@ -14,6 +14,7 @@ mod condition;
 mod conditional;
 mod coroutine;
 mod generator;
+mod jobs;
 mod model;
 mod nonlocal;
 mod ops;
@@ -21,7 +22,9 @@ mod policy;
 mod prompt;
 mod protected;
 mod restart;
+mod resume;
 mod runtime;
+mod unwind;
 
 pub use r#async::{AsyncPoll, AsyncTask};
 pub use backtrack::{BacktrackStep, Backtracker};
@@ -34,6 +37,10 @@ pub use condition::{Condition, ConditionHandler, ConditionStack, signal_conditio
 pub use conditional::IfForm;
 pub use coroutine::{Coroutine, CoroutineFrame, CoroutineFrameStep, CoroutineLane, CoroutineStep};
 pub use generator::{Generator, GeneratorStep};
+pub use jobs::{
+    AdmissionLimit, CheckpointError, CheckpointReceipt, DrainReceipt, JobId, JobQueues, JobReceipt,
+    JobStatus, RuntimeJobClass, WorkLimit,
+};
 pub use model::{ContinuationValue, ControlResultValue};
 pub use nonlocal::{LabeledPrompt, NonLocalExit, NonLocalExitKind, escape_to_label};
 pub use ops::{
@@ -47,7 +54,9 @@ pub use policy::{
 pub use prompt::{ControlPrompt, ControlTag, raise_prompt};
 pub use protected::{ProtectedOutcome, protected_call};
 pub use restart::{Restart, RestartStack, invoke_restart};
+pub use resume::{FrameError, FrameLimits, ResumableFrame, ResumePacket, ResumeResult, StepBudget};
 pub use runtime::{ControlLib, control_exports, install_control_lib, manifest_name};
+pub use unwind::{CleanupStack, Unwind};
 
 /// Cookbook recipes for this lib, embedded at build time.
 pub static RECIPES: sim_cookbook::EmbeddedDir =
@@ -58,6 +67,9 @@ mod derivation_tests;
 
 #[cfg(test)]
 mod frame_tests;
+
+#[cfg(test)]
+mod organ_tests;
 
 #[cfg(test)]
 mod tests;

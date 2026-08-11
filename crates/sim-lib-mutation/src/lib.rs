@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
-//! Mutation behavior for the SIM runtime: cells, boxes, vectors, symbol-keyed
-//! tables, and runtime-keyed tables.
+//! Mutation behavior for the SIM runtime: cells, boxes, vectors, tables, and a
+//! bounded managed-object arena.
 //!
 //! The kernel defines the capability and operation contracts; this crate
 //! supplies the concrete mutation organ (mutable cells, boxes, vectors,
@@ -18,6 +18,7 @@
 mod cap;
 mod cell;
 mod claims;
+mod managed;
 mod runtime_key;
 mod runtime_table;
 mod table;
@@ -30,6 +31,11 @@ pub use claims::{
     mutation_set_op_key, mutation_table_op_key, mutation_vector_op_key,
     publish_mutation_organ_claims, publish_mutation_organ_claims_for_lib,
 };
+pub use managed::{
+    ArenaError, CollectionMutationReceipt, EdgeId, EdgeVisitor, HardCappedRetainPolicy,
+    ManagedArena, ManagedHandle, ManagedId, ManagedObject, RootId, RootedHandle, SafepointReceipt,
+    TeardownReceipt, TraceContractVersion, TraceSnapshot, WeakHandle,
+};
 pub use runtime_key::{PrimitiveRuntimeKeyPolicy, RuntimeKey, RuntimeKeyPolicy};
 pub use runtime_table::{MutableRuntimeTable, mutable_runtime_table, mutable_runtime_table_value};
 pub use table::{MutableTable, mutable_table, mutable_table_value};
@@ -39,5 +45,7 @@ pub use vector::{MutableVector, mutable_vector, mutable_vector_from_value, mutab
 pub static RECIPES: sim_cookbook::EmbeddedDir =
     include!(concat!(env!("OUT_DIR"), "/cookbook_recipes.rs"));
 
+#[cfg(test)]
+mod managed_tests;
 #[cfg(test)]
 mod tests;

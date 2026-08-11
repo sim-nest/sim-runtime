@@ -20,7 +20,7 @@ fn closure_registry_tracks_the_curated_language_matrix() {
     let mut names = BTreeSet::new();
 
     assert_eq!(registry.len(), matrix.language_count());
-    assert_eq!(matrix.language_count(), 9);
+    assert_eq!(matrix.language_count(), 11);
     for row in &registry {
         assert!(
             names.insert(row.language.clone()),
@@ -67,5 +67,5 @@ fn closure_reports_are_anchored_or_honest() {
             );
         }
     }
-    assert_eq!(language_matrix().language_count(), 9);
+    assert_eq!(language_matrix().language_count(), 11);
 }

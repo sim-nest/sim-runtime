@@ -5,6 +5,7 @@
 //! The kernel defines the binding-related contracts; this crate supplies the
 //! concrete binding organ (lexical/letrec scopes, dynamic parameters, modes).
 
+mod call;
 mod cell;
 mod claims;
 mod dynamic;
@@ -17,7 +18,8 @@ mod runtime;
 pub static RECIPES: sim_cookbook::EmbeddedDir =
     include!(concat!(env!("OUT_DIR"), "/cookbook_recipes.rs"));
 
-pub use cell::BindingCell;
+pub use call::{BoundCall, CallArgument, CallParameter, CallSignature, Remainder};
+pub use cell::{BindingCell, BindingCellState};
 pub use claims::{
     binding_declared_op_keys, binding_dynamic_let_op_key, binding_let_op_key,
     binding_let_star_op_key, binding_letrec_op_key, binding_live_ops, binding_op_keys,

@@ -1,0 +1,8 @@
+id = "typescript-unsupported-type-gap"
+title = "Keep a checker-dependent type as a gap"
+codec = "typescript"
+setup = "setup.ts"
+purpose = "purpose.md"
+order = 30
+tags = ["typescript", "gap", "no-checker"]
+requires = ["codec/typescript", "language/typescript-notation"]

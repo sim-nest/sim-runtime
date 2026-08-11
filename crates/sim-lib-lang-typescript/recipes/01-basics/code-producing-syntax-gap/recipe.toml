@@ -1,0 +1,8 @@
+id = "typescript-code-producing-syntax-gap"
+title = "Reject code-producing TypeScript syntax"
+codec = "typescript"
+setup = "setup.ts"
+purpose = "purpose.md"
+order = 40
+tags = ["typescript", "gap", "enum", "no-emit"]
+requires = ["codec/typescript", "language/typescript-notation"]

@@ -7,9 +7,9 @@ use sim_kernel::{
     Args, Callable, ClassRef, Cx, Error, Object, ObjectCompat, Result, Symbol, Value,
 };
 
-use crate::BindingCell;
+use crate::{BindingCell, BindingCellState};
 
-type BindingSlot = Arc<Mutex<Option<Value>>>;
+type BindingSlot = Arc<Mutex<BindingCellState>>;
 
 /// Computes a binding's initial value within a (possibly partial) scope.
 ///
@@ -81,10 +81,14 @@ impl LexicalEnv {
                 "lexical binding {name} is not defined"
             )));
         };
-        slot.lock()
-            .map_err(|_| Error::Eval(format!("lexical binding {name} lock is poisoned")))?
-            .clone()
-            .ok_or_else(|| Error::Eval(format!("lexical binding {name} is not initialized")))
+        BindingCell::from_slot(name.clone(), slot)
+            .get()
+            .map_err(|error| match error {
+                Error::Eval(message) if message.contains("is not initialized") => {
+                    Error::Eval(format!("lexical binding {name} is not initialized"))
+                }
+                other => other,
+            })
     }
 
     /// Captures `name` as a shared cell for closure formation.
@@ -110,11 +114,7 @@ impl LexicalEnv {
                 "lexical binding {name} is not defined"
             )));
         };
-        *slot
-            .lock()
-            .map_err(|_| Error::Eval(format!("lexical binding {name} lock is poisoned")))? =
-            Some(value);
-        Ok(())
+        BindingCell::from_slot(name.clone(), slot).set(value)
     }
 
     fn define_slot(&self, name: Symbol, value: Option<Value>) -> Result<()> {
@@ -124,7 +124,11 @@ impl LexicalEnv {
                 "lexical binding {name} is already defined in this frame"
             )));
         }
-        slots.insert(name, Arc::new(Mutex::new(value)));
+        let state = value.map_or(
+            BindingCellState::Uninitialized,
+            BindingCellState::Initialized,
+        );
+        slots.insert(name, Arc::new(Mutex::new(state)));
         Ok(())
     }
 

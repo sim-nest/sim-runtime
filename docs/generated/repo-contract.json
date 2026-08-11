@@ -1,5 +1,5 @@
 {
-  "card_count": 24,
+  "card_count": 28,
   "cards": [
     {
       "id": "browse/catalog",
@@ -18,6 +18,12 @@
       "kind": "cookbook-recipe",
       "owner": "sim-lib-core",
       "summary": "Quoting, evaluation, and collection basics."
+    },
+    {
+      "id": "cookbook/gc-tracing",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-gc-tracing",
+      "summary": "Bound and audit managed-arena cycle collection."
     },
     {
       "id": "cookbook/lang/clojure",
@@ -44,6 +50,12 @@
       "summary": "ISLISP profile descriptors and dispatch fidelity."
     },
     {
+      "id": "cookbook/lang/javascript",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-lang-javascript",
+      "summary": "Embedded capability-scoped ECMAScript with explicit drains; no Node, DOM, timers, or ambient host IO."
+    },
+    {
       "id": "cookbook/lang/julia",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-lang-julia",
@@ -62,6 +74,12 @@
       "summary": "Shared conformance matrix assembly recipes."
     },
     {
+      "id": "cookbook/lang/python",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-lang-python",
+      "summary": "Capability-scoped, agent-authored Python over SIM values; not a CPython replacement."
+    },
+    {
       "id": "cookbook/lang/ruby",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-lang-ruby",
@@ -78,6 +96,12 @@
       "kind": "cookbook-recipe",
       "owner": "sim-lib-lang-typed-lazy",
       "summary": "Typed lazy profile descriptors, ADTs, lazy refs, and typeclasses."
+    },
+    {
+      "id": "cookbook/lang/typescript",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-lang-typescript",
+      "summary": "TypeScript notation over JavaScript evaluation; no type checker or independent runtime."
     },
     {
       "id": "cookbook/logic",
@@ -161,18 +185,22 @@
       "sim-lib-core",
       "sim-lib-dispatch",
       "sim-lib-exec",
+      "sim-lib-gc-tracing",
       "sim-lib-incremental",
       "sim-lib-lang-cl",
       "sim-lib-lang-clojure",
       "sim-lib-lang-genconf",
       "sim-lib-lang-islisp",
+      "sim-lib-lang-javascript",
       "sim-lib-lang-julia",
       "sim-lib-lang-lua",
       "sim-lib-lang-matrix",
       "sim-lib-lang-prolog",
+      "sim-lib-lang-python",
       "sim-lib-lang-ruby",
       "sim-lib-lang-scheme",
       "sim-lib-lang-typed-lazy",
+      "sim-lib-lang-typescript",
       "sim-lib-logic",
       "sim-lib-mutation",
       "sim-lib-namespace",
@@ -321,7 +349,7 @@
       "reason": "transduced sequence adapter; reconstruct from the source sequence and transducer pipeline descriptor"
     }
   ],
-  "package_count": 25,
+  "package_count": 29,
   "packages": [
     {
       "crate_name": "sim_incremental_core",
@@ -482,7 +510,7 @@
       "name": "sim-lib-dispatch",
       "publish": "true",
       "root": "crates/sim-lib-dispatch",
-      "rustdoc_summary": "Generic functions and method dispatch for the SIM runtime.",
+      "rustdoc_summary": "Generic functions, method dispatch, and neutral property mechanics for the SIM runtime.",
       "target_kinds": [
         "custom-build",
         "lib"
@@ -545,6 +573,48 @@
           ],
           "name": "build-script-build",
           "src": "crates/sim-lib-exec/build.rs"
+        }
+      ]
+    },
+    {
+      "crate_name": "sim_lib_gc_tracing",
+      "dependencies": [
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-control",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-mutation",
+          "rename": null,
+          "target": null
+        }
+      ],
+      "description": "Bounded deterministic tracing garbage collection for SIM managed arenas.",
+      "features": [],
+      "group": "workspace",
+      "manifest": "crates/sim-lib-gc-tracing/Cargo.toml",
+      "name": "sim-lib-gc-tracing",
+      "publish": "true",
+      "root": "crates/sim-lib-gc-tracing",
+      "rustdoc_summary": "Bounded stop-the-world tracing collection for managed arenas.",
+      "target_kinds": [
+        "lib"
+      ],
+      "targets": [
+        {
+          "crate_types": [
+            "lib"
+          ],
+          "kind": [
+            "lib"
+          ],
+          "name": "sim_lib_gc_tracing",
+          "src": "crates/sim-lib-gc-tracing/src/lib.rs"
         }
       ]
     },
@@ -863,6 +933,115 @@
       ]
     },
     {
+      "crate_name": "sim_lib_lang_javascript",
+      "dependencies": [
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-binding",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-control",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-core",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-dispatch",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-gc-tracing",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-mutation",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-namespace",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-pattern",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-sequence",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-standard-core",
+          "rename": null,
+          "target": null
+        }
+      ],
+      "description": "Thin direct JavaScript core profile for the SIM expression runtime.",
+      "features": [],
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-javascript/Cargo.toml",
+      "name": "sim-lib-lang-javascript",
+      "publish": "true",
+      "root": "crates/sim-lib-lang-javascript",
+      "rustdoc_summary": "Thin, direct JavaScript core profile over lowered codec/javascript forms.",
+      "target_kinds": [
+        "custom-build",
+        "lib"
+      ],
+      "targets": [
+        {
+          "crate_types": [
+            "lib"
+          ],
+          "kind": [
+            "lib"
+          ],
+          "name": "sim_lib_lang_javascript",
+          "src": "crates/sim-lib-lang-javascript/src/lib.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "custom-build"
+          ],
+          "name": "build-script-build",
+          "src": "crates/sim-lib-lang-javascript/build.rs"
+        }
+      ]
+    },
+    {
       "crate_name": "sim_lib_lang_julia",
       "dependencies": [
         {
@@ -1044,6 +1223,13 @@
         {
           "kind": "normal",
           "optional": false,
+          "package": "sim-lib-lang-javascript",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
           "package": "sim-lib-lang-julia",
           "rename": null,
           "target": null
@@ -1059,6 +1245,13 @@
           "kind": "normal",
           "optional": false,
           "package": "sim-lib-lang-prolog",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-lang-python",
           "rename": null,
           "target": null
         },
@@ -1206,6 +1399,108 @@
           ],
           "name": "sim_lib_lang_prolog",
           "src": "crates/sim-lib-lang-prolog/src/lib.rs"
+        }
+      ]
+    },
+    {
+      "crate_name": "sim_lib_lang_python",
+      "dependencies": [
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-binding",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-control",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-core",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-dispatch",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-gc-tracing",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-mutation",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-namespace",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-sequence",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-standard-core",
+          "rename": null,
+          "target": null
+        }
+      ],
+      "description": "Thin Python core profile for the SIM expression runtime.",
+      "features": [],
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-python/Cargo.toml",
+      "name": "sim-lib-lang-python",
+      "publish": "true",
+      "root": "crates/sim-lib-lang-python",
+      "rustdoc_summary": "Thin, direct Python core profile over lowered codec/python expressions.",
+      "target_kinds": [
+        "custom-build",
+        "lib"
+      ],
+      "targets": [
+        {
+          "crate_types": [
+            "lib"
+          ],
+          "kind": [
+            "lib"
+          ],
+          "name": "sim_lib_lang_python",
+          "src": "crates/sim-lib-lang-python/src/lib.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "custom-build"
+          ],
+          "name": "build-script-build",
+          "src": "crates/sim-lib-lang-python/build.rs"
         }
       ]
     },
@@ -1404,6 +1699,59 @@
       ]
     },
     {
+      "crate_name": "sim_lib_lang_typescript",
+      "dependencies": [
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-lang-javascript",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-standard-core",
+          "rename": null,
+          "target": null
+        }
+      ],
+      "description": "TypeScript notation profile over SIM's JavaScript evaluator and Shape metadata.",
+      "features": [],
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-typescript/Cargo.toml",
+      "name": "sim-lib-lang-typescript",
+      "publish": "true",
+      "root": "crates/sim-lib-lang-typescript",
+      "rustdoc_summary": "TypeScript notation over the unchanged JavaScript evaluator.",
+      "target_kinds": [
+        "custom-build",
+        "lib"
+      ],
+      "targets": [
+        {
+          "crate_types": [
+            "lib"
+          ],
+          "kind": [
+            "lib"
+          ],
+          "name": "sim_lib_lang_typescript",
+          "src": "crates/sim-lib-lang-typescript/src/lib.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "custom-build"
+          ],
+          "name": "build-script-build",
+          "src": "crates/sim-lib-lang-typescript/build.rs"
+        }
+      ]
+    },
+    {
       "crate_name": "sim_lib_logic",
       "dependencies": [
         {
@@ -1474,14 +1822,14 @@
           "target": null
         }
       ],
-      "description": "Tracked mutation cells and update operations for SIM runtime values.",
+      "description": "Tracked mutation containers and bounded managed-object storage for SIM runtimes.",
       "features": [],
       "group": "workspace",
       "manifest": "crates/sim-lib-mutation/Cargo.toml",
       "name": "sim-lib-mutation",
       "publish": "true",
       "root": "crates/sim-lib-mutation",
-      "rustdoc_summary": "Mutation behavior for the SIM runtime: cells, boxes, vectors, symbol-keyed tables, and runtime-keyed tables.",
+      "rustdoc_summary": "Mutation behavior for the SIM runtime: cells, boxes, vectors, tables, and a bounded managed-object arena.",
       "target_kinds": [
         "custom-build",
         "lib"
@@ -1511,15 +1859,51 @@
     },
     {
       "crate_name": "sim_lib_namespace",
-      "dependencies": [],
-      "description": "Namespace registration and symbol lookup support for SIM libraries.",
+      "dependencies": [
+        {
+          "kind": "dev",
+          "optional": false,
+          "package": "sim-lib-control",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "dev",
+          "optional": false,
+          "package": "sim-lib-dispatch",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "dev",
+          "optional": false,
+          "package": "sim-lib-mutation",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-binding",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-core",
+          "rename": null,
+          "target": null
+        }
+      ],
+      "description": "Namespace records and capability-aware source module lifecycle for SIM libraries.",
       "features": [],
       "group": "workspace",
       "manifest": "crates/sim-lib-namespace/Cargo.toml",
       "name": "sim-lib-namespace",
       "publish": "true",
       "root": "crates/sim-lib-namespace",
-      "rustdoc_summary": "Namespace behavior for the SIM runtime: modules, packages, and imports.",
+      "rustdoc_summary": "Namespace records and capability-aware source module lifecycle for the SIM runtime.",
       "target_kinds": [
         "custom-build",
         "lib"
@@ -1724,10 +2108,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-16T00:13:38+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "d11882bfe041f53c98d34d27806e803e07b7affd",
+    "git_commit": "3e5cfbcc6bb5d8eb2436ef3813de1fc75a6edfd7",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "d11882bfe041f53c98d34d27806e803e07b7affd",
+    "source_commit": "3e5cfbcc6bb5d8eb2436ef3813de1fc75a6edfd7",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -1740,9 +2124,9 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "76d98857d2fc03a9",
+    "workspace_hash": "40bea8354fea094e",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 388,
+    "workspace_hash_input_count": 452,
     "workspace_hash_inputs": [
       "Cargo.toml",
       "crates/sim-incremental-core/Cargo.toml",
@@ -1760,6 +2144,7 @@
       "crates/sim-lib-binding/build.rs",
       "crates/sim-lib-binding/recipes/01-basics/let-square/recipe.toml",
       "crates/sim-lib-binding/recipes/book.toml",
+      "crates/sim-lib-binding/src/call.rs",
       "crates/sim-lib-binding/src/cell.rs",
       "crates/sim-lib-binding/src/claims.rs",
       "crates/sim-lib-binding/src/dynamic.rs",
@@ -1784,16 +2169,20 @@
       "crates/sim-lib-control/src/derivation_tests.rs",
       "crates/sim-lib-control/src/frame_tests.rs",
       "crates/sim-lib-control/src/generator.rs",
+      "crates/sim-lib-control/src/jobs.rs",
       "crates/sim-lib-control/src/lib.rs",
       "crates/sim-lib-control/src/model.rs",
       "crates/sim-lib-control/src/nonlocal.rs",
       "crates/sim-lib-control/src/ops.rs",
+      "crates/sim-lib-control/src/organ_tests.rs",
       "crates/sim-lib-control/src/policy.rs",
       "crates/sim-lib-control/src/prompt.rs",
       "crates/sim-lib-control/src/protected.rs",
       "crates/sim-lib-control/src/restart.rs",
+      "crates/sim-lib-control/src/resume.rs",
       "crates/sim-lib-control/src/runtime.rs",
       "crates/sim-lib-control/src/tests.rs",
+      "crates/sim-lib-control/src/unwind.rs",
       "crates/sim-lib-core/Cargo.toml",
       "crates/sim-lib-core/build.rs",
       "crates/sim-lib-core/recipes/01-basics/quote-list-basics/recipe.toml",
@@ -1815,6 +2204,8 @@
       "crates/sim-lib-dispatch/src/lib.rs",
       "crates/sim-lib-dispatch/src/metaobject.rs",
       "crates/sim-lib-dispatch/src/method.rs",
+      "crates/sim-lib-dispatch/src/property.rs",
+      "crates/sim-lib-dispatch/src/property_tests.rs",
       "crates/sim-lib-dispatch/src/runtime.rs",
       "crates/sim-lib-dispatch/src/tests.rs",
       "crates/sim-lib-exec/Cargo.toml",
@@ -1825,6 +2216,14 @@
       "crates/sim-lib-exec/src/lib.rs",
       "crates/sim-lib-exec/src/tests.rs",
       "crates/sim-lib-exec/src/timeout.rs",
+      "crates/sim-lib-gc-tracing/Cargo.toml",
+      "crates/sim-lib-gc-tracing/recipes/01-collection/bounded-cycle/recipe.toml",
+      "crates/sim-lib-gc-tracing/recipes/book.toml",
+      "crates/sim-lib-gc-tracing/src/collector.rs",
+      "crates/sim-lib-gc-tracing/src/correctness.rs",
+      "crates/sim-lib-gc-tracing/src/finalization.rs",
+      "crates/sim-lib-gc-tracing/src/lib.rs",
+      "crates/sim-lib-gc-tracing/src/tests.rs",
       "crates/sim-lib-incremental/Cargo.toml",
       "crates/sim-lib-incremental/build.rs",
       "crates/sim-lib-incremental/recipes/01-basics/query-family/recipe.toml",
@@ -1893,6 +2292,23 @@
       "crates/sim-lib-lang-islisp/src/profile.rs",
       "crates/sim-lib-lang-islisp/src/symbols.rs",
       "crates/sim-lib-lang-islisp/src/tests.rs",
+      "crates/sim-lib-lang-javascript/Cargo.toml",
+      "crates/sim-lib-lang-javascript/build.rs",
+      "crates/sim-lib-lang-javascript/recipes/01-basics/source-core/recipe.toml",
+      "crates/sim-lib-lang-javascript/recipes/book.toml",
+      "crates/sim-lib-lang-javascript/src/collections.rs",
+      "crates/sim-lib-lang-javascript/src/fidelity.rs",
+      "crates/sim-lib-lang-javascript/src/jobs.rs",
+      "crates/sim-lib-lang-javascript/src/json.rs",
+      "crates/sim-lib-lang-javascript/src/lib.rs",
+      "crates/sim-lib-lang-javascript/src/managed.rs",
+      "crates/sim-lib-lang-javascript/src/matrix_row.rs",
+      "crates/sim-lib-lang-javascript/src/modules.rs",
+      "crates/sim-lib-lang-javascript/src/objects.rs",
+      "crates/sim-lib-lang-javascript/src/profile.rs",
+      "crates/sim-lib-lang-javascript/src/regexp.rs",
+      "crates/sim-lib-lang-javascript/src/runtime.rs",
+      "crates/sim-lib-lang-javascript/src/text.rs",
       "crates/sim-lib-lang-julia/Cargo.toml",
       "crates/sim-lib-lang-julia/build.rs",
       "crates/sim-lib-lang-julia/recipes/01-basics/matrix-row/recipe.toml",
@@ -1969,6 +2385,21 @@
       "crates/sim-lib-lang-prolog/src/surface.rs",
       "crates/sim-lib-lang-prolog/src/symbols.rs",
       "crates/sim-lib-lang-prolog/src/tests.rs",
+      "crates/sim-lib-lang-python/Cargo.toml",
+      "crates/sim-lib-lang-python/build.rs",
+      "crates/sim-lib-lang-python/recipes/01-basics/capability-eval/recipe.toml",
+      "crates/sim-lib-lang-python/recipes/01-basics/source-core/recipe.toml",
+      "crates/sim-lib-lang-python/recipes/book.toml",
+      "crates/sim-lib-lang-python/src/fidelity.rs",
+      "crates/sim-lib-lang-python/src/lib.rs",
+      "crates/sim-lib-lang-python/src/library_core.rs",
+      "crates/sim-lib-lang-python/src/managed.rs",
+      "crates/sim-lib-lang-python/src/matrix_row.rs",
+      "crates/sim-lib-lang-python/src/objects.rs",
+      "crates/sim-lib-lang-python/src/profile.rs",
+      "crates/sim-lib-lang-python/src/resumable.rs",
+      "crates/sim-lib-lang-python/src/runtime.rs",
+      "crates/sim-lib-lang-python/src/tests.rs",
       "crates/sim-lib-lang-ruby/Cargo.toml",
       "crates/sim-lib-lang-ruby/build.rs",
       "crates/sim-lib-lang-ruby/recipes/01-basics/matrix-row/recipe.toml",
@@ -2010,6 +2441,19 @@
       "crates/sim-lib-lang-typed-lazy/src/runtime.rs",
       "crates/sim-lib-lang-typed-lazy/src/symbols.rs",
       "crates/sim-lib-lang-typed-lazy/src/tests.rs",
+      "crates/sim-lib-lang-typescript/Cargo.toml",
+      "crates/sim-lib-lang-typescript/build.rs",
+      "crates/sim-lib-lang-typescript/recipes/01-basics/browsable-metadata/recipe.toml",
+      "crates/sim-lib-lang-typescript/recipes/01-basics/code-producing-syntax-gap/recipe.toml",
+      "crates/sim-lib-lang-typescript/recipes/01-basics/erased-execution/recipe.toml",
+      "crates/sim-lib-lang-typescript/recipes/01-basics/unsupported-type-gap/recipe.toml",
+      "crates/sim-lib-lang-typescript/recipes/book.toml",
+      "crates/sim-lib-lang-typescript/src/fidelity.rs",
+      "crates/sim-lib-lang-typescript/src/lib.rs",
+      "crates/sim-lib-lang-typescript/src/metadata.rs",
+      "crates/sim-lib-lang-typescript/src/profile.rs",
+      "crates/sim-lib-lang-typescript/src/runtime.rs",
+      "crates/sim-lib-lang-typescript/src/tests.rs",
       "crates/sim-lib-logic/Cargo.toml",
       "crates/sim-lib-logic/build.rs",
       "crates/sim-lib-logic/recipes/01-basics/query-descriptor/recipe.toml",
@@ -2062,6 +2506,8 @@
       "crates/sim-lib-mutation/src/cell.rs",
       "crates/sim-lib-mutation/src/claims.rs",
       "crates/sim-lib-mutation/src/lib.rs",
+      "crates/sim-lib-mutation/src/managed.rs",
+      "crates/sim-lib-mutation/src/managed_tests.rs",
       "crates/sim-lib-mutation/src/runtime_key.rs",
       "crates/sim-lib-mutation/src/runtime_table.rs",
       "crates/sim-lib-mutation/src/table.rs",
@@ -2073,6 +2519,8 @@
       "crates/sim-lib-namespace/recipes/book.toml",
       "crates/sim-lib-namespace/src/claims.rs",
       "crates/sim-lib-namespace/src/lib.rs",
+      "crates/sim-lib-namespace/src/module/tests.rs",
+      "crates/sim-lib-namespace/src/module.rs",
       "crates/sim-lib-namespace/src/namespace.rs",
       "crates/sim-lib-namespace/src/tests.rs",
       "crates/sim-lib-pattern/Cargo.toml",
@@ -2134,7 +2582,7 @@
       "xtask/Cargo.toml"
     ]
   },
-  "recipe_book_count": 22,
+  "recipe_book_count": 26,
   "recipes": [
     {
       "book": "organ/binding",
@@ -2243,6 +2691,26 @@
       ],
       "summary": "Permission-gated host process runs with time and output limits.",
       "title": "Bounded Process Execution"
+    },
+    {
+      "book": "gc-tracing",
+      "book_toml": "crates/sim-lib-gc-tracing/recipes/book.toml",
+      "card_id": "cookbook/gc-tracing",
+      "group": "workspace",
+      "package": "sim-lib-gc-tracing",
+      "recipe_count": 1,
+      "recipes": [
+        {
+          "card_id": "gc-tracing/01-collection/bounded-cycle",
+          "codec": "lisp",
+          "id": "bounded-cycle",
+          "package": "sim-lib-gc-tracing",
+          "recipe_toml": "crates/sim-lib-gc-tracing/recipes/01-collection/bounded-cycle/recipe.toml",
+          "title": "Reclaim an unreachable cycle"
+        }
+      ],
+      "summary": "Bound and audit managed-arena cycle collection.",
+      "title": "Tracing garbage collection"
     },
     {
       "book": "organ/incremental",
@@ -2369,6 +2837,26 @@
       "title": "ISLISP Profile"
     },
     {
+      "book": "lang/javascript",
+      "book_toml": "crates/sim-lib-lang-javascript/recipes/book.toml",
+      "card_id": "cookbook/lang/javascript",
+      "group": "workspace",
+      "package": "sim-lib-lang-javascript",
+      "recipe_count": 1,
+      "recipes": [
+        {
+          "card_id": "lang/javascript/01-basics/javascript-source-core",
+          "codec": "javascript",
+          "id": "javascript-source-core",
+          "package": "sim-lib-lang-javascript",
+          "recipe_toml": "crates/sim-lib-lang-javascript/recipes/01-basics/source-core/recipe.toml",
+          "title": "Run embedded ECMAScript with explicit job drains"
+        }
+      ],
+      "summary": "Embedded capability-scoped ECMAScript with explicit drains; no Node, DOM, timers, or ambient host IO.",
+      "title": "Embedded JavaScript Core"
+    },
+    {
       "book": "lang/julia",
       "book_toml": "crates/sim-lib-lang-julia/recipes/book.toml",
       "card_id": "cookbook/lang/julia",
@@ -2477,6 +2965,34 @@
       "title": "Language Matrix Assembly"
     },
     {
+      "book": "lang/python",
+      "book_toml": "crates/sim-lib-lang-python/recipes/book.toml",
+      "card_id": "cookbook/lang/python",
+      "group": "workspace",
+      "package": "sim-lib-lang-python",
+      "recipe_count": 2,
+      "recipes": [
+        {
+          "card_id": "lang/python/01-basics/python-capability-eval",
+          "codec": "python",
+          "id": "python-capability-eval",
+          "package": "sim-lib-lang-python",
+          "recipe_toml": "crates/sim-lib-lang-python/recipes/01-basics/capability-eval/recipe.toml",
+          "title": "Run dynamic Python with diminished authority"
+        },
+        {
+          "card_id": "lang/python/01-basics/python-source-core",
+          "codec": "python",
+          "id": "python-source-core",
+          "package": "sim-lib-lang-python",
+          "recipe_toml": "crates/sim-lib-lang-python/recipes/01-basics/source-core/recipe.toml",
+          "title": "Evaluate Python source through the thin profile"
+        }
+      ],
+      "summary": "Capability-scoped, agent-authored Python over SIM values; not a CPython replacement.",
+      "title": "Embedded Python Scripting"
+    },
+    {
       "book": "lang/ruby",
       "book_toml": "crates/sim-lib-lang-ruby/recipes/book.toml",
       "card_id": "cookbook/lang/ruby",
@@ -2567,6 +3083,50 @@
       ],
       "summary": "Typed lazy profile descriptors, ADTs, lazy refs, and typeclasses.",
       "title": "Typed Lazy Profile"
+    },
+    {
+      "book": "lang/typescript",
+      "book_toml": "crates/sim-lib-lang-typescript/recipes/book.toml",
+      "card_id": "cookbook/lang/typescript",
+      "group": "workspace",
+      "package": "sim-lib-lang-typescript",
+      "recipe_count": 4,
+      "recipes": [
+        {
+          "card_id": "lang/typescript/01-basics/typescript-browsable-metadata",
+          "codec": "typescript",
+          "id": "typescript-browsable-metadata",
+          "package": "sim-lib-lang-typescript",
+          "recipe_toml": "crates/sim-lib-lang-typescript/recipes/01-basics/browsable-metadata/recipe.toml",
+          "title": "Browse a non-enforcing signature"
+        },
+        {
+          "card_id": "lang/typescript/01-basics/typescript-code-producing-syntax-gap",
+          "codec": "typescript",
+          "id": "typescript-code-producing-syntax-gap",
+          "package": "sim-lib-lang-typescript",
+          "recipe_toml": "crates/sim-lib-lang-typescript/recipes/01-basics/code-producing-syntax-gap/recipe.toml",
+          "title": "Reject code-producing TypeScript syntax"
+        },
+        {
+          "card_id": "lang/typescript/01-basics/typescript-erased-execution",
+          "codec": "typescript",
+          "id": "typescript-erased-execution",
+          "package": "sim-lib-lang-typescript",
+          "recipe_toml": "crates/sim-lib-lang-typescript/recipes/01-basics/erased-execution/recipe.toml",
+          "title": "Run erased TypeScript as JavaScript"
+        },
+        {
+          "card_id": "lang/typescript/01-basics/typescript-unsupported-type-gap",
+          "codec": "typescript",
+          "id": "typescript-unsupported-type-gap",
+          "package": "sim-lib-lang-typescript",
+          "recipe_toml": "crates/sim-lib-lang-typescript/recipes/01-basics/unsupported-type-gap/recipe.toml",
+          "title": "Keep a checker-dependent type as a gap"
+        }
+      ],
+      "summary": "TypeScript notation over JavaScript evaluation; no type checker or independent runtime.",
+      "title": "TypeScript Notation"
     },
     {
       "book": "logic",

@@ -1,0 +1,8 @@
+id = "python-capability-eval"
+title = "Run dynamic Python with diminished authority"
+codec = "python"
+setup = "setup.py"
+purpose = "purpose.md"
+order = 20
+tags = ["python", "eval", "exec", "capability", "read-eval"]
+requires = ["codec/python", "lang/python-core/v1", "read-eval"]

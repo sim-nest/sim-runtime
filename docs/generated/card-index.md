@@ -7,16 +7,20 @@
 | `browse/catalog` | `browse-root` | `workspace` | root browse catalog |
 | `cookbook/control` | `cookbook-recipe` | `sim-lib-control` | Prompt, capture, abort, and resume surfaces. |
 | `cookbook/core` | `cookbook-recipe` | `sim-lib-core` | Quoting, evaluation, and collection basics. |
+| `cookbook/gc-tracing` | `cookbook-recipe` | `sim-lib-gc-tracing` | Bound and audit managed-arena cycle collection. |
 | `cookbook/lang/clojure` | `cookbook-recipe` | `sim-lib-lang-clojure` | Clojure core profile, EDN reader, namespace, and sequence surfaces. |
 | `cookbook/lang/common-lisp` | `cookbook-recipe` | `sim-lib-lang-cl` | Common Lisp lite profile, reader, package, and condition surfaces. |
 | `cookbook/lang/genconf` | `cookbook-recipe` | `sim-lib-lang-genconf` | Shared expression-space generator and codec registry recipes. |
 | `cookbook/lang/islisp` | `cookbook-recipe` | `sim-lib-lang-islisp` | ISLISP profile descriptors and dispatch fidelity. |
+| `cookbook/lang/javascript` | `cookbook-recipe` | `sim-lib-lang-javascript` | Embedded capability-scoped ECMAScript with explicit drains; no Node, DOM, timers, or ambient host IO. |
 | `cookbook/lang/julia` | `cookbook-recipe` | `sim-lib-lang-julia` | Julia core profile descriptors and dispatch behavior. |
 | `cookbook/lang/lua` | `cookbook-recipe` | `sim-lib-lang-lua` | Lua core profile descriptors, source conformance cases, tables, and coroutines. |
 | `cookbook/lang/matrix` | `cookbook-recipe` | `sim-lib-lang-matrix` | Shared conformance matrix assembly recipes. |
+| `cookbook/lang/python` | `cookbook-recipe` | `sim-lib-lang-python` | Capability-scoped, agent-authored Python over SIM values; not a CPython replacement. |
 | `cookbook/lang/ruby` | `cookbook-recipe` | `sim-lib-lang-ruby` | Ruby DSL profile descriptors and block-control behavior. |
 | `cookbook/lang/scheme` | `cookbook-recipe` | `sim-lib-lang-scheme` | R7RS-small profile descriptors and reader surface. |
 | `cookbook/lang/typed-lazy` | `cookbook-recipe` | `sim-lib-lang-typed-lazy` | Typed lazy profile descriptors, ADTs, lazy refs, and typeclasses. |
+| `cookbook/lang/typescript` | `cookbook-recipe` | `sim-lib-lang-typescript` | TypeScript notation over JavaScript evaluation; no type checker or independent runtime. |
 | `cookbook/logic` | `cookbook-recipe` | `sim-lib-logic` | Logic database, assertion, and query surfaces. |
 | `cookbook/organ/binding` | `cookbook-recipe` | `sim-lib-binding` | Binding surface concepts shared by language profiles. |
 | `cookbook/organ/dispatch` | `cookbook-recipe` | `sim-lib-dispatch` | Generic function and multimethod concepts. |

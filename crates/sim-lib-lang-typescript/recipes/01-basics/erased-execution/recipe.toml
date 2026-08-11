@@ -1,0 +1,8 @@
+id = "typescript-erased-execution"
+title = "Run erased TypeScript as JavaScript"
+codec = "typescript"
+setup = "setup.ts"
+purpose = "purpose.md"
+order = 10
+tags = ["typescript", "javascript", "erasure", "direct-eval"]
+requires = ["codec/typescript", "language/typescript-notation"]

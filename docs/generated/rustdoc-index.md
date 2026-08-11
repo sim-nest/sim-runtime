@@ -8,23 +8,27 @@
 | `sim-lib-binding` | `workspace` | Binding behavior for the SIM runtime: lexical, dynamic, and scoped binding. |
 | `sim-lib-control` | `workspace` | Control behavior for the SIM runtime: async, backtracking, conditions. |
 | `sim-lib-core` | `workspace` | Shared surface-pack substrate for SIM runtime libraries. |
-| `sim-lib-dispatch` | `workspace` | Generic functions and method dispatch for the SIM runtime. |
+| `sim-lib-dispatch` | `workspace` | Generic functions, method dispatch, and neutral property mechanics for the SIM runtime. |
 | `sim-lib-exec` | `workspace` | Capability-gated bounded host-process execution for the SIM runtime. |
+| `sim-lib-gc-tracing` | `workspace` | Bounded stop-the-world tracing collection for managed arenas. |
 | `sim-lib-incremental` | `workspace` | Loadable incremental query organ for SIM runtime expressions. |
 | `sim-lib-lang-cl` | `workspace` | Common Lisp surface profile for the SIM runtime. |
 | `sim-lib-lang-clojure` | `workspace` | Clojure surface profile for the SIM runtime. |
 | `sim-lib-lang-genconf` | `workspace` | Generative conformance support over the shared expression graph. |
 | `sim-lib-lang-islisp` | `workspace` | ISLISP surface profile for the SIM runtime. |
+| `sim-lib-lang-javascript` | `workspace` | Thin, direct JavaScript core profile over lowered codec/javascript forms. |
 | `sim-lib-lang-julia` | `workspace` | Julia surface profile for the SIM runtime. |
 | `sim-lib-lang-lua` | `workspace` | Lua surface profile for the SIM runtime. |
 | `sim-lib-lang-matrix` | `workspace` | Assembly point for the SIM language conformance matrix. |
 | `sim-lib-lang-prolog` | `workspace` | Prolog surface profile for the SIM runtime. |
+| `sim-lib-lang-python` | `workspace` | Thin, direct Python core profile over lowered codec/python expressions. |
 | `sim-lib-lang-ruby` | `workspace` | Ruby DSL surface profile for the SIM runtime. |
 | `sim-lib-lang-scheme` | `workspace` | Scheme (R7RS-small) surface profile for the SIM runtime. |
 | `sim-lib-lang-typed-lazy` | `workspace` | Typed, lazy surface profile for the SIM runtime. |
+| `sim-lib-lang-typescript` | `workspace` | TypeScript notation over the unchanged JavaScript evaluator. |
 | `sim-lib-logic` | `workspace` | Logic behavior for the SIM runtime: clauses, unification, and queries. |
-| `sim-lib-mutation` | `workspace` | Mutation behavior for the SIM runtime: cells, boxes, vectors, symbol-keyed tables, and runtime-keyed tables. |
-| `sim-lib-namespace` | `workspace` | Namespace behavior for the SIM runtime: modules, packages, and imports. |
+| `sim-lib-mutation` | `workspace` | Mutation behavior for the SIM runtime: cells, boxes, vectors, tables, and a bounded managed-object arena. |
+| `sim-lib-namespace` | `workspace` | Namespace records and capability-aware source module lifecycle for the SIM runtime. |
 | `sim-lib-pattern` | `workspace` | Pattern behavior for the SIM runtime over the kernel Shape protocol. |
 | `sim-lib-sequence` | `workspace` | Sequence behavior for the SIM runtime: lazy, persistent, runtime-indexed, and transducer-backed collections. |
 | `sim-lib-standard-core` | `workspace` | Standard distribution core for SIM capabilities, claims, tests, and profiles. |

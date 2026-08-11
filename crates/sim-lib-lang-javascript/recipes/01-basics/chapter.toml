@@ -1,0 +1,3 @@
+title = "Direct source evaluation"
+order = 10
+summary = "Evaluate embedded ECMAScript and explicitly drain jobs without a host event loop."

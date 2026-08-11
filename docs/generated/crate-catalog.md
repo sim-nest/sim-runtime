@@ -12,21 +12,25 @@ Generated from Cargo metadata by `xtask crate-catalog v1`.
 | `sim-lib-core` | `true` | `custom-build, lib` | Shared manifest and registry installation substrate for SIM libraries. |
 | `sim-lib-dispatch` | `true` | `custom-build, lib` | Generic function and method dispatch organs for SIM runtime values. |
 | `sim-lib-exec` | `true` | `custom-build, lib` | Capability-gated bounded process execution for SIM. |
+| `sim-lib-gc-tracing` | `true` | `lib` | Bounded deterministic tracing garbage collection for SIM managed arenas. |
 | `sim-lib-incremental` | `true` | `custom-build, lib` | Loadable incremental query organ for SIM runtime expressions. |
 | `sim-lib-lang-cl` | `true` | `custom-build, lib` | Common Lisp surface profile for the SIM expression runtime. |
 | `sim-lib-lang-clojure` | `true` | `custom-build, lib` | Clojure core surface profile for the SIM expression runtime. |
 | `sim-lib-lang-genconf` | `true` | `custom-build, lib` | SIM generative language conformance support. |
 | `sim-lib-lang-islisp` | `true` | `custom-build, lib` | ISLISP surface profile for the SIM expression runtime. |
+| `sim-lib-lang-javascript` | `true` | `custom-build, lib` | Thin direct JavaScript core profile for the SIM expression runtime. |
 | `sim-lib-lang-julia` | `true` | `custom-build, lib` | Julia-style surface profile for the SIM expression runtime. |
 | `sim-lib-lang-lua` | `true` | `custom-build, lib` | Lua-style surface profile for the SIM expression runtime. |
 | `sim-lib-lang-matrix` | `true` | `custom-build, lib` | SIM language conformance matrix assembly crate. |
 | `sim-lib-lang-prolog` | `true` | `lib` | Prolog surface profile for the SIM runtime. |
+| `sim-lib-lang-python` | `true` | `custom-build, lib` | Thin Python core profile for the SIM expression runtime. |
 | `sim-lib-lang-ruby` | `true` | `custom-build, lib` | Ruby-style surface profile for the SIM expression runtime. |
 | `sim-lib-lang-scheme` | `true` | `custom-build, lib` | Scheme surface profile for the SIM expression runtime. |
 | `sim-lib-lang-typed-lazy` | `true` | `custom-build, lib` | Typed lazy language profile for the SIM expression runtime. |
+| `sim-lib-lang-typescript` | `true` | `custom-build, lib` | TypeScript notation profile over SIM's JavaScript evaluator and Shape metadata. |
 | `sim-lib-logic` | `true` | `custom-build, lib` | Logic programming facts, queries, unification, and backtracking for SIM. |
-| `sim-lib-mutation` | `true` | `custom-build, lib` | Tracked mutation cells and update operations for SIM runtime values. |
-| `sim-lib-namespace` | `true` | `custom-build, lib` | Namespace registration and symbol lookup support for SIM libraries. |
+| `sim-lib-mutation` | `true` | `custom-build, lib` | Tracked mutation containers and bounded managed-object storage for SIM runtimes. |
+| `sim-lib-namespace` | `true` | `custom-build, lib` | Namespace records and capability-aware source module lifecycle for SIM libraries. |
 | `sim-lib-pattern` | `true` | `custom-build, lib` | Shape-based pattern matching and destructuring for SIM runtime values. |
 | `sim-lib-sequence` | `true` | `custom-build, lib` | Sequence operations, lazy streams, and collection transforms for SIM. |
 | `sim-lib-standard-core` | `true` | `cdylib, custom-build, rlib` | Standard distribution core for SIM capabilities, claims, tests, and profiles. |

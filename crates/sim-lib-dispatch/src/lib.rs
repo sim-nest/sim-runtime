@@ -1,15 +1,19 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
-//! Generic functions and method dispatch for the SIM runtime.
+//! Generic functions, method dispatch, and neutral property mechanics for the
+//! SIM runtime.
 //!
 //! The kernel defines the callable and operation contracts; this crate supplies
 //! the concrete dispatch organ (generic functions, multimethods, method
-//! specificity ordering).
+//! specificity ordering). It also owns ordered own-property storage and
+//! bounded receiver-aware descriptor execution while leaving traversal order
+//! and precedence to language profiles.
 
 mod claims;
 mod generic;
 mod metaobject;
 mod method;
+mod property;
 mod runtime;
 
 /// Cookbook recipes for the dispatch organ, embedded at build time.
@@ -25,7 +29,13 @@ pub use claims::{
 pub use generic::{GenericFunction, Multimethod};
 pub use metaobject::{MetaObjectProtocol, meta_index};
 pub use method::{DispatchMethod, MethodBody, MethodRole, MethodSpecificity, compare_specificity};
+pub use property::{
+    AccessContext, AccessError, AccessKind, AccessorDescriptor, DataDescriptor, DefineError,
+    Descriptor, PropertyHook, PropertyStore,
+};
 pub use runtime::generic_function_value;
 
+#[cfg(test)]
+mod property_tests;
 #[cfg(test)]
 mod tests;

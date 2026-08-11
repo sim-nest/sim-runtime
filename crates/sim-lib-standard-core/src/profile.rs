@@ -14,6 +14,29 @@ pub struct OrganUse {
     pub options: Vec<(Symbol, Expr)>,
 }
 
+/// Complete, checked evidence for the boundary owned by a guest profile.
+///
+/// This projection deliberately keeps syntax, lowering, evaluation, shared
+/// organs, authority, and known gaps separate.  A profile cannot use an
+/// attractive fidelity badge as a substitute for declaring any of them.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GuestProfileEvidence {
+    /// Profile whose evidence was checked.
+    pub profile: Symbol,
+    /// Reader/codec owned by the guest crate.
+    pub reader: Symbol,
+    /// Surface-to-`Expr` lowering owned by the guest crate.
+    pub lowering: Symbol,
+    /// Evaluation policy configured by the guest crate.
+    pub eval_policy: Symbol,
+    /// Shared runtime organs used by the profile.
+    pub organs: Vec<Symbol>,
+    /// Capabilities required by the profile.
+    pub capabilities: Vec<CapabilityName>,
+    /// Explicitly unsupported language surfaces.
+    pub gaps: Vec<Symbol>,
+}
+
 impl OrganUse {
     /// Use `organ` with no options.
     pub fn new(organ: Symbol) -> Self {
@@ -195,6 +218,53 @@ impl LanguageProfile {
     pub fn with_fidelity_badge(mut self, badge: FidelityBadge) -> Self {
         self.fidelity_badges.push(badge);
         self
+    }
+
+    /// Check and project the evidence required of a guest-language profile.
+    ///
+    /// The standard SIM expression profile is not a guest profile and need not
+    /// satisfy this contract. Guest registrations should call this before
+    /// installation and expose the result in their conformance specimen.
+    pub fn checked_guest_evidence(&self) -> sim_kernel::Result<GuestProfileEvidence> {
+        for (field, symbol) in [
+            ("reader", &self.reader),
+            ("lowering", &self.lowering),
+            ("eval policy", &self.eval_policy),
+        ] {
+            if symbol.namespace.as_deref() == Some("standard/unspecified") {
+                return Err(sim_kernel::Error::Eval(format!(
+                    "guest profile {} has no declared {field}",
+                    self.symbol
+                )));
+            }
+        }
+        if self.organs.is_empty() {
+            return Err(sim_kernel::Error::Eval(format!(
+                "guest profile {} declares no shared organ uses",
+                self.symbol
+            )));
+        }
+        if self.capabilities.is_empty() {
+            return Err(sim_kernel::Error::Eval(format!(
+                "guest profile {} declares no capability boundary",
+                self.symbol
+            )));
+        }
+        if self.unsupported_forms.is_empty() {
+            return Err(sim_kernel::Error::Eval(format!(
+                "guest profile {} declares no explicit gaps",
+                self.symbol
+            )));
+        }
+        Ok(GuestProfileEvidence {
+            profile: self.symbol.clone(),
+            reader: self.reader.clone(),
+            lowering: self.lowering.clone(),
+            eval_policy: self.eval_policy.clone(),
+            organs: self.organs.iter().map(|use_| use_.organ.clone()).collect(),
+            capabilities: self.capabilities.clone(),
+            gaps: self.unsupported_forms.clone(),
+        })
     }
 
     /// Encode this profile as constructor arguments for the `standard/Profile` class.

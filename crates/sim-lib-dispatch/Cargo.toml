@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-dispatch"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 license = "MPL-2.0"
 description = "Generic function and method dispatch organs for SIM runtime values."
@@ -12,7 +12,7 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 [dependencies]
 sim-cookbook = { version = "0.2.0" }
 sim-kernel = { version = "0.2.0" }
-sim-shape = { version = "0.2.0" }
+sim-shape = { version = "0.2.1" }
 
 [build-dependencies]
 sim-cookbook = { version = "0.2.0" }

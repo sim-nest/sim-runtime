@@ -12,4 +12,4 @@ Generic function and method dispatch organs for SIM runtime values.
 
 ## Crate Documentation
 
-Generic functions and method dispatch for the SIM runtime.
+Generic functions, method dispatch, and neutral property mechanics for the SIM runtime.

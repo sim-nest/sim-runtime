@@ -1,6 +1,6 @@
 {
   "generator": "xtask crate-catalog v1",
-  "package_count": 25,
+  "package_count": 29,
   "packages": [
     {
       "description": "Dependency-light incremental query graph with memo cutoff and bounded snapshots.",
@@ -80,6 +80,18 @@
       ]
     },
     {
+      "description": "Bounded deterministic tracing garbage collection for SIM managed arenas.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-gc-tracing/Cargo.toml",
+      "name": "sim-lib-gc-tracing",
+      "publish": "true",
+      "readme": "crates/sim-lib-gc-tracing/README.md",
+      "root": "crates/sim-lib-gc-tracing",
+      "target_kinds": [
+        "lib"
+      ]
+    },
+    {
       "description": "Loadable incremental query organ for SIM runtime expressions.",
       "generated_readme": false,
       "manifest": "crates/sim-lib-incremental/Cargo.toml",
@@ -145,6 +157,19 @@
       ]
     },
     {
+      "description": "Thin direct JavaScript core profile for the SIM expression runtime.",
+      "generated_readme": false,
+      "manifest": "crates/sim-lib-lang-javascript/Cargo.toml",
+      "name": "sim-lib-lang-javascript",
+      "publish": "true",
+      "readme": "crates/sim-lib-lang-javascript/README.md",
+      "root": "crates/sim-lib-lang-javascript",
+      "target_kinds": [
+        "custom-build",
+        "lib"
+      ]
+    },
+    {
       "description": "Julia-style surface profile for the SIM expression runtime.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-lang-julia/Cargo.toml",
@@ -196,6 +221,19 @@
       ]
     },
     {
+      "description": "Thin Python core profile for the SIM expression runtime.",
+      "generated_readme": false,
+      "manifest": "crates/sim-lib-lang-python/Cargo.toml",
+      "name": "sim-lib-lang-python",
+      "publish": "true",
+      "readme": "crates/sim-lib-lang-python/README.md",
+      "root": "crates/sim-lib-lang-python",
+      "target_kinds": [
+        "custom-build",
+        "lib"
+      ]
+    },
+    {
       "description": "Ruby-style surface profile for the SIM expression runtime.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-lang-ruby/Cargo.toml",
@@ -235,6 +273,19 @@
       ]
     },
     {
+      "description": "TypeScript notation profile over SIM's JavaScript evaluator and Shape metadata.",
+      "generated_readme": false,
+      "manifest": "crates/sim-lib-lang-typescript/Cargo.toml",
+      "name": "sim-lib-lang-typescript",
+      "publish": "true",
+      "readme": "crates/sim-lib-lang-typescript/README.md",
+      "root": "crates/sim-lib-lang-typescript",
+      "target_kinds": [
+        "custom-build",
+        "lib"
+      ]
+    },
+    {
       "description": "Logic programming facts, queries, unification, and backtracking for SIM.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-logic/Cargo.toml",
@@ -248,7 +299,7 @@
       ]
     },
     {
-      "description": "Tracked mutation cells and update operations for SIM runtime values.",
+      "description": "Tracked mutation containers and bounded managed-object storage for SIM runtimes.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-mutation/Cargo.toml",
       "name": "sim-lib-mutation",
@@ -261,7 +312,7 @@
       ]
     },
     {
-      "description": "Namespace registration and symbol lookup support for SIM libraries.",
+      "description": "Namespace records and capability-aware source module lifecycle for SIM libraries.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-namespace/Cargo.toml",
       "name": "sim-lib-namespace",

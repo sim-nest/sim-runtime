@@ -14,6 +14,32 @@ major_entrypoints = "advisory"
 frameworks = "advisory"
 
 [[feature]]
+id = "feature/sim-runtime/javascript-core-profile"
+title = "Embedded capability-scoped ECMAScript profile"
+summary = "Run embedded, capability-scoped ECMAScript over SIM values with ordinary objects, exact UTF-16 strings, explicit drain-to-empty jobs, authorized source modules, and no Node, DOM, timers, ambient host IO, or implicit event loop."
+owner = "crate/sim-lib-lang-javascript"
+audiences = ["code", "framework"]
+guidance = "Use this checked profile as the end of the add-guest-language route for embedded, capability-scoped ECMAScript over SIM values, never as a Node replacement. Enter through codec/javascript and compose shared binding, descriptor dispatch, managed identity, sequence, pattern, JSON codec, tracing, resumable-frame, typed-job, diminished read-eval, and source-module mechanics. Generators and async functions exchange shared ResumePacket values; promises, async continuations, and dynamic imports enter the JavaScript language-microtask FIFO and run only at an explicit drain-to-empty checkpoint. Collector finalization has a distinct queue class and checkpoint. ESM resolution is confined to supplied Dir roots and inherits canonical identities, live binding cells, cycle/failure receipts, and installed-codec evaluation from sim-lib-namespace; dynamic source likewise enters only through ReadEvalBroker with host-authored diminished authority. The generated intrinsic manifest covers sparse arrays, iterators, Map, Set, Symbol, exact UTF-16 code units, and JSON reviver/toJSON/replacer/property-order/cycle policy. RegExp v1 executes only literals, dot, anchors, simple classes, ASCII d/s/w classes, and ?/*/+ in the bounded pattern organ; all flags, alternation, groups, backreferences, lookaround, Unicode properties/sets, word boundaries, and counted quantifiers fail closed. Node, CommonJS, npm, DOM, fetch, timers, filesystem, processes, network, ambient host IO, and an implicit event loop are deliberately absent. JAVA_SCRIPT_6 pattern-engine work is the first JavaScript successor requirement. Callable browse Shapes remain neutral, and Proxy and exotic-object invariants are explicit gaps; do not add an engine, VM, Realm, scheduler, event loop, private module cache, TypeScript policy, or foreign runtime."
+claims_anchors = ["anchor/crate/sim-lib-lang-javascript"]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-lang-javascript/src/lib",
+]
+supports = ["feature/sim-runtime/guest-language-profiles", "feature/sim-runtime/organs", "feature/sim-runtime/gc-tracing"]
+
+[[feature]]
+id = "feature/sim-runtime/typescript-notation-profile"
+title = "TypeScript notation over JavaScript evaluation"
+summary = "TypeScript notation; does not type-check. Load admitted notation by direct JavaScript erasure while retaining faithful, non-enforcing Shape metadata and explicit compiler gaps."
+owner = "crate/sim-lib-lang-typescript"
+audiences = ["code", "framework"]
+guidance = "Use codec/typescript to produce an erased JavaScript graph and annotation provenance, then install language/typescript-notation. The profile delegates evaluation unchanged to the JavaScript direct-eval policy and uses sim-shape's neutral BrowseSignature only for observational callable metadata. It performs no binding, inference, narrowing, assignability, source preflight, compiler diagnostics, emit, runtime type guard, object model, module cache, or independent evaluation."
+claims_anchors = ["anchor/crate/sim-lib-lang-typescript"]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-lang-typescript/src/lib",
+]
+supports = ["feature/sim-runtime/javascript-core-profile", "feature/sim-runtime/guest-language-profiles"]
+
+[[feature]]
 id = "feature/sim-runtime/incremental-query-core"
 title = "Incremental query core"
 summary = "Provide the generic memo graph algorithm that runtime organs can wrap without depending on SIM value surfaces."
@@ -72,60 +98,127 @@ title = "Runtime organs"
 summary = "Provide binding, control, logic, pattern, incremental, mutation, namespace, and sequence organs as reusable runtime behavior."
 owner = "crate/sim-lib-binding"
 audiences = ["code", "framework"]
-guidance = "Use this row when composing reusable runtime behavior from small organ crates and loadable libraries."
+guidance = "Use this row when composing reusable runtime behavior from small organ crates and loadable libraries. sim-lib-binding owns the language-neutral call-signature binder and shared binding-cell lifecycle used by guest profiles. sim-lib-control owns budgeted resumable frames, cleanup-safe generic unwind, and explicitly driven typed FIFO job queues; microtasks and finalization remain distinct queue classes, and selected-class checkpoints drain reentrant work to empty under caller-declared bounds."
 claims_anchors = [
-  "anchor/crate/sim-lib-binding",
-  "anchor/crate/sim-lib-control",
-  "anchor/crate/sim-lib-dispatch",
-  "anchor/crate/sim-lib-incremental",
   "anchor/crate/sim-lib-logic",
-  "anchor/crate/sim-lib-mutation",
-  "anchor/crate/sim-lib-namespace",
   "anchor/crate/sim-lib-pattern",
   "anchor/crate/sim-lib-sequence",
-  "anchor/runtime-lib/sim-lib-binding/binding-lib",
-  "anchor/runtime-lib/sim-lib-control/control-lib",
-  "anchor/runtime-lib/sim-lib-incremental/incremental-lib",
   "anchor/runtime-lib/sim-lib-logic/logic-lib",
   "anchor/runtime-lib/sim-lib-pattern/pattern-lib",
   "anchor/runtime-lib/sim-lib-sequence/sequence-lib",
 ]
 claims_specimens = [
-  "spec-test/sim-runtime/crates/sim-lib-incremental/src/tests",
   "spec-test/sim-runtime/crates/sim-lib-logic/src/tests/organ_proof",
 ]
 
 [[feature]]
-id = "feature/sim-runtime/mutation-organ"
-title = "Mutation organ"
-summary = "Expose cells, boxes, mutable vectors, and mutable tables as capability-gated runtime mutation behavior."
-owner = "crate/sim-lib-mutation"
+id = "feature/sim-runtime/binding-organ"
+title = "Language-neutral binding organ"
+summary = "Bind declared calls and maintain lexical, dynamic, recursive, and live binding cells without guest-language ownership."
+owner = "crate/sim-lib-binding"
 audiences = ["code", "framework"]
-guidance = "Use this row when a framework needs explicit mutable runtime state guarded by the standard mutate capability."
+guidance = "Use CallSignature and BindingCell as the shared binding boundary. Guest profiles declare policy and lowering only; they do not copy argument partitioning, recursive initialization, or live export cells."
 claims_anchors = [
-  "anchor/crate/sim-lib-mutation",
-  "anchor/card/cookbook/organ/mutation",
+  "anchor/crate/sim-lib-binding",
+  "anchor/runtime-lib/sim-lib-binding/binding-lib",
 ]
 claims_specimens = [
-  "spec-test/sim-runtime/crates/sim-lib-mutation/src/tests",
+  "spec-test/sim-runtime/crates/sim-lib-binding/src/tests",
+]
+supports = [
+  "feature/sim-runtime/organs",
+  "feature/sim-runtime/guest-language-profiles",
+]
+
+[[feature]]
+id = "feature/sim-runtime/control-organ"
+title = "Language-neutral control and job organ"
+summary = "Drive bounded resumable frames, cleanup-safe unwind, and explicitly checkpointed typed FIFO jobs."
+owner = "crate/sim-lib-control"
+audiences = ["code", "framework"]
+guidance = "Use ResumableFrame and JobQueues for shared suspension and caller-driven work. Guest profiles select policy and translate surface forms; they do not install private schedulers or queues."
+claims_anchors = [
+  "anchor/crate/sim-lib-control",
+  "anchor/runtime-lib/sim-lib-control/control-lib",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-control/src/organ_tests",
+]
+supports = [
+  "feature/sim-runtime/organs",
+  "feature/sim-runtime/guest-language-profiles",
+]
+
+[[feature]]
+id = "feature/sim-runtime/gc-tracing"
+title = "Bounded tracing garbage collection"
+summary = "Reclaim unreachable managed-object cycles with deterministic, failure-atomic stop-the-world tracing."
+owner = "crate/sim-lib-gc-tracing"
+audiences = ["code", "framework"]
+guidance = "Use collect with explicit object, edge, stack, clear, finalizer, and total-work limits over a sim-lib-mutation ManagedArena. Collection plans synchronously at a safepoint and refuses before its allocation-ordered atomic sweep when the complete plan cannot be admitted. Receipt determinism follows the arena's allocation-deterministic managed ids; different legal schedules must preserve safety, not identical reclamation timing. Reuse the language-neutral generated-graph and wasm-closure specimens in the crate test suite; this storage collector claims no language capability."
+claims_anchors = [
+  "anchor/crate/sim-lib-gc-tracing",
+  "anchor/card/cookbook/gc-tracing",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-gc-tracing/src/tests",
 ]
 supports = [
   "feature/sim-runtime/organs",
 ]
 
 [[feature]]
+id = "feature/sim-runtime/mutation-organ"
+title = "Mutation organ"
+summary = "Expose capability-gated mutable containers plus a bounded, allocation-deterministic managed-object arena and versioned tracing contract."
+owner = "crate/sim-lib-mutation"
+audiences = ["code", "framework"]
+guidance = "Use the containers for capability-gated runtime mutation. Use ManagedArena with HardCappedRetainPolicy when a framework needs language-neutral managed identity and a collector-facing strong, weak, ephemeron, safepoint, clearing, and teardown seam; install collection policy separately."
+claims_anchors = [
+  "anchor/crate/sim-lib-mutation",
+  "anchor/card/cookbook/organ/mutation",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-mutation/src/tests",
+  "spec-test/sim-runtime/crates/sim-lib-mutation/src/managed_tests",
+]
+supports = [
+  "feature/sim-runtime/organs",
+  "feature/sim-runtime/gc-tracing",
+]
+
+[[feature]]
+id = "feature/sim-runtime/property-mechanics"
+title = "Neutral property mechanics"
+summary = "Store ordered own properties and execute data or accessor descriptors with receiver-aware, budgeted interception."
+owner = "crate/sim-lib-dispatch"
+audiences = ["code", "framework"]
+guidance = "Use PropertyStore for descriptor storage and execution over caller-owned object identities. Supply the owner order explicitly: language profiles retain responsibility for inheritance linearization, prototype traversal, and descriptor precedence. AccessContext bounds traversal and rejects recursive interception."
+claims_anchors = [
+  "anchor/crate/sim-lib-dispatch",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-dispatch/src/property_tests",
+]
+supports = [
+  "feature/sim-runtime/organs",
+  "feature/sim-runtime/mutation-organ",
+]
+
+[[feature]]
 id = "feature/sim-runtime/namespace-organ"
 title = "Namespace organ"
-summary = "Expose package and module namespace records with export, import, rename, and shadow handling."
+summary = "Expose namespace records plus capability-aware, source-bound module resolution, linking, live bindings, cache lifecycle, and receipts."
 owner = "crate/sim-lib-namespace"
 audiences = ["code", "framework"]
-guidance = "Use this row when a framework needs reusable namespace records and import diagnostics."
+guidance = "Use Namespace for static package/import records. Use ModuleLoader for source modules: supply a named Table/Dir root, codec, trusted read policy, required and diminished capabilities; retain BindingCell export edges for live replacement and inspect resolution receipts for cache, cycle, and failure decisions."
 claims_anchors = [
   "anchor/crate/sim-lib-namespace",
   "anchor/card/cookbook/organ/namespace",
 ]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-namespace/src/tests",
+  "spec-test/sim-runtime/crates/sim-lib-namespace/src/module/tests",
 ]
 supports = [
   "feature/sim-runtime/organs",
@@ -163,6 +256,68 @@ claims_specimens = [
 ]
 
 [[feature]]
+id = "feature/sim-runtime/guest-language-profiles"
+title = "Small guest-language profiles"
+summary = "Add source-language surfaces as readers, direct Expr lowering, checked eval policy, and shared organ composition without guest-owned runtime machinery."
+owner = "crate/sim-lib-standard-core"
+audiences = ["code", "framework"]
+guidance = "Start from the checked LanguageProfile and GuestProfileEvidence thin-profile contract, follow Lua's codec and profile as the no-compiler reference, register the crate in guest-profiles.toml, reuse organs, and finish by adding the profile to the shared language matrix."
+claims_anchors = [
+  "anchor/rustdoc/sim-lib-lang-lua/lua_reader_symbol",
+  "anchor/rustdoc/sim-lib-lang-lua/lua_core_profile",
+  "anchor/rustdoc/sim-lib-lang-matrix/language_matrix",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-lang-lua/src/conformance",
+  "spec-test/sim-runtime/crates/sim-lib-lang-lua/src/lib",
+]
+supports = [
+  "feature/sim-runtime/library-loading",
+  "feature/sim-runtime/organs",
+]
+
+[[feature]]
+id = "feature/sim-runtime/python-object-control-policy"
+title = "Checked Python objects and resumable control"
+summary = "Compose Python classes, C3, descriptors, bound methods, super, checked exceptions, context cleanup, generators, coroutines, and cyclic collection over shared runtime organs."
+owner = "crate/sim-lib-lang-python"
+audiences = ["code", "framework"]
+guidance = "Use PythonObjectSpace for checked class and descriptor policy, PythonGenerator for bounded send/throw/close transitions, and PythonHeap for the one managed identity graph. Inspect PYTHON_OBJECT_CONTROL_GAPS before admitting metaclass, dynamic descriptor mutation, weak-reference callback, finalizer, or event-loop behavior."
+claims_anchors = [
+  "anchor/rustdoc/sim-lib-lang-python/python-object-space",
+  "anchor/rustdoc/sim-lib-lang-python/python-generator",
+  "anchor/rustdoc/sim-lib-lang-python/python_object_control_gaps",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-lang-python/src/objects",
+]
+supports = [
+  "feature/sim-runtime/guest-language-profiles",
+  "feature/sim-runtime/property-mechanics",
+  "feature/sim-runtime/mutation-organ",
+  "feature/sim-runtime/gc-tracing",
+]
+
+[[feature]]
+id = "feature/sim-runtime/python-authorized-library-core"
+title = "Capability-gated Python library core"
+summary = "Run embedded, capability-scoped, agent-authored Python over SIM values with ordered matching, supplied-root modules, and diminished eval/exec."
+owner = "crate/sim-lib-lang-python"
+audiences = ["code", "framework"]
+guidance = "Start here for embedded Python scripting, not CPython replacement compatibility. Source enters through codec/python; eval and exec require read-eval plus host-authored diminished DynamicAdmission. Use match_expr only for Shape-represented ordered cases, PythonModulePolicy only with a caller-supplied Dir, and inspect PYTHON_FIDELITY and python_library_manifest before claiming behavior. Explicit absences never fall back to CPython or host access."
+claims_anchors = [
+  "anchor/crate/sim-lib-lang-python",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-lang-python/src/lib",
+]
+supports = [
+  "feature/sim-runtime/guest-language-profiles",
+  "feature/sim-runtime/library-loading",
+  "feature/sim-runtime/capabilities-read-eval",
+]
+
+[[feature]]
 id = "feature/sim-runtime/host-exec"
 title = "Host exec primitive"
 summary = "Expose bounded process execution as a capability-gated host primitive outside the kernel."
@@ -191,6 +346,25 @@ supports = [
 ]
 
 [[route]]
+id = "route/use-typescript-notation"
+task = "Use TypeScript notation; does not type-check"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/typescript-notation-profile", why = "TypeScript notation; does not type-check. The profile erases admitted notation directly to the unchanged JavaScript evaluator and retains only faithful browse metadata." },
+  { specimen = "recipe/sim-runtime/crates/sim-lib-lang-typescript/01-basics/browsable-metadata", why = "The notation-plus-metadata recipe is the terminal public specimen." },
+]
+
+[[route]]
+id = "route/collect-language-neutral-managed-graph"
+task = "Collect a language-neutral managed graph"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/mutation-organ", why = "The mutation row supplies allocation-deterministic managed ids, graph storage, roots, weak edges, ephemerons, and safepoints without selecting a guest language." },
+  { feature = "feature/sim-runtime/gc-tracing", why = "The collector row supplies bounded synchronous tracing, atomic sweep, weak clearing, and isolated finalization admission without claiming language behavior." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-gc-tracing/src/tests", why = "The checked non-language managed-graph specimen compares generated graphs and safepoint schedules with a model tracer and proves wasm-closure collection." },
+]
+
+[[route]]
 id = "route/add-capability-gated-read-eval"
 task = "Add capability-gated read-eval"
 audiences = ["code", "framework"]
@@ -205,7 +379,41 @@ task = "Add a runtime organ"
 audiences = ["code", "framework"]
 steps = [
   { feature = "feature/sim-runtime/organs", why = "The organ row groups reusable binding, control, logic, pattern, incremental, mutation, namespace, and sequence behavior." },
+  { feature = "feature/sim-runtime/binding-organ", why = "The binding row owns lexical cells and binding mechanics shared by guest profiles." },
+  { feature = "feature/sim-runtime/control-organ", why = "The control row owns resumable frames and control transfer shared by guest profiles." },
+  { feature = "feature/sim-runtime/property-mechanics", why = "The property row owns descriptor dispatch and reusable property semantics." },
+  { feature = "feature/sim-runtime/namespace-organ", why = "The namespace row owns bounded module resolution and caller-supplied source roots." },
   { feature = "feature/sim-runtime/contract-emitter", why = "The emitter row keeps generated runtime contract evidence current." },
+]
+
+[[route]]
+id = "route/add-guest-language-profile"
+task = "Add a guest language profile"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/guest-language-profiles", why = "The profile row establishes the checked thin-profile ownership boundary before any guest-specific work and points to Lua as the no-compiler reference." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-standard-core/src/tests", why = "The shared profile specimen fails closed unless reader, lowering, eval policy, organ reuse, capabilities, and gaps are explicit." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-lua/src/conformance", why = "The Lua source-codec specimen proves direct source parsing and lowering through the positive reference profile." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-lua/src/lib", why = "The Lua profile and matrix-row tests are the final shared-matrix registration specimen for a guest profile." },
+]
+
+[[route]]
+id = "route/use-javascript-core-profile"
+task = "Use the bounded JavaScript core profile"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/javascript-core-profile", why = "The JavaScript profile composes the shared organs under bounded ECMAScript policy without adding an engine or host loop." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-javascript/src/lib", why = "The crate conformance suite checks the bounded profile, objects, jobs, modules, collections, JSON, text, and RegExp behavior." },
+]
+
+[[route]]
+id = "route/use-python-core-profile"
+task = "Use the capability-scoped Python core profile"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/python-authorized-library-core", why = "The authorized core owns source admission, supplied-root modules, diminished eval and exec, and explicit fidelity gaps." },
+  { feature = "feature/sim-runtime/python-object-control-policy", why = "The object-control row composes checked classes, descriptors, resumable control, and managed identity over shared organs." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-python/src/lib", why = "The crate conformance suite checks the authorized Python profile and its shared-organ composition." },
 ]
 
 [[route]]

@@ -1,0 +1,8 @@
+id = "bounded-cycle"
+title = "Reclaim an unreachable cycle"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 10
+tags = ["gc", "tracing", "bounded", "deterministic"]
+requires = ["gc-tracing"]

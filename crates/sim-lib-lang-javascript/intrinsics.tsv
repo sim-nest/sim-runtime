@@ -1,0 +1,26 @@
+# name	kind	backing
+Object	constructor	sim-lib-dispatch property mechanics
+Function	constructor	sim-lib-binding call mechanics
+Boolean	constructor	javascript coercion policy
+Symbol	constructor	javascript symbol registry
+Error	constructor	javascript abrupt completion
+AggregateError	constructor	javascript abrupt completion
+Number	constructor	sim-lib-numbers-f64
+BigInt	constructor	sim-lib-numbers-i64
+Math	namespace	sim-lib-numbers-f64
+String	constructor	javascript UTF-16 code-unit face
+RegExp	constructor	sim-lib-pattern bounded intersection
+Array	constructor	sim-lib-sequence plus javascript hole policy
+Map	constructor	sim-lib-sequence plus SameValueZero policy
+Set	constructor	sim-lib-sequence plus SameValueZero policy
+JSON	namespace	sim-codec-json plus javascript hook policy
+Iterator	prototype	sim-lib-sequence iterator protocol
+Array.prototype.map	method	sim-lib-sequence bounded map
+Array.prototype.filter	method	sim-lib-sequence bounded filter
+Map.prototype.entries	method	sim-lib-sequence insertion order
+Set.prototype.values	method	sim-lib-sequence insertion order
+String.prototype.slice	method	javascript UTF-16 code-unit face
+String.prototype.iterator	method	javascript UTF-16 iterator
+RegExp.prototype.exec	method	sim-lib-pattern bounded VM
+JSON.parse	method	sim-codec-json plus javascript reviver
+JSON.stringify	method	sim-codec-json plus javascript replacer

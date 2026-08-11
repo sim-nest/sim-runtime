@@ -64,9 +64,9 @@ pub use polyglot::{
     ProfileFunction, ProfileFunctionBinding, SharedOrganRuntime, profile_function_value,
 };
 pub use profile::{
-    LanguageProfile, OrganUse, language_profile_class_symbol, sim_expression_profile,
-    sim_expression_profile_symbol, standard_binding_organ_symbol, standard_control_organ_symbol,
-    standard_pattern_organ_symbol, standard_sequence_organ_symbol,
+    GuestProfileEvidence, LanguageProfile, OrganUse, language_profile_class_symbol,
+    sim_expression_profile, sim_expression_profile_symbol, standard_binding_organ_symbol,
+    standard_control_organ_symbol, standard_pattern_organ_symbol, standard_sequence_organ_symbol,
 };
 pub use read_construct::{
     FidelityBadgeValue, LanguageProfileValue, install_standard_core_classes,

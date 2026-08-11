@@ -34,7 +34,7 @@
       "group": "workspace",
       "manifest": "crates/sim-lib-dispatch/Cargo.toml",
       "package": "sim-lib-dispatch",
-      "summary": "Generic functions and method dispatch for the SIM runtime."
+      "summary": "Generic functions, method dispatch, and neutral property mechanics for the SIM runtime."
     },
     {
       "crate_name": "sim_lib_exec",
@@ -42,6 +42,13 @@
       "manifest": "crates/sim-lib-exec/Cargo.toml",
       "package": "sim-lib-exec",
       "summary": "Capability-gated bounded host-process execution for the SIM runtime."
+    },
+    {
+      "crate_name": "sim_lib_gc_tracing",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-gc-tracing/Cargo.toml",
+      "package": "sim-lib-gc-tracing",
+      "summary": "Bounded stop-the-world tracing collection for managed arenas."
     },
     {
       "crate_name": "sim_lib_incremental",
@@ -79,6 +86,13 @@
       "summary": "ISLISP surface profile for the SIM runtime."
     },
     {
+      "crate_name": "sim_lib_lang_javascript",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-javascript/Cargo.toml",
+      "package": "sim-lib-lang-javascript",
+      "summary": "Thin, direct JavaScript core profile over lowered codec/javascript forms."
+    },
+    {
       "crate_name": "sim_lib_lang_julia",
       "group": "workspace",
       "manifest": "crates/sim-lib-lang-julia/Cargo.toml",
@@ -107,6 +121,13 @@
       "summary": "Prolog surface profile for the SIM runtime."
     },
     {
+      "crate_name": "sim_lib_lang_python",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-python/Cargo.toml",
+      "package": "sim-lib-lang-python",
+      "summary": "Thin, direct Python core profile over lowered codec/python expressions."
+    },
+    {
       "crate_name": "sim_lib_lang_ruby",
       "group": "workspace",
       "manifest": "crates/sim-lib-lang-ruby/Cargo.toml",
@@ -128,6 +149,13 @@
       "summary": "Typed, lazy surface profile for the SIM runtime."
     },
     {
+      "crate_name": "sim_lib_lang_typescript",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-typescript/Cargo.toml",
+      "package": "sim-lib-lang-typescript",
+      "summary": "TypeScript notation over the unchanged JavaScript evaluator."
+    },
+    {
       "crate_name": "sim_lib_logic",
       "group": "workspace",
       "manifest": "crates/sim-lib-logic/Cargo.toml",
@@ -139,14 +167,14 @@
       "group": "workspace",
       "manifest": "crates/sim-lib-mutation/Cargo.toml",
       "package": "sim-lib-mutation",
-      "summary": "Mutation behavior for the SIM runtime: cells, boxes, vectors, symbol-keyed tables, and runtime-keyed tables."
+      "summary": "Mutation behavior for the SIM runtime: cells, boxes, vectors, tables, and a bounded managed-object arena."
     },
     {
       "crate_name": "sim_lib_namespace",
       "group": "workspace",
       "manifest": "crates/sim-lib-namespace/Cargo.toml",
       "package": "sim-lib-namespace",
-      "summary": "Namespace behavior for the SIM runtime: modules, packages, and imports."
+      "summary": "Namespace records and capability-aware source module lifecycle for the SIM runtime."
     },
     {
       "crate_name": "sim_lib_pattern",

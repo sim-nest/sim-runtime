@@ -1,0 +1,1 @@
+(gc/collect (limits (objects 64) (edges 256) (stack 64) (work 1024)))

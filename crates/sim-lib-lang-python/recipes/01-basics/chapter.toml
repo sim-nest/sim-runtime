@@ -1,0 +1,3 @@
+title = "Direct source evaluation"
+order = 10
+summary = "Start with bounded embedded Python and capability-gated eval/exec; not CPython compatibility."

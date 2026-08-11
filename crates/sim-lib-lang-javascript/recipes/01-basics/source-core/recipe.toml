@@ -1,0 +1,8 @@
+id = "javascript-source-core"
+title = "Run embedded ECMAScript with explicit job drains"
+codec = "javascript"
+setup = "setup.js"
+purpose = "purpose.md"
+order = 10
+tags = ["javascript", "embedded", "capability-scoped", "explicit-job-drain", "direct-eval"]
+requires = ["codec/javascript", "lang/javascript-core/v1"]

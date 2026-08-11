@@ -1,9 +1,9 @@
 [package]
 name = "sim-lib-mutation"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2024"
 license = "MPL-2.0"
-description = "Tracked mutation cells and update operations for SIM runtime values."
+description = "Tracked mutation containers and bounded managed-object storage for SIM runtimes."
 readme = "README.md"
 publish = true
 repository = "https://github.com/sim-nest/sim-runtime"
