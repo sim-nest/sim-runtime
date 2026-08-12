@@ -1,15 +1,18 @@
 # sim-lib-gc-tracing
 
-In one line: Reclaim unreachable managed-object cycles with deterministic, explicitly bounded work.
+In one line: It reclaims unreachable managed-object cycles with deterministic, explicitly bounded tracing work.
 
 ## What it gives you
 
-- Iterative strong-edge marking and ephemeron closure without Rust-stack recursion.
-- Separate object, edge, mark-stack, and total-work admission limits.
-- Failure receipts produced before any sweep mutation.
-- Allocation-ordered collection receipts suitable for replay comparison.
+The crate supplies stop-the-world collection policy for `sim-lib-mutation`'s language-neutral managed arena. Marking is iterative rather than Rust-stack recursive, strong edges and ephemerons are handled in distinct phases, and object, edge, mark-stack, and total-work limits are admitted before sweeping begins. A refused collection produces a failure receipt before any destructive mutation. Successful receipts follow allocation order, making collection outcomes suitable for replay comparison and operational diagnosis.
+
+## Why you will be glad
+
+- Cycles can be reclaimed without teaching the kernel or language profiles about a concrete collector.
+- Explicit budgets turn pathological graphs into named refusal rather than unbounded pause time.
+- Deterministic traversal and receipts make tests, replay, and incident reports comparable.
+- The collector scans only the managed arena contract; it never guesses through arbitrary Rust objects.
 
 ## Where it fits
 
-The crate supplies collection policy over `sim-lib-mutation`'s language-neutral
-managed arena. It never scans arbitrary Rust objects and adds nothing to the kernel.
+Use this loadable policy when a language profile or host selects tracing collection for managed objects. Mutation and arena ownership remain in `sim-lib-mutation`; language object semantics remain in their profiles; the kernel gains no garbage-collector API or heap implementation.
