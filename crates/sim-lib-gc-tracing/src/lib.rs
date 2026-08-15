@@ -9,10 +9,12 @@ use sim_lib_mutation::{ArenaError, EdgeId, ManagedId};
 mod collector;
 mod correctness;
 mod finalization;
+mod heap;
 
 pub use collector::{collect, collect_with_finalization};
 pub use correctness::CorrectnessDimension;
 pub use finalization::{FinalizationRecord, FinalizationRegistry};
+pub use heap::{ManagedHeap, ManagedHeapPolicy};
 
 /// Independently enforced limits for one collection.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
