@@ -5,11 +5,16 @@
 //! inheritance, while characterization scenarios freeze the behavior that the
 //! checked descriptor implementation must preserve.
 
+mod cache;
 mod characterization;
 mod descriptor;
 mod inventory;
 mod lineage;
 
+pub use cache::{
+    CacheAccess, CacheAccessKind, CacheError, CacheRevisions, ClassCache, ClassRoot,
+    DerivedClassView, SnapshotGraph,
+};
 pub use characterization::{
     CharacterizationScenario, ExpectedOutcome, FailureMode, ScenarioKind,
     characterization_scenarios, scenario_content_id,
