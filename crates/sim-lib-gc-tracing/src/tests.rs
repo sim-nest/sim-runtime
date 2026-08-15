@@ -64,6 +64,8 @@ use crate::{
     collect, collect_with_finalization,
 };
 
+mod neutral_graph;
+
 #[derive(Clone, Default)]
 struct Node {
     strong: Vec<ManagedId>,
