@@ -11,7 +11,10 @@ use sim_kernel::{
     standard::standard_evidence_predicate,
 };
 
-use crate::{FidelityBadge, LanguageProfile, standard_test_capability};
+use crate::{
+    CharacterizationScenario, FidelityBadge, LanguageProfile, ScenarioObservationLane,
+    standard_test_capability,
+};
 
 /// A conformance check: runs a profile against the runtime and reports an outcome.
 pub type ConformanceCheck =
@@ -137,12 +140,23 @@ impl ConformanceTestCase {
 #[derive(Default)]
 pub struct ConformanceHarness {
     tests: BTreeMap<Symbol, Vec<ConformanceTestCase>>,
+    scenarios: BTreeMap<Symbol, CharacterizationScenario>,
+    supported_scenario_lanes: BTreeSet<ScenarioObservationLane>,
 }
 
 impl ConformanceHarness {
     /// Create an empty harness.
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            tests: BTreeMap::new(),
+            scenarios: BTreeMap::new(),
+            supported_scenario_lanes: BTreeSet::from([
+                ScenarioObservationLane::ValueOrFailure,
+                ScenarioObservationLane::Events,
+                ScenarioObservationLane::Receipts,
+                ScenarioObservationLane::Browse,
+            ]),
+        }
     }
 
     /// Register `test` under its organ.
@@ -158,6 +172,42 @@ impl ConformanceHarness {
     /// Total number of registered tests across all organs.
     pub fn test_count(&self) -> usize {
         self.tests.values().map(Vec::len).sum()
+    }
+
+    /// Restrict the scenario observation lanes supported by this harness.
+    pub fn with_supported_scenario_lanes(
+        mut self,
+        lanes: impl IntoIterator<Item = ScenarioObservationLane>,
+    ) -> Self {
+        self.supported_scenario_lanes = lanes.into_iter().collect();
+        self
+    }
+
+    /// Register one uniquely identified characterization scenario.
+    pub fn register_scenario(&mut self, scenario: CharacterizationScenario) -> Result<()> {
+        if self.scenarios.contains_key(&scenario.spec.id) {
+            return Err(sim_kernel::Error::Eval(format!(
+                "duplicate scenario id {}",
+                scenario.spec.id
+            )));
+        }
+        self.scenarios.insert(scenario.spec.id.clone(), scenario);
+        Ok(())
+    }
+
+    /// Preflight every registered scenario, then run them in stable id order.
+    ///
+    /// No driver runs unless the complete registry is valid.
+    pub fn run_scenarios(&self, cx: &mut Cx) -> Result<Vec<Symbol>> {
+        for scenario in self.scenarios.values() {
+            scenario.spec.validate(&self.supported_scenario_lanes)?;
+        }
+        let mut completed = Vec::with_capacity(self.scenarios.len());
+        for scenario in self.scenarios.values() {
+            (scenario.driver)(cx, &scenario.spec)?;
+            completed.push(scenario.spec.id.clone());
+        }
+        Ok(completed)
     }
 }
 

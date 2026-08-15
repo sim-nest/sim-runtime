@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
+};
 
 use sim_kernel::{
     ClaimKind, ClaimPattern, Cx, DefaultFactory, Expr, NoopEvalPolicy, Ref, Symbol,
@@ -7,12 +10,115 @@ use sim_kernel::{
 };
 
 use crate::{
-    ConformanceHarness, ConformanceOutcome, ConformanceTestCase, FidelityBadge, LanguageProfile,
-    OrganUse, StandardTestReport, standard_binding_organ_symbol,
+    CharacterizationScenario, ConformanceHarness, ConformanceOutcome, ConformanceTestCase,
+    FidelityBadge, LanguageProfile, OrganUse, ScenarioInput, ScenarioLimits,
+    ScenarioObservationLane, ScenarioSpec, StandardTestReport, standard_binding_organ_symbol,
     standard_reported_fidelity_level_predicate, standard_test_capability,
     standard_test_result_predicate, standard_test_run_kind, standard_test_status_predicate,
     standard_test_stub,
 };
+
+#[test]
+fn invalid_scenario_registry_fails_before_any_driver_effect() {
+    let effects = Arc::new(AtomicUsize::new(0));
+    let mut harness = ConformanceHarness::new()
+        .with_supported_scenario_lanes([ScenarioObservationLane::ValueOrFailure]);
+    harness
+        .register_scenario(scenario(
+            "valid",
+            valid_scenario_spec("valid"),
+            effects.clone(),
+        ))
+        .unwrap();
+    harness
+        .register_scenario(scenario(
+            "invalid",
+            valid_scenario_spec("invalid")
+                .with_limits(ScenarioLimits::new(1, 2))
+                .observing(ScenarioObservationLane::Events),
+            effects.clone(),
+        ))
+        .unwrap();
+
+    let error = harness.run_scenarios(&mut test_cx()).unwrap_err();
+
+    assert!(error.to_string().contains("unsupported lane"));
+    assert_eq!(effects.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn scenario_preflight_rejects_duplicate_missing_bounds_and_undeclared_authority() {
+    let effects = Arc::new(AtomicUsize::new(0));
+    let mut duplicate = ConformanceHarness::new();
+    duplicate
+        .register_scenario(scenario(
+            "same",
+            valid_scenario_spec("same"),
+            effects.clone(),
+        ))
+        .unwrap();
+    let duplicate_error = duplicate
+        .register_scenario(scenario(
+            "same",
+            valid_scenario_spec("same"),
+            effects.clone(),
+        ))
+        .unwrap_err();
+    assert!(
+        duplicate_error
+            .to_string()
+            .contains("duplicate scenario id")
+    );
+
+    for invalid in [
+        ScenarioSpec::new(scenario_symbol("missing"), setup_symbol())
+            .with_authority(authority_symbol())
+            .observing(ScenarioObservationLane::ValueOrFailure),
+        ScenarioSpec::new(scenario_symbol("authority"), setup_symbol())
+            .with_limits(ScenarioLimits::new(1, 1))
+            .with_input(ScenarioInput::new(
+                Symbol::new("input"),
+                authority_symbol(),
+                sim_kernel::Datum::String("value".to_owned()),
+            ))
+            .observing(ScenarioObservationLane::ValueOrFailure),
+    ] {
+        let mut harness = ConformanceHarness::new();
+        harness
+            .register_scenario(scenario("invalid", invalid, effects.clone()))
+            .unwrap();
+        assert!(harness.run_scenarios(&mut test_cx()).is_err());
+    }
+    assert_eq!(effects.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn bounded_scenarios_run_in_stable_identity_order() {
+    let effects = Arc::new(AtomicUsize::new(0));
+    let mut harness = ConformanceHarness::new();
+    harness
+        .register_scenario(scenario(
+            "second",
+            valid_scenario_spec("second"),
+            effects.clone(),
+        ))
+        .unwrap();
+    harness
+        .register_scenario(scenario(
+            "first",
+            valid_scenario_spec("first"),
+            effects.clone(),
+        ))
+        .unwrap();
+
+    let completed = harness.run_scenarios(&mut test_cx()).unwrap();
+
+    assert_eq!(
+        completed,
+        vec![scenario_symbol("first"), scenario_symbol("second")]
+    );
+    assert_eq!(effects.load(Ordering::SeqCst), 2);
+}
 
 #[test]
 fn standard_test_reports_per_organ_pass_fail() {
@@ -163,6 +269,44 @@ fn conformance_profile(profile: Symbol) -> LanguageProfile {
             2,
             Ref::Symbol(binding_test_symbol()),
         ))
+}
+
+fn valid_scenario_spec(name: &str) -> ScenarioSpec {
+    ScenarioSpec::new(scenario_symbol(name), setup_symbol())
+        .with_authority(authority_symbol())
+        .with_limits(ScenarioLimits::new(1, 1))
+        .with_input(ScenarioInput::new(
+            Symbol::new("input"),
+            authority_symbol(),
+            sim_kernel::Datum::String("value".to_owned()),
+        ))
+        .observing(ScenarioObservationLane::ValueOrFailure)
+}
+
+fn scenario(
+    _name: &str,
+    spec: ScenarioSpec,
+    effects: Arc<AtomicUsize>,
+) -> CharacterizationScenario {
+    CharacterizationScenario::new(
+        spec,
+        Arc::new(move |_, _| {
+            effects.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }),
+    )
+}
+
+fn scenario_symbol(name: &str) -> Symbol {
+    Symbol::qualified("scenario", name)
+}
+
+fn setup_symbol() -> Symbol {
+    Symbol::qualified("setup", "standard-core")
+}
+
+fn authority_symbol() -> Symbol {
+    Symbol::qualified("authority", "evaluate")
 }
 
 fn conformance_harness(binding_passes: bool) -> ConformanceHarness {

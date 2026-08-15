@@ -27,6 +27,7 @@ pub mod polyglot;
 pub mod profile;
 pub mod read_construct;
 pub mod registry;
+pub mod scenario;
 
 pub use cap::{standard_diff_capability, standard_install_capability, standard_test_capability};
 pub use characterization::{
@@ -78,6 +79,10 @@ pub use read_construct::{
     standard_core_classes_lib_symbol,
 };
 pub use registry::ProfileRegistry;
+pub use scenario::{
+    CharacterizationScenario, ScenarioDriver, ScenarioInput, ScenarioLimits,
+    ScenarioObservationLane, ScenarioSpec,
+};
 
 /// Cookbook recipes for this lib, embedded at build time.
 pub static RECIPES: sim_cookbook::EmbeddedDir =
