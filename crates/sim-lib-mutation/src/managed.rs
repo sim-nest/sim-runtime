@@ -218,6 +218,45 @@ pub enum StrongEdgeMutationError {
     },
 }
 
+/// A failed checked mutation of a weak edge.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum WeakEdgeMutationError {
+    /// Allocating a stable identity for a new edge failed.
+    Allocation(EdgeAllocationError),
+    /// The requested identity is not a live weak edge of this node.
+    UnknownEdge(EdgeId),
+    /// The edge exists, but no longer names the caller's expected target.
+    TargetChanged {
+        /// Target supplied by the caller as the mutation precondition.
+        expected: ManagedId,
+        /// Current target, which was left unchanged.
+        actual: ManagedId,
+    },
+}
+
+impl fmt::Display for WeakEdgeMutationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Allocation(error) => error.fmt(f),
+            Self::UnknownEdge(edge) => write!(f, "unknown weak edge {}", edge.0),
+            Self::TargetChanged { expected, actual } => write!(
+                f,
+                "weak edge target changed from allocation {} to allocation {}",
+                expected.allocation_ordinal(),
+                actual.allocation_ordinal()
+            ),
+        }
+    }
+}
+
+impl Error for WeakEdgeMutationError {}
+
+impl From<EdgeAllocationError> for WeakEdgeMutationError {
+    fn from(error: EdgeAllocationError) -> Self {
+        Self::Allocation(error)
+    }
+}
+
 impl fmt::Display for StrongEdgeMutationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -251,6 +290,7 @@ pub struct ManagedNode<R> {
     role: ManagedRole<R>,
     edges: EdgeAllocator,
     strong: BTreeMap<EdgeId, ManagedId>,
+    weak: BTreeMap<EdgeId, ManagedId>,
 }
 
 impl<R> ManagedNode<R> {
@@ -260,6 +300,7 @@ impl<R> ManagedNode<R> {
             role: ManagedRole::new(role),
             edges: EdgeAllocator::new(),
             strong: BTreeMap::new(),
+            weak: BTreeMap::new(),
         }
     }
 
@@ -321,17 +362,85 @@ impl<R> ManagedNode<R> {
             .remove(&edge)
             .expect("edge checked immediately before removal"))
     }
+
+    /// Inserts a weak edge and returns its stable identity.
+    pub fn insert_weak(&mut self, target: ManagedId) -> Result<EdgeId, WeakEdgeMutationError> {
+        let edge = self.edges.allocate(EdgeKind::Weak)?.id();
+        let previous = self.weak.insert(edge, target);
+        debug_assert!(previous.is_none(), "fresh edge identity must be vacant");
+        Ok(edge)
+    }
+
+    /// Replaces a weak target only if it still equals `expected`.
+    pub fn replace_weak(
+        &mut self,
+        edge: EdgeId,
+        expected: ManagedId,
+        replacement: ManagedId,
+    ) -> Result<(), WeakEdgeMutationError> {
+        let target = self
+            .weak
+            .get_mut(&edge)
+            .ok_or(WeakEdgeMutationError::UnknownEdge(edge))?;
+        if *target != expected {
+            return Err(WeakEdgeMutationError::TargetChanged {
+                expected,
+                actual: *target,
+            });
+        }
+        *target = replacement;
+        Ok(())
+    }
+
+    /// Removes a weak edge only if it still equals `expected`.
+    pub fn remove_weak(
+        &mut self,
+        edge: EdgeId,
+        expected: ManagedId,
+    ) -> Result<ManagedId, WeakEdgeMutationError> {
+        let actual = self
+            .weak
+            .get(&edge)
+            .copied()
+            .ok_or(WeakEdgeMutationError::UnknownEdge(edge))?;
+        if actual != expected {
+            return Err(WeakEdgeMutationError::TargetChanged { expected, actual });
+        }
+        Ok(self
+            .weak
+            .remove(&edge)
+            .expect("edge checked immediately before removal"))
+    }
 }
 
 impl<R> ManagedObject for ManagedNode<R> {
     fn trace_edges(&self, visitor: &mut dyn EdgeVisitor) {
-        for (&edge, &target) in &self.strong {
-            visitor.strong(edge, target);
+        let mut strong = self.strong.iter().peekable();
+        let mut weak = self.weak.iter().peekable();
+        while strong.peek().is_some() || weak.peek().is_some() {
+            match (strong.peek(), weak.peek()) {
+                (Some(&(&strong_edge, _)), Some(&(&weak_edge, _))) if strong_edge < weak_edge => {
+                    let (&edge, &target) = strong.next().expect("peeked strong edge");
+                    visitor.strong(edge, target);
+                }
+                (Some(_), Some(_)) | (None, Some(_)) => {
+                    let (&edge, &target) = weak.next().expect("peeked weak edge");
+                    visitor.weak(edge, target);
+                }
+                (Some(_), None) => {
+                    let (&edge, &target) = strong.next().expect("peeked strong edge");
+                    visitor.strong(edge, target);
+                }
+                (None, None) => unreachable!("loop requires an edge"),
+            }
         }
     }
 
-    fn clear_weak_edge(&mut self, _edge: EdgeId, _expected: ManagedId) -> bool {
-        false
+    fn clear_weak_edge(&mut self, edge: EdgeId, expected: ManagedId) -> bool {
+        if self.weak.get(&edge) != Some(&expected) {
+            return false;
+        }
+        self.weak.remove(&edge).is_some()
     }
 }
 

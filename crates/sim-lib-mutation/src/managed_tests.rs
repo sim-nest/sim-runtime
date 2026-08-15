@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use crate::{
     ArenaError, EdgeAllocationError, EdgeAllocator, EdgeId, EdgeKind, EdgeVisitor,
     HardCappedRetainPolicy, ManagedArena, ManagedId, ManagedNode, ManagedObject, ManagedRole,
-    StrongEdgeMutationError, TraceSnapshot,
+    StrongEdgeMutationError, TraceSnapshot, WeakEdgeMutationError,
 };
 
 #[derive(Clone, Debug)]
@@ -156,6 +156,58 @@ fn managed_node_failed_strong_mutations_are_exact_and_atomic() {
         Err(StrongEdgeMutationError::UnknownEdge(EdgeId(edge.0 + 1)))
     );
     assert_eq!(node, before);
+}
+
+#[test]
+fn managed_node_weak_edges_mutate_trace_and_clear_exactly_once() {
+    let mut arena = arena(4);
+    let first_target = arena.allocate(Node::default()).unwrap().id();
+    let second_target = arena.allocate(Node::default()).unwrap().id();
+    let mismatch = arena.allocate(Node::default()).unwrap().id();
+    let mut node = ManagedNode::new(());
+    let removed = node.insert_weak(first_target).unwrap();
+    let strong = node.insert_strong(mismatch).unwrap();
+    let retained = node.insert_weak(first_target).unwrap();
+
+    node.replace_weak(retained, first_target, second_target)
+        .unwrap();
+    assert_eq!(node.remove_weak(removed, first_target), Ok(first_target));
+    let after_clear = node.insert_weak(first_target).unwrap();
+
+    let before_mismatch = node.clone();
+    assert_eq!(
+        node.replace_weak(retained, mismatch, first_target),
+        Err(WeakEdgeMutationError::TargetChanged {
+            expected: mismatch,
+            actual: second_target,
+        })
+    );
+    assert_eq!(node, before_mismatch);
+    assert!(!node.clear_weak_edge(retained, mismatch));
+    assert!(node.clear_weak_edge(retained, second_target));
+    assert!(!node.clear_weak_edge(retained, second_target));
+
+    #[derive(Default)]
+    struct OrderedTrace(Vec<(EdgeKind, EdgeId, ManagedId)>);
+    impl EdgeVisitor for OrderedTrace {
+        fn strong(&mut self, edge: EdgeId, target: ManagedId) {
+            self.0.push((EdgeKind::Strong, edge, target));
+        }
+        fn weak(&mut self, edge: EdgeId, target: ManagedId) {
+            self.0.push((EdgeKind::Weak, edge, target));
+        }
+        fn ephemeron(&mut self, _edge: EdgeId, _key: ManagedId, _value: ManagedId) {}
+    }
+    let mut traced = OrderedTrace::default();
+    node.trace_edges(&mut traced);
+    assert_eq!(
+        traced.0,
+        vec![
+            (EdgeKind::Strong, strong, mismatch),
+            (EdgeKind::Weak, after_clear, first_target),
+        ]
+    );
+    assert!(removed < strong && strong < retained && retained < after_clear);
 }
 
 #[derive(Default)]

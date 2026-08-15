@@ -35,7 +35,8 @@ pub use managed::{
     ArenaError, CollectionMutationReceipt, EdgeAllocationError, EdgeAllocator, EdgeId, EdgeKind,
     EdgeVisitor, HardCappedRetainPolicy, ManagedArena, ManagedHandle, ManagedId, ManagedNode,
     ManagedObject, ManagedRole, RootId, RootedHandle, SafepointReceipt, StrongEdgeMutationError,
-    TeardownReceipt, TraceContractVersion, TraceSnapshot, TypedEdgeId, WeakHandle,
+    TeardownReceipt, TraceContractVersion, TraceSnapshot, TypedEdgeId, WeakEdgeMutationError,
+    WeakHandle,
 };
 pub use runtime_key::{PrimitiveRuntimeKeyPolicy, RuntimeKey, RuntimeKeyPolicy};
 pub use runtime_table::{MutableRuntimeTable, mutable_runtime_table, mutable_runtime_table_value};
