@@ -1,7 +1,7 @@
 //! Bounded text-pattern virtual machine shared by pattern dialects.
 
 /// Character class understood by the shared text-pattern VM.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TextClass {
     /// ASCII alphabetic characters.
     Alpha,

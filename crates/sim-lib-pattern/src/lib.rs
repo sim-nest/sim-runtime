@@ -8,6 +8,7 @@
 
 mod adt;
 mod claims;
+mod compile;
 mod cursor;
 mod dialect;
 mod glob_dialect;
@@ -28,6 +29,9 @@ pub use claims::{
     pattern_exhaustive_op_key, pattern_live_ops, pattern_match_op_key, pattern_op_keys,
     pattern_organ_symbol, pattern_tag_op_key, publish_pattern_organ_claims,
     publish_pattern_organ_claims_for_lib,
+};
+pub use compile::{
+    Automaton, CompilationEvidence, Instruction, State, StateId, TagBoundary, compile,
 };
 pub use cursor::{ByteDomain, ByteOffset, CodeUnitDomain, CodeUnitOffset, Cursor, SymbolDomain};
 pub use dialect::PatternDialect;
