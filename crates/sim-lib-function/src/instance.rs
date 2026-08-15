@@ -128,21 +128,7 @@ impl<B: FunctionBodyPolicy> FunctionInstance<B> {
         args_shape: Option<ShapeRef>,
         result_shape: Option<ShapeRef>,
     ) -> Result<Self, InstanceError> {
-        if plan.captures().len() != captures.len() {
-            return Err(InstanceError::CaptureMismatch {
-                expected: plan.captures().len(),
-                actual: captures.len(),
-            });
-        }
-        for (index, (descriptor, capture)) in plan.captures().iter().zip(&captures).enumerate() {
-            if descriptor.name() != capture.cell().name() {
-                return Err(InstanceError::CaptureNameMismatch {
-                    index,
-                    expected: descriptor.name().to_string(),
-                    actual: capture.cell().name().to_string(),
-                });
-            }
-        }
+        validate_capture_bindings(&plan, &captures)?;
         let targets = captures
             .iter()
             .map(|capture| capture.managed().id())
@@ -203,6 +189,29 @@ impl<B: FunctionBodyPolicy> FunctionInstance<B> {
     pub(crate) fn invoke_values(&self, cx: &mut Cx, values: Vec<Value>) -> KernelResult<Value> {
         self.invoke_bound(cx, bind(CallInput::from(Args::new(values))))
     }
+}
+
+/// Validates that concrete capture cells exactly match every frozen plan slot.
+pub fn validate_capture_bindings(
+    plan: &FunctionPlan,
+    captures: &[CapturedBinding],
+) -> Result<(), InstanceError> {
+    if plan.captures().len() != captures.len() {
+        return Err(InstanceError::CaptureMismatch {
+            expected: plan.captures().len(),
+            actual: captures.len(),
+        });
+    }
+    for (index, (descriptor, capture)) in plan.captures().iter().zip(captures).enumerate() {
+        if descriptor.name() != capture.cell().name() {
+            return Err(InstanceError::CaptureNameMismatch {
+                index,
+                expected: descriptor.name().to_string(),
+                actual: capture.cell().name().to_string(),
+            });
+        }
+    }
+    Ok(())
 }
 
 impl<B: FunctionBodyPolicy> ManagedObject for FunctionInstance<B> {

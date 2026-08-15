@@ -4,9 +4,13 @@ use crate::{
     JavascriptHeap, JavascriptHeapExt, JavascriptManagedKind, JavascriptManagedMutationError,
     JavascriptManagedObject, JavascriptValue,
 };
+use sim_kernel::Symbol;
 use sim_lib_dispatch::{
     AccessContext, AccessError, AccessorDescriptor, DataDescriptor, DefineError, Descriptor,
     PropertyHook, PropertyStore,
+};
+use sim_lib_function::{
+    CapturedBinding, FunctionPlan, InstanceError, ParameterKind, validate_capture_bindings,
 };
 use sim_lib_mutation::{ArenaError, ManagedHandle, ManagedId};
 use std::collections::{BTreeMap, HashSet};
@@ -39,18 +43,130 @@ pub enum JavascriptFunctionKind {
     ClassConstructor,
 }
 
-/// Inspectable callable metadata. Executable bodies remain codec-lowered forms;
-/// this record owns only binding and construction policy.
+/// JavaScript policy retained beside a language-neutral function plan.
 #[derive(Clone, Debug)]
-pub struct JavascriptFunction {
-    /// Function form.
+pub struct JavascriptFunctionPolicy {
+    /// Function form and its receiver policy.
     pub kind: JavascriptFunctionKind,
-    /// Captured lexical environment.
-    pub environment: ManagedHandle,
     /// Whether `new` is legal.
     pub constructable: bool,
+    /// Declaration-time default values, keyed by frozen parameter name.
+    pub defaults: BTreeMap<Symbol, JavascriptValue>,
+    /// Whether invocation creates an async continuation.
+    pub asynchronous: bool,
+    /// Whether invocation creates a generator frame.
+    pub generator: bool,
+    /// Stable realm identity used by JavaScript intrinsic lookup.
+    pub realm: Symbol,
+    /// Stable source origin used for JavaScript errors.
+    pub error_origin: String,
+}
+
+/// A JavaScript call-binding failure with its guest-owned source origin.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct JavascriptCallError {
+    /// Stable source origin.
+    pub origin: String,
+    /// Human-readable ECMAScript binding failure.
+    pub message: String,
+}
+
+/// Inspectable callable metadata. Shared plans and capture cells own neutral
+/// mechanics; this record retains only JavaScript and object-system policy.
+#[derive(Clone, Debug)]
+pub struct JavascriptFunction {
+    plan: FunctionPlan,
+    captures: Vec<CapturedBinding>,
+    policy: JavascriptFunctionPolicy,
     /// Declared private names for a class constructor.
     pub private_names: Vec<String>,
+}
+
+impl JavascriptFunction {
+    /// Freezes a JavaScript function over an already validated neutral plan.
+    pub fn new(
+        plan: FunctionPlan,
+        captures: Vec<CapturedBinding>,
+        policy: JavascriptFunctionPolicy,
+        private_names: Vec<String>,
+    ) -> Result<Self, InstanceError> {
+        validate_capture_bindings(&plan, &captures)?;
+        Ok(Self {
+            plan,
+            captures,
+            policy,
+            private_names,
+        })
+    }
+
+    /// Borrows the shared immutable declaration plan.
+    pub const fn plan(&self) -> &FunctionPlan {
+        &self.plan
+    }
+
+    /// Borrows exact capture cells in frozen plan order.
+    pub fn captures(&self) -> &[CapturedBinding] {
+        &self.captures
+    }
+
+    /// Borrows JavaScript-only callable policy.
+    pub const fn policy(&self) -> &JavascriptFunctionPolicy {
+        &self.policy
+    }
+
+    /// Applies ECMAScript positional, default, and rest rules to raw values.
+    pub fn bind_arguments(
+        &self,
+        arguments: &[JavascriptValue],
+    ) -> Result<BTreeMap<Symbol, Vec<JavascriptValue>>, JavascriptCallError> {
+        let mut bound = BTreeMap::new();
+        let mut at = 0;
+        for parameter in self.plan.parameters() {
+            let values = match parameter.kind() {
+                ParameterKind::Remainder => {
+                    let values = arguments[at..].to_vec();
+                    at = arguments.len();
+                    values
+                }
+                ParameterKind::Required => {
+                    let Some(value) = arguments.get(at) else {
+                        return self
+                            .bind_error(format!("missing required argument {}", parameter.name()));
+                    };
+                    at += 1;
+                    vec![value.clone()]
+                }
+                ParameterKind::Optional => {
+                    let supplied = arguments.get(at);
+                    let value = match supplied {
+                        Some(JavascriptValue::Undefined) | None => self
+                            .policy
+                            .defaults
+                            .get(parameter.name())
+                            .cloned()
+                            .or_else(|| supplied.cloned()),
+                        Some(value) => Some(value.clone()),
+                    };
+                    if supplied.is_some() {
+                        at += 1;
+                    }
+                    vec![value.unwrap_or(JavascriptValue::Undefined)]
+                }
+            };
+            bound.insert(parameter.name().clone(), values);
+        }
+        if at != arguments.len() {
+            return self.bind_error("too many arguments".into());
+        }
+        Ok(bound)
+    }
+
+    fn bind_error<T>(&self, message: String) -> Result<T, JavascriptCallError> {
+        Err(JavascriptCallError {
+            origin: self.policy.error_origin.clone(),
+            message,
+        })
+    }
 }
 
 /// Receiver selected for a call.
@@ -178,7 +294,9 @@ impl JavascriptObjects {
         let h = self.heap.allocate(JavascriptManagedObject::new(
             JavascriptManagedKind::Function,
         ))?;
-        self.heap.connect(h, function.environment)?;
+        for capture in function.captures() {
+            self.heap.connect(h, capture.managed())?;
+        }
         if let Some(v) = lexical_this {
             self.lexical_this.insert(h.id(), v);
         }
@@ -195,7 +313,7 @@ impl JavascriptObjects {
             .functions
             .get(&function.id())
             .ok_or(JavascriptObjectError::NotConstructor)?;
-        Ok(if f.kind == JavascriptFunctionKind::Arrow {
+        Ok(if f.policy.kind == JavascriptFunctionKind::Arrow {
             JavascriptThis::Lexical(
                 self.lexical_this
                     .get(&function.id())
@@ -214,7 +332,12 @@ impl JavascriptObjects {
         function: ManagedHandle,
         receiver: JavascriptValue,
         arguments: &[JavascriptValue],
-        body: impl FnOnce(ManagedHandle, JavascriptThis, &[JavascriptValue]) -> Result<T, E>,
+        body: impl FnOnce(
+            &FunctionPlan,
+            &[CapturedBinding],
+            JavascriptThis,
+            &[JavascriptValue],
+        ) -> Result<T, E>,
     ) -> Result<T, E>
     where
         E: From<JavascriptObjectError>,
@@ -224,7 +347,7 @@ impl JavascriptObjects {
             .get(&function.id())
             .ok_or(JavascriptObjectError::NotConstructor)?;
         let this = self.call_this(function, receiver)?;
-        body(metadata.environment, this, arguments)
+        body(metadata.plan(), metadata.captures(), this, arguments)
     }
     /// Allocate the receiver for `new` and link it to the constructor prototype.
     pub fn construct(
@@ -235,7 +358,7 @@ impl JavascriptObjects {
             .functions
             .get(&function.id())
             .ok_or(JavascriptObjectError::NotConstructor)?;
-        if !f.constructable || f.kind == JavascriptFunctionKind::Arrow {
+        if !f.policy.constructable || f.policy.kind == JavascriptFunctionKind::Arrow {
             return Err(JavascriptObjectError::NotConstructor);
         }
         let instance = self.ordinary()?;
@@ -445,6 +568,8 @@ pub const fn javascript_object_gaps() -> &'static [JavascriptObjectGap] {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sim_lib_binding::BindingCell;
+    use sim_lib_function::{CallMode, CaptureDescriptor, ParameterDescriptor};
     use sim_lib_gc_tracing::CollectionLimits;
     fn model() -> JavascriptObjects {
         JavascriptObjects::new(
@@ -465,18 +590,50 @@ mod tests {
     fn s(v: &str) -> JavascriptPropertyKey {
         JavascriptPropertyKey::String(v.into())
     }
+    fn function(
+        kind: JavascriptFunctionKind,
+        environment: ManagedHandle,
+        constructable: bool,
+        private_names: Vec<String>,
+    ) -> JavascriptFunction {
+        let capture_name = Symbol::new("environment");
+        JavascriptFunction::new(
+            FunctionPlan::new(
+                Symbol::new("javascript:fixture"),
+                vec![],
+                vec![CaptureDescriptor::new(capture_name.clone(), None)],
+                None,
+            )
+            .unwrap(),
+            vec![CapturedBinding::new(
+                BindingCell::uninitialized(capture_name),
+                environment,
+            )],
+            JavascriptFunctionPolicy {
+                kind,
+                constructable,
+                defaults: BTreeMap::new(),
+                asynchronous: false,
+                generator: false,
+                realm: Symbol::new("realm:fixture"),
+                error_origin: "fixture.js:1".into(),
+            },
+            private_names,
+        )
+        .unwrap()
+    }
     #[test]
     fn descriptors_prototypes_arrays_and_private_names_are_shared_mechanics() {
         let mut m = model();
         let env = m.ordinary().unwrap();
         let class = m
             .function(
-                JavascriptFunction {
-                    kind: JavascriptFunctionKind::ClassConstructor,
-                    environment: env,
-                    constructable: true,
-                    private_names: vec!["x".into()],
-                },
+                function(
+                    JavascriptFunctionKind::ClassConstructor,
+                    env,
+                    true,
+                    vec!["x".into()],
+                ),
                 None,
             )
             .unwrap();
@@ -522,12 +679,7 @@ mod tests {
         let env = m.ordinary().unwrap();
         let arrow = m
             .function(
-                JavascriptFunction {
-                    kind: JavascriptFunctionKind::Arrow,
-                    environment: env,
-                    constructable: false,
-                    private_names: vec![],
-                },
+                function(JavascriptFunctionKind::Arrow, env, false, vec![]),
                 Some(JavascriptValue::String("lexical".into())),
             )
             .unwrap();
@@ -541,13 +693,18 @@ mod tests {
                 arrow,
                 JavascriptValue::Undefined,
                 &[JavascriptValue::Number(42.0)],
-                |captured, this, arguments| {
-                    Ok::<_, JavascriptObjectError>((captured, this, arguments[0].clone()))
+                |plan, captures, this, arguments| {
+                    Ok::<_, JavascriptObjectError>((
+                        plan.clone(),
+                        captures[0].managed(),
+                        this,
+                        arguments[0].clone(),
+                    ))
                 },
             )
             .unwrap();
-        assert_eq!(called.0, env);
-        assert_eq!(called.2, JavascriptValue::Number(42.0));
+        assert_eq!(called.1, env);
+        assert_eq!(called.3, JavascriptValue::Number(42.0));
         assert_eq!(
             m.construct(arrow),
             Err(JavascriptObjectError::NotConstructor)
@@ -561,12 +718,7 @@ mod tests {
         let env = m.ordinary().unwrap();
         let f = m
             .function(
-                JavascriptFunction {
-                    kind: JavascriptFunctionKind::Function,
-                    environment: env,
-                    constructable: true,
-                    private_names: vec![],
-                },
+                function(JavascriptFunctionKind::Function, env, true, vec![]),
                 None,
             )
             .unwrap();
@@ -588,5 +740,97 @@ mod tests {
         assert_eq!(m.live_len(), 3);
         assert_eq!(m.collect().unwrap().unwrap().swept.len(), 3);
         assert_eq!(m.live_len(), 0);
+    }
+
+    #[test]
+    fn shared_plan_is_form_neutral_while_javascript_policy_preserves_semantics() {
+        let mut m = model();
+        let environment = m.ordinary().unwrap();
+        let parameter = ParameterDescriptor::new(
+            Symbol::new("head"),
+            ParameterKind::Optional,
+            CallMode::POSITIONAL,
+            None,
+        );
+        let rest = ParameterDescriptor::new(
+            Symbol::new("tail"),
+            ParameterKind::Remainder,
+            CallMode::POSITIONAL,
+            None,
+        );
+        let capture_name = Symbol::new("closed");
+        let plan = FunctionPlan::new(
+            Symbol::new("javascript:same-declaration"),
+            vec![parameter, rest],
+            vec![CaptureDescriptor::new(capture_name.clone(), None)],
+            None,
+        )
+        .unwrap();
+        let capture = CapturedBinding::new(BindingCell::uninitialized(capture_name), environment);
+        let policy = |kind| JavascriptFunctionPolicy {
+            kind,
+            constructable: kind == JavascriptFunctionKind::Function,
+            defaults: BTreeMap::from([(
+                Symbol::new("head"),
+                JavascriptValue::String("default".into()),
+            )]),
+            asynchronous: true,
+            generator: true,
+            realm: Symbol::new("realm:fixture"),
+            error_origin: "fixture.js:12".into(),
+        };
+        let ordinary_metadata = JavascriptFunction::new(
+            plan.clone(),
+            vec![capture.clone()],
+            policy(JavascriptFunctionKind::Function),
+            vec![],
+        )
+        .unwrap();
+        let arrow_metadata = JavascriptFunction::new(
+            plan,
+            vec![capture],
+            policy(JavascriptFunctionKind::Arrow),
+            vec![],
+        )
+        .unwrap();
+        assert_eq!(ordinary_metadata.plan(), arrow_metadata.plan());
+        assert_eq!(
+            ordinary_metadata.captures()[0].cell().name(),
+            arrow_metadata.captures()[0].cell().name()
+        );
+        assert_eq!(
+            ordinary_metadata.bind_arguments(&[]).unwrap(),
+            BTreeMap::from([
+                (
+                    Symbol::new("head"),
+                    vec![JavascriptValue::String("default".into())],
+                ),
+                (Symbol::new("tail"), vec![]),
+            ])
+        );
+
+        let ordinary = m.function(ordinary_metadata, None).unwrap();
+        let arrow = m
+            .function(
+                arrow_metadata,
+                Some(JavascriptValue::String("lexical".into())),
+            )
+            .unwrap();
+        let receiver = JavascriptValue::String("dynamic".into());
+        assert_eq!(
+            m.call_this(ordinary, receiver.clone()).unwrap(),
+            JavascriptThis::Dynamic(receiver)
+        );
+        assert_eq!(
+            m.call_this(arrow, JavascriptValue::Undefined).unwrap(),
+            JavascriptThis::Lexical(JavascriptValue::String("lexical".into()))
+        );
+        assert!(m.construct(ordinary).is_ok());
+        assert_eq!(
+            m.construct(arrow),
+            Err(JavascriptObjectError::NotConstructor)
+        );
+        assert!(!m.prototypes.contains_key(&ordinary.id()));
+        assert!(!m.prototypes.contains_key(&arrow.id()));
     }
 }

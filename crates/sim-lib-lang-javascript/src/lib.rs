@@ -47,9 +47,9 @@ pub use modules::{
     JavascriptModulePolicy,
 };
 pub use objects::{
-    JavascriptFunction, JavascriptFunctionKind, JavascriptObjectError, JavascriptObjectGap,
-    JavascriptObjects, JavascriptPropertyKey, JavascriptThis,
-    javascript_callable_shape_constraints, javascript_object_gaps,
+    JavascriptCallError, JavascriptFunction, JavascriptFunctionKind, JavascriptFunctionPolicy,
+    JavascriptObjectError, JavascriptObjectGap, JavascriptObjects, JavascriptPropertyKey,
+    JavascriptThis, javascript_callable_shape_constraints, javascript_object_gaps,
 };
 pub use profile::{
     JavascriptIntrinsic, install_javascript_core_profile, javascript_core_profile,

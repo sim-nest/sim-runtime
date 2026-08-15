@@ -27,7 +27,9 @@ mod plan;
 
 pub use bind::{ArgumentInput, ArgumentOrigin, BoundArgument, BoundCall, CallInput, bind};
 pub use callable::dispatch_method_body;
-pub use instance::{CapturedBinding, FunctionBodyPolicy, FunctionInstance, InstanceError};
+pub use instance::{
+    CapturedBinding, FunctionBodyPolicy, FunctionInstance, InstanceError, validate_capture_bindings,
+};
 pub use plan::{
     BrowseProjection, CallMode, CaptureDescriptor, FunctionPlan, ParameterDescriptor,
     ParameterKind, PlanError,
