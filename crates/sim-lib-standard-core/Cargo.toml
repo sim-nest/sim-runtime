@@ -28,6 +28,8 @@ sim-value = { version = "0.2.0" }
 sim-codec = { version = "0.1.0" }
 sim-codec-lisp = { version = "0.2.0" }
 sim-kernel = { version = "0.2.0", features = ["test-support"] }
+sim-lib-control = { version = "0.1.5", path = "../sim-lib-control" }
+sim-lib-mutation = { version = "0.1.4", path = "../sim-lib-mutation" }
 
 [lints.rust]
 unsafe_code = "deny"

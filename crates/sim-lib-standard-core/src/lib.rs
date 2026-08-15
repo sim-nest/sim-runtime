@@ -106,4 +106,6 @@ mod harness_tests;
 #[cfg(test)]
 mod matrix_tests;
 #[cfg(test)]
+mod neutral_characterization_tests;
+#[cfg(test)]
 mod tests;
