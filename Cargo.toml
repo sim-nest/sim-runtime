@@ -5,6 +5,7 @@ members = [
   "crates/sim-incremental-core",
   "crates/sim-lib-incremental",
   "crates/sim-lib-binding",
+  "crates/sim-lib-class",
   "crates/sim-lib-control",
   "crates/sim-lib-core",
   "crates/sim-lib-dispatch",

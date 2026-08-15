@@ -40,6 +40,19 @@ claims_specimens = [
 supports = ["feature/sim-runtime/javascript-core-profile", "feature/sim-runtime/guest-language-profiles"]
 
 [[feature]]
+id = "feature/sim-runtime/class-semantics"
+title = "Language-neutral declared class semantics"
+summary = "Own checked declared-parent class descriptors with C3 resolution, transitive subclass tests, and read construction behind the neutral kernel Class protocol."
+owner = "crate/sim-lib-class"
+audiences = ["code", "framework"]
+guidance = "Use sim-lib-class for language-neutral declared superclass graphs. Reuse the kernel Class protocol and compose the C3 algorithm characterized from the Python profile. JavaScript prototypes, Lua metatables, typeclass dictionaries, Prolog relations, generic dispatch specificity, and JVM defining-loader identity are explicitly different semantic domains; exclusion_ledger records the exact mismatch and non_goals records the behavior that must remain with those owners. Do not infer class ancestry from property lookup, metamethod delegation, constraint evidence, predicate names, method applicability, or loader namespaces."
+claims_anchors = ["anchor/crate/sim-lib-class"]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-class/src/tests",
+]
+supports = ["feature/sim-runtime/organs"]
+
+[[feature]]
 id = "feature/sim-runtime/incremental-query-core"
 title = "Incremental query core"
 summary = "Provide the generic memo graph and the one proof-producing dataflow fixpoint engine that runtime organs can wrap without depending on SIM value surfaces."

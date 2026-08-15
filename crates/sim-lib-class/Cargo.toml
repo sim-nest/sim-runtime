@@ -1,0 +1,13 @@
+[package]
+name = "sim-lib-class"
+version = "0.1.0"
+edition = "2024"
+license = "MPL-2.0"
+description = "Checked class descriptors and inheritance semantics for SIM."
+readme = "README.md"
+publish = true
+repository = "https://github.com/sim-nest/sim-runtime"
+homepage = "https://github.com/sim-nest/sim-runtime"
+
+[lints]
+workspace = true
