@@ -1,9 +1,10 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
-//! Shared function-plan contract.
+//! Language-neutral immutable function plans.
 //!
-//! The implementation is intentionally introduced by later FUNCTION_2 phases.
-//! Its frozen ownership and migration boundary is recorded in `CONTRACT.md`.
+//! A [`FunctionPlan`] records declaration metadata only. It deliberately has
+//! no evaluation or invocation surface; later instance machinery composes a
+//! plan with a concrete guest policy.
 //!
 //! A body remains a statically selected guest policy. Type erasure cannot meet
 //! the bound of the future instance type:
@@ -18,3 +19,10 @@
 //!     FunctionInstance(body)
 //! }
 //! ```
+
+mod plan;
+
+pub use plan::{
+    BrowseProjection, CallMode, CaptureDescriptor, FunctionPlan, ParameterDescriptor,
+    ParameterKind, PlanError,
+};
