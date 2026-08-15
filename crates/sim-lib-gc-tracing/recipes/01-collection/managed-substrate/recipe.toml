@@ -1,0 +1,8 @@
+id = "managed-substrate"
+title = "Share one managed graph substrate"
+codec = "lisp"
+purpose = "purpose.md"
+setup = "setup.siml"
+order = 20
+tags = ["gc", "managed-node", "stable-edges", "language-neutral"]
+requires = ["gc-tracing", "mutation"]
