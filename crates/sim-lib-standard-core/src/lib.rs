@@ -23,6 +23,7 @@ pub mod matrix;
 mod matrix_claims;
 #[cfg(feature = "native-export")]
 mod native;
+pub mod observation;
 pub mod polyglot;
 pub mod profile;
 pub mod read_construct;
@@ -65,6 +66,10 @@ pub use matrix::{
     LanguageRowBuilder, MatrixCellKind, MatrixCellResult, MatrixRunReport, MatrixRunner,
     SourceConformanceCase, SourceConformanceCaseKind, SourceExpectation, SourceObservation,
     compare_expr_observation, compare_source_observation,
+};
+pub use observation::{
+    BoundedLane, CanonicalFailure, CanonicalObservation, CanonicalOutcome, FailureLocation,
+    GuestValueProjection, project_guest_value,
 };
 pub use polyglot::{
     ProfileFunction, ProfileFunctionBinding, SharedOrganRuntime, profile_function_value,
