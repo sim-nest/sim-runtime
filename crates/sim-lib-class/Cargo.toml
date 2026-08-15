@@ -9,5 +9,8 @@ publish = true
 repository = "https://github.com/sim-nest/sim-runtime"
 homepage = "https://github.com/sim-nest/sim-runtime"
 
+[dependencies]
+sim-kernel = { version = "0.2.0" }
+
 [lints]
 workspace = true

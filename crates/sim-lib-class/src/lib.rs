@@ -6,11 +6,16 @@
 //! checked descriptor implementation must preserve.
 
 mod characterization;
+mod descriptor;
 mod inventory;
 
 pub use characterization::{
     CharacterizationScenario, ExpectedOutcome, FailureMode, ScenarioKind,
     characterization_scenarios, scenario_content_id,
+};
+pub use descriptor::{
+    ClassDescriptor, ClassDescriptorError, ClassDescriptorInput, ClassIdentity, DeclaredParent,
+    MemberShape, OpenMetadataEntry, ReadConstruction,
 };
 pub use inventory::{
     CandidateDisposition, CandidateModel, ExclusionReason, ParentMeaning, SemanticDomain,
