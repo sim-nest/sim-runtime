@@ -1,0 +1,56 @@
+schema = "sim.class-ownership/v1"
+owner = "crates/sim-lib-class/src/descriptor.rs::ClassDescriptor"
+remediation = "Compose sim-lib-class ClassDescriptor and a bounded LineagePolicy; keep prototype, metatable, and dictionary lookup in the guest owner."
+crate_prefix = "sim-"
+
+# A copied descriptor combines several of these structural roles. Names in
+# isolation are deliberately harmless.
+descriptor_fields = ["name", "parents", "members", "constructor", "instance_shape", "class_shape"]
+descriptor_minimum_fields = 3
+
+# A lineage walker must expose one of these admission controls. The guard only
+# applies when a function combines parent traversal with an iterative loop.
+lineage_terms = ["parent", "parents", "lineage", "superclass", "superclasses", "mro"]
+bound_terms = ["budget", "limit", "max_depth", "max_nodes", "permit", "policy"]
+
+# This is the canonical exclusion classification consumed by the guard. Adding
+# a row extends enforcement without changing guard code.
+[[exclusion]]
+model = "javascript-prototype"
+source_terms = ["prototype", "prototypes"]
+mismatch_code = "prototype-delegates-properties-not-declared-ancestry"
+
+[[exclusion]]
+model = "lua-metatable"
+source_terms = ["metatable", "metatables", "__index"]
+mismatch_code = "metatable-delegates-operations-not-declared-ancestry"
+
+[[exclusion]]
+model = "typeclass-dictionary"
+source_terms = ["dictionary", "dictionaries", "typeclass"]
+mismatch_code = "dictionary-witnesses-constraint-not-subclass-edge"
+
+[[exclusion]]
+model = "prolog-relation"
+source_terms = ["predicate", "relation"]
+mismatch_code = "predicate-name-has-no-inheritance-semantics"
+
+[[exclusion]]
+model = "generic-dispatch"
+source_terms = ["applicable_method", "method_specificity"]
+mismatch_code = "specificity-orders-methods-not-classes"
+
+[[exclusion]]
+model = "jvm-loader-identity"
+source_terms = ["defining_loader", "loader_identity"]
+mismatch_code = "loader-qualifies-type-identity-not-parent-resolution"
+
+# Approved relationships are exact source paths with a reason. Python owns
+# genuine declared superclass edges, so it is not an exclusion or an adapter.
+[[approved_relationship]]
+path = "crates/sim-lib-class/src/descriptor.rs"
+reason = "The canonical owner necessarily declares the descriptor schema."
+
+[[approved_relationship]]
+path = "crates/sim-lib-lang-python/src/objects.rs"
+reason = "Python classes declare real bases; sim-lib-class composes their C3 characterization."
