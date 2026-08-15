@@ -236,6 +236,7 @@ claims_anchors = [
 ]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-standard-core/src/harness_tests",
+  "recipe/sim-runtime/crates/sim-lib-standard-core/01-basics/characterize-migration",
 ]
 
 [[feature]]
@@ -438,6 +439,17 @@ steps = [
   { feature = "feature/sim-runtime/incremental-query-core", why = "The core row owns the dependency-light memo graph and cutoff algorithm." },
   { feature = "feature/sim-runtime/incremental-query-organ", why = "The organ row owns SIM conversion, capability gates, shapes, reports, and loadable exports." },
   { specimen = "spec-test/sim-runtime/crates/sim-lib-incremental/src/tests", why = "The checked tests exercise registration, invalidation, verification, cutoff, reports, and Card projection." },
+]
+
+[[route]]
+id = "route/characterize-a-refactor"
+task = "Capture behavior before a refactor and compare it afterward"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/characterization-captures", why = "Standard core owns bounded canonical captures, content identity, strict two-sided comparison, and located differences." },
+  { feature = "feature/sim-sdk/characterization-facade", why = "The SDK presents the public migration types without exposing standard-core internals." },
+  { specimen = "recipe/sim-runtime/crates/sim-lib-standard-core/01-basics/characterize-migration", why = "The public recipe states the capture-before, refactor, capture-after, strict-compare contract." },
+  { specimen = "spec-test/sim-sdk/tests/characterization", why = "The downstream test proves identical captures and a located mismatch through SDK-visible types." },
 ]
 
 [[route]]

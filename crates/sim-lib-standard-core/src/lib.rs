@@ -8,6 +8,15 @@
 //! capabilities, claims, diff, fidelity, the conformance harness, install,
 //! guest-runtime policy kits, language-profile support, the lisp codec surface,
 //! polyglot/profile support, and read/construct.
+//!
+//! # Characterizing a migration
+//!
+//! Define a bounded [`ScenarioSpec`] from public inputs and semantic observation
+//! lanes. Capture the old behavior as a [`CharacterizationCapture`], perform the
+//! refactor, and capture the same scenario again. A strict
+//! [`compare_characterization_captures`] result is either identical or contains
+//! stable paths plus the canonical value from each side. Failure locations are
+//! semantic evidence; debug output and private implementation fields are not.
 
 pub mod cap;
 mod capture;
