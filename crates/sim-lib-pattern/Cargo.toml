@@ -16,6 +16,9 @@ sim-citizen-derive = { version = "0.2.0" }
 sim-kernel = { version = "0.2.0" }
 sim-shape = { version = "0.2.1" }
 
+[dev-dependencies]
+sim-lib-standard-core = { version = "0.1.4", path = "../sim-lib-standard-core" }
+
 [lints]
 workspace = true
 

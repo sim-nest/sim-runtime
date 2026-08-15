@@ -216,6 +216,62 @@ fn compile_class(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
+
+    use sim_kernel::{Cx, Datum, DefaultFactory, NoopEvalPolicy, Ref, Symbol};
+    use sim_lib_standard_core::{
+        BoundedLane, CanonicalObservation, CanonicalOutcome, CharacterizationCapture,
+        ScenarioLimits, ScenarioObservationLane, ScenarioSpec, publish_characterization_capture,
+    };
+
+    fn case(name: &str, fields: &[(&str, String)]) -> Datum {
+        Datum::Node {
+            tag: Symbol::qualified("javascript-regexp-characterization", "case/v1"),
+            fields: std::iter::once((Symbol::new("name"), Datum::String(name.to_owned())))
+                .chain(
+                    fields
+                        .iter()
+                        .map(|(key, value)| (Symbol::new(*key), Datum::String(value.clone()))),
+                )
+                .collect(),
+        }
+    }
+
+    fn refusal(source: &str, flags: &str, clause: &str) -> Datum {
+        let error = JavascriptRegExp::compile(source, flags).unwrap_err();
+        let (class, diagnostic) = match error {
+            JavascriptRegExpError::UnsupportedFlag(flag) => {
+                ("unsupported-flag", format!("flag {flag} is unsupported"))
+            }
+            JavascriptRegExpError::UnsupportedSyntax { offset, reason } => {
+                ("unsupported-syntax", format!("byte {offset}: {reason}"))
+            }
+        };
+        for roadmap_family in ["PATTERN", "CHARACTERIZE", "ROADMAP"] {
+            assert!(!diagnostic.contains(roadmap_family), "{diagnostic}");
+        }
+        case(
+            "refusal",
+            &[
+                ("clause", clause.to_owned()),
+                ("class", class.to_owned()),
+                ("diagnostic", diagnostic),
+            ],
+        )
+    }
+
+    fn gap_name(gap: JavascriptRegExpGap) -> &'static str {
+        match gap {
+            JavascriptRegExpGap::Flags => "flags",
+            JavascriptRegExpGap::Alternation => "alternation",
+            JavascriptRegExpGap::Groups => "groups",
+            JavascriptRegExpGap::Backreferences => "backreferences",
+            JavascriptRegExpGap::Lookaround => "lookaround",
+            JavascriptRegExpGap::UnicodeProperties => "unicode-properties",
+            JavascriptRegExpGap::WordBoundary => "word-boundary",
+            JavascriptRegExpGap::CountedQuantifiers => "counted-quantifiers",
+        }
+    }
     #[test]
     fn admitted_subset_executes_in_bounded_organ() {
         let r = JavascriptRegExp::compile(r"^[A-Z]+\d?$", "").unwrap();
@@ -238,6 +294,97 @@ mod tests {
         assert_eq!(
             JAVASCRIPT_REGEXP_SUCCESSOR,
             "JAVA_SCRIPT_6 pattern-engine work"
+        );
+    }
+
+    #[test]
+    fn current_regexp_behavior_is_a_stable_characterization_capture() {
+        let unicode = JavascriptRegExp::compile("😀+", "").unwrap();
+        let unicode_match = unicode.find("x😀😀y", 0, 1_000).unwrap();
+        let greedy = JavascriptRegExp::compile("a*a", "")
+            .unwrap()
+            .find("aaa", 0, 1_000);
+        let lazy = JavascriptRegExp::compile("a*?a", "")
+            .unwrap()
+            .find("aaa", 0, 1_000);
+        let empty = JavascriptRegExp::compile("a*", "")
+            .unwrap()
+            .find("bbb", 0, 1_000);
+        let limited = JavascriptRegExp::compile("a*b", "")
+            .unwrap()
+            .find("aaab", 0, 1);
+        let cases = vec![
+            case(
+                "unicode-byte-offsets",
+                &[(
+                    "span",
+                    format!("{}..{}", unicode_match.start, unicode_match.end),
+                )],
+            ),
+            case("greedy-repetition", &[("match", format!("{greedy:?}"))]),
+            case("lazy-repetition", &[("match", format!("{lazy:?}"))]),
+            case("empty-match", &[("match", format!("{empty:?}"))]),
+            case(
+                "limit-exhaustion",
+                &[
+                    ("clause", "maximum VM steps".to_owned()),
+                    (
+                        "outcome",
+                        if limited.is_none() {
+                            "refused"
+                        } else {
+                            "matched"
+                        }
+                        .to_owned(),
+                    ),
+                ],
+            ),
+            refusal("a", "g", "flags"),
+            refusal(r"\bword", "", "word-boundary"),
+            refusal("\\", "", "trailing-escape"),
+            refusal("*", "", "quantifier-without-atom"),
+        ];
+        let scenario = ScenarioSpec::new(
+            Symbol::qualified("javascript-regexp-characterization", "current/v1"),
+            Symbol::qualified("javascript-regexp-characterization", "shared-text-vm/v1"),
+        )
+        .with_limits(ScenarioLimits::new(0, cases.len()))
+        .observing(ScenarioObservationLane::ValueOrFailure);
+        let capture = CharacterizationCapture::new(
+            Symbol::qualified("javascript-regexp-characterization", "dialect-cases/v1"),
+            CanonicalObservation {
+                outcome: Some(CanonicalOutcome::Success(Datum::Vector(cases))),
+                events: BoundedLane::Absent,
+                receipts: BoundedLane::Absent,
+                browse: BoundedLane::Absent,
+            },
+        );
+        let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let first = publish_characterization_capture(&mut cx, &scenario, &capture).unwrap();
+        let replay = publish_characterization_capture(&mut cx, &scenario, &capture).unwrap();
+        assert!(matches!(first, Ref::Content(_)));
+        assert_eq!(first, replay);
+    }
+
+    #[test]
+    fn public_gap_data_is_frozen_clause_for_clause() {
+        let clauses = javascript_regexp_gaps()
+            .iter()
+            .copied()
+            .map(gap_name)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            clauses,
+            [
+                "flags",
+                "alternation",
+                "groups",
+                "backreferences",
+                "lookaround",
+                "unicode-properties",
+                "word-boundary",
+                "counted-quantifiers",
+            ]
         );
     }
 }
