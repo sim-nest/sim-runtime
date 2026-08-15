@@ -1,0 +1,78 @@
+schema = "sim.unify3-pre-migration/v1"
+content_id_algorithm = "sha256(language + U+001F + scenario + U+001F + source_anchor + U+001F + outcome)"
+
+# Unsupported operations are captured as stable semantic exclusions. They are
+# baselines too: later migrations must not manufacture defaults, named calls,
+# mutable upvalues, classes, hierarchy lookup, or function identity where a
+# language model does not have them.
+[[language]]
+name = "python"
+scenarios = [
+  { scenario = "call-defaults", source_anchor = "crates/sim-lib-lang-python/src/runtime.rs::PythonFunction", outcome = "python-policy:default-expression-evaluated-at-defined-call-boundary", content_id = "sha256:6177f86d11e3cb38a0fe2b990fa1aa9290b1a4ec85d9f586cf9885c906e9ee91" },
+  { scenario = "call-named", source_anchor = "crates/sim-lib-lang-python/src/runtime.rs::PythonFunction", outcome = "python-policy:keyword-bound-by-declared-parameter-name", content_id = "sha256:792bec7290e0ecadd4637244c5ab2de73e6ebad7fca6b935adff9485216ddfaa" },
+  { scenario = "mutate-upvalue", source_anchor = "crates/sim-lib-lang-python/src/runtime.rs::PythonFunction::captures", outcome = "python-policy:captured-cell-observes-later-mutation", content_id = "sha256:d581b3333b8b4e733dcd5002ffe0a7c4beca2565c4a6046bc70ed5a623b85691" },
+  { scenario = "construct-instance", source_anchor = "crates/sim-lib-lang-python/src/objects.rs::PythonObjectSpace::instantiate", outcome = "python-policy:instance-retains-declared-class", content_id = "sha256:79929f5635ccb0595a2d35572d0ce831af5c4877180860f4fec2821987ce75f4" },
+  { scenario = "resolve-hierarchy-member", source_anchor = "crates/sim-lib-lang-python/src/objects.rs::PythonObjectSpace::get", outcome = "python-policy:c3-member-resolution", content_id = "sha256:ffec150ef8a21bc6942ba66717250612c1072ae7490ba2a6746a9b6b39128703" },
+  { scenario = "browse-function", source_anchor = "crates/sim-lib-lang-python/src/runtime.rs::PythonFunction", outcome = "python-policy:parameters-and-annotations-visible", content_id = "sha256:cf4ac276c0f17dd5a9bb7ec254abacdf9d14eb5c603e14b57fba734a8a4e1453" },
+  { scenario = "collect-reference-cycle", source_anchor = "crates/sim-lib-lang-python/src/managed.rs", outcome = "managed-policy:unreachable-function-environment-cycle-collected", content_id = "sha256:e5f341c4def449e9faabfe97660bae810b9055221c79a214513d9e6534562053" },
+]
+
+[[language]]
+name = "javascript"
+scenarios = [
+  { scenario = "call-defaults", source_anchor = "crates/sim-lib-lang-javascript/src/objects.rs::JavascriptFunction", outcome = "javascript-policy:missing-argument-default-evaluated-in-call-environment", content_id = "sha256:b9a792fcd7e13f41aeba49e6b31a95b864f382eabc0416cfa80bccb91ed7842f" },
+  { scenario = "call-named", source_anchor = "crates/sim-lib-lang-javascript/src/objects.rs::JavascriptFunction", outcome = "excluded:named-arguments-not-part-of-javascript-call-semantics", content_id = "sha256:923e4c6439a8dcfcc4d3996c8710b2a28cf9cb9edddc6443ba94256c1cdf8cf9" },
+  { scenario = "mutate-upvalue", source_anchor = "crates/sim-lib-lang-javascript/src/objects.rs::JavascriptFunction::environment", outcome = "javascript-policy:closure-observes-mutated-lexical-binding", content_id = "sha256:31d0c707b5f8102708f535175bda6c9249983ed6dd606b9aed8305b2d022b03c" },
+  { scenario = "construct-instance", source_anchor = "crates/sim-lib-lang-javascript/src/objects.rs::JavascriptObjectSpace::construct", outcome = "javascript-policy:new-allocates-receiver-linked-to-constructor-prototype", content_id = "sha256:34e4fe9633b791317a629ae7e89cdbb702df670c988a0d65dd20cb87ecf47a8f" },
+  { scenario = "resolve-hierarchy-member", source_anchor = "crates/sim-lib-lang-javascript/src/objects.rs::JavascriptObjectSpace::get", outcome = "javascript-policy:prototype-delegation-preserves-original-receiver", content_id = "sha256:8991d65aa725a833b9fcfda2616fd3714edc0b9369c27cc5f7054862858d3f0e" },
+  { scenario = "browse-function", source_anchor = "crates/sim-lib-lang-javascript/src/objects.rs::JavascriptFunction", outcome = "javascript-policy:kind-and-constructability-visible", content_id = "sha256:35298070beb749414a65a73b43dc519fa1d1b195afa0baf8cd3da268e6e1bee8" },
+  { scenario = "collect-reference-cycle", source_anchor = "crates/sim-lib-lang-javascript/src/objects.rs::JavascriptObjectSpace::collect", outcome = "managed-policy:unreachable-function-environment-prototype-cycle-collected", content_id = "sha256:bb7a0392c893d7d39cf20c11887f1dcee224fed528efea93e169b75e3fa7d651" },
+]
+
+[[language]]
+name = "lua"
+scenarios = [
+  { scenario = "call-defaults", source_anchor = "crates/sim-lib-lang-lua/src/closure.rs::call_lua_closure", outcome = "lua-policy:missing-parameters-bind-nil-without-declared-defaults", content_id = "sha256:91b6d1320bb6d06c0e03aecbba244ab35c7c82e0f405ecf2e4ae4ceb47e5be61" },
+  { scenario = "call-named", source_anchor = "crates/sim-lib-lang-lua/src/closure.rs::call_lua_closure", outcome = "excluded:named-arguments-not-part-of-lua-call-semantics", content_id = "sha256:5973739fbc3b18b7328d16a5273d5cc4f4864702cdf8216dd57f1329d973fda1" },
+  { scenario = "mutate-upvalue", source_anchor = "crates/sim-lib-lang-lua/src/closure.rs::LuaClosure::upvalues", outcome = "lua-policy:shared-binding-cell-observes-upvalue-mutation", content_id = "sha256:0b5e4312c54213d89badfcc89138a9a5e41752f9f93a413631c4866109ab9b94" },
+  { scenario = "construct-instance", source_anchor = "crates/sim-lib-lang-lua/src/table.rs", outcome = "excluded:no-declared-instance-construction-table-remains-table", content_id = "sha256:9e9e8d429b137ae5ceee0c2c141f3cd8a3ec060b1297d59a0fc810d9dfc83a9b" },
+  { scenario = "resolve-hierarchy-member", source_anchor = "crates/sim-lib-lang-lua/src/metatable.rs::lua_index", outcome = "lua-policy:__index-table-or-function-delegation", content_id = "sha256:be751caabf10943e78091da9432cace17cdd3d19e0c763b79ca0a45b9d88f4be" },
+  { scenario = "browse-function", source_anchor = "crates/sim-lib-lang-lua/src/closure.rs::LuaClosure", outcome = "lua-policy:name-parameters-vararg-and-upvalue-count-visible", content_id = "sha256:f4d520ef077d14e2ede3cc5ba6944a0c017a64fc650e0f8db353111fa1fc9af2" },
+  { scenario = "collect-reference-cycle", source_anchor = "crates/sim-lib-lang-lua/src/closure.rs::LuaClosure::upvalues", outcome = "managed-policy:unreachable-closure-upvalue-cycle-collected", content_id = "sha256:00a681da3ca917f95db6eb45f5f93dc2e2ce5189aa30df31bdce038f4f482960" },
+]
+
+[[language]]
+name = "islisp"
+scenarios = [
+  { scenario = "call-defaults", source_anchor = "crates/sim-lib-lang-islisp/src/generic.rs::IslispGeneric::call", outcome = "islisp-policy:method-owned-optional-argument-semantics", content_id = "sha256:5f69781bdac2ab91f0bb264145e1051cccccaaab2a1d1ffa29f5847f8408ac19" },
+  { scenario = "call-named", source_anchor = "crates/sim-lib-lang-islisp/src/generic.rs::IslispGeneric::call", outcome = "islisp-policy:method-owned-keyword-semantics", content_id = "sha256:390ba30c4d63cec3133fe790beab45e244d452a612cd906b5128b9f6182e7112" },
+  { scenario = "mutate-upvalue", source_anchor = "crates/sim-lib-lang-islisp/src/forms.rs", outcome = "islisp-policy:lexical-cell-mutation-visible-to-closure", content_id = "sha256:1fbb53ffb94252e95a278d2007d83db5b0633c088f55aed84aae66fc19e00e3a" },
+  { scenario = "construct-instance", source_anchor = "crates/sim-lib-lang-islisp/src/generic.rs::IslispObject::new", outcome = "islisp-policy:instance-retains-class-symbol-without-fabricated-lineage", content_id = "sha256:68f61a17a7bd1f2890ceff263c394329574f2a63d7cdf532d80b9978710dd705" },
+  { scenario = "resolve-hierarchy-member", source_anchor = "crates/sim-lib-lang-islisp/src/generic.rs::IslispGeneric", outcome = "dispatch-policy:applicable-method-selected-by-specificity", content_id = "sha256:75d3e9ae08c8060d73cdb881870973fc1b97425c0253950a9bde7f6a0f929d90" },
+  { scenario = "browse-function", source_anchor = "crates/sim-lib-dispatch/src/generic.rs::GenericFunction::ordered_method_ids", outcome = "dispatch-policy:ordered-method-identities-visible", content_id = "sha256:1bbdb38d29b4d97cc5c332de893a890edabedfd5167531c15e1588b00dcdb515" },
+  { scenario = "collect-reference-cycle", source_anchor = "crates/sim-lib-lang-islisp/src/generic.rs::IslispGeneric", outcome = "managed-policy:unreachable-generic-method-class-cycle-collected", content_id = "sha256:2eed22c798ccf507f1b1da64f4234f5bfd61d963484da361717b6d2d94f331ab" },
+]
+
+[[language]]
+name = "typed-lazy"
+scenarios = [
+  { scenario = "call-defaults", source_anchor = "crates/sim-lib-lang-typed-lazy/src/runtime.rs::LazyRef", outcome = "excluded:lazy-forcing-is-not-default-argument-binding", content_id = "sha256:10673c24ac51ddc2c6faa4c8651d9054caa541ed9993bffa056dd6517b4ba4c3" },
+  { scenario = "call-named", source_anchor = "crates/sim-lib-lang-typed-lazy/src/runtime.rs", outcome = "excluded:dictionary-selection-is-not-named-argument-binding", content_id = "sha256:60d5fe630c5898e3c27581a527be5092e424a3055b8e93fdfa7c5f98e6eb52ec" },
+  { scenario = "mutate-upvalue", source_anchor = "crates/sim-lib-lang-typed-lazy/src/runtime.rs::LazyRef", outcome = "typed-lazy-policy:memoized-result-replaces-generator-state", content_id = "sha256:d4cef0435bf1acdae592e9657c604cd2f7d62eee51258002e6042d26b3f32870" },
+  { scenario = "construct-instance", source_anchor = "crates/sim-lib-lang-typed-lazy/src/runtime.rs::TypeclassDictionary", outcome = "typed-lazy-policy:dictionary-constructs-constraint-evidence-not-class-instance", content_id = "sha256:673162d4581844e30fd00feb2435ac0ead6ed8f3e71a82e61a5a9118ce707b82" },
+  { scenario = "resolve-hierarchy-member", source_anchor = "crates/sim-lib-lang-typed-lazy/src/runtime.rs::TypeclassDictionary::methods", outcome = "typed-lazy-policy:dictionary-method-projection-without-lineage", content_id = "sha256:b07d30bc4d1f2a6b246bc153cf0fbf6e99a0f4230bbcfe9412957851b569f76d" },
+  { scenario = "browse-function", source_anchor = "crates/sim-lib-lang-typed-lazy/src/runtime.rs::LazyRef", outcome = "excluded:lazy-reference-is-browsed-as-value-not-function", content_id = "sha256:89d414542f5c282e876a671f37733c67e2597745971a3eb4ac4f422a165f0ae5" },
+  { scenario = "collect-reference-cycle", source_anchor = "crates/sim-lib-lang-typed-lazy/src/runtime.rs::LazyRef", outcome = "managed-policy:unreachable-lazy-generator-cache-cycle-collected", content_id = "sha256:cf240bfbff088f5ffd6a90cacf4b3e40c781433a1cf4c3cdb72702b4fbf037c6" },
+]
+
+[[language]]
+name = "prolog"
+scenarios = [
+  { scenario = "call-defaults", source_anchor = "crates/sim-lib-lang-prolog/src/surface.rs::PrologQueryCallable", outcome = "excluded:predicate-query-has-no-default-argument-binding", content_id = "sha256:908d8aa1f5439d4eae6d09cc12ddecbcaaba9ad9e51d467cbf84ce17653157ac" },
+  { scenario = "call-named", source_anchor = "crates/sim-lib-lang-prolog/src/surface.rs::PrologQueryCallable", outcome = "excluded:predicate-arguments-are-positional-terms", content_id = "sha256:b4f0f128e73140bd763a32ebcdc30615bdffffbf92c01e0468376bb554511c52" },
+  { scenario = "mutate-upvalue", source_anchor = "crates/sim-lib-lang-prolog/src/lib.rs", outcome = "excluded:logical-substitution-is-not-mutable-lexical-capture", content_id = "sha256:a7d86d3727bb1bafdee967446045a62a289153dbcd6195bd3522dd4174c3f2d4" },
+  { scenario = "construct-instance", source_anchor = "crates/sim-lib-lang-prolog/src/lib.rs", outcome = "excluded:compound-term-is-not-class-instance", content_id = "sha256:1c9c3d2dc98621b9e111733ea8458c47c25c5b89674944ef35236508d6f6294a" },
+  { scenario = "resolve-hierarchy-member", source_anchor = "crates/sim-lib-lang-prolog/src/lib.rs", outcome = "excluded:clause-resolution-has-no-member-hierarchy", content_id = "sha256:a2e12cc7328c64d174785c4dde561c2798ca5a4beb94c82f943f138241b3ddde" },
+  { scenario = "browse-function", source_anchor = "crates/sim-lib-lang-prolog/src/card.rs", outcome = "prolog-policy:predicate-card-visible-without-function-identity", content_id = "sha256:638ac3a3e3264d9101377d2c1882fff5578da17ce232d4f733dfc2efb968df1e" },
+  { scenario = "collect-reference-cycle", source_anchor = "crates/sim-lib-lang-prolog/src/surface.rs::PrologDbState", outcome = "managed-policy:unreachable-query-term-cycle-collected", content_id = "sha256:8c15c1d8b83033f7c88ccefe79265f49c2a719404574990bb5946168ac3f721b" },
+]

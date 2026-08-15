@@ -1,0 +1,115 @@
+schema = "sim.guest-runtime-ownership/v1"
+owner_rule = "The oldest language-neutral SIM organ owns shared mechanics; guest crates own only irreducible language semantics."
+
+# Every language row has exactly the nine concerns required by UNIFY3.00. Each
+# cell is a decision, a source anchor, and the reason for that ownership.
+[[language]]
+name = "python"
+cells = [
+  { concern = "callable", decision = "migrate", anchor = "crates/sim-lib-lang-python/src/runtime.rs::PythonFunction", reason = "FunctionPlan owns parameters and capture slots; Python keeps defaults, keywords, annotations, body, and diagnostics as policy." },
+  { concern = "class", decision = "migrate", anchor = "crates/sim-lib-lang-python/src/objects.rs::PythonClass", reason = "Declared bases and C3 lineage are genuine class semantics owned by sim-lib-class." },
+  { concern = "bindings", decision = "compose", anchor = "crates/sim-lib-lang-python/src/runtime.rs::PythonFunction::captures", reason = "Compose sim-lib-binding cells while Python retains name and module rules." },
+  { concern = "property", decision = "language-owned", anchor = "crates/sim-lib-lang-python/src/objects.rs::PythonObjectSpace::get", reason = "Descriptors, attribute hooks, and Python MRO lookup remain Python policy over class metadata." },
+  { concern = "sequence", decision = "language-owned", anchor = "crates/sim-lib-lang-python/src/runtime.rs::PythonValue", reason = "Python container value semantics are not function or class mechanics." },
+  { concern = "dispatch", decision = "compose", anchor = "crates/sim-lib-lang-python/src/runtime.rs::eval_expr", reason = "Ordinary calls migrate to sim-lib-function; Python operator and call policy remains composed around them." },
+  { concern = "managed", decision = "migrate", anchor = "crates/sim-lib-lang-python/src/managed.rs", reason = "Strong, weak, and ephemeron reachability belong exclusively to MANAGED_2." },
+  { concern = "codec", decision = "compose", anchor = "crates/sim-lib-lang-python/src/fidelity.rs", reason = "Python syntax and read construction compose existing codecs without moving into function metadata." },
+  { concern = "browse", decision = "reuse", anchor = "crates/sim-lib-function/src/instance.rs::FunctionInstance::browse_args_shape", reason = "The neutral callable Shape projection already owns function browsing." },
+]
+
+[[language]]
+name = "javascript"
+cells = [
+  { concern = "callable", decision = "migrate", anchor = "crates/sim-lib-lang-javascript/src/objects.rs::JavascriptFunction", reason = "FunctionPlan owns neutral metadata and captures; kind, receiver, constructability, private names, and body remain JavaScript policy." },
+  { concern = "class", decision = "language-owned", anchor = "crates/sim-lib-lang-javascript/src/objects.rs::JavascriptObjectSpace::set_prototype", reason = "Mutable per-object prototypes are property delegation, not declared lineage." },
+  { concern = "bindings", decision = "compose", anchor = "crates/sim-lib-lang-javascript/src/objects.rs::JavascriptFunction::environment", reason = "Compose binding cells while lexical environment and module semantics stay JavaScript-owned." },
+  { concern = "property", decision = "language-owned", anchor = "crates/sim-lib-lang-javascript/src/objects.rs::JavascriptObjectSpace::get", reason = "Descriptors, receiver-sensitive accessors, and mutable prototype lookup are JavaScript semantics." },
+  { concern = "sequence", decision = "language-owned", anchor = "crates/sim-lib-lang-javascript/src/collections.rs", reason = "Array and collection semantics remain with the JavaScript guest." },
+  { concern = "dispatch", decision = "compose", anchor = "crates/sim-lib-lang-javascript/src/objects.rs::JavascriptObjectSpace::call", reason = "Ordinary call mechanics compose sim-lib-function; receiver and constructor modes remain guest policy." },
+  { concern = "managed", decision = "migrate", anchor = "crates/sim-lib-lang-javascript/src/managed.rs", reason = "Function, environment, prototype, accessor, and array cycles use MANAGED_2 edges without a shadow graph." },
+  { concern = "codec", decision = "compose", anchor = "crates/sim-lib-lang-javascript/src/fidelity.rs", reason = "JavaScript source fidelity composes shared codec and read-construction contracts." },
+  { concern = "browse", decision = "reuse", anchor = "crates/sim-lib-function/src/instance.rs::FunctionInstance::browse_args_shape", reason = "Neutral function browsing is reused; JavaScript-only callable traits remain metadata policy." },
+]
+
+[[language]]
+name = "lua"
+cells = [
+  { concern = "callable", decision = "migrate", anchor = "crates/sim-lib-lang-lua/src/closure.rs::LuaClosure", reason = "FunctionPlan owns name, parameters, and capture slots; Expr body, varargs, and evaluator context remain Lua policy." },
+  { concern = "class", decision = "language-owned", anchor = "crates/sim-lib-lang-lua/src/metatable.rs::lua_index", reason = "A table-or-function __index rule delegates operations and is not declared lineage." },
+  { concern = "bindings", decision = "compose", anchor = "crates/sim-lib-lang-lua/src/env.rs", reason = "Reuse BindingCell for upvalues while Lua environment lookup and _ENV remain guest policy." },
+  { concern = "property", decision = "language-owned", anchor = "crates/sim-lib-lang-lua/src/metatable.rs::lua_index", reason = "Raw table access and metatable callbacks are language behavior." },
+  { concern = "sequence", decision = "language-owned", anchor = "crates/sim-lib-lang-lua/src/table.rs", reason = "Lua table length, integer keys, and iteration remain guest-owned." },
+  { concern = "dispatch", decision = "compose", anchor = "crates/sim-lib-lang-lua/src/closure.rs::call_lua_closure", reason = "Single-body calls compose sim-lib-function; metamethod dispatch stays Lua policy." },
+  { concern = "managed", decision = "migrate", anchor = "crates/sim-lib-lang-lua/src/closure.rs::LuaClosure::upvalues", reason = "Captured cells and cycles use MANAGED_2 reachability." },
+  { concern = "codec", decision = "compose", anchor = "crates/sim-lib-lang-lua/src/codec_normalize.rs", reason = "Lua normalization composes the installed codec contracts." },
+  { concern = "browse", decision = "reuse", anchor = "crates/sim-lib-function/src/instance.rs::FunctionInstance::browse_args_shape", reason = "Neutral parameter and result Shapes own function browsing." },
+]
+
+[[language]]
+name = "islisp"
+cells = [
+  { concern = "callable", decision = "compose", anchor = "crates/sim-lib-lang-islisp/src/generic.rs::IslispGeneric", reason = "The existing thin generic wrapper composes dispatch and must not become an ordinary FunctionInstance." },
+  { concern = "class", decision = "language-owned", anchor = "crates/sim-lib-lang-islisp/src/generic.rs::IslispObject::class", reason = "The current class symbol has no declared-parent graph; it must not be promoted to sim-lib-class until the guest supplies real lineage evidence." },
+  { concern = "bindings", decision = "reuse", anchor = "crates/sim-lib-lang-islisp/src/forms.rs", reason = "Existing binding and namespace organs own lexical and module names." },
+  { concern = "property", decision = "compose", anchor = "crates/sim-lib-lang-islisp/src/generic.rs", reason = "Declared metadata may compose class lookup; generic method selection remains separate." },
+  { concern = "sequence", decision = "language-owned", anchor = "crates/sim-lib-lang-islisp/src/forms.rs", reason = "ISLisp list and form storage is outside function and class ownership." },
+  { concern = "dispatch", decision = "reuse", anchor = "crates/sim-lib-dispatch/src/generic.rs::GenericFunction", reason = "Multiple dispatch already has the oldest neutral owner." },
+  { concern = "managed", decision = "migrate", anchor = "crates/sim-lib-lang-islisp/src/generic.rs::IslispGeneric", reason = "Generic, method, and class reference graphs use MANAGED_2 edge roles." },
+  { concern = "codec", decision = "compose", anchor = "crates/sim-lib-lang-islisp/src/forms.rs", reason = "ISLisp forms compose the existing expression codec boundary." },
+  { concern = "browse", decision = "compose", anchor = "crates/sim-lib-dispatch/src/generic.rs::GenericFunction::ordered_method_ids", reason = "Browse dispatch order through the dispatch owner and callable shapes through the function owner." },
+]
+
+[[language]]
+name = "typed-lazy"
+cells = [
+  { concern = "callable", decision = "language-owned", anchor = "crates/sim-lib-lang-typed-lazy/src/runtime.rs::LazyRef", reason = "Generator and memoized result express lazy forcing, not an ordinary guest function record." },
+  { concern = "class", decision = "language-owned", anchor = "crates/sim-lib-lang-typed-lazy/src/runtime.rs::TypeclassDictionary", reason = "A dictionary witnesses a constraint and is not declared ancestry." },
+  { concern = "bindings", decision = "compose", anchor = "crates/sim-lib-lang-typed-lazy/src/runtime.rs", reason = "Lexical names compose binding and namespace organs; laziness remains evaluation policy." },
+  { concern = "property", decision = "language-owned", anchor = "crates/sim-lib-lang-typed-lazy/src/runtime.rs::TypeclassDictionary::methods", reason = "Dictionary projection is evidence lookup, not class member resolution." },
+  { concern = "sequence", decision = "language-owned", anchor = "crates/sim-lib-lang-typed-lazy/src/runtime.rs", reason = "Typed lazy collection representation and forcing stay guest-owned." },
+  { concern = "dispatch", decision = "language-owned", anchor = "crates/sim-lib-lang-typed-lazy/src/runtime.rs::TypeclassDictionary", reason = "Instance evidence selection is not GenericFunction method specificity." },
+  { concern = "managed", decision = "migrate", anchor = "crates/sim-lib-lang-typed-lazy/src/runtime.rs::LazyRef", reason = "Generator, cached value, and dictionary cycles use MANAGED_2 edges." },
+  { concern = "codec", decision = "compose", anchor = "crates/sim-lib-lang-typed-lazy/src/conformance.rs", reason = "Guest syntax composes the standard codec and read-construction boundary." },
+  { concern = "browse", decision = "compose", anchor = "crates/sim-lib-lang-typed-lazy/src/runtime.rs::TypeclassDictionary", reason = "Browse dictionary evidence as guest data; reuse callable Shapes only for actual functions." },
+]
+
+[[language]]
+name = "prolog"
+cells = [
+  { concern = "callable", decision = "language-owned", anchor = "crates/sim-lib-lang-prolog/src/surface.rs::PrologQueryCallable", reason = "The kernel adapter exposes a query surface; predicates remain relational clauses, not FunctionPlans." },
+  { concern = "class", decision = "language-owned", anchor = "crates/sim-lib-lang-prolog/src/lib.rs", reason = "Predicate names and terms have no declared-parent semantics." },
+  { concern = "bindings", decision = "language-owned", anchor = "crates/sim-lib-lang-prolog/src/lib.rs", reason = "Logical variables and unification substitutions are relational state, not mutable lexical cells." },
+  { concern = "property", decision = "language-owned", anchor = "crates/sim-lib-lang-prolog/src/surface.rs", reason = "Term and predicate resolution is not object member lookup." },
+  { concern = "sequence", decision = "compose", anchor = "crates/sim-lib-lang-prolog/src/conformance_all_solutions.rs", reason = "Solution streams compose sequence storage while search order remains Prolog policy." },
+  { concern = "dispatch", decision = "language-owned", anchor = "crates/sim-lib-lang-prolog/src/lib.rs", reason = "Clause search and backtracking are relational execution, not single or multiple dispatch." },
+  { concern = "managed", decision = "migrate", anchor = "crates/sim-lib-lang-prolog/src/surface.rs::PrologDbState", reason = "Reachable term and query cycles use MANAGED_2 without changing relational semantics." },
+  { concern = "codec", decision = "compose", anchor = "crates/sim-lib-lang-prolog/src/exports.rs", reason = "Term syntax and query records compose the installed codec boundary." },
+  { concern = "browse", decision = "compose", anchor = "crates/sim-lib-lang-prolog/src/card.rs", reason = "Browse predicates and queries as relational cards, not fabricated function metadata." },
+]
+
+# Same row vocabulary consumed by the CLASS_2 ownership guard. These codes are
+# copied exactly so future UNIFY guards extend policy without translation.
+[[exclusion]]
+model = "javascript-prototype"
+source_terms = ["prototype", "prototypes"]
+mismatch_code = "prototype-delegates-properties-not-declared-ancestry"
+
+[[exclusion]]
+model = "lua-metatable"
+source_terms = ["metatable", "metatables", "__index"]
+mismatch_code = "metatable-delegates-operations-not-declared-ancestry"
+
+[[exclusion]]
+model = "typeclass-dictionary"
+source_terms = ["dictionary", "dictionaries", "typeclass"]
+mismatch_code = "dictionary-witnesses-constraint-not-subclass-edge"
+
+[[exclusion]]
+model = "prolog-relation"
+source_terms = ["predicate", "relation"]
+mismatch_code = "predicate-name-has-no-inheritance-semantics"
+
+[[exclusion]]
+model = "generic-dispatch"
+source_terms = ["applicable_method", "method_specificity"]
+mismatch_code = "specificity-orders-methods-not-classes"
