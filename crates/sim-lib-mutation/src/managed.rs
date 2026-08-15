@@ -202,6 +202,139 @@ impl<R> ManagedRole<R> {
     }
 }
 
+/// A failed checked mutation of a strong edge.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StrongEdgeMutationError {
+    /// Allocating a stable identity for a new edge failed.
+    Allocation(EdgeAllocationError),
+    /// The requested identity is not a live strong edge of this node.
+    UnknownEdge(EdgeId),
+    /// The edge exists, but no longer names the caller's expected target.
+    TargetChanged {
+        /// Target supplied by the caller as the mutation precondition.
+        expected: ManagedId,
+        /// Current target, which was left unchanged.
+        actual: ManagedId,
+    },
+}
+
+impl fmt::Display for StrongEdgeMutationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Allocation(error) => error.fmt(f),
+            Self::UnknownEdge(edge) => write!(f, "unknown strong edge {}", edge.0),
+            Self::TargetChanged { expected, actual } => write!(
+                f,
+                "strong edge target changed from allocation {} to allocation {}",
+                expected.allocation_ordinal(),
+                actual.allocation_ordinal()
+            ),
+        }
+    }
+}
+
+impl Error for StrongEdgeMutationError {}
+
+impl From<EdgeAllocationError> for StrongEdgeMutationError {
+    fn from(error: EdgeAllocationError) -> Self {
+        Self::Allocation(error)
+    }
+}
+
+/// A role-bearing managed object with stable, ordered strong edges.
+///
+/// Edge storage and identity allocation are deliberately private. Callers can
+/// mutate the graph only through checked operations, so identities are never
+/// reused and compare-and-mutate failures leave the node unchanged.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ManagedNode<R> {
+    role: ManagedRole<R>,
+    edges: EdgeAllocator,
+    strong: BTreeMap<EdgeId, ManagedId>,
+}
+
+impl<R> ManagedNode<R> {
+    /// Constructs an empty node carrying caller-owned role evidence.
+    pub const fn new(role: R) -> Self {
+        Self {
+            role: ManagedRole::new(role),
+            edges: EdgeAllocator::new(),
+            strong: BTreeMap::new(),
+        }
+    }
+
+    /// Borrows the node's role evidence.
+    pub const fn role(&self) -> &R {
+        self.role.role()
+    }
+
+    /// Replaces the role without changing the managed graph.
+    pub fn replace_role(&mut self, role: R) -> R {
+        self.role.replace_role(role)
+    }
+
+    /// Inserts a strong edge and returns its stable identity.
+    pub fn insert_strong(&mut self, target: ManagedId) -> Result<EdgeId, StrongEdgeMutationError> {
+        let edge = self.edges.allocate(EdgeKind::Strong)?.id();
+        let previous = self.strong.insert(edge, target);
+        debug_assert!(previous.is_none(), "fresh edge identity must be vacant");
+        Ok(edge)
+    }
+
+    /// Replaces a strong target only if it still equals `expected`.
+    pub fn replace_strong(
+        &mut self,
+        edge: EdgeId,
+        expected: ManagedId,
+        replacement: ManagedId,
+    ) -> Result<(), StrongEdgeMutationError> {
+        let target = self
+            .strong
+            .get_mut(&edge)
+            .ok_or(StrongEdgeMutationError::UnknownEdge(edge))?;
+        if *target != expected {
+            return Err(StrongEdgeMutationError::TargetChanged {
+                expected,
+                actual: *target,
+            });
+        }
+        *target = replacement;
+        Ok(())
+    }
+
+    /// Removes a strong edge only if it still equals `expected`.
+    pub fn remove_strong(
+        &mut self,
+        edge: EdgeId,
+        expected: ManagedId,
+    ) -> Result<ManagedId, StrongEdgeMutationError> {
+        let actual = self
+            .strong
+            .get(&edge)
+            .copied()
+            .ok_or(StrongEdgeMutationError::UnknownEdge(edge))?;
+        if actual != expected {
+            return Err(StrongEdgeMutationError::TargetChanged { expected, actual });
+        }
+        Ok(self
+            .strong
+            .remove(&edge)
+            .expect("edge checked immediately before removal"))
+    }
+}
+
+impl<R> ManagedObject for ManagedNode<R> {
+    fn trace_edges(&self, visitor: &mut dyn EdgeVisitor) {
+        for (&edge, &target) in &self.strong {
+            visitor.strong(edge, target);
+        }
+    }
+
+    fn clear_weak_edge(&mut self, _edge: EdgeId, _expected: ManagedId) -> bool {
+        false
+    }
+}
+
 /// Receives every outgoing managed edge of an object.
 pub trait EdgeVisitor {
     /// Visits a retaining edge.

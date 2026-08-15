@@ -4,7 +4,8 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::{
     ArenaError, EdgeAllocationError, EdgeAllocator, EdgeId, EdgeKind, EdgeVisitor,
-    HardCappedRetainPolicy, ManagedArena, ManagedId, ManagedObject, ManagedRole, TraceSnapshot,
+    HardCappedRetainPolicy, ManagedArena, ManagedId, ManagedNode, ManagedObject, ManagedRole,
+    StrongEdgeMutationError, TraceSnapshot,
 };
 
 #[derive(Clone, Debug)]
@@ -83,6 +84,78 @@ fn generic_role_changes_are_graph_neutral() {
     let after = allocator.allocate(EdgeKind::Strong).unwrap();
     assert_eq!(before.map(|edge| edge.id().allocation_ordinal()), [0, 1]);
     assert_eq!(after.id().allocation_ordinal(), 2);
+}
+
+#[test]
+fn managed_node_strong_graph_matches_ordered_model_across_mutations() {
+    let mut arena = arena(5);
+    let targets = (0..4)
+        .map(|_| arena.allocate(Node::default()).unwrap())
+        .collect::<Vec<_>>();
+    let mut node = ManagedNode::new(String::from("object"));
+    let first = node.insert_strong(targets[0].id()).unwrap();
+    let second = node.insert_strong(targets[1].id()).unwrap();
+    let third = node.insert_strong(targets[2].id()).unwrap();
+
+    node.replace_strong(second, targets[1].id(), targets[3].id())
+        .unwrap();
+    assert_eq!(
+        node.remove_strong(first, targets[0].id()),
+        Ok(targets[0].id())
+    );
+
+    let mut traced = Vec::new();
+    struct StrongTrace<'a>(&'a mut Vec<(EdgeId, ManagedId)>);
+    impl EdgeVisitor for StrongTrace<'_> {
+        fn strong(&mut self, edge: EdgeId, target: ManagedId) {
+            self.0.push((edge, target));
+        }
+        fn weak(&mut self, _edge: EdgeId, _target: ManagedId) {}
+        fn ephemeron(&mut self, _edge: EdgeId, _key: ManagedId, _value: ManagedId) {}
+    }
+    node.trace_edges(&mut StrongTrace(&mut traced));
+
+    assert_eq!(
+        traced,
+        vec![(second, targets[3].id()), (third, targets[2].id())]
+    );
+    assert_eq!(node.role(), "object");
+    assert_eq!(node.replace_role(String::from("array")), "object");
+    assert_eq!(node.role(), "array");
+    assert!(first < second && second < third);
+}
+
+#[test]
+fn managed_node_failed_strong_mutations_are_exact_and_atomic() {
+    let mut arena = arena(3);
+    let original = arena.allocate(Node::default()).unwrap().id();
+    let stale_expectation = arena.allocate(Node::default()).unwrap().id();
+    let replacement = arena.allocate(Node::default()).unwrap().id();
+    let mut node = ManagedNode::new(());
+    let edge = node.insert_strong(original).unwrap();
+    let before = node.clone();
+
+    assert_eq!(
+        node.replace_strong(edge, stale_expectation, replacement),
+        Err(StrongEdgeMutationError::TargetChanged {
+            expected: stale_expectation,
+            actual: original,
+        })
+    );
+    assert_eq!(node, before);
+    assert_eq!(
+        node.remove_strong(edge, stale_expectation),
+        Err(StrongEdgeMutationError::TargetChanged {
+            expected: stale_expectation,
+            actual: original,
+        })
+    );
+    assert_eq!(node, before);
+    assert_eq!(
+        node.remove_strong(EdgeId(edge.0 + 1), original),
+        Err(StrongEdgeMutationError::UnknownEdge(EdgeId(edge.0 + 1)))
+    );
+    assert_eq!(node, before);
 }
 
 #[derive(Default)]
