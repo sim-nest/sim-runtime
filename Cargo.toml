@@ -25,6 +25,7 @@ members = [
   "crates/sim-lib-lang-scheme",
   "crates/sim-lib-lang-typed-lazy",
   "crates/sim-lib-logic",
+  "crates/sim-lib-machine",
   "crates/sim-lib-mutation",
   "crates/sim-lib-namespace",
   "crates/sim-lib-pattern",

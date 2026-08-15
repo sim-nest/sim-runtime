@@ -150,6 +150,23 @@ supports = [
 ]
 
 [[feature]]
+id = "feature/sim-runtime/machine-contract"
+title = "Neutral bounded instruction-machine contract"
+summary = "Define policy seams for decoded instructions, logical widths, effects, frames, handlers, roots, safepoints, admission, and receipts without choosing a guest or host mechanism."
+owner = "crate/sim-lib-machine"
+audiences = ["code", "framework"]
+guidance = "Use these traits when building a bounded decoded-instruction machine. Compose sim-lib-control for unwind, resume, and work limits; sim-lib-mutation for managed roots; Shape for structural admission; and caller-supplied codecs for instruction identity. Do not move decoded execution into kernel evaluation or use sim-lib-exec as a machine driver."
+claims_anchors = [
+  "anchor/crate/sim-lib-machine",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-machine/src/lib",
+]
+supports = [
+  "feature/sim-runtime/organs",
+]
+
+[[feature]]
 id = "feature/sim-runtime/gc-tracing"
 title = "Bounded tracing garbage collection"
 summary = "Reclaim unreachable managed-object cycles with deterministic, failure-atomic stop-the-world tracing."
