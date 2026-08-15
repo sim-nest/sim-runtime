@@ -5,6 +5,7 @@
 //! This crate intentionally provides no policy implementation and no execution
 //! engine. Consumers supply every semantic choice through the traits below.
 
+mod code;
 mod shuffle;
 mod slots;
 mod stack;
@@ -116,3 +117,7 @@ pub trait ReceiptPolicy<E> {
     /// Records exact work from ordered execution evidence.
     fn receipt(evidence: E) -> Self::Receipt;
 }
+pub use code::{
+    BranchTarget, CodeCursor, CodeError, CoverageMetadata, LocatedCode, LocatedInstruction,
+    ProtectedRegion, RegionSpec, SourceLocation, TargetLocation,
+};
