@@ -9,9 +9,5 @@ parameter_fields = ["params", "parameters", "parameter_names", "formal_parameter
 capture_fields = ["captures", "capture_slots", "upvalues", "free_variables"]
 
 [[legacy_migration]]
-path = "crates/sim-lib-lang-lua/src/closure.rs"
-reason = "LuaClosure predates sim-lib-function and is a named guest-migration input."
-
-[[legacy_migration]]
 path = "crates/sim-lib-lang-python/src/runtime.rs"
 reason = "PythonFunction predates sim-lib-function and is a named guest-migration input."

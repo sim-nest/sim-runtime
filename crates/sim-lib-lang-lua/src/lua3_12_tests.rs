@@ -88,7 +88,7 @@ fn lua_return(value: Expr) -> Expr {
 }
 
 #[test]
-fn lua_closure_captures_shared_upvalue_cell() {
+fn two_lua_closures_capture_one_shared_managed_upvalue_cell() {
     let mut cx = cx();
     let policy = LuaEvalPolicy::new(&mut cx).unwrap();
     let mut env = LuaEnv::new();
@@ -108,19 +108,38 @@ fn lua_closure_captures_shared_upvalue_cell() {
         ],
     );
     let closure = lua_closure("next", Vec::new(), false, body, vec!["count"]);
-    let value = policy
+    let first = policy
         .eval(&mut cx, &mut env, &closure)
         .unwrap()
         .into_values()
         .remove(0);
-    env.define(Symbol::new("next"), value).unwrap();
+    let second = policy
+        .eval(&mut cx, &mut env, &closure)
+        .unwrap()
+        .into_values()
+        .remove(0);
+    let first_closure = first
+        .object()
+        .downcast_ref::<crate::closure::LuaClosure>()
+        .unwrap();
+    let second_closure = second
+        .object()
+        .downcast_ref::<crate::closure::LuaClosure>()
+        .unwrap();
+    assert_eq!(
+        first_closure.captures()[0].managed(),
+        second_closure.captures()[0].managed(),
+        "both closures must trace the same managed binding"
+    );
+    env.define(Symbol::new("next_a"), first).unwrap();
+    env.define(Symbol::new("next_b"), second).unwrap();
 
-    for expected in ["1", "2", "3"] {
+    for (name, expected) in [("next_a", "1"), ("next_b", "2"), ("next_a", "3")] {
         let result = policy
             .eval(
                 &mut cx,
                 &mut env,
-                &lua_call(Expr::Local(Symbol::new("next")), Vec::new()),
+                &lua_call(Expr::Local(Symbol::new(name)), Vec::new()),
             )
             .unwrap();
         assert_eq!(

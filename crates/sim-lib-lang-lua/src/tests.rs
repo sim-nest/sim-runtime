@@ -219,6 +219,35 @@ fn lua_tables_support_mixed_keys_len_and_raw_index_bypass() {
 }
 
 #[test]
+fn lua_callable_index_uses_metaobject_dispatch_without_class_lineage() {
+    let mut cx = cx();
+    cx.grant(sim_lib_mutation::standard_mutate_capability());
+    let fallback = cx
+        .factory()
+        .opaque(Arc::new(ProfileFunction::new(
+            lua_profile_symbol(),
+            sim_lib_dispatch::dispatch_organ_symbol(),
+            Symbol::qualified("lua", "callable-index"),
+            |cx, args: Args| {
+                assert_eq!(args.into_vec().len(), 2);
+                cx.factory().string("from-callable-index".to_owned())
+            },
+        )))
+        .unwrap();
+    let index_key = string(&mut cx, "__index");
+    let metatable = lua_table_from_values(&mut cx, vec![(index_key, fallback)]).unwrap();
+    let table = lua_table_from_values(&mut cx, Vec::new()).unwrap();
+    lua_set_metatable(&mut cx, &table, metatable).unwrap();
+
+    let missing = string(&mut cx, "missing");
+    let resolved = lua_get(&mut cx, &table, &missing).unwrap().unwrap();
+    assert_eq!(
+        value_expr(&mut cx, &resolved),
+        Expr::String("from-callable-index".to_owned())
+    );
+}
+
+#[test]
 fn lua_add_metamethod_can_add_vector_like_tables() {
     let mut cx = cx();
     cx.grant(sim_lib_mutation::standard_mutate_capability());
