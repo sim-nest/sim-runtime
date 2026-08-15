@@ -100,6 +100,90 @@ pub enum EdgeKind {
     Ephemeron,
 }
 
+/// Hard limits for the outgoing edges owned by one [`ManagedNode`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct EdgeLimits {
+    total: usize,
+    strong: usize,
+    weak: usize,
+    ephemeron: usize,
+}
+
+impl EdgeLimits {
+    /// Default per-node hard cap. Per-kind caps share the same ceiling while
+    /// the total cap prevents their sum from exceeding it.
+    pub const DEFAULT: Self = Self::new(65_536, 65_536, 65_536, 65_536);
+
+    /// Defines the total and per-kind edge caps. Zero is a valid cap.
+    pub const fn new(total: usize, strong: usize, weak: usize, ephemeron: usize) -> Self {
+        Self {
+            total,
+            strong,
+            weak,
+            ephemeron,
+        }
+    }
+
+    /// Returns the total outgoing-edge cap.
+    pub const fn total(self) -> usize {
+        self.total
+    }
+
+    /// Returns the cap for `kind`.
+    pub const fn for_kind(self, kind: EdgeKind) -> usize {
+        match kind {
+            EdgeKind::Strong => self.strong,
+            EdgeKind::Weak => self.weak,
+            EdgeKind::Ephemeron => self.ephemeron,
+        }
+    }
+}
+
+impl Default for EdgeLimits {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
+/// One allocation-ordered edge in a deterministic node snapshot.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EdgeSnapshot {
+    /// A retaining edge.
+    Strong {
+        /// Stable edge identity.
+        edge: EdgeId,
+        /// Retained target.
+        target: ManagedId,
+    },
+    /// A non-retaining edge.
+    Weak {
+        /// Stable edge identity.
+        edge: EdgeId,
+        /// Non-retained target.
+        target: ManagedId,
+    },
+    /// An ephemeron key/value pair.
+    Ephemeron {
+        /// Stable edge identity.
+        edge: EdgeId,
+        /// Conditional-retention key.
+        key: ManagedId,
+        /// Conditionally retained value.
+        value: ManagedId,
+    },
+}
+
+impl EdgeSnapshot {
+    /// Returns the stable edge identity independent of edge kind.
+    pub const fn id(self) -> EdgeId {
+        match self {
+            Self::Strong { edge, .. } | Self::Weak { edge, .. } | Self::Ephemeron { edge, .. } => {
+                edge
+            }
+        }
+    }
+}
+
 /// An edge identity paired with its immutable collection semantics.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub struct TypedEdgeId {
@@ -124,12 +208,22 @@ impl TypedEdgeId {
 pub enum EdgeAllocationError {
     /// The per-object edge identity space is exhausted.
     IdentityExhausted,
+    /// The configured total or per-kind edge cap was reached.
+    CapacityExceeded {
+        /// Kind requested by the refused insertion.
+        kind: EdgeKind,
+        /// Applicable total or per-kind cap.
+        cap: usize,
+    },
 }
 
 impl fmt::Display for EdgeAllocationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::IdentityExhausted => f.write_str("managed edge identity space exhausted"),
+            Self::CapacityExceeded { kind, cap } => {
+                write!(f, "managed {kind:?} edge cap {cap} reached")
+            }
         }
     }
 }
@@ -209,6 +303,13 @@ pub enum StrongEdgeMutationError {
     Allocation(EdgeAllocationError),
     /// The requested identity is not a live strong edge of this node.
     UnknownEdge(EdgeId),
+    /// The identity is live, but has different collection semantics.
+    WrongKind {
+        /// Live edge identity supplied by the caller.
+        edge: EdgeId,
+        /// Actual immutable edge kind.
+        actual: EdgeKind,
+    },
     /// The edge exists, but no longer names the caller's expected target.
     TargetChanged {
         /// Target supplied by the caller as the mutation precondition.
@@ -225,6 +326,13 @@ pub enum WeakEdgeMutationError {
     Allocation(EdgeAllocationError),
     /// The requested identity is not a live weak edge of this node.
     UnknownEdge(EdgeId),
+    /// The identity is live, but has different collection semantics.
+    WrongKind {
+        /// Live edge identity supplied by the caller.
+        edge: EdgeId,
+        /// Actual immutable edge kind.
+        actual: EdgeKind,
+    },
     /// The edge exists, but no longer names the caller's expected target.
     TargetChanged {
         /// Target supplied by the caller as the mutation precondition.
@@ -241,6 +349,13 @@ pub enum EphemeronMutationError {
     Allocation(EdgeAllocationError),
     /// The requested identity is not a live ephemeron entry of this node.
     UnknownEdge(EdgeId),
+    /// The identity is live, but has different collection semantics.
+    WrongKind {
+        /// Live edge identity supplied by the caller.
+        edge: EdgeId,
+        /// Actual immutable edge kind.
+        actual: EdgeKind,
+    },
     /// The entry exists, but no longer contains the caller's expected pair.
     EntryChanged {
         /// Key supplied by the caller as the mutation precondition.
@@ -259,6 +374,9 @@ impl fmt::Display for EphemeronMutationError {
         match self {
             Self::Allocation(error) => error.fmt(f),
             Self::UnknownEdge(edge) => write!(f, "unknown ephemeron edge {}", edge.0),
+            Self::WrongKind { edge, actual } => {
+                write!(f, "edge {} is {actual:?}, not Ephemeron", edge.0)
+            }
             Self::EntryChanged {
                 expected_key,
                 expected_value,
@@ -289,6 +407,9 @@ impl fmt::Display for WeakEdgeMutationError {
         match self {
             Self::Allocation(error) => error.fmt(f),
             Self::UnknownEdge(edge) => write!(f, "unknown weak edge {}", edge.0),
+            Self::WrongKind { edge, actual } => {
+                write!(f, "edge {} is {actual:?}, not Weak", edge.0)
+            }
             Self::TargetChanged { expected, actual } => write!(
                 f,
                 "weak edge target changed from allocation {} to allocation {}",
@@ -312,6 +433,9 @@ impl fmt::Display for StrongEdgeMutationError {
         match self {
             Self::Allocation(error) => error.fmt(f),
             Self::UnknownEdge(edge) => write!(f, "unknown strong edge {}", edge.0),
+            Self::WrongKind { edge, actual } => {
+                write!(f, "edge {} is {actual:?}, not Strong", edge.0)
+            }
             Self::TargetChanged { expected, actual } => write!(
                 f,
                 "strong edge target changed from allocation {} to allocation {}",
@@ -339,6 +463,7 @@ impl From<EdgeAllocationError> for StrongEdgeMutationError {
 pub struct ManagedNode<R> {
     role: ManagedRole<R>,
     edges: EdgeAllocator,
+    limits: EdgeLimits,
     strong: BTreeMap<EdgeId, ManagedId>,
     weak: BTreeMap<EdgeId, ManagedId>,
     ephemerons: BTreeMap<EdgeId, (ManagedId, ManagedId)>,
@@ -347,13 +472,72 @@ pub struct ManagedNode<R> {
 impl<R> ManagedNode<R> {
     /// Constructs an empty node carrying caller-owned role evidence.
     pub const fn new(role: R) -> Self {
+        Self::with_edge_limits(role, EdgeLimits::DEFAULT)
+    }
+
+    /// Constructs an empty node with explicit total and per-kind hard caps.
+    pub const fn with_edge_limits(role: R, limits: EdgeLimits) -> Self {
         Self {
             role: ManagedRole::new(role),
             edges: EdgeAllocator::new(),
+            limits,
             strong: BTreeMap::new(),
             weak: BTreeMap::new(),
             ephemerons: BTreeMap::new(),
         }
+    }
+
+    /// Returns an allocation-ordered copy of every live outgoing edge.
+    pub fn edge_snapshot(&self) -> Vec<EdgeSnapshot> {
+        let mut result = self
+            .strong
+            .iter()
+            .map(|(&edge, &target)| EdgeSnapshot::Strong { edge, target })
+            .chain(
+                self.weak
+                    .iter()
+                    .map(|(&edge, &target)| EdgeSnapshot::Weak { edge, target }),
+            )
+            .chain(
+                self.ephemerons
+                    .iter()
+                    .map(|(&edge, &(key, value))| EdgeSnapshot::Ephemeron { edge, key, value }),
+            )
+            .collect::<Vec<_>>();
+        result.sort_unstable_by_key(|entry| entry.id());
+        result
+    }
+
+    fn edge_kind(&self, edge: EdgeId) -> Option<EdgeKind> {
+        self.strong
+            .contains_key(&edge)
+            .then_some(EdgeKind::Strong)
+            .or_else(|| self.weak.contains_key(&edge).then_some(EdgeKind::Weak))
+            .or_else(|| {
+                self.ephemerons
+                    .contains_key(&edge)
+                    .then_some(EdgeKind::Ephemeron)
+            })
+    }
+
+    fn admit(&self, kind: EdgeKind) -> Result<(), EdgeAllocationError> {
+        let total = self.strong.len() + self.weak.len() + self.ephemerons.len();
+        if total >= self.limits.total() {
+            return Err(EdgeAllocationError::CapacityExceeded {
+                kind,
+                cap: self.limits.total(),
+            });
+        }
+        let count = match kind {
+            EdgeKind::Strong => self.strong.len(),
+            EdgeKind::Weak => self.weak.len(),
+            EdgeKind::Ephemeron => self.ephemerons.len(),
+        };
+        let cap = self.limits.for_kind(kind);
+        if count >= cap {
+            return Err(EdgeAllocationError::CapacityExceeded { kind, cap });
+        }
+        Ok(())
     }
 
     /// Borrows the node's role evidence.
@@ -368,6 +552,7 @@ impl<R> ManagedNode<R> {
 
     /// Inserts a strong edge and returns its stable identity.
     pub fn insert_strong(&mut self, target: ManagedId) -> Result<EdgeId, StrongEdgeMutationError> {
+        self.admit(EdgeKind::Strong)?;
         let edge = self.edges.allocate(EdgeKind::Strong)?.id();
         let previous = self.strong.insert(edge, target);
         debug_assert!(previous.is_none(), "fresh edge identity must be vacant");
@@ -381,6 +566,12 @@ impl<R> ManagedNode<R> {
         expected: ManagedId,
         replacement: ManagedId,
     ) -> Result<(), StrongEdgeMutationError> {
+        if let Some(actual) = self
+            .edge_kind(edge)
+            .filter(|kind| *kind != EdgeKind::Strong)
+        {
+            return Err(StrongEdgeMutationError::WrongKind { edge, actual });
+        }
         let target = self
             .strong
             .get_mut(&edge)
@@ -401,6 +592,12 @@ impl<R> ManagedNode<R> {
         edge: EdgeId,
         expected: ManagedId,
     ) -> Result<ManagedId, StrongEdgeMutationError> {
+        if let Some(actual) = self
+            .edge_kind(edge)
+            .filter(|kind| *kind != EdgeKind::Strong)
+        {
+            return Err(StrongEdgeMutationError::WrongKind { edge, actual });
+        }
         let actual = self
             .strong
             .get(&edge)
@@ -417,6 +614,7 @@ impl<R> ManagedNode<R> {
 
     /// Inserts a weak edge and returns its stable identity.
     pub fn insert_weak(&mut self, target: ManagedId) -> Result<EdgeId, WeakEdgeMutationError> {
+        self.admit(EdgeKind::Weak)?;
         let edge = self.edges.allocate(EdgeKind::Weak)?.id();
         let previous = self.weak.insert(edge, target);
         debug_assert!(previous.is_none(), "fresh edge identity must be vacant");
@@ -430,6 +628,9 @@ impl<R> ManagedNode<R> {
         expected: ManagedId,
         replacement: ManagedId,
     ) -> Result<(), WeakEdgeMutationError> {
+        if let Some(actual) = self.edge_kind(edge).filter(|kind| *kind != EdgeKind::Weak) {
+            return Err(WeakEdgeMutationError::WrongKind { edge, actual });
+        }
         let target = self
             .weak
             .get_mut(&edge)
@@ -450,6 +651,9 @@ impl<R> ManagedNode<R> {
         edge: EdgeId,
         expected: ManagedId,
     ) -> Result<ManagedId, WeakEdgeMutationError> {
+        if let Some(actual) = self.edge_kind(edge).filter(|kind| *kind != EdgeKind::Weak) {
+            return Err(WeakEdgeMutationError::WrongKind { edge, actual });
+        }
         let actual = self
             .weak
             .get(&edge)
@@ -470,6 +674,7 @@ impl<R> ManagedNode<R> {
         key: ManagedId,
         value: ManagedId,
     ) -> Result<EdgeId, EphemeronMutationError> {
+        self.admit(EdgeKind::Ephemeron)?;
         let edge = self.edges.allocate(EdgeKind::Ephemeron)?.id();
         let previous = self.ephemerons.insert(edge, (key, value));
         debug_assert!(previous.is_none(), "fresh edge identity must be vacant");
@@ -483,6 +688,12 @@ impl<R> ManagedNode<R> {
         expected: (ManagedId, ManagedId),
         replacement: (ManagedId, ManagedId),
     ) -> Result<(), EphemeronMutationError> {
+        if let Some(actual) = self
+            .edge_kind(edge)
+            .filter(|kind| *kind != EdgeKind::Ephemeron)
+        {
+            return Err(EphemeronMutationError::WrongKind { edge, actual });
+        }
         let entry = self
             .ephemerons
             .get_mut(&edge)
@@ -505,6 +716,12 @@ impl<R> ManagedNode<R> {
         edge: EdgeId,
         expected: (ManagedId, ManagedId),
     ) -> Result<(ManagedId, ManagedId), EphemeronMutationError> {
+        if let Some(actual) = self
+            .edge_kind(edge)
+            .filter(|kind| *kind != EdgeKind::Ephemeron)
+        {
+            return Err(EphemeronMutationError::WrongKind { edge, actual });
+        }
         let actual = self
             .ephemerons
             .get(&edge)

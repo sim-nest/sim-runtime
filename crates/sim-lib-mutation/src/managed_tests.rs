@@ -3,9 +3,10 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::{
-    ArenaError, EdgeAllocationError, EdgeAllocator, EdgeId, EdgeKind, EdgeVisitor,
-    EphemeronMutationError, HardCappedRetainPolicy, ManagedArena, ManagedId, ManagedNode,
-    ManagedObject, ManagedRole, StrongEdgeMutationError, TraceSnapshot, WeakEdgeMutationError,
+    ArenaError, EdgeAllocationError, EdgeAllocator, EdgeId, EdgeKind, EdgeLimits, EdgeSnapshot,
+    EdgeVisitor, EphemeronMutationError, HardCappedRetainPolicy, ManagedArena, ManagedId,
+    ManagedNode, ManagedObject, ManagedRole, StrongEdgeMutationError, TraceSnapshot,
+    WeakEdgeMutationError,
 };
 
 #[derive(Clone, Debug)]
@@ -267,6 +268,131 @@ fn managed_node_ephemerons_mutate_trace_and_clear_exact_pairs_once() {
         ]
     );
     assert!(removed < strong && strong < retained && retained < after_clear);
+}
+
+#[test]
+fn managed_node_limits_wrong_kinds_and_snapshots_are_exact() {
+    let mut arena = arena(4);
+    let targets = (0..4)
+        .map(|_| arena.allocate(Node::default()).unwrap().id())
+        .collect::<Vec<_>>();
+    let mut node = ManagedNode::with_edge_limits((), EdgeLimits::new(3, 1, 2, 1));
+    let weak = node.insert_weak(targets[0]).unwrap();
+    let strong = node.insert_strong(targets[1]).unwrap();
+    let before = node.clone();
+
+    assert_eq!(
+        node.replace_strong(weak, targets[0], targets[2]),
+        Err(StrongEdgeMutationError::WrongKind {
+            edge: weak,
+            actual: EdgeKind::Weak,
+        })
+    );
+    assert_eq!(node, before);
+    assert_eq!(
+        node.insert_strong(targets[2]),
+        Err(StrongEdgeMutationError::Allocation(
+            EdgeAllocationError::CapacityExceeded {
+                kind: EdgeKind::Strong,
+                cap: 1,
+            }
+        ))
+    );
+    assert_eq!(node, before);
+    let ephemeron = node.insert_ephemeron(targets[2], targets[3]).unwrap();
+    let full = node.clone();
+    assert_eq!(
+        node.insert_weak(targets[3]),
+        Err(WeakEdgeMutationError::Allocation(
+            EdgeAllocationError::CapacityExceeded {
+                kind: EdgeKind::Weak,
+                cap: 3,
+            }
+        ))
+    );
+    assert_eq!(node, full);
+    assert_eq!(
+        node.edge_snapshot(),
+        vec![
+            EdgeSnapshot::Weak {
+                edge: weak,
+                target: targets[0]
+            },
+            EdgeSnapshot::Strong {
+                edge: strong,
+                target: targets[1]
+            },
+            EdgeSnapshot::Ephemeron {
+                edge: ephemeron,
+                key: targets[2],
+                value: targets[3]
+            },
+        ]
+    );
+}
+
+#[test]
+fn generated_edge_operations_preserve_model_and_failure_atomicity() {
+    let mut arena = arena(8);
+    let targets = (0..8)
+        .map(|_| arena.allocate(Node::default()).unwrap().id())
+        .collect::<Vec<_>>();
+
+    for seed in 0_u64..32 {
+        let mut state = seed | 1;
+        let mut node = ManagedNode::with_edge_limits((), EdgeLimits::new(6, 3, 2, 2));
+        for _ in 0..128 {
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1);
+            let target = targets[(state as usize >> 8) % targets.len()];
+            let before = node.clone();
+            let succeeded = match state % 6 {
+                0 => node.insert_strong(target).is_ok(),
+                1 => node.insert_weak(target).is_ok(),
+                2 => node
+                    .insert_ephemeron(target, targets[(state as usize >> 16) % targets.len()])
+                    .is_ok(),
+                _ => node
+                    .replace_strong(
+                        EdgeId((state >> 24) as u32 % 10),
+                        target,
+                        targets[(state as usize >> 32) % targets.len()],
+                    )
+                    .is_ok(),
+            };
+            if !succeeded {
+                assert_eq!(
+                    node, before,
+                    "seed {seed} failed operation mutated the node"
+                );
+            }
+            let snapshot = node.edge_snapshot();
+            assert!(snapshot.windows(2).all(|pair| pair[0].id() < pair[1].id()));
+            assert!(snapshot.len() <= 6);
+            assert!(
+                snapshot
+                    .iter()
+                    .filter(|edge| matches!(edge, EdgeSnapshot::Strong { .. }))
+                    .count()
+                    <= 3
+            );
+            assert!(
+                snapshot
+                    .iter()
+                    .filter(|edge| matches!(edge, EdgeSnapshot::Weak { .. }))
+                    .count()
+                    <= 2
+            );
+            assert!(
+                snapshot
+                    .iter()
+                    .filter(|edge| matches!(edge, EdgeSnapshot::Ephemeron { .. }))
+                    .count()
+                    <= 2
+            );
+        }
+    }
 }
 
 #[derive(Default)]
