@@ -364,7 +364,7 @@ title = "Checked Python objects and resumable control"
 summary = "Compose Python classes, C3, descriptors, bound methods, super, checked exceptions, context cleanup, generators, coroutines, and cyclic collection over shared runtime organs."
 owner = "crate/sim-lib-lang-python"
 audiences = ["code", "framework"]
-guidance = "Use PythonObjectSpace for checked class and descriptor policy, PythonGenerator for bounded send/throw/close transitions, and PythonHeap for the one managed identity graph. Inspect PYTHON_OBJECT_CONTROL_GAPS before admitting metaclass, dynamic descriptor mutation, weak-reference callback, finalizer, or event-loop behavior."
+guidance = "Use PythonObjectSpace for Python-owned descriptor lookup, binding, super, metaclass, and class-mutation policy layered over sim-lib-class. Declared parents live in ClassDescriptor, identity remains a kernel ClassRef, C3 linearization uses C3Policy, and derived MRO views use ClassCache ephemeron ownership. Use PythonGenerator for bounded send/throw/close transitions and PythonHeap for the guest object graph. Inspect PYTHON_OBJECT_CONTROL_GAPS before admitting metaclass, dynamic descriptor mutation, weak-reference callback, finalizer, or event-loop behavior."
 claims_anchors = [
   "anchor/rustdoc/sim-lib-lang-python/python-object-space",
   "anchor/rustdoc/sim-lib-lang-python/python-generator",
@@ -375,6 +375,7 @@ claims_specimens = [
 ]
 supports = [
   "feature/sim-runtime/guest-language-profiles",
+  "feature/sim-runtime/class-semantics",
   "feature/sim-runtime/property-mechanics",
   "feature/sim-runtime/mutation-organ",
   "feature/sim-runtime/gc-tracing",
