@@ -1,22 +1,134 @@
+// conformance: bounded scenario execution and content-addressed capture evidence.
+
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
 };
 
 use sim_kernel::{
-    ClaimKind, ClaimPattern, Cx, DefaultFactory, Expr, NoopEvalPolicy, Ref, Symbol,
+    ClaimKind, ClaimPattern, Cx, Datum, DatumStore, DefaultFactory, Expr, NoopEvalPolicy, Ref,
+    Symbol,
     card::{card_for_ref, card_tests_predicate},
     standard::standard_evidence_predicate,
 };
 
 use crate::{
+    BoundedLane, CanonicalObservation, CanonicalOutcome, CharacterizationCapture,
     CharacterizationScenario, ConformanceHarness, ConformanceOutcome, ConformanceTestCase,
     FidelityBadge, LanguageProfile, OrganUse, ScenarioInput, ScenarioLimits,
-    ScenarioObservationLane, ScenarioSpec, StandardTestReport, standard_binding_organ_symbol,
-    standard_reported_fidelity_level_predicate, standard_test_capability,
-    standard_test_result_predicate, standard_test_run_kind, standard_test_status_predicate,
-    standard_test_stub,
+    ScenarioObservationLane, ScenarioSpec, StandardTestReport, characterization_capture_kind,
+    characterization_capture_predicate, publish_characterization_capture,
+    standard_binding_organ_symbol, standard_reported_fidelity_level_predicate,
+    standard_test_capability, standard_test_result_predicate, standard_test_run_kind,
+    standard_test_status_predicate, standard_test_stub,
 };
+
+#[test]
+fn captures_intern_by_semantics_and_publish_scenario_evidence() {
+    let mut cx = test_cx();
+    let scenario = valid_scenario_spec("capture");
+    let baseline = CharacterizationCapture::new(
+        Symbol::qualified("projection", "canonical/v1"),
+        outcome_observation("same"),
+    );
+
+    let first = publish_characterization_capture(&mut cx, &scenario, &baseline).unwrap();
+    let rendered_differently = baseline.clone();
+    let second =
+        publish_characterization_capture(&mut cx, &scenario, &rendered_differently).unwrap();
+
+    assert_eq!(first, second, "rendering is outside capture identity");
+    assert_has_claim(
+        &cx,
+        Ref::Symbol(scenario.id.clone()),
+        characterization_capture_predicate(),
+        first.clone(),
+    );
+    let Ref::Content(id) = first else {
+        panic!("capture must be content addressed");
+    };
+    let Some(Datum::Node { tag, .. }) = cx.datum_store().get(&id).unwrap() else {
+        panic!("capture datum must be interned");
+    };
+    assert_eq!(tag, &characterization_capture_kind());
+
+    let changed_observation =
+        CharacterizationCapture::new(baseline.projection.clone(), outcome_observation("changed"));
+    let changed =
+        publish_characterization_capture(&mut cx, &scenario, &changed_observation).unwrap();
+    assert_ne!(Ref::Content(id), changed);
+
+    let mut changed_projection = baseline.clone();
+    changed_projection.projection = Symbol::qualified("projection", "other/v1");
+    assert_ne!(
+        second,
+        publish_characterization_capture(&mut cx, &scenario, &changed_projection).unwrap()
+    );
+}
+
+#[test]
+fn captures_fail_closed_on_schema_bounds_and_incomplete_lanes() {
+    let scenario = valid_scenario_spec("rejected");
+    let valid = CharacterizationCapture::new(
+        Symbol::qualified("projection", "canonical/v1"),
+        outcome_observation("same"),
+    );
+
+    let mut wrong_schema = valid.clone();
+    wrong_schema.schema = Symbol::qualified("standard", "characterization-capture/v2");
+    assert!(
+        publish_characterization_capture(&mut test_cx(), &scenario, &wrong_schema)
+            .unwrap_err()
+            .to_string()
+            .contains("unsupported characterization capture schema")
+    );
+
+    let mut incomplete = valid.clone();
+    incomplete.observation.outcome = None;
+    assert!(
+        publish_characterization_capture(&mut test_cx(), &scenario, &incomplete)
+            .unwrap_err()
+            .to_string()
+            .contains("incomplete value-or-failure")
+    );
+
+    let events_scenario = scenario
+        .clone()
+        .with_limits(ScenarioLimits::new(1, 2))
+        .observing(ScenarioObservationLane::Events);
+    let mut truncated = valid.clone();
+    truncated.observation.events = BoundedLane::Truncated {
+        items: vec![Datum::String("kept".to_owned())],
+        omitted: 1,
+    };
+    assert!(
+        publish_characterization_capture(&mut test_cx(), &events_scenario, &truncated)
+            .unwrap_err()
+            .to_string()
+            .contains("truncated Events")
+    );
+
+    let mut over_limit = valid;
+    over_limit.observation.events = BoundedLane::Complete(vec![
+        Datum::String("one".to_owned()),
+        Datum::String("two".to_owned()),
+    ]);
+    assert!(
+        publish_characterization_capture(&mut test_cx(), &events_scenario, &over_limit)
+            .unwrap_err()
+            .to_string()
+            .contains("exceeds its observation bound")
+    );
+}
+
+fn outcome_observation(value: &str) -> CanonicalObservation {
+    CanonicalObservation {
+        outcome: Some(CanonicalOutcome::Success(Datum::String(value.to_owned()))),
+        events: BoundedLane::Absent,
+        receipts: BoundedLane::Absent,
+        browse: BoundedLane::Absent,
+    }
+}
 
 #[test]
 fn invalid_scenario_registry_fails_before_any_driver_effect() {

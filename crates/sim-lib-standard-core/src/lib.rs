@@ -10,6 +10,7 @@
 //! polyglot/profile support, and read/construct.
 
 pub mod cap;
+mod capture;
 pub mod characterization;
 pub mod claims;
 pub mod diff;
@@ -31,6 +32,10 @@ pub mod registry;
 pub mod scenario;
 
 pub use cap::{standard_diff_capability, standard_install_capability, standard_test_capability};
+pub use capture::{
+    CharacterizationCapture, characterization_capture_kind, characterization_capture_predicate,
+    publish_characterization_capture,
+};
 pub use characterization::{
     EVIDENCE_LANE_INVENTORY, EXPLICIT_PROJECTION_FIELDS, EvidenceLane, EvidenceLaneInventory,
     ExplicitProjectionField, characterization_source_fixtures,
