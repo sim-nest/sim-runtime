@@ -61,6 +61,15 @@ pub enum InstanceError {
         /// Number of supplied managed binding cells.
         actual: usize,
     },
+    /// A supplied cell did not match the corresponding frozen capture slot.
+    CaptureNameMismatch {
+        /// Zero-based position in the frozen capture sequence.
+        index: usize,
+        /// Name declared by the immutable function plan.
+        expected: String,
+        /// Name carried by the supplied shared binding cell.
+        actual: String,
+    },
     /// The shared managed node refused a capture edge.
     ManagedEdge(StrongEdgeMutationError),
 }
@@ -71,6 +80,14 @@ impl fmt::Display for InstanceError {
             Self::CaptureMismatch { expected, actual } => write!(
                 formatter,
                 "function plan declares {expected} captures but {actual} were supplied"
+            ),
+            Self::CaptureNameMismatch {
+                index,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "function capture {index} is named {actual}, expected {expected}"
             ),
             Self::ManagedEdge(error) => write!(formatter, "cannot trace function capture: {error}"),
         }
@@ -116,6 +133,15 @@ impl<B: FunctionBodyPolicy> FunctionInstance<B> {
                 expected: plan.captures().len(),
                 actual: captures.len(),
             });
+        }
+        for (index, (descriptor, capture)) in plan.captures().iter().zip(&captures).enumerate() {
+            if descriptor.name() != capture.cell().name() {
+                return Err(InstanceError::CaptureNameMismatch {
+                    index,
+                    expected: descriptor.name().to_string(),
+                    actual: capture.cell().name().to_string(),
+                });
+            }
         }
         let targets = captures
             .iter()
@@ -170,13 +196,12 @@ impl<B: FunctionBodyPolicy> FunctionInstance<B> {
     ///
     /// Kernel calls and optional dispatch-method adaptation both use this path,
     /// so neither surface can change the policy-visible [`BoundCall`].
+    pub fn invoke_bound(&self, cx: &mut Cx, call: BoundCall) -> KernelResult<Value> {
+        self.body().invoke(cx, self.plan(), self.captures(), call)
+    }
+
     pub(crate) fn invoke_values(&self, cx: &mut Cx, values: Vec<Value>) -> KernelResult<Value> {
-        self.body().invoke(
-            cx,
-            self.plan(),
-            self.captures(),
-            bind(CallInput::from(Args::new(values))),
-        )
+        self.invoke_bound(cx, bind(CallInput::from(Args::new(values))))
     }
 }
 
@@ -389,7 +414,7 @@ mod tests {
         let environment = heap
             .allocate(CycleObject::Environment(ManagedNode::new(())))
             .unwrap();
-        let cell = BindingCell::uninitialized(Symbol::new("closed-over"));
+        let cell = BindingCell::uninitialized(Symbol::new("slot-0"));
         let function = FunctionInstance::new(
             plan(1),
             EchoBody,

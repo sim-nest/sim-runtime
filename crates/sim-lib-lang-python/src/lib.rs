@@ -10,6 +10,7 @@
 // conformance: the crate test suite checks the authorized Python library core.
 
 mod fidelity;
+mod function;
 mod library_core;
 mod managed;
 mod matrix_row;
@@ -24,6 +25,9 @@ mod tests;
 pub use fidelity::{
     PYTHON_EVIDENCE_CASES, PYTHON_EXTERNAL_ORACLE, PYTHON_FIDELITY, PythonEvidenceCase,
     PythonFidelity,
+};
+pub use function::{
+    PythonBodyPolicy, PythonCallError, PythonFunction, PythonFunctionFlags, PythonSignature,
 };
 pub use library_core::{
     DynamicAdmission, DynamicPython, MatchCase, MatchOutcome, PythonLibraryManifest,
@@ -43,7 +47,7 @@ pub use resumable::{
     ContextManager, PythonException, PythonExceptionGroup, PythonGenerator, PythonGeneratorError,
     PythonGeneratorStep, PythonIterator, run_with_context,
 };
-pub use runtime::{Annotation, PythonEvalPolicy, PythonFunction, PythonValue};
+pub use runtime::{Annotation, PythonEvalPolicy, PythonValue};
 
 /// Deliberately unsupported Python object and control edges.
 pub const PYTHON_OBJECT_CONTROL_GAPS: &[&str] = &[
