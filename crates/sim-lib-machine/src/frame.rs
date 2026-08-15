@@ -1,5 +1,6 @@
 use sim_lib_control::{AdmissionLimit, WorkLimit};
 
+use crate::ManagedRootSource;
 use crate::{CodeCursor, SlotFile, UnitStack, ValueWidthPolicy};
 
 /// One admitted activation, composed entirely from bounded machine state.
@@ -94,6 +95,38 @@ where
     }
 }
 
+impl<P, K, R, H> ManagedRootSource for Frame<P, K, R, H>
+where
+    P: ValueWidthPolicy,
+    P::Value: ManagedRootSource,
+    K: ManagedRootSource,
+    R: ManagedRootSource,
+    H: ManagedRootSource,
+{
+    fn visit_managed_roots(
+        &self,
+        visit: &mut dyn FnMut(sim_lib_mutation::ManagedId) -> bool,
+    ) -> bool {
+        let mut complete = true;
+        self.slots
+            .visit_values(|value| complete = complete && value.visit_managed_roots(visit));
+        if !complete {
+            return false;
+        }
+        self.operands
+            .visit_values(|value| complete = complete && value.visit_managed_roots(visit));
+        if !complete {
+            return false;
+        }
+        if let Some(continuation) = &self.continuation
+            && !continuation.visit_managed_roots(visit)
+        {
+            return false;
+        }
+        self.roots.visit_managed_roots(visit) && self.handlers.visit_managed_roots(visit)
+    }
+}
+
 /// Failure to admit another explicit frame.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FrameStackError {
@@ -152,6 +185,27 @@ impl<F> FrameStack<F> {
     /// Returns the mutable current frame, if any.
     pub fn current_mut(&mut self) -> Option<&mut F> {
         self.frames.last_mut()
+    }
+
+    /// Visits frames in deterministic caller-to-current order.
+    pub fn visit_frames(&self, mut visit: impl FnMut(&F)) {
+        for frame in &self.frames {
+            visit(frame);
+        }
+    }
+}
+
+impl<F: ManagedRootSource> ManagedRootSource for FrameStack<F> {
+    fn visit_managed_roots(
+        &self,
+        visit: &mut dyn FnMut(sim_lib_mutation::ManagedId) -> bool,
+    ) -> bool {
+        for frame in &self.frames {
+            if !frame.visit_managed_roots(visit) {
+                return false;
+            }
+        }
+        true
     }
 }
 

@@ -15,4 +15,5 @@ workspace = true
 [dependencies]
 sim-kernel = { version = "0.2.0" }
 sim-lib-control = { version = "0.1.5", path = "../sim-lib-control" }
+sim-lib-mutation = { version = "0.1.4", path = "../sim-lib-mutation" }
 sha2 = "0.10"

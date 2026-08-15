@@ -3,7 +3,8 @@ use sim_lib_control::{CleanupStack, Unwind, WorkLimit};
 
 use crate::{
     AdmissionPolicy, CodeCursor, Frame, FrameStack, FrameStackError, InstructionPolicy,
-    MachineDescription, MachinePermit, SourceLocation, ValueWidthPolicy,
+    MachineDescription, MachinePermit, ManagedRootSource, RootScanError, RootSnapshot,
+    SourceLocation, ValueWidthPolicy,
 };
 
 /// The cursor access needed by the neutral driver.
@@ -230,6 +231,17 @@ pub enum DriveError<Id, E> {
 /// Result type returned by one bounded drive operation.
 pub type DriveResult<Id, R, A, Y, I, E> = Result<DriveOutcome<Id, R, A, Y, I>, DriveError<Id, E>>;
 
+/// A refusal from root publication or instruction execution during safepoint driving.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SafepointDriveError<Id, E, S> {
+    /// The complete root view exceeded its explicit budget.
+    RootScan(RootScanError),
+    /// The consumer rejected a complete root view.
+    Safepoint(S),
+    /// Ordinary machine driving failed.
+    Drive(DriveError<Id, E>),
+}
+
 /// Bounded iterative instruction driver.
 pub struct Driver<D> {
     policy: D,
@@ -321,6 +333,79 @@ impl<D> Driver<D> {
             }
         }
         Ok(DriveOutcome::Continue(WorkReceipt { steps }))
+    }
+
+    /// Drives one bounded slice, publishing a complete root view immediately
+    /// before every prepared instruction marked as a safepoint.
+    ///
+    /// The observer owns policy: this organ neither selects nor names a
+    /// reclamation implementation. Suspended caller frames remain in `frames`
+    /// and are therefore included in every view.
+    #[allow(
+        clippy::type_complexity,
+        reason = "the explicit outcome channels are the driver contract"
+    )]
+    pub fn drive_with_safepoints<P, M, A, F, S>(
+        &mut self,
+        description: &MachineDescription<'_, P, M>,
+        permit: &MachinePermit,
+        frames: &mut FrameStack<F>,
+        work: WorkLimit,
+        root_budget: WorkLimit,
+        mut observe: impl FnMut(&RootSnapshot) -> Result<(), S>,
+    ) -> Result<
+        DriveOutcome<P::InstructionId, D::Return, D::Abrupt, D::Yield, D::Interrupt>,
+        SafepointDriveError<P::InstructionId, D::Fault, S>,
+    >
+    where
+        P: InstructionPolicy,
+        P::InstructionId: Copy + Eq + Ord,
+        A: AdmissionPolicy<P, M>,
+        F: MachineFrame + ManagedRootSource,
+        D: InstructionDriverPolicy<P, F>,
+    {
+        if !permit.accepts::<P, M, A>(description) {
+            return Err(SafepointDriveError::Drive(DriveError::PermitMismatch));
+        }
+        if frames.current().is_none() {
+            return Err(SafepointDriveError::Drive(DriveError::EmptyFrames));
+        }
+
+        let mut combined = WorkReceipt { steps: Vec::new() };
+        for _ in 0..work.0 {
+            let cursor = frames
+                .current()
+                .ok_or(SafepointDriveError::Drive(DriveError::EmptyFrames))?
+                .cursor();
+            if description.code().instruction(cursor).is_safepoint() {
+                let roots = RootSnapshot::scan(frames, root_budget)
+                    .map_err(SafepointDriveError::RootScan)?;
+                observe(&roots).map_err(SafepointDriveError::Safepoint)?;
+            }
+            let outcome = self
+                .drive::<P, M, A, F>(description, permit, frames, WorkLimit(1))
+                .map_err(SafepointDriveError::Drive)?;
+            match outcome {
+                DriveOutcome::Continue(receipt) => combined.append(receipt),
+                DriveOutcome::Return(value, receipt) => {
+                    combined.append(receipt);
+                    return Ok(DriveOutcome::Return(value, combined));
+                }
+                DriveOutcome::Raise(value, receipt) => {
+                    combined.append(receipt);
+                    return Ok(DriveOutcome::Raise(value, combined));
+                }
+                DriveOutcome::Yield(value, receipt) => {
+                    combined.append(receipt);
+                    return Ok(DriveOutcome::Yield(value, combined));
+                }
+                DriveOutcome::Interrupt(value, receipt) => {
+                    combined.append(receipt);
+                    return Ok(DriveOutcome::Interrupt(value, combined));
+                }
+            }
+        }
+        Ok(DriveOutcome::Continue(combined))
     }
 
     /// Drives through prepared protected regions, selecting the innermost handler.

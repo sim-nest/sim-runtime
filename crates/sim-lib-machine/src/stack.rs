@@ -64,6 +64,13 @@ impl<P: ValueWidthPolicy> UnitStack<P> {
             .ok_or(StackError::Underflow { depth: self.depth })
     }
 
+    /// Visits operand values in deterministic bottom-to-top order.
+    pub fn visit_values(&self, mut visit: impl FnMut(&P::Value)) {
+        for value in &self.values {
+            visit(value);
+        }
+    }
+
     /// Pushes a value if its complete logical width fits.
     pub fn push(&mut self, value: P::Value) -> Result<(), StackError> {
         let width = P::width(&value);

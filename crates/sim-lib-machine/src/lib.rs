@@ -9,6 +9,7 @@ mod admission;
 mod code;
 mod driver;
 mod frame;
+mod managed;
 mod shuffle;
 mod slots;
 mod stack;
@@ -19,11 +20,12 @@ pub use admission::{
 pub use driver::{
     ContinuationEvidence, DriveError, DriveOutcome, DriveResult, Driver, InstructionDriverPolicy,
     LocatedFault, MachineAbrupt, MachineCheckpoint, MachineFrame, MachineUnwind, PolicyStep,
-    StepKind, StepOutcome, WorkReceipt,
+    SafepointDriveError, StepKind, StepOutcome, WorkReceipt,
 };
 pub use frame::{
     CallTransfer, Frame, FrameStack, FrameStackError, ReturnTransfer, Transfer, TransferError,
 };
+pub use managed::{ManagedRootSource, RootScanError, RootSnapshot};
 pub use shuffle::{ShuffleError, ShufflePlan};
 pub use slots::{SlotError, SlotFile};
 pub use stack::{StackError, UnitStack};

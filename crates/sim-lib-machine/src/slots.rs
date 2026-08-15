@@ -117,6 +117,13 @@ impl<P: ValueWidthPolicy> SlotFile<P> {
         self.occupancy.get(slot).is_some_and(Option::is_some)
     }
 
+    /// Visits initialized values in ascending start-slot order.
+    pub fn visit_values(&self, mut visit: impl FnMut(&P::Value)) {
+        for value in self.values.iter().flatten() {
+            visit(value);
+        }
+    }
+
     fn release_span(&mut self, span: Span) -> Option<P::Value> {
         self.occupancy[span.start..span.start + span.width].fill(None);
         self.values[span.start].take()
