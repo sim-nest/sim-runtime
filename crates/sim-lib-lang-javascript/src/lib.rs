@@ -38,7 +38,8 @@ pub use json::{
     parse_javascript_json, stringify_javascript_json,
 };
 pub use managed::{
-    JavascriptHeap, JavascriptHeapPolicy, JavascriptManagedKind, JavascriptManagedObject,
+    JavascriptHeap, JavascriptHeapExt, JavascriptHeapPolicy, JavascriptManagedKind,
+    JavascriptManagedMutationError, JavascriptManagedObject,
 };
 pub use matrix_row::{javascript_core_matrix_row, javascript_core_source_cases};
 pub use modules::{

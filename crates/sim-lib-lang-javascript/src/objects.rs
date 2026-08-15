@@ -1,6 +1,9 @@
 //! JavaScript object policy over the shared property and managed-identity organs.
 
-use crate::{JavascriptHeap, JavascriptManagedKind, JavascriptManagedObject, JavascriptValue};
+use crate::{
+    JavascriptHeap, JavascriptHeapExt, JavascriptManagedKind, JavascriptManagedMutationError,
+    JavascriptManagedObject, JavascriptValue,
+};
 use sim_lib_dispatch::{
     AccessContext, AccessError, AccessorDescriptor, DataDescriptor, DefineError, Descriptor,
     PropertyHook, PropertyStore,
@@ -74,6 +77,8 @@ pub enum JavascriptObjectGap {
 pub enum JavascriptObjectError {
     /// Shared managed arena rejected an operation.
     Arena(ArenaError),
+    /// Shared managed node rejected a checked edge mutation.
+    ManagedGraph(JavascriptManagedMutationError),
     /// Descriptor invariant was violated.
     Descriptor(DefineError),
     /// Prototype traversal or interception exceeded its explicit bound.
@@ -88,6 +93,12 @@ pub enum JavascriptObjectError {
 impl From<ArenaError> for JavascriptObjectError {
     fn from(v: ArenaError) -> Self {
         Self::Arena(v)
+    }
+}
+
+impl From<JavascriptManagedMutationError> for JavascriptObjectError {
+    fn from(value: JavascriptManagedMutationError) -> Self {
+        Self::ManagedGraph(value)
     }
 }
 impl From<DefineError> for JavascriptObjectError {
@@ -154,7 +165,9 @@ impl JavascriptObjects {
     /// Allocate an ordinary object or array. Arrays use the same object and
     /// descriptor mechanics; only key ordering differs.
     pub fn ordinary(&mut self) -> Result<ManagedHandle, JavascriptObjectError> {
-        Ok(self.heap.allocate(JavascriptManagedObject::default())?)
+        Ok(self
+            .heap
+            .allocate(JavascriptManagedObject::new(JavascriptManagedKind::Object))?)
     }
     /// Allocate a closure/function object and connect it to its environment.
     pub fn function(
@@ -162,10 +175,10 @@ impl JavascriptObjects {
         function: JavascriptFunction,
         lexical_this: Option<JavascriptValue>,
     ) -> Result<ManagedHandle, JavascriptObjectError> {
-        let h = self.heap.allocate(JavascriptManagedObject {
-            kind: JavascriptManagedKind::Function,
-            edges: vec![function.environment.id()],
-        })?;
+        let h = self.heap.allocate(JavascriptManagedObject::new(
+            JavascriptManagedKind::Function,
+        ))?;
+        self.heap.connect(h, function.environment)?;
         if let Some(v) = lexical_this {
             self.lexical_this.insert(h.id(), v);
         }
@@ -435,7 +448,7 @@ mod tests {
     use sim_lib_gc_tracing::CollectionLimits;
     fn model() -> JavascriptObjects {
         JavascriptObjects::new(
-            JavascriptHeap::standard(
+            JavascriptHeap::tracing(
                 32,
                 CollectionLimits {
                     objects: 32,
