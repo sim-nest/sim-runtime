@@ -21,9 +21,11 @@
 //! ```
 
 mod bind;
+mod instance;
 mod plan;
 
 pub use bind::{ArgumentInput, ArgumentOrigin, BoundArgument, BoundCall, CallInput, bind};
+pub use instance::{CapturedBinding, FunctionBodyPolicy, FunctionInstance, InstanceError};
 pub use plan::{
     BrowseProjection, CallMode, CaptureDescriptor, FunctionPlan, ParameterDescriptor,
     ParameterKind, PlanError,

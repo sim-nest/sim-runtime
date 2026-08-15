@@ -98,17 +98,39 @@ claims_specimens = [
 [[feature]]
 id = "feature/sim-runtime/organs"
 title = "Runtime organs"
-summary = "Provide binding, control, logic, pattern, incremental, mutation, namespace, and sequence organs as reusable runtime behavior."
+summary = "Provide binding, function, control, logic, pattern, incremental, mutation, namespace, and sequence organs as reusable runtime behavior."
 owner = "crate/sim-lib-binding"
 audiences = ["code", "framework"]
-guidance = "Use this row when composing reusable runtime behavior from small organ crates and loadable libraries. sim-lib-binding owns the language-neutral call-signature binder and shared binding-cell lifecycle used by guest profiles. sim-lib-control owns budgeted resumable frames, cleanup-safe generic unwind, and explicitly driven typed FIFO job queues; microtasks and finalization remain distinct queue classes, and selected-class checkpoints drain reentrant work to empty under caller-declared bounds."
+guidance = "Use this row when composing reusable runtime behavior from small organ crates and loadable libraries. sim-lib-binding owns the language-neutral call-signature binder and shared binding-cell lifecycle used by guest profiles. sim-lib-function owns immutable function plans and typed managed instances whose capture edges remain visible to the shared collector. sim-lib-control owns budgeted resumable frames, cleanup-safe generic unwind, and explicitly driven typed FIFO job queues; microtasks and finalization remain distinct queue classes, and selected-class checkpoints drain reentrant work to empty under caller-declared bounds."
 claims_anchors = [
+  "anchor/crate/sim-lib-function",
   "anchor/crate/sim-lib-logic",
   "anchor/crate/sim-lib-pattern",
   "anchor/crate/sim-lib-sequence",
   "anchor/runtime-lib/sim-lib-logic/logic-lib",
   "anchor/runtime-lib/sim-lib-pattern/pattern-lib",
   "anchor/runtime-lib/sim-lib-sequence/sequence-lib",
+]
+
+[[feature]]
+id = "feature/sim-runtime/function-organ"
+title = "Typed managed function organ"
+summary = "Compose immutable function declarations with concrete guest body policies and collector-visible captured binding cells."
+owner = "crate/sim-lib-function"
+audiences = ["code", "framework"]
+guidance = "Use FunctionPlan for neutral declaration metadata and FunctionInstance<B> for an installed function with a statically retained guest policy B. Supply the runtime ClassRef and browse ShapeRefs explicitly. Represent every capture as a shared BindingCell paired with its existing ManagedHandle so FunctionInstance traces a strong ManagedNode edge; do not add an environment graph, Any-erased body, registry index, global evaluator, or downcast invocation path."
+claims_anchors = [
+  "anchor/crate/sim-lib-function",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-function/src/instance",
+  "spec-test/sim-runtime/crates/sim-lib-function/tests/contract_shape",
+]
+supports = [
+  "feature/sim-runtime/organs",
+  "feature/sim-runtime/binding-organ",
+  "feature/sim-runtime/mutation-organ",
+  "feature/sim-runtime/gc-tracing",
 ]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-logic/src/tests/organ_proof",
@@ -432,6 +454,7 @@ audiences = ["code", "framework"]
 steps = [
   { feature = "feature/sim-runtime/organs", why = "The organ row groups reusable binding, control, logic, pattern, incremental, mutation, namespace, and sequence behavior." },
   { feature = "feature/sim-runtime/binding-organ", why = "The binding row owns lexical cells and binding mechanics shared by guest profiles." },
+  { feature = "feature/sim-runtime/function-organ", why = "The function row owns typed managed instances and collector-visible capture composition." },
   { feature = "feature/sim-runtime/control-organ", why = "The control row owns resumable frames and control transfer shared by guest profiles." },
   { feature = "feature/sim-runtime/property-mechanics", why = "The property row owns descriptor dispatch and reusable property semantics." },
   { feature = "feature/sim-runtime/namespace-organ", why = "The namespace row owns bounded module resolution and caller-supplied source roots." },
