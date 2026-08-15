@@ -116,13 +116,24 @@ pub struct TextMatch {
 /// Step limits for the bounded VM.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TextLimits {
-    /// Maximum recursive VM steps before the match fails closed.
+    /// Maximum total transitions (the legacy text VM treats these as steps).
     pub max_steps: usize,
+    /// Maximum automaton states admitted by one execution.
+    pub max_states: usize,
+    /// Maximum capture-boundary records retained by one execution.
+    pub max_capture_history: usize,
+    /// Maximum subject symbols inspected by one execution.
+    pub max_subject_symbols: usize,
 }
 
 impl Default for TextLimits {
     fn default() -> Self {
-        Self { max_steps: 10_000 }
+        Self {
+            max_steps: 10_000,
+            max_states: 4_096,
+            max_capture_history: 10_000,
+            max_subject_symbols: 1_000_000,
+        }
     }
 }
 

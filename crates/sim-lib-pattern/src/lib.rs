@@ -11,6 +11,7 @@ mod claims;
 mod compile;
 mod cursor;
 mod dialect;
+mod execute;
 mod glob_dialect;
 mod ir;
 mod lua_dialect;
@@ -35,6 +36,10 @@ pub use compile::{
 };
 pub use cursor::{ByteDomain, ByteOffset, CodeUnitDomain, CodeUnitOffset, Cursor, SymbolDomain};
 pub use dialect::PatternDialect;
+pub use execute::{
+    CaptureSpan, ExecutionLimit, ExecutionMatch, ExecutionOutcome, ExecutionReceipt,
+    execute_regular,
+};
 pub use glob_dialect::{GlobPatternDialect, compile_glob_pattern};
 pub use ir::{
     Anchor, AssertionId, CaptureId, EnginePolicy, IrError, IrNode, PatternIr, RepeatBounds,

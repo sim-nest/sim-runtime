@@ -54,7 +54,15 @@ fn assert_stable_capture(name: &str, cases: Vec<Datum>) {
 }
 
 fn text_match(ops: &[TextOp], subject: &str) -> Option<TextMatch> {
-    run_text_pattern(ops, subject, 0, TextLimits { max_steps: 20_000 })
+    run_text_pattern(
+        ops,
+        subject,
+        0,
+        TextLimits {
+            max_steps: 20_000,
+            ..TextLimits::default()
+        },
+    )
 }
 
 fn text_span(ops: &[TextOp], subject: &str) -> Option<(usize, usize)> {
@@ -139,7 +147,18 @@ fn lua_dialect_preserves_captures_and_budget_limits() {
     assert_eq!(matched.captures, vec![(0, 0), (3, 3)]);
 
     let bounded = compile_lua_pattern("a*b").unwrap();
-    assert!(run_text_pattern(&bounded, "aaab", 0, TextLimits { max_steps: 1 }).is_none());
+    assert!(
+        run_text_pattern(
+            &bounded,
+            "aaab",
+            0,
+            TextLimits {
+                max_steps: 1,
+                ..TextLimits::default()
+            }
+        )
+        .is_none()
+    );
     assert_eq!(text_span(&bounded, "aaab"), Some((0, 4)));
 }
 
@@ -187,7 +206,10 @@ fn lua_current_behavior_is_a_stable_characterization_capture() {
         &compile_lua_pattern("a*b").unwrap(),
         "aaab",
         0,
-        TextLimits { max_steps: 1 },
+        TextLimits {
+            max_steps: 1,
+            ..TextLimits::default()
+        },
     );
     let refusals = [
         ("quantifier-without-atom", "*"),
@@ -253,7 +275,10 @@ fn glob_current_behavior_is_a_stable_characterization_capture() {
         &compile_glob_pattern("*x").unwrap(),
         "abcx",
         0,
-        TextLimits { max_steps: 1 },
+        TextLimits {
+            max_steps: 1,
+            ..TextLimits::default()
+        },
     );
     let diagnostics = [
         (
