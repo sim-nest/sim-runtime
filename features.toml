@@ -121,7 +121,7 @@ title = "Typed managed function organ"
 summary = "Compose immutable function declarations with concrete guest body policies, collector-visible captures, kernel invocation, and optional dispatch methods."
 owner = "crate/sim-lib-function"
 audiences = ["code", "framework"]
-guidance = "Use FunctionPlan for neutral declaration metadata and FunctionInstance<B> for an installed function with a statically retained guest policy B. FunctionInstance delegates the kernel Callable projection to that policy. Use dispatch_method_body only when a guest elects to install the same instance as a GenericFunction method; direct calls never select methods, and both paths preserve the same BoundCall inputs. Supply the runtime ClassRef and browse ShapeRefs explicitly. Represent every capture as a shared BindingCell paired with its existing ManagedHandle so FunctionInstance traces a strong ManagedNode edge; do not make every function generic or add an environment graph, Any-erased body, registry index, global evaluator, or downcast invocation path."
+guidance = "Use FunctionPlan for neutral declaration metadata and FunctionInstance<B> for an installed function with a statically retained guest policy B. FunctionInstance delegates the kernel Callable projection to that policy. Use dispatch_method_body only when a guest elects to install the same instance as a GenericFunction method; direct calls never select methods, and both paths preserve the same BoundCall inputs. Supply the runtime ClassRef and browse ShapeRefs explicitly. Represent every capture as a shared BindingCell paired with its existing ManagedHandle so FunctionInstance traces a strong ManagedNode edge. The function-ownership source-fact policy structurally rejects new guest structs that combine neutral parameter declarations with capture slots; every finding names this owner path and the composition remediation. Guest-owned body, coroutine, traceback, and evaluation-policy fields remain open. The named Lua and Python pre-organ records are reasoned, path-scoped migration inputs, not precedent for another copy. Do not make every function generic or add an environment graph, Any-erased body, registry index, global evaluator, or downcast invocation path."
 claims_anchors = [
   "anchor/crate/sim-lib-function",
 ]
@@ -130,6 +130,7 @@ claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-function/src/instance",
   "spec-test/sim-runtime/crates/sim-lib-function/tests/contract_shape",
   "spec-test/sim-runtime/crates/sim-lib-function/tests/neutral_language_specimen",
+  "spec-test/sim-runtime/crates/sim-lib-function/tests/ownership_guard",
   "recipe/sim-runtime/crates/sim-lib-function/01-basics/neutral-language",
 ]
 supports = [

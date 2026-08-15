@@ -1,0 +1,17 @@
+schema = "sim.function-ownership/v1"
+owner = "crates/sim-lib-function/src/plan.rs::FunctionPlan"
+remediation = "Compose sim-lib-function FunctionPlan and FunctionInstance<B>; retain only language-specific body, coroutine, traceback, and evaluation policy in the guest crate."
+guest_crate_prefix = "sim-lib-lang-"
+
+# A candidate is a public struct that combines one field from both structural
+# roles. Individual words are not violations, so language policy remains open.
+parameter_fields = ["params", "parameters", "parameter_names", "formal_parameters"]
+capture_fields = ["captures", "capture_slots", "upvalues", "free_variables"]
+
+[[legacy_migration]]
+path = "crates/sim-lib-lang-lua/src/closure.rs"
+reason = "LuaClosure predates sim-lib-function and is a named guest-migration input."
+
+[[legacy_migration]]
+path = "crates/sim-lib-lang-python/src/runtime.rs"
+reason = "PythonFunction predates sim-lib-function and is a named guest-migration input."
