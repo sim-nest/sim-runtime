@@ -8,6 +8,16 @@ guest_crate_prefix = "sim-lib-lang-"
 parameter_fields = ["params", "parameters", "parameter_names", "formal_parameters"]
 capture_fields = ["captures", "capture_slots", "upvalues", "free_variables"]
 
+# A guest-private environment graph is still a duplicate when it combines
+# lexical storage with an explicit parent/capture edge. This is separate from a
+# FunctionPlan copy so wrappers may retain one opaque managed environment id.
+private_graph_storage_fields = ["bindings", "cells", "slots", "values"]
+private_graph_edge_fields = ["parent", "outer", "captures", "upvalues", "free_variables"]
+
+[[approved_language_policy]]
+path = "crates/sim-lib-lang-lua/src/env.rs"
+reason = "Lua lexical scope nesting remains guest evaluation policy; values and cells live in sim-lib-binding, captures use FunctionInstance, and this frame records only the corresponding managed identities."
+
 # These language-owned records may compose adjacent function substrate, but
 # their identity is not callable. The guard rejects only an explicit adapter to
 # FunctionInstance, leaving the approved relationships available independently.
@@ -24,7 +34,3 @@ source_terms = ["prolog", "predicate", "relation", "clause"]
 mismatch_code = "predicate-is-clause-set-not-callable-identity"
 reason = "A Prolog predicate denotes the indexed set of logic-organ clauses resolved by unification and backtracking; it is not a generic or ordinary function."
 approved_relationships = ["binding", "shape"]
-
-[[legacy_migration]]
-path = "crates/sim-lib-lang-python/src/runtime.rs"
-reason = "PythonFunction predates sim-lib-function and is a named guest-migration input."

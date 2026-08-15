@@ -1,0 +1,30 @@
+schema = "sim.unify-ownership-board/v1"
+concerns = ["function-plan", "capture-graph", "class-descriptor", "lineage"]
+
+# Every migrated profile has an explicit disposition for every structural
+# overlap lane. `shared` composes the canonical organ; `language-policy` names
+# semantics deliberately retained by the guest; `absent` records that the
+# profile has no such model. There is no implicit or unclassified state.
+[[language]]
+name = "python"
+cells = ["shared", "shared", "shared", "shared"]
+
+[[language]]
+name = "javascript"
+cells = ["shared", "shared", "language-policy", "language-policy"]
+
+[[language]]
+name = "lua"
+cells = ["shared", "language-policy", "language-policy", "language-policy"]
+
+[[language]]
+name = "islisp"
+cells = ["language-policy", "shared", "language-policy", "absent"]
+
+[[language]]
+name = "typed-lazy"
+cells = ["language-policy", "shared", "language-policy", "absent"]
+
+[[language]]
+name = "prolog"
+cells = ["language-policy", "shared", "absent", "absent"]

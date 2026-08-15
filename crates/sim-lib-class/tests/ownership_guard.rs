@@ -16,6 +16,14 @@ pub struct PythonClass { name: Symbol, bases: Vec<ClassRef> }
 pub fn declared_parents(class: &PythonClass) -> &[ClassRef] { &class.bases }
 "#;
 
+const COPIED_DESCRIPTOR: &str = r#"
+pub struct GuestClassDescriptor {
+    name: Symbol,
+    parents: Vec<ClassRef>,
+    members: Vec<Member>,
+}
+"#;
+
 const UNBOUNDED_LINEAGE: &str = r#"
 pub fn ancestors(class: ClassRef) -> Vec<ClassRef> {
     let mut parents = vec![class];
@@ -267,6 +275,18 @@ fn policy_is_ledger_driven_and_distinguishes_prototypes_from_real_parents() {
                 && !exclusion.terms.is_empty()
         );
     }
+}
+
+#[test]
+fn guard_rejects_copied_class_descriptor() {
+    let root = repository_root();
+    let policy = Policy::load(&root);
+    let findings = policy.findings(Path::new("guest_class.rs"), COPIED_DESCRIPTOR);
+    assert!(
+        findings
+            .iter()
+            .any(|finding| finding.contains("copies the declared class descriptor"))
+    );
 }
 
 #[test]

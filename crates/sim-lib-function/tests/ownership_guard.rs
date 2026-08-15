@@ -13,6 +13,13 @@ pub struct GuestFunction {
 }
 "#;
 
+const PRIVATE_CAPTURE_GRAPH: &str = r#"
+struct PrivateEnvironment {
+    bindings: Vec<BindingCell>,
+    outer: Option<Box<PrivateEnvironment>>,
+}
+"#;
+
 const LANGUAGE_POLICY_ONLY: &str = r#"
 pub struct GuestFrame {
     coroutine_flags: Flags,
@@ -40,7 +47,9 @@ struct Policy {
     guest_crate_prefix: String,
     parameter_fields: Vec<String>,
     capture_fields: Vec<String>,
-    legacy_paths: Vec<(String, String)>,
+    private_graph_storage_fields: Vec<String>,
+    private_graph_edge_fields: Vec<String>,
+    approved_language_policy: Vec<(String, String)>,
     non_participants: Vec<NonParticipant>,
 }
 
@@ -61,16 +70,6 @@ impl Policy {
         let owner = scalar(&source, "owner");
         let remediation = scalar(&source, "remediation");
         assert!(!owner.is_empty() && !remediation.is_empty());
-        let legacy_paths = source
-            .split("[[legacy_migration]]")
-            .skip(1)
-            .map(|row| {
-                let path = scalar(row, "path");
-                let reason = scalar(row, "reason");
-                assert!(!path.is_empty() && !reason.is_empty());
-                (path, reason)
-            })
-            .collect();
         let non_participants = sections(&source, "[[non_participant]]")
             .map(|row| NonParticipant {
                 model: scalar(row, "model"),
@@ -87,7 +86,11 @@ impl Policy {
             guest_crate_prefix: scalar(&source, "guest_crate_prefix"),
             parameter_fields: array(&source, "parameter_fields"),
             capture_fields: array(&source, "capture_fields"),
-            legacy_paths,
+            private_graph_storage_fields: array(&source, "private_graph_storage_fields"),
+            private_graph_edge_fields: array(&source, "private_graph_edge_fields"),
+            approved_language_policy: sections(&source, "[[approved_language_policy]]")
+                .map(|row| (scalar(row, "path"), scalar(row, "reason")))
+                .collect(),
             non_participants,
         }
     }
@@ -105,6 +108,31 @@ impl Policy {
                 ))
             })
             .collect::<Vec<_>>();
+        let relative = path.to_string_lossy().replace('\\', "/");
+        let approved_policy = self
+            .approved_language_policy
+            .iter()
+            .find(|(approved, _)| relative.ends_with(approved));
+        if let Some((_, reason)) = approved_policy {
+            assert!(
+                !reason.is_empty(),
+                "approved language policy needs a reason"
+            );
+        } else {
+            findings.extend(all_structs(source).into_iter().filter_map(|item| {
+                let fields = field_names(&item);
+                let storage = fields
+                    .iter()
+                    .find(|field| self.private_graph_storage_fields.contains(field))?;
+                let edge = fields
+                    .iter()
+                    .find(|field| self.private_graph_edge_fields.contains(field))?;
+                Some(format!(
+                    "{} defines private capture graph fields `{storage}` and `{edge}`; owner: {}; remediation: {}",
+                    path.display(), self.owner, self.remediation
+                ))
+            }));
+        }
         let lower = source.to_ascii_lowercase();
         if lower.contains("functioninstance") {
             for exclusion in &self.non_participants {
@@ -122,13 +150,6 @@ impl Policy {
         findings.sort();
         findings.dedup();
         findings
-    }
-
-    fn legacy_reason(&self, path: &str) -> Option<&str> {
-        self.legacy_paths
-            .iter()
-            .find(|(candidate, _)| candidate == path)
-            .map(|(_, reason)| reason.as_str())
     }
 }
 
@@ -168,10 +189,23 @@ fn array(source: &str, key: &str) -> Vec<String> {
 }
 
 fn public_structs(source: &str) -> Vec<String> {
+    structs(source, true)
+}
+
+fn all_structs(source: &str) -> Vec<String> {
+    structs(source, false)
+}
+
+fn structs(source: &str, public_only: bool) -> Vec<String> {
     let mut items = Vec::new();
     let mut current = None::<(String, i32)>;
     for line in source.lines() {
-        if current.is_none() && line.trim_start().starts_with("pub struct ") {
+        let trimmed = line.trim_start();
+        let starts_struct = trimmed.starts_with("struct ") || trimmed.starts_with("pub struct ");
+        if current.is_none()
+            && starts_struct
+            && (!public_only || trimmed.starts_with("pub struct "))
+        {
             let depth = brace_delta(line);
             if depth == 0 && line.contains(';') {
                 continue;
@@ -248,6 +282,18 @@ fn guard_rejects_shadow_schema_and_admits_language_policy() {
 }
 
 #[test]
+fn guard_rejects_private_capture_graph() {
+    let root = repository_root();
+    let policy = Policy::load(&root);
+    let findings = policy.findings(Path::new("private_environment.rs"), PRIVATE_CAPTURE_GRAPH);
+    assert!(
+        findings
+            .iter()
+            .any(|finding| finding.contains("private capture graph"))
+    );
+}
+
+#[test]
 fn guard_rejects_dictionary_function_adapter_but_admits_managed_edges() {
     let root = repository_root();
     let policy = Policy::load(&root);
@@ -301,21 +347,48 @@ fn guest_crates_have_no_unclassified_shadow_schema() {
                 if child.file_type().unwrap().is_dir() {
                     paths.push(child.path());
                 } else if child.path().extension().is_some_and(|ext| ext == "rs") {
-                    let relative = child
-                        .path()
-                        .strip_prefix(&root)
-                        .unwrap()
-                        .to_string_lossy()
-                        .replace('\\', "/");
-                    if let Some(reason) = policy.legacy_reason(&relative) {
-                        assert!(!reason.is_empty());
-                        continue;
-                    }
                     let source = fs::read_to_string(child.path()).unwrap();
                     let findings = policy.findings(&child.path(), &source);
                     assert!(findings.is_empty(), "{}", findings.join("\n"));
                 }
             }
         }
+    }
+}
+
+#[test]
+fn migrated_overlap_board_has_no_unclassified_cell() {
+    let root = repository_root();
+    let board = fs::read_to_string(root.join("unify-ownership-board.toml")).unwrap();
+    assert_eq!(scalar(&board, "schema"), "sim.unify-ownership-board/v1");
+    let concerns = array(&board, "concerns");
+    assert_eq!(
+        concerns,
+        [
+            "function-plan",
+            "capture-graph",
+            "class-descriptor",
+            "lineage"
+        ]
+    );
+    let rows = sections(&board, "[[language]]").collect::<Vec<_>>();
+    assert_eq!(rows.len(), 6);
+    for row in rows {
+        let name = scalar(row, "name");
+        let cells = array(row, "cells");
+        assert!(!name.is_empty());
+        assert_eq!(
+            cells.len(),
+            concerns.len(),
+            "{name} has an incomplete overlap row"
+        );
+        assert!(
+            cells
+                .iter()
+                .all(|cell| matches!(cell.as_str(), "shared" | "language-policy" | "absent"))
+        );
+    }
+    for (path, reason) in &Policy::load(&root).approved_language_policy {
+        assert!(!path.is_empty() && !reason.is_empty());
     }
 }
