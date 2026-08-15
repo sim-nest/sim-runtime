@@ -164,6 +164,7 @@ claims_anchors = [
 ]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-pattern/tests/cursor_domains",
+  "spec-test/sim-runtime/crates/sim-lib-pattern/tests/cross_dialect_safety",
 ]
 supports = [
   "feature/sim-runtime/organs",
@@ -598,6 +599,36 @@ steps = [
   { feature = "feature/sim-runtime/namespace-organ", why = "The namespace row owns bounded module resolution and caller-supplied source roots." },
   { feature = "feature/sim-runtime/contract-emitter", why = "The emitter row keeps generated runtime contract evidence current." },
   { specimen = "recipe/sim-runtime/crates/sim-lib-function/01-basics/neutral-language", why = "The terminal checked specimen composes typed lexical capture, positional and named inputs, browsing, managed-cycle collection, and optional generic dispatch without importing an established guest runtime." },
+]
+
+[[route]]
+id = "route/lower-lua-pattern"
+task = "Lower Lua pattern syntax into the shared pattern organ"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/guest-language-profiles", why = "Lua retains its surface syntax and character-class policy while composing runtime organs." },
+  { feature = "feature/sim-runtime/pattern-cursor-domains", why = "The shared pattern organ validates the lowering and executes it with typed scalar offsets and bounded receipts." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-pattern/tests/cross_dialect_safety", why = "The runnable cross-dialect specimen lowers Lua syntax beside glob and neutral IR, then executes all three through the same organ." },
+]
+
+[[route]]
+id = "route/lower-shell-glob"
+task = "Lower shell glob syntax into the shared pattern organ"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/pattern-cursor-domains", why = "The glob adapter lowers its anchored surface into the shared validated IR and bounded scalar-domain executor." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-pattern/tests/cross_dialect_safety", why = "The runnable specimen proves glob syntax reaches the same organ as Lua and neutral IR without copying an executor." },
+]
+
+[[route]]
+id = "route/lower-javascript-regexp"
+task = "Lower bounded JavaScript RegExp syntax into the shared pattern organ"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/javascript-core-profile", why = "The bounded JavaScript profile owns ECMAScript admission, exclusions, and UTF-16 syntax policy." },
+  { feature = "feature/sim-runtime/pattern-cursor-domains", why = "Admitted RegExp syntax lowers to the shared automaton and executes with exact code-unit offsets and bounded receipts." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-javascript/src/regexp", why = "The JavaScript specimen checks the real RegExp adapter, exact UTF-16 captures, work limits, and fail-closed unsupported clauses." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-pattern/tests/cross_dialect_safety", why = "The organ specimen independently demonstrates exact byte, scalar, and code-unit domains plus bounded adversarial ambiguity." },
 ]
 
 [[route]]
