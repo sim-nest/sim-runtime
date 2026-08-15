@@ -1,4 +1,5 @@
-use sim_lib_control::WorkLimit;
+use sim_kernel::ContentId;
+use sim_lib_control::{CleanupStack, Unwind, WorkLimit};
 
 use crate::{
     AdmissionPolicy, CodeCursor, Frame, FrameStack, FrameStackError, InstructionPolicy,
@@ -80,6 +81,80 @@ impl<Id> WorkReceipt<Id> {
     /// Returns ordered instruction identities and their control outcomes.
     pub fn steps(&self) -> &[(Id, StepKind)] {
         &self.steps
+    }
+
+    /// Appends later work to this receipt prefix without changing its order.
+    pub fn append(&mut self, later: Self) {
+        self.steps.extend(later.steps);
+    }
+}
+
+/// Abrupt terminal reasons carried through the control organ's unwind vocabulary.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MachineAbrupt<A, I> {
+    /// No prepared protected region handled a raised value.
+    Raise(A),
+    /// Execution stopped at an interruption checkpoint.
+    Interrupt(I),
+    /// The bounded drive consumed its complete allowance.
+    BudgetExhausted,
+    /// Admission, frame, or instruction execution failed closed.
+    Fault,
+}
+
+/// Control-organ reason delivered exactly once to registered machine cleanups.
+pub type MachineUnwind<R, A, I> = Unwind<R, (), (), MachineAbrupt<A, I>>;
+
+/// Content-bound evidence for a suspended continuation and its receipt prefix.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ContinuationEvidence<Id> {
+    content_id: ContentId,
+    receipt: WorkReceipt<Id>,
+}
+
+impl<Id> ContinuationEvidence<Id> {
+    /// Returns the admitted program identity to which this continuation belongs.
+    pub fn content_id(&self) -> &ContentId {
+        &self.content_id
+    }
+
+    /// Returns all work observed before suspension.
+    pub fn receipt(&self) -> &WorkReceipt<Id> {
+        &self.receipt
+    }
+}
+
+/// Owned resumable machine state; construction requires an admitted permit.
+#[derive(Debug)]
+pub struct MachineCheckpoint<F, Id> {
+    frames: FrameStack<F>,
+    evidence: ContinuationEvidence<Id>,
+}
+
+impl<F, Id> MachineCheckpoint<F, Id> {
+    /// Binds suspended frames and their ordered receipt prefix to admitted content.
+    pub fn new(frames: FrameStack<F>, permit: &MachinePermit, receipt: WorkReceipt<Id>) -> Self {
+        Self {
+            frames,
+            evidence: ContinuationEvidence {
+                content_id: permit.content_id().clone(),
+                receipt,
+            },
+        }
+    }
+
+    /// Returns the immutable continuation evidence.
+    pub fn evidence(&self) -> &ContinuationEvidence<Id> {
+        &self.evidence
+    }
+
+    /// Resumes only when the supplied permit admits the checkpoint's exact content.
+    pub fn resume(self, permit: &MachinePermit) -> Result<(FrameStack<F>, WorkReceipt<Id>), Self> {
+        if self.evidence.content_id == *permit.content_id() {
+            Ok((self.frames, self.evidence.receipt))
+        } else {
+            Err(self)
+        }
     }
 }
 
@@ -246,5 +321,119 @@ impl<D> Driver<D> {
             }
         }
         Ok(DriveOutcome::Continue(WorkReceipt { steps }))
+    }
+
+    /// Drives through prepared protected regions, selecting the innermost handler.
+    ///
+    /// A handled raise remains visible in the receipt, then execution continues at
+    /// the validated handler boundary. The abrupt value remains consumer-owned;
+    /// policies place it in their frame's handler state before returning `Raise`.
+    #[allow(
+        clippy::type_complexity,
+        reason = "matches the explicit driver channels"
+    )]
+    pub fn drive_protected<P, M, A, F>(
+        &mut self,
+        description: &MachineDescription<'_, P, M>,
+        permit: &MachinePermit,
+        frames: &mut FrameStack<F>,
+        work: WorkLimit,
+    ) -> DriveResult<P::InstructionId, D::Return, D::Abrupt, D::Yield, D::Interrupt, D::Fault>
+    where
+        P: InstructionPolicy,
+        P::InstructionId: Copy + Eq + Ord,
+        A: AdmissionPolicy<P, M>,
+        F: MachineFrame,
+        D: InstructionDriverPolicy<P, F>,
+    {
+        let mut combined = WorkReceipt { steps: Vec::new() };
+        let mut left = work.0;
+        while left > 0 {
+            let cursor = frames.current().ok_or(DriveError::EmptyFrames)?.cursor();
+            let outcome = self.drive::<P, M, A, F>(description, permit, frames, WorkLimit(1))?;
+            match outcome {
+                DriveOutcome::Raise(value, receipt) => {
+                    left -= receipt.charged();
+                    combined.append(receipt);
+                    if let Some(region) = description.code().innermost_protected_region(cursor) {
+                        frames
+                            .current_mut()
+                            .expect("raising frame remains")
+                            .set_cursor(region.handler);
+                    } else {
+                        return Ok(DriveOutcome::Raise(value, combined));
+                    }
+                }
+                DriveOutcome::Continue(receipt) => {
+                    left -= receipt.charged();
+                    combined.append(receipt);
+                    if left == 0 {
+                        return Ok(DriveOutcome::Continue(combined));
+                    }
+                }
+                DriveOutcome::Return(value, receipt) => {
+                    combined.append(receipt);
+                    return Ok(DriveOutcome::Return(value, combined));
+                }
+                DriveOutcome::Yield(value, receipt) => {
+                    combined.append(receipt);
+                    return Ok(DriveOutcome::Yield(value, combined));
+                }
+                DriveOutcome::Interrupt(value, receipt) => {
+                    combined.append(receipt);
+                    return Ok(DriveOutcome::Interrupt(value, combined));
+                }
+            }
+        }
+        Ok(DriveOutcome::Continue(combined))
+    }
+
+    /// Runs a protected drive and unwinds registered cleanups on every abrupt or
+    /// terminal path. Yield is a suspension and therefore retains its dynamic extent.
+    #[allow(
+        clippy::type_complexity,
+        reason = "matches the explicit driver channels"
+    )]
+    pub fn drive_with_cleanup<P, M, A, F>(
+        &mut self,
+        description: &MachineDescription<'_, P, M>,
+        permit: &MachinePermit,
+        frames: &mut FrameStack<F>,
+        work: WorkLimit,
+        cleanups: CleanupStack<MachineUnwind<D::Return, D::Abrupt, D::Interrupt>>,
+    ) -> DriveResult<P::InstructionId, D::Return, D::Abrupt, D::Yield, D::Interrupt, D::Fault>
+    where
+        P: InstructionPolicy,
+        P::InstructionId: Copy + Eq + Ord,
+        A: AdmissionPolicy<P, M>,
+        F: MachineFrame,
+        D: InstructionDriverPolicy<P, F>,
+        D::Return: Clone,
+        D::Abrupt: Clone,
+        D::Interrupt: Clone,
+    {
+        let outcome = match self.drive_protected::<P, M, A, F>(description, permit, frames, work) {
+            Ok(outcome) => outcome,
+            Err(error) => {
+                cleanups.unwind(Unwind::Exception(MachineAbrupt::Fault));
+                return Err(error);
+            }
+        };
+        match &outcome {
+            DriveOutcome::Return(value, _) => {
+                cleanups.unwind(Unwind::Return(value.clone()));
+            }
+            DriveOutcome::Raise(value, _) => {
+                cleanups.unwind(Unwind::Exception(MachineAbrupt::Raise(value.clone())));
+            }
+            DriveOutcome::Interrupt(value, _) => {
+                cleanups.unwind(Unwind::Exception(MachineAbrupt::Interrupt(value.clone())));
+            }
+            DriveOutcome::Continue(_) => {
+                cleanups.unwind(Unwind::Exception(MachineAbrupt::BudgetExhausted));
+            }
+            DriveOutcome::Yield(_, _) => return Ok(outcome),
+        }
+        Ok(outcome)
     }
 }

@@ -152,15 +152,16 @@ supports = [
 [[feature]]
 id = "feature/sim-runtime/machine-contract"
 title = "Neutral bounded instruction-machine contract"
-summary = "Define policy seams and explicit bounded frames for decoded instructions, logical widths, calls, returns, effects, handlers, roots, safepoints, admission, and receipts without choosing a guest or host mechanism."
+summary = "Define policy seams and explicit bounded, resumable frames for decoded instructions, logical widths, calls, returns, protected handlers, cleanup, interruption, roots, safepoints, admission, and receipts without choosing a guest or host mechanism."
 owner = "crate/sim-lib-machine"
 audiences = ["code", "framework"]
-guidance = "Use these traits, Frame, FrameStack, and Transfer when building a bounded decoded-instruction machine. Frames compose bounded slots and operands with a validated cursor, continuation, roots, and handler state. Calls and returns are explicit value-and-width transfers; FrameStack reports typed depth exhaustion without consuming the host call stack. Compose sim-lib-control for unwind, resume, and the shared admission/work limits; sim-lib-mutation for managed roots; Shape for structural admission; and caller-supplied codecs for instruction identity. Do not import a guest method, signature, or class model, move decoded execution into kernel evaluation, or use sim-lib-exec as a machine driver."
+guidance = "Use these traits, Frame, FrameStack, Transfer, Driver, and MachineCheckpoint when building a bounded decoded-instruction machine. Frames compose bounded slots and operands with a validated cursor, continuation, roots, and handler state. Calls and returns are explicit value-and-width transfers; protected raises select the innermost prepared handler; cleanup composes sim-lib-control CleanupStack and Unwind; interruption checkpoints bind frame state and the receipt prefix to the admitted content identity. FrameStack reports typed depth exhaustion without consuming the host call stack. Compose sim-lib-control for unwind, resume packets, cleanup, and shared admission/work limits; sim-lib-mutation for managed roots; Shape for structural admission; and caller-supplied codecs for instruction identity. Do not import a guest method, signature, or class model, move decoded execution into kernel evaluation, duplicate unwind or resume machinery, or use sim-lib-exec as a machine driver."
 claims_anchors = [
   "anchor/crate/sim-lib-machine",
 ]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-machine/tests/frame_calls_conformance",
+  "spec-test/sim-runtime/crates/sim-lib-machine/tests/control_resume",
 ]
 supports = [
   "feature/sim-runtime/organs",

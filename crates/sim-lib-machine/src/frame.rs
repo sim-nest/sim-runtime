@@ -107,6 +107,7 @@ pub enum FrameStackError {
 }
 
 /// An explicit activation stack whose depth never consumes the host call stack.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FrameStack<F> {
     frames: Vec<F>,
     limit: WorkLimit,

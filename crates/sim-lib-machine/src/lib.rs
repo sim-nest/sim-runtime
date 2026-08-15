@@ -17,8 +17,9 @@ pub use admission::{
     AdmissionError, AdmissionLimits, AdmissionPolicy, MachineDescription, MachinePermit,
 };
 pub use driver::{
-    DriveError, DriveOutcome, DriveResult, Driver, InstructionDriverPolicy, LocatedFault,
-    MachineFrame, PolicyStep, StepKind, StepOutcome, WorkReceipt,
+    ContinuationEvidence, DriveError, DriveOutcome, DriveResult, Driver, InstructionDriverPolicy,
+    LocatedFault, MachineAbrupt, MachineCheckpoint, MachineFrame, MachineUnwind, PolicyStep,
+    StepKind, StepOutcome, WorkReceipt,
 };
 pub use frame::{
     CallTransfer, Frame, FrameStack, FrameStackError, ReturnTransfer, Transfer, TransferError,

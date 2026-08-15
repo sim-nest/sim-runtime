@@ -340,9 +340,16 @@ where
                 },
             ));
         }
-        frozen_regions.sort_by_key(|(_, region)| region.start);
+        frozen_regions.sort_by_key(|(_, region)| (region.start, usize::MAX - region.end_index));
         for pair in frozen_regions.windows(2) {
-            if pair[0].1.end_index > pair[1].1.start.0 {
+            let earlier = pair[0].1;
+            let later = pair[1].1;
+            let crosses = earlier.start.0 < later.start.0
+                && later.start.0 < earlier.end_index
+                && earlier.end_index < later.end_index;
+            let same_start_not_nested =
+                earlier.start == later.start && earlier.end_index == later.end_index;
+            if crosses || same_start_not_nested {
                 return Err(CodeError::OverlappingRegions {
                     first_start: pair[0].0,
                     second_start: pair[1].0,
@@ -395,6 +402,15 @@ where
     /// Returns the immutable protected-region table.
     pub fn protected_regions(&self) -> &[ProtectedRegion] {
         &self.regions
+    }
+
+    /// Selects the most deeply nested protected region containing `cursor`.
+    pub fn innermost_protected_region(&self, cursor: CodeCursor) -> Option<ProtectedRegion> {
+        self.regions
+            .iter()
+            .copied()
+            .filter(|region| region.start.0 <= cursor.0 && cursor.0 < region.end_index)
+            .max_by_key(|region| region.start.0)
     }
 
     /// Returns the number of instructions.
