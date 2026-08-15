@@ -63,6 +63,7 @@ pub fn incremental_exports() -> Vec<Export> {
         Symbol::qualified("incremental", "Key"),
         Symbol::qualified("incremental", "QueryExpr"),
         Symbol::qualified("incremental", "Report"),
+        Symbol::qualified("incremental", "Analysis"),
     ] {
         exports.push(Export::Shape {
             symbol,

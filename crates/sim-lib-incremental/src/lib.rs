@@ -23,11 +23,12 @@ pub use claims::{
     incremental_register_op_key, incremental_snapshot_op_key, incremental_verify_op_key,
     publish_incremental_organ_claims, publish_incremental_organ_claims_for_lib,
 };
-pub use model::{IncrementalSession, incremental_engine_value};
+pub use model::{DataflowAnalysisView, IncrementalSession, incremental_engine_value};
 pub use runtime::{IncrementalLib, incremental_exports, install_incremental_lib};
 pub use shapes::{
-    incremental_engine_shape_symbol, incremental_key_shape_symbol,
-    incremental_query_expr_shape_symbol, incremental_report_shape_symbol,
+    incremental_analysis_shape_symbol, incremental_engine_shape_symbol,
+    incremental_key_shape_symbol, incremental_query_expr_shape_symbol,
+    incremental_report_shape_symbol,
 };
 
 /// Cookbook recipes for this lib, embedded at build time.

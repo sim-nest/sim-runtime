@@ -60,10 +60,10 @@ supports = [
 [[feature]]
 id = "feature/sim-runtime/incremental-query-organ"
 title = "Incremental query organ"
-summary = "Expose incremental expression queries as a loadable SIM organ with capability-gated registration, invalidation, verification, explanation, snapshots, and metrics."
+summary = "Expose incremental expression queries and immutable proof-backed dataflow analysis views as a loadable SIM organ."
 owner = "crate/sim-lib-incremental"
 audiences = ["code", "framework"]
-guidance = "Use this row when a framework needs memoized expression calculation that is loadable, browseable, and callable through the SIM runtime."
+guidance = "Use this row when a framework needs memoized expression calculation or a read-only Table/Dir projection of a completed dataflow analysis. DataflowAnalysisView consumes the core completion proof and exposes graph structure, boundary states, work receipts, explanations, continuations, and proof identity without a public state or proof constructor."
 claims_anchors = [
   "anchor/crate/sim-lib-incremental",
   "anchor/runtime-lib/sim-lib-incremental/incremental-lib",
@@ -471,8 +471,8 @@ task = "Add an incremental query organ"
 audiences = ["code", "framework"]
 steps = [
   { feature = "feature/sim-runtime/incremental-query-core", why = "The core row owns the dependency-light memo graph and cutoff algorithm." },
-  { feature = "feature/sim-runtime/incremental-query-organ", why = "The organ row owns SIM conversion, capability gates, shapes, reports, and loadable exports." },
-  { specimen = "spec-test/sim-runtime/crates/sim-lib-incremental/src/tests", why = "The checked tests exercise registration, invalidation, verification, cutoff, reports, and Card projection." },
+  { feature = "feature/sim-runtime/incremental-query-organ", why = "The organ row owns SIM conversion, capability gates, shapes, reports, immutable completed-analysis projection, and loadable exports." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-incremental/src/tests", why = "The checked tests exercise registration, invalidation, verification, cutoff, reports, Card projection, and proof-backed analysis browsing." },
 ]
 
 [[route]]

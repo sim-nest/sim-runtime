@@ -7,7 +7,7 @@ use sim_kernel::{
 };
 use sim_shape::{AnyShape, ExprKindShape, ListShape, shape_value};
 
-use crate::IncrementalSession;
+use crate::{DataflowAnalysisView, IncrementalSession};
 
 /// Shape symbol for incremental engine session objects.
 pub fn incremental_engine_shape_symbol() -> Symbol {
@@ -27,6 +27,11 @@ pub fn incremental_query_expr_shape_symbol() -> Symbol {
 /// Shape symbol for projected reports.
 pub fn incremental_report_shape_symbol() -> Symbol {
     Symbol::qualified("incremental", "Report")
+}
+
+/// Shape symbol for immutable completed dataflow-analysis views.
+pub fn incremental_analysis_shape_symbol() -> Symbol {
+    Symbol::qualified("incremental", "Analysis")
 }
 
 pub(crate) fn register_incremental_shapes(
@@ -49,6 +54,10 @@ pub(crate) fn register_incremental_shapes(
         (
             incremental_report_shape_symbol(),
             Arc::new(AnyShape) as Arc<dyn Shape>,
+        ),
+        (
+            incremental_analysis_shape_symbol(),
+            Arc::new(AnalysisShape) as Arc<dyn Shape>,
         ),
     ] {
         linker.shape_value(symbol.clone(), shape_value(symbol, shape))?;
@@ -81,6 +90,34 @@ pub(crate) fn report_shape() -> Arc<dyn Shape> {
 }
 
 struct EngineShape;
+
+struct AnalysisShape;
+
+impl Shape for AnalysisShape {
+    fn symbol(&self) -> Option<Symbol> {
+        Some(incremental_analysis_shape_symbol())
+    }
+    fn check_value(&self, _cx: &mut Cx, value: Value) -> Result<ShapeMatch> {
+        Ok(
+            if value
+                .object()
+                .downcast_ref::<DataflowAnalysisView>()
+                .is_some()
+            {
+                ShapeMatch::accept(MatchScore::exact(100))
+            } else {
+                ShapeMatch::reject("completed incremental analysis expected")
+            },
+        )
+    }
+    fn check_expr(&self, cx: &mut Cx, expr: &Expr) -> Result<ShapeMatch> {
+        let value = cx.eval_expr(expr.clone())?;
+        self.check_value(cx, value)
+    }
+    fn describe(&self, _cx: &mut Cx) -> Result<ShapeDoc> {
+        Ok(ShapeDoc::new("IncrementalAnalysis"))
+    }
+}
 
 impl Shape for EngineShape {
     fn symbol(&self) -> Option<Symbol> {
