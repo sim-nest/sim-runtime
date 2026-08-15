@@ -4,8 +4,8 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::{
     ArenaError, EdgeAllocationError, EdgeAllocator, EdgeId, EdgeKind, EdgeVisitor,
-    HardCappedRetainPolicy, ManagedArena, ManagedId, ManagedNode, ManagedObject, ManagedRole,
-    StrongEdgeMutationError, TraceSnapshot, WeakEdgeMutationError,
+    EphemeronMutationError, HardCappedRetainPolicy, ManagedArena, ManagedId, ManagedNode,
+    ManagedObject, ManagedRole, StrongEdgeMutationError, TraceSnapshot, WeakEdgeMutationError,
 };
 
 #[derive(Clone, Debug)]
@@ -205,6 +205,65 @@ fn managed_node_weak_edges_mutate_trace_and_clear_exactly_once() {
         vec![
             (EdgeKind::Strong, strong, mismatch),
             (EdgeKind::Weak, after_clear, first_target),
+        ]
+    );
+    assert!(removed < strong && strong < retained && retained < after_clear);
+}
+
+#[test]
+fn managed_node_ephemerons_mutate_trace_and_clear_exact_pairs_once() {
+    let mut arena = arena(6);
+    let key = arena.allocate(Node::default()).unwrap().id();
+    let value = arena.allocate(Node::default()).unwrap().id();
+    let replacement_key = arena.allocate(Node::default()).unwrap().id();
+    let replacement_value = arena.allocate(Node::default()).unwrap().id();
+    let mismatch = arena.allocate(Node::default()).unwrap().id();
+    let mut node = ManagedNode::new(());
+    let removed = node.insert_ephemeron(key, value).unwrap();
+    let strong = node.insert_strong(mismatch).unwrap();
+    let retained = node.insert_ephemeron(key, value).unwrap();
+
+    node.replace_ephemeron(retained, (key, value), (replacement_key, replacement_value))
+        .unwrap();
+    assert_eq!(
+        node.remove_ephemeron(removed, (key, value)),
+        Ok((key, value))
+    );
+    let after_clear = node.insert_ephemeron(key, value).unwrap();
+
+    let before_mismatch = node.clone();
+    assert_eq!(
+        node.replace_ephemeron(retained, (mismatch, value), (key, value)),
+        Err(EphemeronMutationError::EntryChanged {
+            expected_key: mismatch,
+            expected_value: value,
+            actual_key: replacement_key,
+            actual_value: replacement_value,
+        })
+    );
+    assert_eq!(node, before_mismatch);
+    assert!(!node.clear_ephemeron_edge(retained, replacement_key, mismatch));
+    assert!(node.clear_ephemeron_edge(retained, replacement_key, replacement_value));
+    assert!(!node.clear_ephemeron_edge(retained, replacement_key, replacement_value));
+
+    #[derive(Default)]
+    struct OrderedTrace(Vec<(EdgeKind, EdgeId, ManagedId, ManagedId)>);
+    impl EdgeVisitor for OrderedTrace {
+        fn strong(&mut self, edge: EdgeId, target: ManagedId) {
+            self.0.push((EdgeKind::Strong, edge, target, target));
+        }
+        fn weak(&mut self, _edge: EdgeId, _target: ManagedId) {}
+        fn ephemeron(&mut self, edge: EdgeId, key: ManagedId, value: ManagedId) {
+            self.0.push((EdgeKind::Ephemeron, edge, key, value));
+        }
+    }
+    let mut traced = OrderedTrace::default();
+    node.trace_edges(&mut traced);
+    assert_eq!(
+        traced.0,
+        vec![
+            (EdgeKind::Strong, strong, mismatch, mismatch),
+            (EdgeKind::Ephemeron, after_clear, key, value),
         ]
     );
     assert!(removed < strong && strong < retained && retained < after_clear);

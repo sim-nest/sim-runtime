@@ -1,8 +1,59 @@
 // conformance: bounded stop-the-world tracing collection.
 
 use sim_lib_mutation::{
-    EdgeId, EdgeVisitor, HardCappedRetainPolicy, ManagedArena, ManagedId, ManagedObject,
+    EdgeId, EdgeVisitor, HardCappedRetainPolicy, ManagedArena, ManagedId, ManagedNode,
+    ManagedObject,
 };
+
+#[test]
+fn managed_node_ephemeron_chains_reach_fixpoint_without_values_retaining_keys() {
+    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(7).unwrap());
+    let root = arena.allocate(ManagedNode::new(())).unwrap();
+    let live_key = arena.allocate(ManagedNode::new(())).unwrap();
+    let first_value = arena.allocate(ManagedNode::new(())).unwrap();
+    let chained_key = arena.allocate(ManagedNode::new(())).unwrap();
+    let chained_value = arena.allocate(ManagedNode::new(())).unwrap();
+    let dead_key = arena.allocate(ManagedNode::new(())).unwrap();
+    let dead_value = arena.allocate(ManagedNode::new(())).unwrap();
+    arena
+        .get_mut(root)
+        .unwrap()
+        .insert_strong(live_key.id())
+        .unwrap();
+    arena
+        .get_mut(root)
+        .unwrap()
+        .insert_ephemeron(live_key.id(), first_value.id())
+        .unwrap();
+    let dead_edge = arena
+        .get_mut(root)
+        .unwrap()
+        .insert_ephemeron(dead_key.id(), dead_value.id())
+        .unwrap();
+    arena
+        .get_mut(first_value)
+        .unwrap()
+        .insert_strong(chained_key.id())
+        .unwrap();
+    arena
+        .get_mut(first_value)
+        .unwrap()
+        .insert_ephemeron(chained_key.id(), chained_value.id())
+        .unwrap();
+    let _ = arena.root(root).unwrap();
+
+    let first = collect(&mut arena, limits()).unwrap();
+    assert!(first.marked.contains(&first_value.id()));
+    assert!(first.marked.contains(&chained_value.id()));
+    assert!(!first.marked.contains(&dead_key.id()));
+    assert!(!first.marked.contains(&dead_value.id()));
+    assert!(first.swept.contains(&dead_key.id()));
+    assert!(first.swept.contains(&dead_value.id()));
+    assert_eq!(first.cleared_ephemerons, vec![(root.id(), dead_edge)]);
+
+    let second = collect(&mut arena, limits()).unwrap();
+    assert!(second.cleared_ephemerons.is_empty());
+}
 
 use std::sync::{Arc, Mutex};
 

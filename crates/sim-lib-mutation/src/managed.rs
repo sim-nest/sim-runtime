@@ -234,6 +234,56 @@ pub enum WeakEdgeMutationError {
     },
 }
 
+/// A failed checked mutation of an ephemeron entry.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EphemeronMutationError {
+    /// Allocating a stable identity for a new entry failed.
+    Allocation(EdgeAllocationError),
+    /// The requested identity is not a live ephemeron entry of this node.
+    UnknownEdge(EdgeId),
+    /// The entry exists, but no longer contains the caller's expected pair.
+    EntryChanged {
+        /// Key supplied by the caller as the mutation precondition.
+        expected_key: ManagedId,
+        /// Value supplied by the caller as the mutation precondition.
+        expected_value: ManagedId,
+        /// Current key, which was left unchanged.
+        actual_key: ManagedId,
+        /// Current value, which was left unchanged.
+        actual_value: ManagedId,
+    },
+}
+
+impl fmt::Display for EphemeronMutationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Allocation(error) => error.fmt(f),
+            Self::UnknownEdge(edge) => write!(f, "unknown ephemeron edge {}", edge.0),
+            Self::EntryChanged {
+                expected_key,
+                expected_value,
+                actual_key,
+                actual_value,
+            } => write!(
+                f,
+                "ephemeron entry changed from ({}, {}) to ({}, {})",
+                expected_key.allocation_ordinal(),
+                expected_value.allocation_ordinal(),
+                actual_key.allocation_ordinal(),
+                actual_value.allocation_ordinal()
+            ),
+        }
+    }
+}
+
+impl Error for EphemeronMutationError {}
+
+impl From<EdgeAllocationError> for EphemeronMutationError {
+    fn from(error: EdgeAllocationError) -> Self {
+        Self::Allocation(error)
+    }
+}
+
 impl fmt::Display for WeakEdgeMutationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -291,6 +341,7 @@ pub struct ManagedNode<R> {
     edges: EdgeAllocator,
     strong: BTreeMap<EdgeId, ManagedId>,
     weak: BTreeMap<EdgeId, ManagedId>,
+    ephemerons: BTreeMap<EdgeId, (ManagedId, ManagedId)>,
 }
 
 impl<R> ManagedNode<R> {
@@ -301,6 +352,7 @@ impl<R> ManagedNode<R> {
             edges: EdgeAllocator::new(),
             strong: BTreeMap::new(),
             weak: BTreeMap::new(),
+            ephemerons: BTreeMap::new(),
         }
     }
 
@@ -411,27 +463,91 @@ impl<R> ManagedNode<R> {
             .remove(&edge)
             .expect("edge checked immediately before removal"))
     }
+
+    /// Inserts an ephemeron entry and returns its stable identity.
+    pub fn insert_ephemeron(
+        &mut self,
+        key: ManagedId,
+        value: ManagedId,
+    ) -> Result<EdgeId, EphemeronMutationError> {
+        let edge = self.edges.allocate(EdgeKind::Ephemeron)?.id();
+        let previous = self.ephemerons.insert(edge, (key, value));
+        debug_assert!(previous.is_none(), "fresh edge identity must be vacant");
+        Ok(edge)
+    }
+
+    /// Replaces an ephemeron only if it still contains the expected pair.
+    pub fn replace_ephemeron(
+        &mut self,
+        edge: EdgeId,
+        expected: (ManagedId, ManagedId),
+        replacement: (ManagedId, ManagedId),
+    ) -> Result<(), EphemeronMutationError> {
+        let entry = self
+            .ephemerons
+            .get_mut(&edge)
+            .ok_or(EphemeronMutationError::UnknownEdge(edge))?;
+        if *entry != expected {
+            return Err(EphemeronMutationError::EntryChanged {
+                expected_key: expected.0,
+                expected_value: expected.1,
+                actual_key: entry.0,
+                actual_value: entry.1,
+            });
+        }
+        *entry = replacement;
+        Ok(())
+    }
+
+    /// Removes an ephemeron only if it still contains the expected pair.
+    pub fn remove_ephemeron(
+        &mut self,
+        edge: EdgeId,
+        expected: (ManagedId, ManagedId),
+    ) -> Result<(ManagedId, ManagedId), EphemeronMutationError> {
+        let actual = self
+            .ephemerons
+            .get(&edge)
+            .copied()
+            .ok_or(EphemeronMutationError::UnknownEdge(edge))?;
+        if actual != expected {
+            return Err(EphemeronMutationError::EntryChanged {
+                expected_key: expected.0,
+                expected_value: expected.1,
+                actual_key: actual.0,
+                actual_value: actual.1,
+            });
+        }
+        Ok(self
+            .ephemerons
+            .remove(&edge)
+            .expect("entry checked immediately before removal"))
+    }
 }
 
 impl<R> ManagedObject for ManagedNode<R> {
     fn trace_edges(&self, visitor: &mut dyn EdgeVisitor) {
-        let mut strong = self.strong.iter().peekable();
-        let mut weak = self.weak.iter().peekable();
-        while strong.peek().is_some() || weak.peek().is_some() {
-            match (strong.peek(), weak.peek()) {
-                (Some(&(&strong_edge, _)), Some(&(&weak_edge, _))) if strong_edge < weak_edge => {
-                    let (&edge, &target) = strong.next().expect("peeked strong edge");
-                    visitor.strong(edge, target);
-                }
-                (Some(_), Some(_)) | (None, Some(_)) => {
-                    let (&edge, &target) = weak.next().expect("peeked weak edge");
-                    visitor.weak(edge, target);
-                }
-                (Some(_), None) => {
-                    let (&edge, &target) = strong.next().expect("peeked strong edge");
-                    visitor.strong(edge, target);
-                }
-                (None, None) => unreachable!("loop requires an edge"),
+        let mut edges = self
+            .strong
+            .iter()
+            .map(|(&edge, &target)| (edge, EdgeKind::Strong, target, target))
+            .chain(
+                self.weak
+                    .iter()
+                    .map(|(&edge, &target)| (edge, EdgeKind::Weak, target, target)),
+            )
+            .chain(
+                self.ephemerons
+                    .iter()
+                    .map(|(&edge, &(key, value))| (edge, EdgeKind::Ephemeron, key, value)),
+            )
+            .collect::<Vec<_>>();
+        edges.sort_unstable_by_key(|entry| entry.0);
+        for (edge, kind, first, second) in edges {
+            match kind {
+                EdgeKind::Strong => visitor.strong(edge, first),
+                EdgeKind::Weak => visitor.weak(edge, first),
+                EdgeKind::Ephemeron => visitor.ephemeron(edge, first, second),
             }
         }
     }
@@ -441,6 +557,18 @@ impl<R> ManagedObject for ManagedNode<R> {
             return false;
         }
         self.weak.remove(&edge).is_some()
+    }
+
+    fn clear_ephemeron_edge(
+        &mut self,
+        edge: EdgeId,
+        expected_key: ManagedId,
+        expected_value: ManagedId,
+    ) -> bool {
+        if self.ephemerons.get(&edge) != Some(&(expected_key, expected_value)) {
+            return false;
+        }
+        self.ephemerons.remove(&edge).is_some()
     }
 }
 
