@@ -30,9 +30,9 @@ pub enum StackError {
 
 /// A bounded LIFO stack measured in policy-defined logical units.
 pub struct UnitStack<P: ValueWidthPolicy> {
-    values: Vec<P::Value>,
-    depth: usize,
-    limit: WorkLimit,
+    pub(crate) values: Vec<P::Value>,
+    pub(crate) depth: usize,
+    pub(crate) limit: WorkLimit,
     _policy: PhantomData<P>,
 }
 

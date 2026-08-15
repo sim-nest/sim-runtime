@@ -5,9 +5,11 @@
 //! This crate intentionally provides no policy implementation and no execution
 //! engine. Consumers supply every semantic choice through the traits below.
 
+mod shuffle;
 mod slots;
 mod stack;
 
+pub use shuffle::{ShuffleError, ShufflePlan};
 pub use slots::{SlotError, SlotFile};
 pub use stack::{StackError, UnitStack};
 
