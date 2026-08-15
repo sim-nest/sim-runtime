@@ -2,11 +2,12 @@
 #![deny(missing_docs)]
 //! Policy contracts for neutral, bounded decoded-instruction machines.
 //!
-//! This crate intentionally provides no policy implementation and no execution
-//! engine. Consumers supply every semantic choice through the traits below.
+//! Consumers supply every semantic choice through the traits below; the execution
+//! engine only owns bounded, iterative control transfer.
 
 mod admission;
 mod code;
+mod driver;
 mod frame;
 mod shuffle;
 mod slots;
@@ -14,6 +15,10 @@ mod stack;
 
 pub use admission::{
     AdmissionError, AdmissionLimits, AdmissionPolicy, MachineDescription, MachinePermit,
+};
+pub use driver::{
+    DriveError, DriveOutcome, DriveResult, Driver, InstructionDriverPolicy, LocatedFault,
+    MachineFrame, PolicyStep, StepKind, StepOutcome, WorkReceipt,
 };
 pub use frame::{
     CallTransfer, Frame, FrameStack, FrameStackError, ReturnTransfer, Transfer, TransferError,
