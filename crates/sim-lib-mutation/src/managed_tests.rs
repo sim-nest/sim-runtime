@@ -3,8 +3,8 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::{
-    ArenaError, EdgeId, EdgeVisitor, HardCappedRetainPolicy, ManagedArena, ManagedId,
-    ManagedObject, TraceSnapshot,
+    ArenaError, EdgeAllocationError, EdgeAllocator, EdgeId, EdgeKind, EdgeVisitor,
+    HardCappedRetainPolicy, ManagedArena, ManagedId, ManagedObject, ManagedRole, TraceSnapshot,
 };
 
 #[derive(Clone, Debug)]
@@ -36,6 +36,53 @@ impl ManagedObject for Node {
             _ => false,
         }
     }
+}
+
+#[test]
+fn edge_ids_are_monotonic_typed_and_never_reused() {
+    let mut allocator = EdgeAllocator::new();
+    let first = allocator.allocate(EdgeKind::Strong).unwrap();
+    let removed = first;
+    let second = allocator.allocate(EdgeKind::Weak).unwrap();
+
+    assert_eq!(removed.id().allocation_ordinal(), 0);
+    assert_eq!(removed.kind(), EdgeKind::Strong);
+    assert_eq!(second.id().allocation_ordinal(), 1);
+    assert_eq!(second.kind(), EdgeKind::Weak);
+    assert!(removed.id() < second.id());
+}
+
+#[test]
+fn edge_identity_overflow_fails_closed() {
+    let mut allocator = EdgeAllocator::starting_at(u32::MAX);
+    let last = allocator.allocate(EdgeKind::Ephemeron).unwrap();
+    assert_eq!(last.id().allocation_ordinal(), u32::MAX);
+    assert_eq!(last.kind(), EdgeKind::Ephemeron);
+    assert_eq!(
+        allocator.allocate(EdgeKind::Strong),
+        Err(EdgeAllocationError::IdentityExhausted)
+    );
+    assert_eq!(
+        allocator.allocate(EdgeKind::Weak),
+        Err(EdgeAllocationError::IdentityExhausted)
+    );
+}
+
+#[test]
+fn generic_role_changes_are_graph_neutral() {
+    let mut role = ManagedRole::new(String::from("instance"));
+    let mut allocator = EdgeAllocator::new();
+    let before = [
+        allocator.allocate(EdgeKind::Strong).unwrap(),
+        allocator.allocate(EdgeKind::Weak).unwrap(),
+    ];
+
+    assert_eq!(role.replace_role(String::from("prototype")), "instance");
+    assert_eq!(role.role(), "prototype");
+
+    let after = allocator.allocate(EdgeKind::Strong).unwrap();
+    assert_eq!(before.map(|edge| edge.id().allocation_ordinal()), [0, 1]);
+    assert_eq!(after.id().allocation_ordinal(), 2);
 }
 
 #[derive(Default)]

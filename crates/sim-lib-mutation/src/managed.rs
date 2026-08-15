@@ -76,8 +76,131 @@ impl WeakHandle {
 }
 
 /// Stable identity of an edge within its owning object.
+///
+/// Identities are allocated monotonically by [`EdgeAllocator`]. They are local
+/// to one managed object, remain ordered by allocation, and are never reused.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct EdgeId(pub u32);
+
+impl EdgeId {
+    /// Returns the zero-based allocation ordinal within the owning object.
+    pub const fn allocation_ordinal(self) -> u32 {
+        self.0
+    }
+}
+
+/// The collection semantics of a managed edge.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub enum EdgeKind {
+    /// A retaining edge.
+    Strong,
+    /// A non-retaining edge that may be cleared.
+    Weak,
+    /// A key/value edge whose value is retained only by a reachable key.
+    Ephemeron,
+}
+
+/// An edge identity paired with its immutable collection semantics.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub struct TypedEdgeId {
+    id: EdgeId,
+    kind: EdgeKind,
+}
+
+impl TypedEdgeId {
+    /// Returns the stable identity.
+    pub const fn id(self) -> EdgeId {
+        self.id
+    }
+
+    /// Returns the edge's collection semantics.
+    pub const fn kind(self) -> EdgeKind {
+        self.kind
+    }
+}
+
+/// Fail-closed edge allocation errors.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EdgeAllocationError {
+    /// The per-object edge identity space is exhausted.
+    IdentityExhausted,
+}
+
+impl fmt::Display for EdgeAllocationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::IdentityExhausted => f.write_str("managed edge identity space exhausted"),
+        }
+    }
+}
+
+impl Error for EdgeAllocationError {}
+
+/// Monotonic, per-object allocation of stable edge identities.
+///
+/// Removing an edge is deliberately not an allocator operation: allocated
+/// identities are evidence and remain consumed for the lifetime of their
+/// owner. Once the `u32` identity space is exhausted, every later allocation
+/// fails without changing allocator state.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EdgeAllocator {
+    next: Option<u32>,
+}
+
+impl EdgeAllocator {
+    /// Creates an allocator whose first identity has ordinal zero.
+    pub const fn new() -> Self {
+        Self { next: Some(0) }
+    }
+
+    /// Allocates the next identity with immutable `kind` semantics.
+    pub fn allocate(&mut self, kind: EdgeKind) -> Result<TypedEdgeId, EdgeAllocationError> {
+        let ordinal = self.next.ok_or(EdgeAllocationError::IdentityExhausted)?;
+        self.next = ordinal.checked_add(1);
+        Ok(TypedEdgeId {
+            id: EdgeId(ordinal),
+            kind,
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn starting_at(next: u32) -> Self {
+        Self { next: Some(next) }
+    }
+}
+
+impl Default for EdgeAllocator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Caller-owned role evidence kept separate from managed graph identity.
+///
+/// Changing a role cannot allocate, remove, renumber, or reorder an edge. The
+/// role type is intentionally generic so guests may use open role vocabularies
+/// without introducing a global enum in the managed-graph substrate.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ManagedRole<R> {
+    role: R,
+}
+
+impl<R> ManagedRole<R> {
+    /// Wraps caller-owned role evidence.
+    pub const fn new(role: R) -> Self {
+        Self { role }
+    }
+
+    /// Borrows the current role.
+    pub const fn role(&self) -> &R {
+        &self.role
+    }
+
+    /// Replaces the role and returns the previous evidence.
+    pub fn replace_role(&mut self, role: R) -> R {
+        std::mem::replace(&mut self.role, role)
+    }
+}
 
 /// Receives every outgoing managed edge of an object.
 pub trait EdgeVisitor {
