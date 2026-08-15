@@ -11,5 +11,9 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 
 [dependencies]
 
+[dev-dependencies]
+sim-kernel = "0.2.0"
+sim-lib-machine = { version = "0.1.0", path = "../sim-lib-machine" }
+
 [lints]
 workspace = true
