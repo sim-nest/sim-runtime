@@ -31,9 +31,12 @@ fn production_surface_has_no_global_body_registry() {
 }
 
 #[test]
-fn manifest_does_not_depend_on_generic_dispatch() {
-    let manifest = fs::read_to_string(crate_root().join("Cargo.toml")).unwrap();
-    assert!(!manifest.contains("sim-lib-dispatch"));
+fn generic_dispatch_is_confined_to_the_opt_in_adapter() {
+    let instance = fs::read_to_string(crate_root().join("src/instance.rs")).unwrap();
+    let adapter = fs::read_to_string(crate_root().join("src/callable.rs")).unwrap();
+    assert!(!instance.contains("GenericFunction"));
+    assert!(!instance.contains("DispatchMethod"));
+    assert!(adapter.contains("dispatch_method_body"));
 }
 
 #[test]

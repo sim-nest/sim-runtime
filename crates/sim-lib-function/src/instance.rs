@@ -165,6 +165,19 @@ impl<B: FunctionBodyPolicy> FunctionInstance<B> {
     pub const fn result_shape(&self) -> Option<&ShapeRef> {
         self.node.role().result_shape.as_ref()
     }
+
+    /// Invokes the guest policy through the neutral evaluated-value boundary.
+    ///
+    /// Kernel calls and optional dispatch-method adaptation both use this path,
+    /// so neither surface can change the policy-visible [`BoundCall`].
+    pub(crate) fn invoke_values(&self, cx: &mut Cx, values: Vec<Value>) -> KernelResult<Value> {
+        self.body().invoke(
+            cx,
+            self.plan(),
+            self.captures(),
+            bind(CallInput::from(Args::new(values))),
+        )
+    }
 }
 
 impl<B: FunctionBodyPolicy> ManagedObject for FunctionInstance<B> {
@@ -209,12 +222,7 @@ impl<B: FunctionBodyPolicy> ObjectCompat for FunctionInstance<B> {
 
 impl<B: FunctionBodyPolicy> Callable for FunctionInstance<B> {
     fn call(&self, cx: &mut Cx, args: Args) -> KernelResult<Value> {
-        self.body().invoke(
-            cx,
-            self.plan(),
-            self.captures(),
-            bind(CallInput::from(args)),
-        )
+        self.invoke_values(cx, args.into_vec())
     }
 
     fn browse_args_shape(&self, _cx: &mut Cx) -> KernelResult<Option<ShapeRef>> {
