@@ -10,6 +10,7 @@ mod characterization;
 mod descriptor;
 mod inventory;
 mod lineage;
+mod protocol;
 
 pub use cache::{
     CacheAccess, CacheAccessKind, CacheError, CacheRevisions, ClassCache, ClassRoot,
@@ -31,6 +32,7 @@ pub use lineage::{
     C3Policy, DeclaredOrderPolicy, LineageBudget, LineageError, LineageGraph, LineagePolicy,
     PrecedenceConstraint,
 };
+pub use protocol::{ClassConstructor, DescriptorClass, SubclassEvidence, SubclassQuery};
 
 #[cfg(test)]
 mod tests;
