@@ -10,6 +10,7 @@
 //! polyglot/profile support, and read/construct.
 
 pub mod cap;
+pub mod characterization;
 pub mod claims;
 pub mod diff;
 pub mod fidelity;
@@ -28,6 +29,10 @@ pub mod read_construct;
 pub mod registry;
 
 pub use cap::{standard_diff_capability, standard_install_capability, standard_test_capability};
+pub use characterization::{
+    EVIDENCE_LANE_INVENTORY, EXPLICIT_PROJECTION_FIELDS, EvidenceLane, EvidenceLaneInventory,
+    ExplicitProjectionField, characterization_source_fixtures,
+};
 pub use claims::{
     publish_badge_claims, publish_badge_claims_for_lib, publish_profile_claims,
     publish_profile_claims_for_lib, standard_capability_predicate, standard_eval_policy_predicate,
