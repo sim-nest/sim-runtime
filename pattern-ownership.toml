@@ -1,0 +1,57 @@
+schema = "sim.pattern-ownership/v1"
+owner = "crates/sim-lib-pattern"
+remediation = "Lower guest syntax into sim-lib-pattern PatternProgram and execute it through the bounded shared matcher."
+guest_crate_prefix = "sim-lib-lang-"
+roadmap_family_terms = ["PATTERN_", "PATTERN2."]
+
+# A private matcher is identified structurally: retained automaton state together
+# with transitions, or a recursive/backtracking match driver. Individual words
+# such as `state`, `match`, or `parser` are intentionally not findings.
+state_fields = ["states", "state_set", "active_states", "backtrack_stack", "choice_stack"]
+transition_fields = ["transitions", "edges", "epsilon_edges", "instructions", "program"]
+driver_names = ["backtrack", "match_from", "match_here", "run_nfa", "run_matcher"]
+
+[[approved_relationship]]
+path = "crates/sim-lib-lang-lua/src/stdlib_string_pattern.rs"
+class = "syntax-parser"
+reason = "Lua owns surface syntax and lowers it through LuaPatternDialect into the shared pattern program."
+
+[[approved_relationship]]
+path = "crates/sim-lib-lang-lua/src/pattern_replace.rs"
+class = "policy-adapter"
+reason = "Lua replacement and capture policy wraps shared matcher results without owning execution state."
+
+[[approved_relationship]]
+path = "crates/sim-lib-lang-javascript/src/regexp.rs"
+class = "syntax-parser"
+reason = "JavaScript owns RegExp syntax and flag policy while execution delegates to sim-lib-pattern."
+
+[[overlap]]
+name = "lua-pattern-syntax"
+path = "crates/sim-lib-pattern/src/lua_dialect.rs"
+class = "shared-owner"
+reason = "The canonical dialect parser produces the shared PatternProgram and owns no guest matcher."
+
+[[overlap]]
+name = "glob-pattern-syntax"
+path = "crates/sim-lib-pattern/src/glob_dialect.rs"
+class = "shared-owner"
+reason = "The canonical dialect parser produces the shared PatternProgram and owns no guest matcher."
+
+[[overlap]]
+name = "javascript-regexp-syntax"
+path = "crates/sim-lib-lang-javascript/src/regexp.rs"
+class = "syntax-parser"
+reason = "The guest adapter parses admitted JavaScript syntax and delegates matching to the shared owner."
+
+[[overlap]]
+name = "lua-string-policy"
+path = "crates/sim-lib-lang-lua/src/stdlib_string_pattern.rs"
+class = "policy-adapter"
+reason = "The guest adapter preserves Lua-facing captures and errors around the shared matcher."
+
+[[overlap]]
+name = "lua-replacement-policy"
+path = "crates/sim-lib-lang-lua/src/pattern_replace.rs"
+class = "policy-adapter"
+reason = "The guest adapter applies Lua replacement policy to shared matcher spans."
