@@ -11,3 +11,6 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 
 [lints]
 workspace = true
+
+[dependencies]
+sim-lib-control = { version = "0.1.5", path = "../sim-lib-control" }

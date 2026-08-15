@@ -5,6 +5,12 @@
 //! This crate intentionally provides no policy implementation and no execution
 //! engine. Consumers supply every semantic choice through the traits below.
 
+mod slots;
+mod stack;
+
+pub use slots::{SlotError, SlotFile};
+pub use stack::{StackError, UnitStack};
+
 /// Supplies stable instruction identity and the consumer's decoded form.
 ///
 /// For example, a WebAssembly decoder or a BEAM loader can supply this policy.
