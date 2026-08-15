@@ -1,19 +1,20 @@
 //! Faithful, deliberately narrow ECMAScript RegExp compiler.
 
-use sim_lib_pattern::{TextClass, TextLimits, TextMatch, TextOp, run_text_pattern};
+use sim_lib_pattern::{
+    Anchor, Automaton, CaptureId, CodeUnitDomain, DomainExecutionOutcome, EnginePolicy, IrNode,
+    PatternIr, RepeatBounds, TextLimits, TextMatch, compile, execute_code_units,
+};
+use sim_text::CodeUnitString;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// Required successor for usable ECMAScript regular expressions.
-pub const JAVASCRIPT_REGEXP_SUCCESSOR: &str = "JAVA_SCRIPT_6 pattern-engine work";
+pub const JAVASCRIPT_REGEXP_SUCCESSOR: &str = "remaining ECMAScript RegExp clauses";
 
 /// An explicitly unsupported ECMAScript RegExp clause.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum JavascriptRegExpGap {
     /// Any flag (`d g i m s u v y`) is currently rejected; no stateful `lastIndex` is emulated.
     Flags,
-    /// Alternation.
-    Alternation,
-    /// Capturing and noncapturing groups.
-    Groups,
     /// Backreferences.
     Backreferences,
     /// Lookahead or lookbehind.
@@ -22,20 +23,15 @@ pub enum JavascriptRegExpGap {
     UnicodeProperties,
     /// Word-boundary assertions.
     WordBoundary,
-    /// Counted quantifiers (`{m,n}`).
-    CountedQuantifiers,
 }
 /// Exact first-release gap manifest.
 pub const fn javascript_regexp_gaps() -> &'static [JavascriptRegExpGap] {
     &[
         JavascriptRegExpGap::Flags,
-        JavascriptRegExpGap::Alternation,
-        JavascriptRegExpGap::Groups,
         JavascriptRegExpGap::Backreferences,
         JavascriptRegExpGap::Lookaround,
         JavascriptRegExpGap::UnicodeProperties,
         JavascriptRegExpGap::WordBoundary,
-        JavascriptRegExpGap::CountedQuantifiers,
     ]
 }
 /// RegExp admission error; unsupported syntax is never approximated.
@@ -55,170 +51,386 @@ pub enum JavascriptRegExpError {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct JavascriptRegExp {
     source: String,
-    ops: Vec<TextOp>,
+    automaton: Automaton<u16, CodeUnitClass>,
+    anchored_start: bool,
 }
 impl JavascriptRegExp {
-    /// Compile the v1 intersection: literals, `.`, `^`, `$`, simple classes,
-    /// `\d \D \s \S \w \W`, and greedy/lazy `? * +` quantifiers.
+    /// Compile the regular intersection, including alternation, groups,
+    /// captures, anchors, classes, and greedy/lazy counted quantifiers.
     pub fn compile(source: &str, flags: &str) -> Result<Self, JavascriptRegExpError> {
         if let Some(flag) = flags.chars().next() {
             return Err(JavascriptRegExpError::UnsupportedFlag(flag));
         }
-        let chars: Vec<(usize, char)> = source.char_indices().collect();
-        let mut at = 0;
-        let mut ops = Vec::new();
-        while at < chars.len() {
-            let (offset, ch) = chars[at];
-            match ch {
-                '^' if at == 0 => ops.push(TextOp::AnchorStart),
-                '$' if at + 1 == chars.len() => ops.push(TextOp::AnchorEnd),
-                '.' => ops.push(TextOp::Any),
-                '[' => {
-                    let (class, next) = compile_class(&chars, at)?;
-                    ops.push(TextOp::Class(class));
-                    at = next - 1;
-                }
-                '\\' => {
-                    at += 1;
-                    let Some((_, escaped)) = chars.get(at).copied() else {
-                        return Err(syntax(offset, "trailing escape"));
-                    };
-                    ops.push(escape_atom(escaped, offset)?);
-                }
-                '*' | '+' | '?' => {
-                    let (min, max) = match ch {
-                        '*' => (0, None),
-                        '+' => (1, None),
-                        '?' => (0, Some(1)),
-                        _ => unreachable!(),
-                    };
-                    if !matches!(
-                        ops.last(),
-                        Some(TextOp::Literal(_) | TextOp::Any | TextOp::Class(_))
-                    ) {
-                        return Err(syntax(offset, "quantifier has no admissible atom"));
-                    }
-                    let lazy = chars.get(at + 1).is_some_and(|(_, c)| *c == '?');
-                    ops.push(TextOp::Repeat {
-                        min,
-                        max,
-                        greedy: !lazy,
-                    });
-                    if lazy {
-                        at += 1;
-                    }
-                }
-                '|' | '(' | ')' | '{' | '}' => {
-                    return Err(syntax(
-                        offset,
-                        "syntax requires JAVA_SCRIPT_6 pattern-engine work",
-                    ));
-                }
-                _ => ops.push(TextOp::Literal(ch)),
-            }
-            at += 1;
-        }
+        let root = Parser::new(source).parse()?;
+        let policy = EnginePolicy::new(classes_in(&root));
+        let ir = PatternIr::<CodeUnitDomain, CodeUnitClass>::new(root, BTreeMap::new(), &policy)
+            .map_err(|_| syntax(0, "invalid regular expression"))?;
         Ok(Self {
             source: source.into(),
-            ops,
+            automaton: compile(&ir),
+            anchored_start: source.starts_with('^'),
         })
     }
     /// Original source.
     pub fn source(&self) -> &str {
         &self.source
     }
-    /// Inspect the shared-VM program.
-    pub fn ops(&self) -> &[TextOp] {
-        &self.ops
-    }
-    /// Execute under an explicit shared-VM step bound.
+    /// Execute under an explicit shared-engine transition bound.
+    /// Match and capture offsets are ECMAScript UTF-16 code-unit offsets.
     pub fn find(&self, subject: &str, init: usize, max_steps: usize) -> Option<TextMatch> {
-        run_text_pattern(
-            &self.ops,
-            subject,
-            init,
-            TextLimits {
-                max_steps,
-                ..TextLimits::default()
-            },
-        )
+        let subject = CodeUnitString::from_scalar(subject);
+        let mut starts = if self.anchored_start {
+            (init == 0).then_some(0..=0)
+        } else {
+            Some(init..=subject.len())
+        }?;
+        starts.find_map(|start| {
+            let tail = CodeUnitString::from_code_units(subject.as_code_units()[start..].to_vec());
+            match execute_code_units(
+                &self.automaton,
+                &tail,
+                TextLimits {
+                    max_steps,
+                    ..TextLimits::default()
+                },
+                |class, unit| class.matches(*unit),
+            ) {
+                DomainExecutionOutcome::Match { matched, .. } => Some(TextMatch {
+                    start: start + matched.start.get(),
+                    end: start + matched.end.get(),
+                    captures: matched
+                        .captures
+                        .values()
+                        .map(|span| (start + span.start.get(), start + span.end.get()))
+                        .collect(),
+                }),
+                _ => None,
+            }
+        })
     }
 }
 fn syntax(offset: usize, reason: &'static str) -> JavascriptRegExpError {
     JavascriptRegExpError::UnsupportedSyntax { offset, reason }
 }
-fn escape_atom(ch: char, offset: usize) -> Result<TextOp, JavascriptRegExpError> {
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum CodeUnitClass {
+    Digit(bool),
+    Space(bool),
+    Word(bool),
+    LineTerminator(bool),
+    Set {
+        units: Vec<u16>,
+        ranges: Vec<(u16, u16)>,
+        classes: Vec<CodeUnitClass>,
+        negated: bool,
+    },
+}
+impl CodeUnitClass {
+    fn matches(&self, unit: u16) -> bool {
+        match self {
+            Self::Digit(negated) => (b'0' as u16..=b'9' as u16).contains(&unit) != *negated,
+            Self::Space(negated) => {
+                matches!(unit, 0x09..=0x0d | 0x20 | 0x00a0 | 0x1680 | 0x2000..=0x200a | 0x2028 | 0x2029 | 0x202f | 0x205f | 0x3000 | 0xfeff)
+                    != *negated
+            }
+            Self::Word(negated) => {
+                ((b'0' as u16..=b'9' as u16).contains(&unit)
+                    || (b'A' as u16..=b'Z' as u16).contains(&unit)
+                    || (b'a' as u16..=b'z' as u16).contains(&unit)
+                    || unit == b'_' as u16)
+                    != *negated
+            }
+            Self::LineTerminator(negated) => {
+                matches!(unit, 0x0a | 0x0d | 0x2028 | 0x2029) != *negated
+            }
+            Self::Set {
+                units,
+                ranges,
+                classes,
+                negated,
+            } => {
+                (units.contains(&unit)
+                    || ranges.iter().any(|(a, b)| *a <= unit && unit <= *b)
+                    || classes.iter().any(|class| class.matches(unit)))
+                    != *negated
+            }
+        }
+    }
+}
+fn classes_in(root: &IrNode<u16, CodeUnitClass>) -> BTreeSet<CodeUnitClass> {
+    fn visit(node: &IrNode<u16, CodeUnitClass>, found: &mut BTreeSet<CodeUnitClass>) {
+        match node {
+            IrNode::Extension(class) => {
+                found.insert(class.clone());
+            }
+            IrNode::Concat(nodes) | IrNode::Alternation(nodes) => {
+                nodes.iter().for_each(|node| visit(node, found))
+            }
+            IrNode::Repeat { node, .. } | IrNode::Group(node) | IrNode::Capture { node, .. } => {
+                visit(node, found)
+            }
+            IrNode::Symbol(_) | IrNode::Any | IrNode::Anchor(_) | IrNode::Assertion(_) => {}
+        }
+    }
+    let mut found = BTreeSet::new();
+    visit(root, &mut found);
+    found
+}
+fn escape_atom(
+    ch: char,
+    offset: usize,
+) -> Result<IrNode<u16, CodeUnitClass>, JavascriptRegExpError> {
     Ok(match ch {
-        'd' => TextOp::Class(TextClass::Digit),
-        'D' => TextOp::Class(TextClass::Not(Box::new(TextClass::Digit))),
-        's' => TextOp::Class(TextClass::Space),
-        'S' => TextOp::Class(TextClass::Not(Box::new(TextClass::Space))),
-        'w' => TextOp::Class(TextClass::Alnum),
-        'W' => TextOp::Class(TextClass::Not(Box::new(TextClass::Alnum))),
+        'd' => IrNode::Extension(CodeUnitClass::Digit(false)),
+        'D' => IrNode::Extension(CodeUnitClass::Digit(true)),
+        's' => IrNode::Extension(CodeUnitClass::Space(false)),
+        'S' => IrNode::Extension(CodeUnitClass::Space(true)),
+        'w' => IrNode::Extension(CodeUnitClass::Word(false)),
+        'W' => IrNode::Extension(CodeUnitClass::Word(true)),
         'b' | 'B' => return Err(syntax(offset, "word-boundary assertions are unsupported")),
         '1'..='9' => return Err(syntax(offset, "backreferences are unsupported")),
         'p' | 'P' => return Err(syntax(offset, "Unicode property escapes are unsupported")),
-        other => TextOp::Literal(other),
+        other => literal(other),
     })
 }
-fn compile_class(
-    chars: &[(usize, char)],
-    start: usize,
-) -> Result<(TextClass, usize), JavascriptRegExpError> {
-    let offset = chars[start].0;
-    let mut at = start + 1;
-    let negated = chars.get(at).is_some_and(|(_, c)| *c == '^');
-    if negated {
-        at += 1;
+fn literal(ch: char) -> IrNode<u16, CodeUnitClass> {
+    let nodes = ch
+        .encode_utf16(&mut [0; 2])
+        .iter()
+        .copied()
+        .map(IrNode::Symbol)
+        .collect::<Vec<_>>();
+    if nodes.len() == 1 {
+        nodes.into_iter().next().unwrap()
+    } else {
+        IrNode::Concat(nodes)
     }
-    let mut literals = Vec::new();
-    let mut ranges = Vec::new();
-    let mut classes = Vec::new();
-    while let Some((pos, ch)) = chars.get(at).copied() {
-        if ch == ']' && at > start + 1 {
-            return Ok((
-                TextClass::Set {
-                    chars: literals,
+}
+
+struct Parser {
+    chars: Vec<(usize, char)>,
+    at: usize,
+    capture: u32,
+}
+impl Parser {
+    fn new(source: &str) -> Self {
+        Self {
+            chars: source.char_indices().collect(),
+            at: 0,
+            capture: 0,
+        }
+    }
+    fn parse(mut self) -> Result<IrNode<u16, CodeUnitClass>, JavascriptRegExpError> {
+        let root = self.alternation()?;
+        if let Some((offset, _)) = self.peek() {
+            return Err(syntax(offset, "unmatched closing parenthesis"));
+        }
+        Ok(root)
+    }
+    fn alternation(&mut self) -> Result<IrNode<u16, CodeUnitClass>, JavascriptRegExpError> {
+        let mut branches = vec![self.sequence()?];
+        while self.take('|') {
+            branches.push(self.sequence()?);
+        }
+        Ok(if branches.len() == 1 {
+            branches.pop().unwrap()
+        } else {
+            IrNode::Alternation(branches)
+        })
+    }
+    fn sequence(&mut self) -> Result<IrNode<u16, CodeUnitClass>, JavascriptRegExpError> {
+        let mut nodes = Vec::new();
+        while self.peek().is_some_and(|(_, ch)| ch != ')' && ch != '|') {
+            nodes.push(self.quantified()?);
+        }
+        Ok(IrNode::Concat(nodes))
+    }
+    fn quantified(&mut self) -> Result<IrNode<u16, CodeUnitClass>, JavascriptRegExpError> {
+        let mut node = self.atom()?;
+        let Some((offset, ch)) = self.peek() else {
+            return Ok(node);
+        };
+        let bounds = match ch {
+            '*' => {
+                self.at += 1;
+                Some(RepeatBounds::new(0, None).unwrap())
+            }
+            '+' => {
+                self.at += 1;
+                Some(RepeatBounds::new(1, None).unwrap())
+            }
+            '?' => {
+                self.at += 1;
+                Some(RepeatBounds::new(0, Some(1)).unwrap())
+            }
+            '{' => Some(self.counted(offset)?),
+            _ => None,
+        };
+        if let Some(bounds) = bounds {
+            let greedy = !self.take('?');
+            node = IrNode::Repeat {
+                node: Box::new(node),
+                bounds,
+                greedy,
+            };
+        }
+        Ok(node)
+    }
+    fn counted(&mut self, offset: usize) -> Result<RepeatBounds, JavascriptRegExpError> {
+        self.at += 1;
+        let min = self
+            .number()
+            .ok_or_else(|| syntax(offset, "malformed counted quantifier"))?;
+        let max = if self.take('}') {
+            Some(min)
+        } else if self.take(',') {
+            let max = self.number();
+            if !self.take('}') {
+                return Err(syntax(offset, "unterminated counted quantifier"));
+            }
+            max
+        } else {
+            return Err(syntax(offset, "malformed counted quantifier"));
+        };
+        RepeatBounds::new(min, max)
+            .map_err(|_| syntax(offset, "counted quantifier maximum is below minimum"))
+    }
+    fn number(&mut self) -> Option<usize> {
+        let start = self.at;
+        let mut value = 0usize;
+        while let Some((_, ch)) = self.peek().filter(|(_, ch)| ch.is_ascii_digit()) {
+            value = value
+                .checked_mul(10)?
+                .checked_add(ch.to_digit(10)? as usize)?;
+            self.at += 1;
+        }
+        (self.at > start).then_some(value)
+    }
+    fn atom(&mut self) -> Result<IrNode<u16, CodeUnitClass>, JavascriptRegExpError> {
+        let (offset, ch) = self.peek().ok_or_else(|| syntax(0, "missing atom"))?;
+        self.at += 1;
+        match ch {
+            '^' => Ok(IrNode::Anchor(Anchor::SubjectStart)),
+            '$' => Ok(IrNode::Anchor(Anchor::SubjectEnd)),
+            '.' => Ok(IrNode::Extension(CodeUnitClass::LineTerminator(true))),
+            '(' => {
+                let capture = if self.take('?') {
+                    if self.take(':') {
+                        None
+                    } else {
+                        return Err(syntax(
+                            offset,
+                            "lookaround and special groups are unsupported",
+                        ));
+                    }
+                } else {
+                    let id = CaptureId(self.capture);
+                    self.capture += 1;
+                    Some(id)
+                };
+                let node = self.alternation()?;
+                if !self.take(')') {
+                    return Err(syntax(offset, "unterminated group"));
+                }
+                Ok(match capture {
+                    Some(id) => IrNode::Capture {
+                        id,
+                        node: Box::new(node),
+                    },
+                    None => IrNode::Group(Box::new(node)),
+                })
+            }
+            '[' => self.class(offset),
+            '\\' => {
+                let (_, escaped) = self
+                    .peek()
+                    .ok_or_else(|| syntax(offset, "trailing escape"))?;
+                self.at += 1;
+                escape_atom(escaped, offset)
+            }
+            '*' | '+' | '?' | '{' => Err(syntax(offset, "quantifier has no admissible atom")),
+            ')' | '|' => unreachable!(),
+            _ => Ok(literal(ch)),
+        }
+    }
+    fn class(
+        &mut self,
+        offset: usize,
+    ) -> Result<IrNode<u16, CodeUnitClass>, JavascriptRegExpError> {
+        let negated = self.take('^');
+        let mut units = Vec::new();
+        let mut ranges = Vec::new();
+        let mut classes = Vec::new();
+        while let Some((pos, ch)) = self.peek() {
+            if ch == ']' {
+                self.at += 1;
+                return Ok(IrNode::Extension(CodeUnitClass::Set {
+                    units,
                     ranges,
                     classes,
                     negated,
-                },
-                at + 1,
-            ));
-        }
-        let atom = if ch == '\\' {
-            at += 1;
-            let Some((_, e)) = chars.get(at).copied() else {
-                return Err(syntax(pos, "trailing class escape"));
-            };
-            match escape_atom(e, pos)? {
-                TextOp::Class(c) => {
-                    classes.push(c);
-                    None
-                }
-                TextOp::Literal(c) => Some(c),
-                _ => None,
+                }));
             }
-        } else {
-            Some(ch)
-        };
-        if let Some(first) = atom {
-            if chars.get(at + 1).is_some_and(|(_, c)| *c == '-')
-                && chars.get(at + 2).is_some_and(|(_, c)| *c != ']')
-            {
-                let end = chars[at + 2].1;
-                if first > end {
-                    return Err(syntax(pos, "descending character-class range"));
+            self.at += 1;
+            let first = if ch == '\\' {
+                let (_, e) = self
+                    .peek()
+                    .ok_or_else(|| syntax(pos, "trailing class escape"))?;
+                self.at += 1;
+                if matches!(e, 'p' | 'P') {
+                    return Err(syntax(pos, "Unicode property escapes are unsupported"));
                 }
-                ranges.push((first, end));
-                at += 2;
+                if let Some(class) = match e {
+                    'd' => Some(CodeUnitClass::Digit(false)),
+                    'D' => Some(CodeUnitClass::Digit(true)),
+                    's' => Some(CodeUnitClass::Space(false)),
+                    'S' => Some(CodeUnitClass::Space(true)),
+                    'w' => Some(CodeUnitClass::Word(false)),
+                    'W' => Some(CodeUnitClass::Word(true)),
+                    _ => None,
+                } {
+                    classes.push(class);
+                    continue;
+                }
+                e
             } else {
-                literals.push(first);
+                ch
+            };
+            let mut first_units = [0; 2];
+            let encoded = first.encode_utf16(&mut first_units);
+            if encoded.len() != 1 {
+                return Err(syntax(
+                    pos,
+                    "non-BMP character classes require Unicode set support",
+                ));
+            }
+            let first = encoded[0];
+            if self.take('-') && self.peek().is_some_and(|(_, c)| c != ']') {
+                let (end_pos, end) = self.peek().unwrap();
+                self.at += 1;
+                let mut end_units = [0; 2];
+                let encoded = end.encode_utf16(&mut end_units);
+                if encoded.len() != 1 || first > encoded[0] {
+                    return Err(syntax(end_pos, "invalid character-class range"));
+                }
+                ranges.push((first, encoded[0]));
+            } else {
+                units.push(first);
             }
         }
-        at += 1;
+        Err(syntax(offset, "unterminated character class"))
     }
-    Err(syntax(offset, "unterminated character class"))
+    fn peek(&self) -> Option<(usize, char)> {
+        self.chars.get(self.at).copied()
+    }
+    fn take(&mut self, expected: char) -> bool {
+        if self.peek().is_some_and(|(_, ch)| ch == expected) {
+            self.at += 1;
+            true
+        } else {
+            false
+        }
+    }
 }
 
 #[cfg(test)]
@@ -271,13 +483,10 @@ mod tests {
     fn gap_name(gap: JavascriptRegExpGap) -> &'static str {
         match gap {
             JavascriptRegExpGap::Flags => "flags",
-            JavascriptRegExpGap::Alternation => "alternation",
-            JavascriptRegExpGap::Groups => "groups",
             JavascriptRegExpGap::Backreferences => "backreferences",
             JavascriptRegExpGap::Lookaround => "lookaround",
             JavascriptRegExpGap::UnicodeProperties => "unicode-properties",
             JavascriptRegExpGap::WordBoundary => "word-boundary",
-            JavascriptRegExpGap::CountedQuantifiers => "counted-quantifiers",
         }
     }
     #[test]
@@ -287,8 +496,38 @@ mod tests {
         assert!(r.find("sim", 0, 1000).is_none());
     }
     #[test]
+    fn shared_regular_features_report_code_unit_spans() {
+        let regexp = JavascriptRegExp::compile(r"^(?:ab|😀){2,3}(c+?)$", "").unwrap();
+        let matched = regexp.find("ab😀cc", 0, 10_000).unwrap();
+        assert_eq!((matched.start, matched.end), (0, 6));
+        assert_eq!(matched.captures, [(4, 6)]);
+        assert!(regexp.find("xababcc", 0, 10_000).is_none());
+        assert!(
+            JavascriptRegExp::compile(r"^[\d]+$", "")
+                .unwrap()
+                .find("42", 0, 1_000)
+                .is_some()
+        );
+        assert!(
+            JavascriptRegExp::compile("^.$", "")
+                .unwrap()
+                .find("\n", 0, 1_000)
+                .is_none()
+        );
+    }
+    #[test]
+    fn refused_clause_keeps_its_typed_diagnostic() {
+        assert_eq!(
+            JavascriptRegExp::compile(r"\bword", ""),
+            Err(JavascriptRegExpError::UnsupportedSyntax {
+                offset: 0,
+                reason: "word-boundary assertions are unsupported",
+            })
+        );
+    }
+    #[test]
     fn unsupported_features_fail_closed() {
-        for p in ["a|b", "(a)", r"(a)\1", r"\p{Letter}", r"\bword"] {
+        for p in [r"(a)\1", r"\p{Letter}", r"\bword", "(?=a)"] {
             assert!(JavascriptRegExp::compile(p, "").is_err(), "{p}");
         }
         assert_eq!(
@@ -298,10 +537,10 @@ mod tests {
     }
     #[test]
     fn gaps_and_successor_are_blunt() {
-        assert_eq!(javascript_regexp_gaps().len(), 8);
+        assert_eq!(javascript_regexp_gaps().len(), 5);
         assert_eq!(
             JAVASCRIPT_REGEXP_SUCCESSOR,
-            "JAVA_SCRIPT_6 pattern-engine work"
+            "remaining ECMAScript RegExp clauses"
         );
     }
 
@@ -385,13 +624,10 @@ mod tests {
             clauses,
             [
                 "flags",
-                "alternation",
-                "groups",
                 "backreferences",
                 "lookaround",
                 "unicode-properties",
                 "word-boundary",
-                "counted-quantifiers",
             ]
         );
     }
