@@ -13,14 +13,15 @@ use sim_kernel::{
 };
 
 use crate::{
-    BoundedLane, CanonicalObservation, CanonicalOutcome, CharacterizationCapture,
-    CharacterizationScenario, ConformanceHarness, ConformanceOutcome, ConformanceTestCase,
-    FidelityBadge, LanguageProfile, OrganUse, ScenarioInput, ScenarioLimits,
+    BoundedLane, CanonicalObservation, CanonicalOutcome, CaptureComparisonProjection,
+    CharacterizationCapture, CharacterizationScenario, ConformanceHarness, ConformanceOutcome,
+    ConformanceTestCase, FidelityBadge, LanguageProfile, OrganUse, ScenarioInput, ScenarioLimits,
     ScenarioObservationLane, ScenarioSpec, StandardTestReport, characterization_capture_kind,
-    characterization_capture_predicate, publish_characterization_capture,
-    standard_binding_organ_symbol, standard_reported_fidelity_level_predicate,
-    standard_test_capability, standard_test_result_predicate, standard_test_run_kind,
-    standard_test_status_predicate, standard_test_stub,
+    characterization_capture_predicate, compare_characterization_captures,
+    publish_characterization_capture, standard_binding_organ_symbol,
+    standard_reported_fidelity_level_predicate, standard_test_capability,
+    standard_test_result_predicate, standard_test_run_kind, standard_test_status_predicate,
+    standard_test_stub,
 };
 
 #[test]
@@ -118,6 +119,90 @@ fn captures_fail_closed_on_schema_bounds_and_incomplete_lanes() {
             .unwrap_err()
             .to_string()
             .contains("exceeds its observation bound")
+    );
+}
+
+#[test]
+fn capture_comparison_reports_recursive_canonical_paths_and_values() {
+    let left_scenario = valid_scenario_spec("compare");
+    let mut right_scenario = left_scenario.clone();
+    right_scenario.setup = Symbol::qualified("setup", "new/v1");
+    right_scenario.inputs[0].datum = Datum::Node {
+        tag: Symbol::qualified("test", "input/v1"),
+        fields: vec![(Symbol::new("value"), Datum::String("right".to_owned()))],
+    };
+    right_scenario
+        .observation_lanes
+        .insert(ScenarioObservationLane::Events);
+
+    let projection = Symbol::qualified("projection", "strict/v1");
+    let left = CharacterizationCapture::new(projection.clone(), outcome_observation("left"));
+    let mut right = CharacterizationCapture::new(projection.clone(), outcome_observation("right"));
+    right.observation.events = BoundedLane::Complete(Vec::new());
+
+    let comparison = compare_characterization_captures(
+        &left_scenario,
+        &left,
+        &right_scenario,
+        &right,
+        &CaptureComparisonProjection::new(projection.clone()),
+    )
+    .unwrap();
+
+    assert_eq!(comparison.projection, projection);
+    assert_eq!(
+        comparison
+            .differences
+            .iter()
+            .map(|difference| difference.path.as_str())
+            .collect::<Vec<_>>(),
+        [
+            "$.setup",
+            "$.inputs[0].datum",
+            "$.selected-lanes[1]",
+            "$.observation.outcome.value",
+            "$.observation.events",
+        ]
+    );
+    let outcome = comparison
+        .differences
+        .iter()
+        .find(|difference| difference.path == "$.observation.outcome.value")
+        .unwrap();
+    assert_eq!(outcome.left, Datum::String("left".to_owned()));
+    assert_eq!(outcome.right, Datum::String("right".to_owned()));
+}
+
+#[test]
+fn capture_projection_is_exact_two_sided_and_part_of_capture_identity() {
+    let scenario = valid_scenario_spec("projection");
+    let identity = Symbol::qualified("projection", "timestamps/v1");
+    let left = CharacterizationCapture::new(identity.clone(), outcome_observation("old"));
+    let right = CharacterizationCapture::new(identity.clone(), outcome_observation("new"));
+    let projection =
+        CaptureComparisonProjection::new(identity.clone()).ignoring("$.observation.outcome.value");
+
+    assert!(
+        compare_characterization_captures(&scenario, &left, &scenario, &right, &projection)
+            .unwrap()
+            .is_same()
+    );
+
+    let undeclared = CaptureComparisonProjection::new(identity.clone()).ignoring("$.not-present");
+    assert!(
+        compare_characterization_captures(&scenario, &left, &scenario, &right, &undeclared)
+            .unwrap_err()
+            .to_string()
+            .contains("declares non-two-sided field")
+    );
+
+    let changed =
+        CaptureComparisonProjection::new(Symbol::qualified("projection", "timestamps/v2"));
+    assert!(
+        compare_characterization_captures(&scenario, &left, &scenario, &right, &changed)
+            .unwrap_err()
+            .to_string()
+            .contains("is not recorded by both captures")
     );
 }
 

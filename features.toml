@@ -227,10 +227,10 @@ supports = [
 [[feature]]
 id = "feature/sim-runtime/characterization-captures"
 title = "Content-addressed characterization captures"
-summary = "Intern bounded semantic scenario observations as immutable evidence whose identity is independent of rendered output."
+summary = "Intern bounded semantic scenario observations as immutable evidence and compare migrations with exact canonical differences."
 owner = "crate/sim-lib-standard-core"
 audiences = ["code", "framework"]
-guidance = "Extend ConformanceHarness scenarios, project every selected lane to canonical Datum, then publish a CharacterizationCapture. Reuse its content ref through the standard evidence claim path; unknown schemas, incomplete or truncated lanes, and over-limit observations fail closed."
+guidance = "Extend ConformanceHarness scenarios, project every selected lane to canonical Datum, then publish a CharacterizationCapture. Compare captures with compare_characterization_captures for stable paths and both canonical values; explicitly unstable fields require one named two-sided CaptureComparisonProjection recorded by both captures. Reuse capture content refs through the standard evidence claim path; unknown schemas, incomplete or truncated lanes, over-limit observations, undeclared projection paths, and projection identity changes fail closed."
 claims_anchors = [
   "anchor/crate/sim-lib-standard-core",
 ]

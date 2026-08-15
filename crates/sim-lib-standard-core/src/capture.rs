@@ -1,5 +1,7 @@
 //! Immutable, content-addressed characterization captures.
 
+use std::collections::BTreeSet;
+
 use sim_kernel::{
     Claim, ClaimKind, ClaimPattern, Cx, Datum, DatumStore, Error, Ref, Result, Symbol,
     card::card_kind_predicate, standard::standard_evidence_predicate,
@@ -31,6 +33,62 @@ pub struct CharacterizationCapture {
     pub observation: CanonicalObservation,
 }
 
+/// A named, two-sided declaration of capture fields that are intentionally unstable.
+///
+/// Every ignored path must exist in both captures. The projection identity is
+/// itself part of each capture and must match this declaration, so changing a
+/// projection never silently preserves comparison equality.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CaptureComparisonProjection {
+    /// Stable identity recorded in both captures.
+    pub identity: Symbol,
+    /// Exact field paths omitted from both sides before comparison.
+    pub unstable_fields: BTreeSet<String>,
+}
+
+impl CaptureComparisonProjection {
+    /// Construct a named projection with no unstable fields.
+    pub fn new(identity: Symbol) -> Self {
+        Self {
+            identity,
+            unstable_fields: BTreeSet::new(),
+        }
+    }
+
+    /// Declare one exact, two-sided unstable field path.
+    pub fn ignoring(mut self, path: impl Into<String>) -> Self {
+        self.unstable_fields.insert(path.into());
+        self
+    }
+}
+
+/// One exact behavioral difference between two characterization captures.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CaptureDifference {
+    /// Stable path within the canonical comparison datum.
+    pub path: String,
+    /// Canonical value from the left capture.
+    pub left: Datum,
+    /// Canonical value from the right capture.
+    pub right: Datum,
+}
+
+/// Strict, located result of comparing two characterization captures.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CaptureComparison {
+    /// Projection applied symmetrically to both captures.
+    pub projection: Symbol,
+    /// All differences in stable path order.
+    pub differences: Vec<CaptureDifference>,
+}
+
+impl CaptureComparison {
+    /// Whether the projected captures are identical.
+    pub fn is_same(&self) -> bool {
+        self.differences.is_empty()
+    }
+}
+
 impl CharacterizationCapture {
     /// Construct a capture using the current schema.
     pub fn new(projection: Symbol, observation: CanonicalObservation) -> Self {
@@ -40,6 +98,53 @@ impl CharacterizationCapture {
             observation,
         }
     }
+}
+
+/// Compare two captures recursively after applying one declared two-sided projection.
+///
+/// Schema, setup, ordered inputs, selected observation lanes, projection
+/// identity, and observations are all compared. A projected path must exist on
+/// both sides and cannot name the schema or projection identity.
+pub fn compare_characterization_captures(
+    left_scenario: &ScenarioSpec,
+    left: &CharacterizationCapture,
+    right_scenario: &ScenarioSpec,
+    right: &CharacterizationCapture,
+    projection: &CaptureComparisonProjection,
+) -> Result<CaptureComparison> {
+    if left.projection != projection.identity || right.projection != projection.identity {
+        return Err(Error::Eval(format!(
+            "capture comparison projection {} is not recorded by both captures",
+            projection.identity
+        )));
+    }
+    let left = comparison_datum(left_scenario, left);
+    let right = comparison_datum(right_scenario, right);
+    for path in &projection.unstable_fields {
+        if path == "$@tag" || path == "$.projection" {
+            return Err(Error::Eval(format!(
+                "capture comparison projection cannot ignore protected field {path}"
+            )));
+        }
+        if !datum_path_exists(&left, "$", path) || !datum_path_exists(&right, "$", path) {
+            return Err(Error::Eval(format!(
+                "capture comparison projection {} declares non-two-sided field {path}",
+                projection.identity
+            )));
+        }
+    }
+    let mut differences = Vec::new();
+    compare_datum(
+        "$",
+        &left,
+        &right,
+        &projection.unstable_fields,
+        &mut differences,
+    );
+    Ok(CaptureComparison {
+        projection: projection.identity.clone(),
+        differences,
+    })
 }
 
 /// Validate, intern, and publish an immutable capture for `scenario`.
@@ -184,6 +289,188 @@ fn capture_datum(scenario: &ScenarioSpec, capture: &CharacterizationCapture) -> 
         .map(symbol_field)
         .collect(),
     }
+}
+
+fn comparison_datum(scenario: &ScenarioSpec, capture: &CharacterizationCapture) -> Datum {
+    let mut datum = capture_datum(scenario, capture);
+    let Datum::Node { fields, .. } = &mut datum else {
+        unreachable!("capture datum is always a node")
+    };
+    fields.insert(
+        3,
+        (
+            Symbol::new("selected-lanes"),
+            Datum::List(
+                scenario
+                    .observation_lanes
+                    .iter()
+                    .map(|lane| Datum::Symbol(observation_lane_symbol(*lane)))
+                    .collect(),
+            ),
+        ),
+    );
+    datum
+}
+
+fn observation_lane_symbol(lane: ScenarioObservationLane) -> Symbol {
+    let name = match lane {
+        ScenarioObservationLane::ValueOrFailure => "value-or-failure",
+        ScenarioObservationLane::Events => "events",
+        ScenarioObservationLane::Receipts => "receipts",
+        ScenarioObservationLane::Browse => "browse",
+    };
+    Symbol::qualified("standard/characterization-lane", name)
+}
+
+fn datum_path_exists(datum: &Datum, path: &str, wanted: &str) -> bool {
+    if path == wanted {
+        return true;
+    }
+    match datum {
+        Datum::Node { fields, .. } => {
+            wanted == format!("{path}@tag")
+                || fields.iter().any(|(name, value)| {
+                    datum_path_exists(value, &format!("{path}.{name}"), wanted)
+                })
+        }
+        Datum::List(items) | Datum::Vector(items) | Datum::Set(items) => items
+            .iter()
+            .enumerate()
+            .any(|(index, value)| datum_path_exists(value, &format!("{path}[{index}]"), wanted)),
+        Datum::Map(entries) => entries.iter().enumerate().any(|(index, (key, value))| {
+            datum_path_exists(key, &format!("{path}.keys[{index}]"), wanted)
+                || datum_path_exists(value, &format!("{path}.values[{index}]"), wanted)
+        }),
+        _ => false,
+    }
+}
+
+fn compare_datum(
+    path: &str,
+    left: &Datum,
+    right: &Datum,
+    ignored: &BTreeSet<String>,
+    differences: &mut Vec<CaptureDifference>,
+) {
+    if ignored.contains(path) || left == right {
+        return;
+    }
+    match (left, right) {
+        (
+            Datum::Node {
+                tag: left_tag,
+                fields: left_fields,
+            },
+            Datum::Node {
+                tag: right_tag,
+                fields: right_fields,
+            },
+        ) if left_fields
+            .iter()
+            .map(|(name, _)| name)
+            .eq(right_fields.iter().map(|(name, _)| name)) =>
+        {
+            if left_tag != right_tag {
+                push_capture_difference(
+                    format!("{path}@tag"),
+                    Datum::Symbol(left_tag.clone()),
+                    Datum::Symbol(right_tag.clone()),
+                    ignored,
+                    differences,
+                );
+            }
+            for ((name, left), (_, right)) in left_fields.iter().zip(right_fields) {
+                compare_datum(&format!("{path}.{name}"), left, right, ignored, differences);
+            }
+        }
+        (Datum::List(left), Datum::List(right)) | (Datum::Vector(left), Datum::Vector(right)) => {
+            let absent = absent_datum();
+            for index in 0..left.len().max(right.len()) {
+                compare_datum(
+                    &format!("{path}[{index}]"),
+                    left.get(index).unwrap_or(&absent),
+                    right.get(index).unwrap_or(&absent),
+                    ignored,
+                    differences,
+                );
+            }
+        }
+        (Datum::Set(left), Datum::Set(right)) => {
+            let left = canonical_items(left);
+            let right = canonical_items(right);
+            let absent = absent_datum();
+            for index in 0..left.len().max(right.len()) {
+                compare_datum(
+                    &format!("{path}[{index}]"),
+                    left.get(index).copied().unwrap_or(&absent),
+                    right.get(index).copied().unwrap_or(&absent),
+                    ignored,
+                    differences,
+                );
+            }
+        }
+        (Datum::Map(left), Datum::Map(right)) => {
+            let left = canonical_entries(left);
+            let right = canonical_entries(right);
+            let absent = absent_datum();
+            for index in 0..left.len().max(right.len()) {
+                let left = left.get(index).copied();
+                let right = right.get(index).copied();
+                compare_datum(
+                    &format!("{path}.keys[{index}]"),
+                    left.map_or(&absent, |entry| &entry.0),
+                    right.map_or(&absent, |entry| &entry.0),
+                    ignored,
+                    differences,
+                );
+                compare_datum(
+                    &format!("{path}.values[{index}]"),
+                    left.map_or(&absent, |entry| &entry.1),
+                    right.map_or(&absent, |entry| &entry.1),
+                    ignored,
+                    differences,
+                );
+            }
+        }
+        _ => push_capture_difference(
+            path.to_owned(),
+            left.clone(),
+            right.clone(),
+            ignored,
+            differences,
+        ),
+    }
+}
+
+fn push_capture_difference(
+    path: String,
+    left: Datum,
+    right: Datum,
+    ignored: &BTreeSet<String>,
+    differences: &mut Vec<CaptureDifference>,
+) {
+    if !ignored.contains(&path) {
+        differences.push(CaptureDifference { path, left, right });
+    }
+}
+
+fn absent_datum() -> Datum {
+    Datum::Node {
+        tag: Symbol::qualified("standard/capture-diff", "absent"),
+        fields: Vec::new(),
+    }
+}
+
+fn canonical_items(items: &[Datum]) -> Vec<&Datum> {
+    let mut items = items.iter().collect::<Vec<_>>();
+    items.sort_by_cached_key(|item| item.canonical_bytes().unwrap_or_default());
+    items
+}
+
+fn canonical_entries(entries: &[(Datum, Datum)]) -> Vec<&(Datum, Datum)> {
+    let mut entries = entries.iter().collect::<Vec<_>>();
+    entries.sort_by_cached_key(|(key, _)| key.canonical_bytes().unwrap_or_default());
+    entries
 }
 
 fn observation_datum(observation: &CanonicalObservation) -> Datum {
