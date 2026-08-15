@@ -155,13 +155,19 @@ title = "Neutral bounded instruction-machine contract"
 summary = "Define policy seams and explicit bounded, resumable frames for decoded instructions, logical widths, calls, returns, protected handlers, cleanup, interruption, roots, safepoints, admission, and receipts without choosing a guest or host mechanism."
 owner = "crate/sim-lib-machine"
 audiences = ["code", "framework"]
-guidance = "Use these traits, Frame, FrameStack, Transfer, Driver, and MachineCheckpoint when building a bounded decoded-instruction machine. Frames compose bounded slots and operands with a validated cursor, continuation, roots, and handler state. Implement ManagedRootSource with sim-lib-mutation ManagedId values and use drive_with_safepoints to publish a complete, budgeted caller-to-current root snapshot before each prepared safepoint; the observer selects reclamation policy. Calls and returns are explicit value-and-width transfers; protected raises select the innermost prepared handler; cleanup composes sim-lib-control CleanupStack and Unwind; interruption checkpoints bind frame state and the receipt prefix to the admitted content identity. FrameStack reports typed depth exhaustion without consuming the host call stack. Compose sim-lib-control for unwind, resume packets, cleanup, and shared admission/work limits; sim-lib-mutation for managed roots; Shape for structural admission; and caller-supplied codecs for instruction identity. Do not add a machine-local root registry, import a guest method, signature, or class model, move decoded execution into kernel evaluation, duplicate unwind or resume machinery, or use sim-lib-exec as a machine driver."
+guidance = "Use these traits, Frame, FrameStack, Transfer, Driver, and MachineCheckpoint when building a bounded decoded-instruction machine. Frames compose bounded slots and operands with a validated cursor, continuation, roots, and handler state. Implement ManagedRootSource with sim-lib-mutation ManagedId values and use drive_with_safepoints to publish a complete, budgeted caller-to-current root snapshot before each prepared safepoint; the observer selects reclamation policy. Calls and returns are explicit value-and-width transfers; protected raises select the innermost prepared handler; cleanup composes sim-lib-control CleanupStack and Unwind; interruption checkpoints bind frame state and the receipt prefix to the admitted content identity. FrameStack reports typed depth exhaustion without consuming the host call stack. Compose sim-lib-control for unwind, resume packets, cleanup, and shared admission/work limits; sim-lib-mutation for managed roots; Shape for structural admission; and caller-supplied codecs for instruction identity. Guest crates may own decoded instruction and opcode enums and their language-specific execution semantics, but must implement those semantics behind Driver while reusing this crate's SlotFile, UnitStack, Frame, FrameStack, iterative drive loop, and receipts. A guest-owned generic slot, operand-stack, frame-stack, frame-driver, or recursive interpreter loop is an ownership regression. Do not add a machine-local root registry, import a guest method, signature, or class model, move decoded execution into kernel evaluation, duplicate unwind or resume machinery, or use sim-lib-exec as a machine driver."
 claims_anchors = [
   "anchor/crate/sim-lib-machine",
+  "anchor/rustdoc/sim-lib-machine/driver",
+  "anchor/rustdoc/sim-lib-machine/frame-stack",
+  "anchor/rustdoc/sim-lib-machine/slot-file",
+  "anchor/rustdoc/sim-lib-machine/unit-stack",
 ]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-machine/tests/frame_calls_conformance",
   "spec-test/sim-runtime/crates/sim-lib-machine/tests/control_resume",
+  "spec-test/sim-runtime/crates/sim-lib-machine/tests/neutral_machine_specimens",
+  "spec-test/sim-runtime/crates/sim-lib-machine/tests/ownership_guard",
 ]
 supports = [
   "feature/sim-runtime/organs",
@@ -294,7 +300,7 @@ title = "Small guest-language profiles"
 summary = "Add source-language surfaces as readers, direct Expr lowering, checked eval policy, and shared organ composition without guest-owned runtime machinery."
 owner = "crate/sim-lib-standard-core"
 audiences = ["code", "framework"]
-guidance = "Start from the checked LanguageProfile and GuestProfileEvidence thin-profile contract, follow Lua's codec and profile as the no-compiler reference, register the crate in guest-profiles.toml, reuse organs, and finish by adding the profile to the shared language matrix."
+guidance = "Start from the checked LanguageProfile and GuestProfileEvidence thin-profile contract, follow Lua's codec and profile as the no-compiler reference, register the crate in guest-profiles.toml, reuse organs, and finish by adding the profile to the shared language matrix. A guest may own instruction or opcode data and language-specific instruction semantics. It may not own generic slots, operand or frame stacks, a frame driver, or a recursive interpreter loop; compose the neutral machine contract for those mechanics."
 claims_anchors = [
   "anchor/rustdoc/sim-lib-lang-lua/lua_reader_symbol",
   "anchor/rustdoc/sim-lib-lang-lua/lua_core_profile",
@@ -385,6 +391,16 @@ audiences = ["code", "framework"]
 steps = [
   { feature = "feature/sim-runtime/typescript-notation-profile", why = "TypeScript notation; does not type-check. The profile erases admitted notation directly to the unchanged JavaScript evaluator and retains only faithful browse metadata." },
   { specimen = "recipe/sim-runtime/crates/sim-lib-lang-typescript/01-basics/browsable-metadata", why = "The notation-plus-metadata recipe is the terminal public specimen." },
+]
+
+[[route]]
+id = "route/add-decoded-instruction-machine"
+task = "Add a bounded decoded-instruction machine"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/machine-contract", why = "The machine row owns generic slots, operands, frames, the iterative driver, bounded control transfer, safepoints, interruption, and exact receipts while leaving instruction semantics to the guest." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-machine/tests/neutral_machine_specimens", why = "The stack-calculator and register-file specimens share the same driver, permits, and receipts while proving that the machine contract does not select one storage discipline." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-machine/tests/ownership_guard", why = "The source-fact ownership fixture rejects a guest frame stack and recursive driver but admits guest-owned opcodes and instruction semantics." },
 ]
 
 [[route]]
