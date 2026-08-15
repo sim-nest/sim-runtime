@@ -1,0 +1,18 @@
+guest	scenario	observation	executable_anchor
+python	raise-catch-class	KeyError matches KeyError	sim-lib-lang-python::resumable::characterize_1_exception_behavior_replays_identically
+python	catch-superclass	KeyError matches Exception	sim-lib-lang-python::resumable::characterize_1_exception_behavior_replays_identically
+python	no-match-propagation	KeyError does not match TypeError	sim-lib-lang-python::resumable::characterize_1_exception_behavior_replays_identically
+python	explicit-cause	cause is OSError and suppress_context is true	sim-lib-lang-python::resumable::characterize_1_exception_behavior_replays_identically
+python	implicit-context	context is OSError and suppress_context remains false	sim-lib-lang-python::resumable::characterize_1_exception_behavior_replays_identically
+python	suppression	explicit cause suppresses implicit context display	sim-lib-lang-python::resumable::characterize_1_exception_behavior_replays_identically
+python	group-construction-split	matching and remainder preserve source order	sim-lib-lang-python::resumable::characterize_1_exception_behavior_replays_identically
+javascript	raise-catch-class	TypeError matches TypeError	sim-lib-lang-javascript::jobs::characterize_1_exception_behavior_replays_identically
+javascript	catch-superclass	TypeError matches Error	sim-lib-lang-javascript::jobs::characterize_1_exception_behavior_replays_identically
+javascript	no-match-propagation	TypeError does not match RangeError	sim-lib-lang-javascript::jobs::characterize_1_exception_behavior_replays_identically
+javascript	aggregate-error-order	Number then String then Undefined	sim-lib-lang-javascript::jobs::characterize_1_exception_behavior_replays_identically
+javascript	arbitrary-non-object-throw	plain string is retained as the thrown value	sim-lib-lang-javascript::jobs::characterize_1_exception_behavior_replays_identically
+lua	arbitrary-non-object-throw	protected call maps the raised value without an exception envelope	sim-lib-lang-lua::lua3_12_tests::lua_pcall_maps_lua_error_into_false_status_tuple
+shared	cleanup-order-under-unwind	inner cleanup runs before outer for every Unwind variant	sim-lib-control::organ_tests::nested_cleanup_is_lifo_for_every_unwind_reason
+python	resume-after-protected-call	generator resumes after its first yield through shared ResumePacket	sim-lib-lang-python::resumable::generator_composes_start_send_throw_and_close
+javascript	resume-after-protected-call	generator resumes after its first yield through shared ResumePacket	sim-lib-lang-javascript::jobs::generator_exception_and_async_settlement_use_shared_packets
+lua	resume-after-protected-call	coroutine resumes across alternating ref lanes	sim-lib-lang-lua::tests::lua_coroutines_reuse_control_organ

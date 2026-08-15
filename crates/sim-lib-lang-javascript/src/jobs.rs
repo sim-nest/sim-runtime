@@ -251,6 +251,43 @@ mod tests {
 
     use super::*;
 
+    fn content_id(value: &str) -> u64 {
+        value.bytes().fold(0xcbf29ce484222325, |hash, byte| {
+            (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3)
+        })
+    }
+
+    fn exception_characterization() -> Vec<String> {
+        let errors = [
+            JavascriptValue::Number(3.0),
+            JavascriptValue::String("plain throw".into()),
+            JavascriptValue::Undefined,
+        ];
+        let hierarchy = |name: &str, handler: &str| {
+            name == handler || (name == "TypeError" && handler == "Error")
+        };
+        let error = JavascriptException::new("TypeError", "wrong type");
+        vec![
+            format!("catch-class={}", hierarchy(&error.name, "TypeError")),
+            format!("catch-superclass={}", hierarchy(&error.name, "Error")),
+            format!("no-match={}", !hierarchy(&error.name, "RangeError")),
+            format!("exception={error:?}"),
+            format!("aggregate-errors={errors:?}"),
+            format!("arbitrary-throw={:?}", errors[1]),
+        ]
+    }
+
+    #[test]
+    fn characterize_1_exception_behavior_replays_identically() {
+        let first = exception_characterization();
+        let replay = exception_characterization();
+        assert_eq!(first, replay);
+        assert_eq!(
+            first.iter().map(|row| content_id(row)).collect::<Vec<_>>(),
+            replay.iter().map(|row| content_id(row)).collect::<Vec<_>>()
+        );
+    }
+
     #[test]
     fn generator_exception_and_async_settlement_use_shared_packets() {
         let mut generator =

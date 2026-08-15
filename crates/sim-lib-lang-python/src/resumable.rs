@@ -273,4 +273,47 @@ mod tests {
         assert_eq!(run_with_context(&mut manager, Ok), Ok(Some(42)));
         assert!(manager.0);
     }
+
+    fn exception_characterization() -> Vec<String> {
+        let hierarchy = |class: &str, handler: &str| {
+            class == handler || (class == "KeyError" && handler == "Exception")
+        };
+        let raised = PythonException::new("KeyError", "missing");
+        let cause = PythonException::new("OSError", "disk");
+        let explicit = PythonException::new("RuntimeError", "outer").with_cause(cause.clone());
+        let implicit = PythonException::new("RuntimeError", "outer").with_context(cause);
+        let group = PythonExceptionGroup::new(
+            "batch",
+            vec![raised.clone(), PythonException::new("TypeError", "bad")],
+        )
+        .unwrap();
+        let (matched, rest) = group.split("KeyError");
+        vec![
+            format!("catch-class={}", hierarchy(&raised.class, "KeyError")),
+            format!("catch-superclass={}", hierarchy(&raised.class, "Exception")),
+            format!("no-match={}", !hierarchy(&raised.class, "TypeError")),
+            format!("explicit={explicit:?}"),
+            format!("implicit={implicit:?}"),
+            format!("suppressed={}", explicit.suppress_context),
+            format!("group-match={:?}", matched.unwrap().exceptions),
+            format!("group-rest={:?}", rest.unwrap().exceptions),
+        ]
+    }
+
+    fn content_id(value: &str) -> u64 {
+        value.bytes().fold(0xcbf29ce484222325, |hash, byte| {
+            (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3)
+        })
+    }
+
+    #[test]
+    fn characterize_1_exception_behavior_replays_identically() {
+        let first = exception_characterization();
+        let replay = exception_characterization();
+        assert_eq!(first, replay);
+        assert_eq!(
+            first.iter().map(|row| content_id(row)).collect::<Vec<_>>(),
+            replay.iter().map(|row| content_id(row)).collect::<Vec<_>>()
+        );
+    }
 }

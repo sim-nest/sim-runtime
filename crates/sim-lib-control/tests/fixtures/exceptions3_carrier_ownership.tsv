@@ -1,0 +1,20 @@
+carrier	field	current_payload	owner	rationale
+control::Unwind<R,B,C,E>	Exception(E)	E	envelope	generic exceptional-completion payload
+control::ProtectedOutcome	Raised(Value)	Value	envelope	caller-mapped raised guest value
+control::Condition	payload	Ref	envelope	generic signalled-condition payload
+control::Restart	continuation	ContinuationValue	envelope	generic captured recovery point
+control::ResumePacket<T,E>	Throw(E)	E	envelope	generic error injected into a suspended frame
+control::ResumeResult<T,R,E>	Failed(E)	E	envelope	generic failed-frame payload
+control::run_with_close_guards	result	Result<Value>	envelope	kernel failure retained only for cleanup precedence
+python::PythonException	class	String	guest-object	guest exception class identity
+python::PythonException	message	String	guest-object	guest exception arguments projection
+python::PythonException	cause	Option<Box<PythonException>>	guest-object	explicit guest exception graph edge
+python::PythonException	context	Option<Box<PythonException>>	guest-object	implicit guest exception graph edge
+python::PythonException	suppress_context	bool	guest-object	guest rendering policy
+python::PythonExceptionGroup	message	String	guest-object	guest group message
+python::PythonExceptionGroup	exceptions	Vec<PythonException>	guest-object	ordered guest exception children
+javascript::JavascriptException	name	String	guest-object	guest exception name
+javascript::JavascriptException	message	String	guest-object	guest exception message
+javascript::AggregateError	errors	ordered JavascriptValue sequence	guest-object	ordered arbitrary guest thrown values
+javascript::AggregateError	message	String	guest-object	guest aggregate message
+lua::raised-value	value	Value	guest-object	Lua permits any guest value to be raised
