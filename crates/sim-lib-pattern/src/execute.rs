@@ -51,6 +51,13 @@ pub struct ExecutionReceipt {
     pub subject_symbols: usize,
 }
 
+/// A pattern feature deliberately excluded from the regular executor.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UnsupportedFeature {
+    /// The assertion has no statically provable fixed width.
+    VariableWidthAssertion(crate::AssertionId),
+}
+
 /// A typed execution result. Resource exhaustion is never collapsed into rejection.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ExecutionOutcome {
@@ -73,6 +80,13 @@ pub enum ExecutionOutcome {
         /// Work consumed before stopping.
         receipt: ExecutionReceipt,
     },
+    /// The requested construct belongs to the separately budgeted extension lane.
+    Unsupported {
+        /// Exact unsupported construct.
+        feature: UnsupportedFeature,
+        /// Regular work consumed before discovering it.
+        receipt: ExecutionReceipt,
+    },
 }
 
 #[derive(Clone, Debug, Default)]
@@ -91,8 +105,8 @@ struct Thread {
 /// Executes a compiled regular automaton without recursion or backtracking.
 ///
 /// `extension_matches` supplies the consuming predicate for admitted extension
-/// states. Assertions are deliberately not executed by this regular core; their
-/// separately budgeted seam is added by the assertion executor.
+/// states. Fixed-width assertions remain in this accounted regular model;
+/// variable-width assertions are returned as typed refusals.
 pub fn execute_regular<S, E>(
     automaton: &Automaton<S, E>,
     subject: &[S],
@@ -102,8 +116,20 @@ pub fn execute_regular<S, E>(
 where
     S: PartialEq,
 {
+    execute_regular_inner(automaton, subject, limits, &extension_matches)
+}
+
+fn execute_regular_inner<S, E>(
+    automaton: &Automaton<S, E>,
+    subject: &[S],
+    limits: TextLimits,
+    extension_matches: &dyn Fn(&E, &S) -> bool,
+) -> ExecutionOutcome
+where
+    S: PartialEq,
+{
     let mut receipt = ExecutionReceipt {
-        state_count: automaton.states().len(),
+        state_count: automaton.evidence().state_count,
         subject_symbols: subject.len(),
         ..ExecutionReceipt::default()
     };
@@ -227,7 +253,51 @@ where
                         }
                     }
                 }
-                Instruction::Assertion { .. } => {}
+                Instruction::Assertion { assertion, next } => {
+                    let Some(program) = automaton.assertion(*assertion) else {
+                        return ExecutionOutcome::Unsupported {
+                            feature: UnsupportedFeature::VariableWidthAssertion(*assertion),
+                            receipt,
+                        };
+                    };
+                    let end = position.saturating_add(program.width());
+                    if let Some(window) = subject.get(position..end) {
+                        let remaining = TextLimits {
+                            max_steps: limits.max_steps.saturating_sub(receipt.transitions),
+                            max_states: limits.max_states,
+                            max_capture_history: limits
+                                .max_capture_history
+                                .saturating_sub(receipt.capture_history),
+                            max_subject_symbols: limits.max_subject_symbols,
+                        };
+                        match execute_regular_inner(
+                            program.automaton(),
+                            window,
+                            remaining,
+                            extension_matches,
+                        ) {
+                            ExecutionOutcome::Match {
+                                matched,
+                                receipt: nested,
+                            } if matched.end == window.len() => {
+                                receipt.state_visits += nested.state_visits;
+                                receipt.transitions += nested.transitions;
+                                receipt.capture_history += nested.capture_history;
+                                push(&mut current, thread, *next);
+                            }
+                            ExecutionOutcome::Limit {
+                                limit,
+                                receipt: nested,
+                            } => {
+                                receipt.state_visits += nested.state_visits;
+                                receipt.transitions += nested.transitions;
+                                receipt.capture_history += nested.capture_history;
+                                return limited(limit, receipt);
+                            }
+                            _ => {}
+                        }
+                    }
+                }
             }
             receipt.transitions += 1;
             if receipt.transitions >= limits.max_steps {
@@ -306,6 +376,72 @@ mod tests {
                 limit: ExecutionLimit::Transitions,
                 ..
             }
+        ));
+    }
+
+    #[test]
+    fn fixed_width_assertion_runs_without_consuming_subject() {
+        let assertion = crate::AssertionId(7);
+        let ir = PatternIr::<ByteDomain, ()>::new(
+            IrNode::Concat(vec![IrNode::Assertion(assertion), IrNode::Symbol(b'a')]),
+            BTreeMap::from([(assertion, IrNode::Symbol(b'a'))]),
+            &EnginePolicy::new([]),
+        )
+        .unwrap();
+        let outcome = execute_regular(&compile(&ir), b"a", TextLimits::default(), |_, _| false);
+        assert!(matches!(
+            outcome,
+            ExecutionOutcome::Match {
+                matched: ExecutionMatch { end: 1, .. },
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn regular_pattern_keeps_the_pre_extension_receipt() {
+        let outcome = run(IrNode::Symbol(b'a'), b"a", TextLimits::default());
+        assert_eq!(
+            outcome,
+            ExecutionOutcome::Match {
+                matched: ExecutionMatch {
+                    start: 0,
+                    end: 1,
+                    captures: BTreeMap::new(),
+                },
+                receipt: ExecutionReceipt {
+                    state_count: 2,
+                    state_visits: 2,
+                    transitions: 1,
+                    capture_history: 0,
+                    subject_symbols: 1,
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn variable_width_assertion_is_a_typed_refusal() {
+        let assertion = crate::AssertionId(9);
+        let ir = PatternIr::<ByteDomain, ()>::new(
+            IrNode::Assertion(assertion),
+            BTreeMap::from([(
+                assertion,
+                IrNode::Repeat {
+                    node: Box::new(IrNode::Symbol(b'a')),
+                    bounds: RepeatBounds::new(0, None).unwrap(),
+                    greedy: true,
+                },
+            )]),
+            &EnginePolicy::new([]),
+        )
+        .unwrap();
+        assert!(matches!(
+            execute_regular(&compile(&ir), b"aaa", TextLimits::default(), |_, _| false),
+            ExecutionOutcome::Unsupported {
+                feature: UnsupportedFeature::VariableWidthAssertion(found),
+                ..
+            } if found == assertion
         ));
     }
 }

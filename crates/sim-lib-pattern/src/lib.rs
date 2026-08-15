@@ -12,6 +12,7 @@ mod compile;
 mod cursor;
 mod dialect;
 mod execute;
+mod extension;
 mod glob_dialect;
 mod ir;
 mod lua_dialect;
@@ -32,13 +33,18 @@ pub use claims::{
     publish_pattern_organ_claims_for_lib,
 };
 pub use compile::{
-    Automaton, CompilationEvidence, Instruction, State, StateId, TagBoundary, compile,
+    AssertionProgram, Automaton, CompilationEvidence, Instruction, State, StateId, TagBoundary,
+    compile,
 };
 pub use cursor::{ByteDomain, ByteOffset, CodeUnitDomain, CodeUnitOffset, Cursor, SymbolDomain};
 pub use dialect::PatternDialect;
 pub use execute::{
     CaptureSpan, ExecutionLimit, ExecutionMatch, ExecutionOutcome, ExecutionReceipt,
-    execute_regular,
+    UnsupportedFeature, execute_regular,
+};
+pub use extension::{
+    BoundedExtension, ExtensionKind, ExtensionLimits, ExtensionOutcome, ExtensionReceipt,
+    ExtensionRefusal, ExtensionStep, ExtensionWork, execute_extension,
 };
 pub use glob_dialect::{GlobPatternDialect, compile_glob_pattern};
 pub use ir::{

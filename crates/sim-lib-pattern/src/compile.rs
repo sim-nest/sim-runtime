@@ -2,6 +2,7 @@
 
 use crate::{Anchor, AssertionId, CaptureId, IrNode, PatternIr, SymbolDomain, TextClass};
 use core::fmt;
+use std::collections::BTreeMap;
 
 /// Stable identifier of an automaton state.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -114,6 +115,26 @@ pub struct Automaton<S, E> {
     start: StateId,
     states: Vec<State<S, E>>,
     evidence: CompilationEvidence,
+    assertions: BTreeMap<AssertionId, AssertionProgram<S, E>>,
+}
+
+/// A separately compiled lookahead whose width is known before execution.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AssertionProgram<S, E> {
+    automaton: Box<Automaton<S, E>>,
+    width: usize,
+}
+
+impl<S, E> AssertionProgram<S, E> {
+    /// Compiled regular program used by the zero-width assertion.
+    pub fn automaton(&self) -> &Automaton<S, E> {
+        &self.automaton
+    }
+
+    /// Exact number of subject symbols inspected by the assertion.
+    pub const fn width(&self) -> usize {
+        self.width
+    }
 }
 
 impl<S, E> Automaton<S, E> {
@@ -128,6 +149,11 @@ impl<S, E> Automaton<S, E> {
     /// Compilation size and work estimate.
     pub const fn evidence(&self) -> CompilationEvidence {
         self.evidence
+    }
+
+    /// Returns a compiled fixed-width assertion when its definition is regular.
+    pub fn assertion(&self, id: AssertionId) -> Option<&AssertionProgram<S, E>> {
+        self.assertions.get(&id)
     }
 }
 
@@ -155,14 +181,75 @@ where
         })
         .count();
     let state_count = builder.states.len();
+    let assertions: BTreeMap<AssertionId, AssertionProgram<D::Symbol, E>> = ir
+        .assertions()
+        .iter()
+        .filter_map(|(id, node)| {
+            fixed_width(node).map(|width| {
+                (
+                    *id,
+                    AssertionProgram {
+                        automaton: Box::new(compile_node(node)),
+                        width,
+                    },
+                )
+            })
+        })
+        .collect();
+    let assertion_state_count = assertions
+        .values()
+        .map(|program| program.automaton.evidence.state_count)
+        .sum::<usize>();
+    Automaton {
+        start,
+        states: builder.states,
+        evidence: CompilationEvidence {
+            state_count: state_count + assertion_state_count,
+            capture_count,
+            estimated_work_per_symbol: state_count + assertion_state_count,
+        },
+        assertions,
+    }
+}
+
+fn compile_node<S: Clone, E: Clone>(node: &IrNode<S, E>) -> Automaton<S, E> {
+    let mut builder = Builder { states: Vec::new() };
+    let accept = builder.push(Instruction::Accept);
+    let start = builder.node(node, accept);
+    let state_count = builder.states.len();
     Automaton {
         start,
         states: builder.states,
         evidence: CompilationEvidence {
             state_count,
-            capture_count,
+            capture_count: 0,
             estimated_work_per_symbol: state_count,
         },
+        assertions: BTreeMap::new(),
+    }
+}
+
+fn fixed_width<S, E>(node: &IrNode<S, E>) -> Option<usize> {
+    match node {
+        IrNode::Symbol(_) | IrNode::Any | IrNode::Extension(_) => Some(1),
+        IrNode::Anchor(_) => Some(0),
+        // Nested assertion composition needs its referenced definition to prove
+        // width. Keep it in the typed extension lane until compilation carries
+        // that dependency closure explicitly.
+        IrNode::Assertion(_) => None,
+        IrNode::Concat(nodes) => nodes
+            .iter()
+            .try_fold(0usize, |sum, node| sum.checked_add(fixed_width(node)?)),
+        IrNode::Alternation(nodes) => {
+            let mut widths = nodes.iter().map(fixed_width);
+            let first = widths.next()??;
+            widths.all(|width| width == Some(first)).then_some(first)
+        }
+        IrNode::Repeat { node, bounds, .. } if bounds.max() == Some(bounds.min()) => {
+            fixed_width(node)?.checked_mul(bounds.min())
+        }
+        IrNode::Group(node) | IrNode::Capture { node, .. } => fixed_width(node),
+        IrNode::Repeat { .. } => None,
     }
 }
 
