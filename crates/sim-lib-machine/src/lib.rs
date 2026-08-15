@@ -6,10 +6,14 @@
 //! engine. Consumers supply every semantic choice through the traits below.
 
 mod code;
+mod frame;
 mod shuffle;
 mod slots;
 mod stack;
 
+pub use frame::{
+    CallTransfer, Frame, FrameStack, FrameStackError, ReturnTransfer, Transfer, TransferError,
+};
 pub use shuffle::{ShuffleError, ShufflePlan};
 pub use slots::{SlotError, SlotFile};
 pub use stack::{StackError, UnitStack};
