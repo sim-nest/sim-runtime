@@ -5,9 +5,10 @@ mod graph;
 mod lattice;
 
 pub use engine::{
-    CausalPredecessor, ContinuationFingerprint, DataflowContinuation, DataflowError, DataflowEvent,
-    DataflowExplanation, DataflowFailure, DataflowProgress, DataflowProgressResult, DataflowResult,
-    DataflowSolution, DataflowUsage, FixpointEngine,
+    CausalPredecessor, CompletionProofMismatch, CompletionProofResult, ContinuationFingerprint,
+    DATAFLOW_PROOF_SCHEMA_REVISION, DataflowCompletionProof, DataflowContinuation, DataflowError,
+    DataflowEvent, DataflowExplanation, DataflowFailure, DataflowProgress, DataflowProgressResult,
+    DataflowResult, DataflowSolution, DataflowUsage, FixpointEngine,
 };
 pub use graph::{
     AdaptedGraph, AdapterBuildResult, Boundary, DataflowGraph, Edge, EdgeClass, EdgeSpec,

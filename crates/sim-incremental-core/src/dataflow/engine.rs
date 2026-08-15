@@ -199,6 +199,10 @@ struct ContinuationIdentity {
 pub type DataflowResult<N, E, L, C, S> =
     Result<DataflowSolution<N, E, C, S>, DataflowError<N, E, L>>;
 
+/// Result of a clean or incremental proof-producing fixpoint solve.
+pub type CompletionProofResult<N, E, L, C, S> =
+    Result<DataflowCompletionProof<N, E, C, S>, DataflowError<N, E, L>>;
+
 struct ChargeLocation<N, E, L> {
     node: Option<N>,
     edge: Option<E>,
@@ -213,6 +217,66 @@ pub struct DataflowSolution<N, E, C, S> {
     events: Vec<DataflowEvent<N, E, C>>,
     usage: DataflowUsage,
     causes: BTreeMap<N, CausalRecord<N, E>>,
+}
+
+/// Schema revision mixed into every completion-proof identity.
+pub const DATAFLOW_PROOF_SCHEMA_REVISION: u64 = 1;
+
+/// An immutable witness that a precise set of dataflow inputs reached a fixpoint.
+///
+/// The witness is deliberately content based: clean and incremental evaluation
+/// of the same inputs mint the same identity.  Execution history and visit counts
+/// remain diagnostics and cannot change what the proof says.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DataflowCompletionProof<N, E, C, S> {
+    identity: ValueFingerprint,
+    graph: ValueFingerprint,
+    lattice: ValueFingerprint,
+    policy: ValueFingerprint,
+    boundaries: ValueFingerprint,
+    limits: ValueFingerprint,
+    dependencies: ValueFingerprint,
+    seed_fingerprints: BTreeMap<N, ValueFingerprint>,
+    observations: Box<[(N, E, N)]>,
+    node_fingerprints: BTreeMap<N, ValueFingerprint>,
+    solution: DataflowSolution<N, E, C, S>,
+}
+
+impl<N: Ord, E, C, S> DataflowCompletionProof<N, E, C, S> {
+    /// Returns the canonical semantic identity of this completed fixpoint.
+    pub const fn identity(&self) -> ValueFingerprint {
+        self.identity
+    }
+
+    /// Returns the exact dependency edges observed while reaching the fixpoint.
+    pub fn observations(&self) -> &[(N, E, N)] {
+        &self.observations
+    }
+
+    /// Returns the converged node fingerprints used for incremental cutoff.
+    pub fn node_fingerprints(&self) -> &BTreeMap<N, ValueFingerprint> {
+        &self.node_fingerprints
+    }
+
+    /// Returns the proven solution.
+    pub const fn solution(&self) -> &DataflowSolution<N, E, C, S> {
+        &self.solution
+    }
+}
+
+/// Why a completion proof cannot be presented for the supplied inputs.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CompletionProofMismatch {
+    /// The immutable graph or its boundary declarations changed.
+    Graph,
+    /// The lattice bottom or state representation changed.
+    Lattice,
+    /// The admitted transfer policy changed.
+    Policy,
+    /// The declared resource limits changed.
+    Limits,
+    /// Entry or external facts changed.
+    Dependencies,
 }
 
 impl<N: Ord, E, C, S> DataflowSolution<N, E, C, S> {
@@ -260,6 +324,272 @@ impl<N: Ord, E, C, S> DataflowSolution<N, E, C, S> {
 pub struct FixpointEngine;
 
 impl FixpointEngine {
+    /// Solves to a stable fixpoint and mints its content-bound completion proof.
+    pub fn solve_proven<N, E, L, C, S, P>(
+        graph: &DataflowGraph<N, E, L, C>,
+        transfer: &AdmittedTransfer<P>,
+        bottom: S,
+        seeds: impl IntoIterator<Item = (N, S)>,
+        budgets: QueryBudgets,
+    ) -> CompletionProofResult<N, E, L, C, S>
+    where
+        N: Clone + Hash + Ord,
+        E: Clone + Hash + Ord,
+        L: Clone + Hash + Ord,
+        C: Clone + Hash + Ord,
+        S: JoinSemilattice + Hash,
+        P: TransferPolicy<S>,
+    {
+        let seeds = seeds.into_iter().collect::<BTreeMap<_, _>>();
+        let solution = Self::solve(
+            graph,
+            transfer,
+            bottom.clone(),
+            seeds
+                .iter()
+                .map(|(node, state)| (node.clone(), state.clone())),
+            budgets,
+        )?;
+        Ok(mint_completion_proof(
+            graph, transfer, &bottom, &seeds, budgets, solution,
+        ))
+    }
+
+    /// Presents a proof only when every semantic input still matches.
+    pub fn present<'a, N, E, L, C, S, P>(
+        proof: &'a DataflowCompletionProof<N, E, C, S>,
+        graph: &DataflowGraph<N, E, L, C>,
+        transfer: &AdmittedTransfer<P>,
+        bottom: &S,
+        seeds: impl IntoIterator<Item = (N, S)>,
+        budgets: QueryBudgets,
+    ) -> Result<&'a DataflowSolution<N, E, C, S>, CompletionProofMismatch>
+    where
+        N: Clone + Hash + Ord,
+        E: Clone + Hash + Ord,
+        L: Hash + Ord,
+        C: Hash + Ord,
+        S: Hash,
+        P: TransferPolicy<S>,
+    {
+        let seeds = seeds.into_iter().collect::<BTreeMap<_, _>>();
+        let identities = proof_inputs(graph, transfer, bottom, &seeds, budgets);
+        if proof.graph != identities.graph || proof.boundaries != identities.boundaries {
+            return Err(CompletionProofMismatch::Graph);
+        }
+        if proof.lattice != identities.lattice {
+            return Err(CompletionProofMismatch::Lattice);
+        }
+        if proof.policy != identities.policy {
+            return Err(CompletionProofMismatch::Policy);
+        }
+        if proof.limits != identities.limits {
+            return Err(CompletionProofMismatch::Limits);
+        }
+        if proof.dependencies != identities.dependencies {
+            return Err(CompletionProofMismatch::Dependencies);
+        }
+        Ok(&proof.solution)
+    }
+
+    /// Recomputes exactly the observed successor cone of changed entry facts.
+    ///
+    /// Structural, lattice, policy, or limit changes are intentionally refused:
+    /// callers must perform a clean solve for those semantic edits.  Dependency
+    /// edits reuse unaffected states and their observations, then remint a proof
+    /// from the complete final state rather than blessing the old witness.
+    pub fn solve_incremental<N, E, L, C, S, P>(
+        previous: &DataflowCompletionProof<N, E, C, S>,
+        graph: &DataflowGraph<N, E, L, C>,
+        transfer: &AdmittedTransfer<P>,
+        bottom: S,
+        seeds: impl IntoIterator<Item = (N, S)>,
+        budgets: QueryBudgets,
+    ) -> CompletionProofResult<N, E, L, C, S>
+    where
+        N: Clone + Hash + Ord,
+        E: Clone + Hash + Ord,
+        L: Clone + Hash + Ord,
+        C: Clone + Hash + Ord,
+        S: JoinSemilattice + Hash,
+        P: TransferPolicy<S>,
+    {
+        let seeds = seeds.into_iter().collect::<BTreeMap<_, _>>();
+        for node in seeds.keys() {
+            if graph.node(node).is_none() {
+                return Err(DataflowError::UnknownSeed(node.clone()));
+            }
+        }
+        let inputs = proof_inputs(graph, transfer, &bottom, &seeds, budgets);
+        if previous.graph != inputs.graph
+            || previous.lattice != inputs.lattice
+            || previous.policy != inputs.policy
+            || previous.boundaries != inputs.boundaries
+            || previous.limits != inputs.limits
+        {
+            return Self::solve_proven(graph, transfer, bottom, seeds, budgets);
+        }
+        if previous.dependencies == inputs.dependencies {
+            return Ok(previous.clone());
+        }
+
+        let old_seeds = previous_seed_fingerprints(previous, graph, &bottom);
+        let changed = graph
+            .nodes()
+            .filter_map(|node| {
+                let current = seeds
+                    .get(node.id())
+                    .unwrap_or(&bottom)
+                    .incremental_fingerprint();
+                (old_seeds.get(node.id()).copied() != Some(current)).then(|| node.id().clone())
+            })
+            .collect::<BTreeSet<_>>();
+        let mut affected = changed.clone();
+        let mut frontier = changed;
+        while let Some(node) = frontier.pop_first() {
+            for edge_id in graph.successors(&node).expect("graph node has an index") {
+                let edge = graph.edge(edge_id).expect("graph edge has an index");
+                let (_, target) = edge.predecessor_and_successor();
+                if affected.insert(target.clone()) {
+                    frontier.insert(target.clone());
+                }
+            }
+        }
+
+        let mut states = previous.solution.states.clone();
+        for node in &affected {
+            states.insert(node.clone(), bottom.clone());
+        }
+        for node in &affected {
+            let mut state = seeds.get(node).cloned().unwrap_or_else(|| bottom.clone());
+            for edge_id in graph.predecessors(node).expect("graph node has an index") {
+                let edge = graph.edge(edge_id).expect("graph edge has an index");
+                let (source, _) = edge.predecessor_and_successor();
+                if !affected.contains(source) {
+                    state = state.join(&transfer.transfer(&states[source]));
+                }
+            }
+            states.insert(node.clone(), state);
+        }
+
+        let mut pending = affected.clone();
+        let mut events = previous
+            .solution
+            .events
+            .iter()
+            .filter(|event| match event {
+                DataflowEvent::Visit(node) => !affected.contains(node),
+                DataflowEvent::Propagate { edge, .. } => {
+                    let edge = graph.edge(edge).expect("proof edge belongs to graph");
+                    let (source, _) = edge.predecessor_and_successor();
+                    !affected.contains(source)
+                }
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        let mut usage = DataflowUsage {
+            ..DataflowUsage::default()
+        };
+        charge(
+            &mut usage.depth,
+            states.len(),
+            budgets.max_depth,
+            BudgetKind::Depth,
+            ChargeLocation {
+                node: None,
+                edge: None,
+                location: graph
+                    .nodes()
+                    .next()
+                    .expect("graphs are non-empty")
+                    .location()
+                    .clone(),
+                target_location: None,
+            },
+        )?;
+        while let Some(node) = pending.pop_first() {
+            let location = graph
+                .node(&node)
+                .expect("affected node exists")
+                .location()
+                .clone();
+            charge_work(&mut usage, budgets, Some(node.clone()), location.clone())?;
+            events.push(DataflowEvent::Visit(node.clone()));
+            charge_work(&mut usage, budgets, Some(node.clone()), location.clone())?;
+            let output = transfer.transfer(&states[&node]);
+            if !states[&node].less_equal(&output) {
+                return Err(DataflowError::NodeFailure {
+                    failure: DataflowFailure::Transfer,
+                    node,
+                    location,
+                });
+            }
+            for edge_id in graph.successors(&node).expect("affected node has an index") {
+                let edge = graph.edge(edge_id).expect("graph edge exists");
+                let (_, target) = edge.predecessor_and_successor();
+                let target_location = graph
+                    .node(target)
+                    .expect("edge target exists")
+                    .location()
+                    .clone();
+                charge(
+                    &mut usage.observations,
+                    1,
+                    budgets.max_observations,
+                    BudgetKind::Observations,
+                    ChargeLocation {
+                        node: None,
+                        edge: Some(edge_id.clone()),
+                        location: location.clone(),
+                        target_location: Some(target_location.clone()),
+                    },
+                )?;
+                events.push(DataflowEvent::Propagate {
+                    edge: edge_id.clone(),
+                    class: edge.class().clone(),
+                });
+                charge_work_edge(
+                    &mut usage,
+                    budgets,
+                    edge_id.clone(),
+                    location.clone(),
+                    target_location,
+                )?;
+                let joined = states[target].join(&output);
+                if joined != states[target] {
+                    states.insert(target.clone(), joined);
+                    pending.insert(target.clone());
+                }
+            }
+        }
+        charge(
+            &mut usage.output,
+            states.values().map(super::StateSize::state_size).sum(),
+            budgets.max_output,
+            BudgetKind::Output,
+            ChargeLocation {
+                node: None,
+                edge: None,
+                location: graph
+                    .nodes()
+                    .next()
+                    .expect("graphs are non-empty")
+                    .location()
+                    .clone(),
+                target_location: None,
+            },
+        )?;
+        let solution = DataflowSolution {
+            states,
+            events,
+            usage,
+            causes: BTreeMap::new(),
+        };
+        Ok(mint_completion_proof(
+            graph, transfer, &bottom, &seeds, budgets, solution,
+        ))
+    }
+
     /// Solves from explicit entry/exit facts; nodes not reached from a seed stay at bottom.
     pub fn solve<N, E, L, C, S, P>(
         graph: &DataflowGraph<N, E, L, C>,
@@ -649,6 +979,140 @@ impl FixpointEngine {
                 cause_limit,
             )))
         }
+    }
+}
+
+fn previous_seed_fingerprints<N, E, L, C, S>(
+    previous: &DataflowCompletionProof<N, E, C, S>,
+    _graph: &DataflowGraph<N, E, L, C>,
+    _bottom: &S,
+) -> BTreeMap<N, ValueFingerprint>
+where
+    N: Clone + Hash + Ord,
+    E: Clone + Hash + Ord,
+    L: Hash + Ord,
+    C: Hash + Ord,
+    S: Hash,
+{
+    previous.seed_fingerprints.clone()
+}
+
+#[derive(Clone, Copy)]
+struct ProofInputs {
+    graph: ValueFingerprint,
+    lattice: ValueFingerprint,
+    policy: ValueFingerprint,
+    boundaries: ValueFingerprint,
+    limits: ValueFingerprint,
+    dependencies: ValueFingerprint,
+}
+
+fn proof_inputs<N, E, L, C, S, P>(
+    graph: &DataflowGraph<N, E, L, C>,
+    transfer: &AdmittedTransfer<P>,
+    bottom: &S,
+    seeds: &BTreeMap<N, S>,
+    budgets: QueryBudgets,
+) -> ProofInputs
+where
+    N: Clone + Hash + Ord,
+    E: Clone + Hash + Ord,
+    L: Hash + Ord,
+    C: Hash + Ord,
+    S: Hash,
+{
+    ProofInputs {
+        graph: graph.fingerprint(),
+        lattice: bottom.incremental_fingerprint(),
+        policy: transfer.fingerprint(),
+        boundaries: graph
+            .nodes()
+            .map(|node| (node.id(), node.boundary()))
+            .collect::<Vec<_>>()
+            .incremental_fingerprint(),
+        limits: (
+            budgets.max_work,
+            budgets.max_observations,
+            budgets.max_depth,
+            budgets.max_output,
+        )
+            .incremental_fingerprint(),
+        dependencies: seeds.incremental_fingerprint(),
+    }
+}
+
+fn mint_completion_proof<N, E, L, C, S, P>(
+    graph: &DataflowGraph<N, E, L, C>,
+    transfer: &AdmittedTransfer<P>,
+    bottom: &S,
+    seeds: &BTreeMap<N, S>,
+    budgets: QueryBudgets,
+    solution: DataflowSolution<N, E, C, S>,
+) -> DataflowCompletionProof<N, E, C, S>
+where
+    N: Clone + Hash + Ord,
+    E: Clone + Hash + Ord,
+    L: Hash + Ord,
+    C: Hash + Ord,
+    S: Hash,
+{
+    let inputs = proof_inputs(graph, transfer, bottom, seeds, budgets);
+    let node_fingerprints = solution
+        .states
+        .iter()
+        .map(|(node, state)| (node.clone(), state.incremental_fingerprint()))
+        .collect::<BTreeMap<_, _>>();
+    let seed_fingerprints = graph
+        .nodes()
+        .map(|node| {
+            (
+                node.id().clone(),
+                seeds
+                    .get(node.id())
+                    .unwrap_or(bottom)
+                    .incremental_fingerprint(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let observations = solution
+        .events
+        .iter()
+        .filter_map(|event| match event {
+            DataflowEvent::Propagate { edge, .. } => {
+                let edge_record = graph.edge(edge).expect("solution edge belongs to graph");
+                let (source, target) = edge_record.predecessor_and_successor();
+                Some((source.clone(), edge.clone(), target.clone()))
+            }
+            DataflowEvent::Visit(_) => None,
+        })
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
+    let identity = (
+        DATAFLOW_PROOF_SCHEMA_REVISION,
+        inputs.graph,
+        inputs.lattice,
+        inputs.policy,
+        inputs.boundaries,
+        inputs.limits,
+        inputs.dependencies,
+        &observations,
+        &node_fingerprints,
+    )
+        .incremental_fingerprint();
+    DataflowCompletionProof {
+        identity,
+        graph: inputs.graph,
+        lattice: inputs.lattice,
+        policy: inputs.policy,
+        boundaries: inputs.boundaries,
+        limits: inputs.limits,
+        dependencies: inputs.dependencies,
+        seed_fingerprints,
+        observations,
+        node_fingerprints,
+        solution,
     }
 }
 
@@ -1173,5 +1637,55 @@ mod tests {
         assert!(explanation.truncated());
         assert_eq!(explanation.omitted(), 1);
         assert_eq!(solution.explain(&2, 8).unwrap().omitted(), 1);
+    }
+
+    #[test]
+    fn completion_proof_recomputes_only_the_edited_fifty_node_cone() {
+        let graph = DataflowGraph::build(
+            (0_u8..50).map(node),
+            (0_u8..49).map(|id| edge(id, id, id + 1, GraphDirection::Forward, EdgeClass::Data)),
+        )
+        .unwrap();
+        let policy =
+            AdmittedTransfer::admit(Identity, &[Facts(0), Facts(1), Facts(2), Facts(3)]).unwrap();
+        let budgets = QueryBudgets::default();
+        let original =
+            FixpointEngine::solve_proven(&graph, &policy, Facts(0), [(0, Facts(1))], budgets)
+                .unwrap();
+
+        let edited_seeds = [(0, Facts(1)), (25, Facts(2))];
+        assert_eq!(
+            FixpointEngine::present(
+                &original,
+                &graph,
+                &policy,
+                &Facts(0),
+                edited_seeds.clone(),
+                budgets,
+            ),
+            Err(CompletionProofMismatch::Dependencies)
+        );
+        let incremental = FixpointEngine::solve_incremental(
+            &original,
+            &graph,
+            &policy,
+            Facts(0),
+            edited_seeds.clone(),
+            budgets,
+        )
+        .unwrap();
+        let clean =
+            FixpointEngine::solve_proven(&graph, &policy, Facts(0), edited_seeds, budgets).unwrap();
+
+        let visits = incremental
+            .solution()
+            .events()
+            .iter()
+            .filter(|event| matches!(event, DataflowEvent::Visit(node) if *node >= 25))
+            .count();
+        assert_eq!(visits, 25);
+        assert_eq!(incremental.solution().usage().work, 74);
+        assert_eq!(incremental.identity(), clean.identity());
+        assert_eq!(incremental.node_fingerprints(), clean.node_fingerprints());
     }
 }
