@@ -48,8 +48,8 @@ audiences = ["code", "framework"]
 guidance = "Use sim-lib-class for language-neutral declared superclass graphs. DescriptorClass delegates construction while projecting checked constructor, instance, member, and read-construction metadata through the existing kernel Class, Shape, table, and read-constructor hooks; its subclass query returns bounded traversal evidence. Reuse the kernel Class protocol and compose the C3 algorithm characterized from the Python profile. Use ClassCache for revision-checked linearizations and root-first member views: it composes MANAGED_2 strong parent edges and ephemerons so cached values remain live exactly while their class key is reachable. Do not replace it with a process-global map keyed by class identity, which would retain derived state outside managed tracing. JavaScript prototypes, Lua metatables, typeclass dictionaries, Prolog relations, generic dispatch specificity, and JVM defining-loader identity are explicitly different semantic domains; exclusion_ledger records the exact mismatch and non_goals records the behavior that must remain with those owners. Do not infer class ancestry from property lookup, metamethod delegation, constraint evidence, predicate names, method applicability, or loader namespaces."
 claims_anchors = ["anchor/crate/sim-lib-class"]
 claims_specimens = [
-  "spec-test/sim-runtime/crates/sim-lib-class/src/tests",
-  "spec-test/sim-runtime/crates/sim-lib-class/src/cache/tests",
+  "spec-test/sim-runtime/crates/sim-lib-class/tests/neutral_class_specimens",
+  "recipe/sim-runtime/crates/sim-lib-class/01-basics/neutral-class",
 ]
 supports = ["feature/sim-runtime/organs"]
 
@@ -424,6 +424,16 @@ claims_anchors = [
 ]
 supports = [
   "feature/sim-runtime/organs",
+]
+
+[[route]]
+id = "route/add-language-neutral-class-semantics"
+task = "Add checked language-neutral class semantics"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/class-semantics", why = "The class row owns checked descriptors, bounded lineage policies, kernel Class projection, and managed non-retaining derived caches." },
+  { specimen = "recipe/sim-runtime/crates/sim-lib-class/01-basics/neutral-class", why = "The terminal recipe covers a hand-authored diamond order, typed failures, clearing-receipt-backed cache reclamation, member Shape browsing, and read construction without a guest-language type." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-class/tests/neutral_class_specimens", why = "The runnable integration specimen supplies the exact characterization outcomes and source-level ownership proof." },
 ]
 
 [[route]]

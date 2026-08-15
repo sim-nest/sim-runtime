@@ -1,0 +1,4 @@
+id = "neutral-class"
+title = "Classes for a language that does not exist yet"
+summary = "Exercise lineage, failures, managed caching, Shape browsing, and read construction without a guest runtime."
+tags = ["class", "language-neutral", "lineage", "managed", "shape", "read-construction"]
