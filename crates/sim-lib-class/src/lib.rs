@@ -8,6 +8,7 @@
 mod characterization;
 mod descriptor;
 mod inventory;
+mod lineage;
 
 pub use characterization::{
     CharacterizationScenario, ExpectedOutcome, FailureMode, ScenarioKind,
@@ -20,6 +21,10 @@ pub use descriptor::{
 pub use inventory::{
     CandidateDisposition, CandidateModel, ExclusionReason, ParentMeaning, SemanticDomain,
     candidate_inventory, exclusion_ledger, non_goals,
+};
+pub use lineage::{
+    C3Policy, DeclaredOrderPolicy, LineageBudget, LineageError, LineageGraph, LineagePolicy,
+    PrecedenceConstraint,
 };
 
 #[cfg(test)]
