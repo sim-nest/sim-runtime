@@ -255,6 +255,75 @@ supports = [
 ]
 
 [[feature]]
+id = "feature/sim-runtime/generic-dispatch-organ"
+title = "Generic dispatch organ"
+summary = "Select and combine shape-specialized methods behind one profile-neutral generic-function owner."
+owner = "crate/sim-lib-dispatch"
+audiences = ["code", "framework"]
+guidance = "Use GenericFunction only for a callable that has multiple shape-specialized method bodies. Language adapters may constrain method roles and preserve profile vocabulary, but selection, ambiguity evidence, dispatch ordering, and method combination stay here. Keep ordinary single-body functions in sim-lib-function; do not migrate them into generic dispatch."
+claims_anchors = [
+  "anchor/crate/sim-lib-dispatch",
+  "anchor/card/cookbook/organ/dispatch",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-dispatch/src/tests",
+]
+supports = [
+  "feature/sim-runtime/organs",
+]
+
+[[feature]]
+id = "feature/sim-runtime/islisp-generic-adapter"
+title = "ISLISP generic-function adapter"
+summary = "Present ISLISP generic vocabulary while admitting primary methods to the shared dispatch organ."
+owner = "crate/sim-lib-lang-islisp"
+audiences = ["code", "framework"]
+guidance = "Retain IslispGeneric as intentional composition: add_primary_method admits only primary methods, while select_primary and dispatch_order expose ISLISP-facing inspection without copying selection or evidence mechanics. This adapter is not an ordinary single-body function."
+claims_anchors = [
+  "anchor/crate/sim-lib-lang-islisp",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-lang-islisp/src/tests",
+]
+supports = [
+  "feature/sim-runtime/generic-dispatch-organ",
+]
+
+[[feature]]
+id = "feature/sim-runtime/cl-generic-adapter"
+title = "Common Lisp generic-function adapter"
+summary = "Present defgeneric and defmethod vocabulary while retaining the CL-lite profile identity over shared dispatch."
+owner = "crate/sim-lib-lang-cl"
+audiences = ["code", "framework"]
+guidance = "Retain ClGenericFunction as intentional composition: add_primary_method admits only primary methods and call supplies the CL-lite profile identity. GenericFunction continues to own selection, ordering, ambiguity evidence, and invocation. This adapter is not an ordinary single-body function."
+claims_anchors = [
+  "anchor/crate/sim-lib-lang-cl",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-lang-cl/src/tests",
+]
+supports = [
+  "feature/sim-runtime/generic-dispatch-organ",
+]
+
+[[feature]]
+id = "feature/sim-runtime/julia-generic-adapter"
+title = "Julia multiple-dispatch adapter"
+summary = "Present Julia method vocabulary and profile identity over shared generic dispatch."
+owner = "crate/sim-lib-lang-julia"
+audiences = ["code", "framework"]
+guidance = "Retain JuliaFunction as intentional composition: add_method admits Julia primary methods and call supplies the Julia profile identity. GenericFunction continues to own specificity, ordering, ambiguity evidence, and invocation. This adapter is not an ordinary single-body function."
+claims_anchors = [
+  "anchor/crate/sim-lib-lang-julia",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-lang-julia/src/tests",
+]
+supports = [
+  "feature/sim-runtime/generic-dispatch-organ",
+]
+
+[[feature]]
 id = "feature/sim-runtime/property-mechanics"
 title = "Neutral property mechanics"
 summary = "Store ordered own properties and execute data or accessor descriptors with receiver-aware, budgeted interception."
