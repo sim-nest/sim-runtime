@@ -594,6 +594,19 @@ steps = [
 ]
 
 [[route]]
+id = "route/compare-cross-language-callables"
+task = "Compare Python, JavaScript, and Lua callable and object-model semantics"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/function-organ", why = "The function organ supplies the neutral kernel Callable projection and browse Shapes shared by all three guests." },
+  { feature = "feature/sim-runtime/class-semantics", why = "The class organ owns declared-parent lineage while explicitly excluding prototype and __index delegation." },
+  { feature = "feature/sim-runtime/python-object-control-policy", why = "Python projects its declared superclass graph through the class protocol." },
+  { feature = "feature/sim-runtime/javascript-core-profile", why = "JavaScript retains prototype lookup as guest object policy rather than declared lineage." },
+  { feature = "feature/sim-runtime/guest-language-profiles", why = "Lua retains metatable __index lookup as guest policy rather than declared lineage." },
+  { specimen = "recipe/sim-runtime/crates/sim-lib-lang-matrix/01-basics/cross-language-callable", why = "The terminal checked recipe browses and calls all three functions, compares canonical outcomes, and proves that only Python answers the declared-parent query." },
+]
+
+[[route]]
 id = "route/use-javascript-core-profile"
 task = "Use the bounded JavaScript core profile"
 audiences = ["code", "framework"]
