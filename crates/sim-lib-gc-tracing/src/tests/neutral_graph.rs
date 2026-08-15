@@ -226,6 +226,71 @@ fn neutral_mixed_graph_matches_reference_across_root_and_kept_alive_epochs() {
 }
 
 #[test]
+fn ephemeron_keyed_cache_reclaims_values_and_their_captured_graphs() {
+    const LOAD_DROP_CYCLES: usize = 32;
+
+    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(4).unwrap());
+    let cache = arena.allocate(NeutralNode::default()).unwrap();
+    let cache_root = arena.root(cache).unwrap();
+
+    for cycle in 0..LOAD_DROP_CYCLES {
+        let key = arena.allocate(NeutralNode::default()).unwrap();
+        let value = arena.allocate(NeutralNode::default()).unwrap();
+        let captured = arena.allocate(NeutralNode::default()).unwrap();
+        arena.get_mut(value).unwrap().strong.push(captured.id());
+        arena
+            .get_mut(cache)
+            .unwrap()
+            .ephemerons
+            .push(Some((key.id(), value.id())));
+        let key_root = arena.root(key).unwrap();
+
+        let retained = collect(&mut arena, generous_limits()).unwrap();
+        assert_eq!(
+            retained.marked,
+            [cache.id(), key.id(), value.id(), captured.id()],
+            "cycle {cycle}: a live cache key must retain its value and captures",
+        );
+        assert!(retained.swept.is_empty());
+        assert!(retained.cleared_ephemerons.is_empty());
+        assert_eq!(arena.len(), 4);
+
+        arena.release_root(key_root).unwrap();
+        let reclaimed = collect(&mut arena, generous_limits()).unwrap();
+        assert_eq!(reclaimed.marked, [cache.id()]);
+        assert_eq!(
+            reclaimed.swept,
+            [key.id(), value.id(), captured.id()],
+            "cycle {cycle}: the value graph must not become a strong-map fallback",
+        );
+        assert_eq!(
+            reclaimed.cleared_ephemerons,
+            [(cache.id(), EdgeId(cycle as u32))],
+            "cycle {cycle}: clearing must identify the exact cache entry",
+        );
+        assert!(reclaimed.cleared_weak.is_empty());
+        assert_eq!(
+            arena.len(),
+            1,
+            "cycle {cycle}: live storage must stay bounded"
+        );
+        assert!(arena.handle(key.id()).is_err());
+        assert!(arena.handle(value.id()).is_err());
+        assert!(arena.handle(captured.id()).is_err());
+
+        let settled = collect(&mut arena, generous_limits()).unwrap();
+        assert!(settled.swept.is_empty());
+        assert!(settled.cleared_ephemerons.is_empty());
+        assert_eq!(arena.len(), 1);
+    }
+
+    arena.release_root(cache_root).unwrap();
+    let closed = collect(&mut arena, generous_limits()).unwrap();
+    assert_eq!(closed.swept, [cache.id()]);
+    assert!(arena.is_empty());
+}
+
+#[test]
 fn retaining_mode_defers_cycles_to_deterministic_teardown() {
     let mut heap = ManagedHeap::retaining(2).unwrap();
     let first = heap.allocate(NeutralNode::default()).unwrap();
