@@ -1,4 +1,7 @@
-const PUBLIC_SURFACE: &str = include_str!("../src/lib.rs");
+const PUBLIC_SURFACE: &str = concat!(
+    include_str!("../src/lib.rs"),
+    include_str!("../src/admission.rs")
+);
 
 #[test]
 fn public_surface_remains_neutral() {

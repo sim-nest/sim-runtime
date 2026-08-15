@@ -5,12 +5,16 @@
 //! This crate intentionally provides no policy implementation and no execution
 //! engine. Consumers supply every semantic choice through the traits below.
 
+mod admission;
 mod code;
 mod frame;
 mod shuffle;
 mod slots;
 mod stack;
 
+pub use admission::{
+    AdmissionError, AdmissionLimits, AdmissionPolicy, MachineDescription, MachinePermit,
+};
 pub use frame::{
     CallTransfer, Frame, FrameStack, FrameStackError, ReturnTransfer, Transfer, TransferError,
 };
@@ -96,19 +100,6 @@ pub trait RootPolicy<S> {
 pub trait SafepointPolicy<I> {
     /// Returns whether the instruction is a semantic safepoint.
     fn is_safepoint(instruction: &I) -> bool;
-}
-
-/// Performs effect-free validation and issues a content-bound permit.
-///
-/// For example, a WebAssembly validator or an eBPF verifier can supply it.
-pub trait AdmissionPolicy<C> {
-    /// Permit proving that the supplied code and limits were admitted.
-    type Permit;
-    /// Structured refusal evidence.
-    type Refusal;
-
-    /// Validates `code` without executing consumer effects.
-    fn admit(code: &C) -> Result<Self::Permit, Self::Refusal>;
 }
 
 /// Creates deterministic evidence for bounded machine work.

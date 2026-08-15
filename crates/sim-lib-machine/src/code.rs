@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use sha2::{Digest, Sha256};
 use sim_kernel::{Origin, SourceId};
 
 use crate::InstructionPolicy;
@@ -404,6 +405,52 @@ where
     /// Returns whether there are no instructions. Valid located code is never empty.
     pub fn is_empty(&self) -> bool {
         self.instructions.is_empty()
+    }
+
+    pub(crate) fn instructions(&self) -> &[LocatedInstruction<P::Instruction, P::InstructionId>] {
+        &self.instructions
+    }
+
+    pub(crate) fn hash_structure(
+        &self,
+        digest: &mut Sha256,
+        mut encode_instruction: impl FnMut(&P::Instruction, &mut Vec<u8>),
+    ) {
+        digest.update(self.instructions.len().to_le_bytes());
+        for located in &self.instructions {
+            let mut bytes = Vec::new();
+            encode_instruction(&located.instruction, &mut bytes);
+            digest.update(bytes.len().to_le_bytes());
+            digest.update(bytes);
+            let (unit, start, end) = located.location.range();
+            digest.update([match unit {
+                LocationUnit::Byte => 0,
+                LocationUnit::Token => 1,
+            }]);
+            digest.update(start.to_le_bytes());
+            digest.update(end.to_le_bytes());
+            digest.update([u8::from(located.safepoint)]);
+            digest.update(
+                located
+                    .coverage
+                    .map_or(u64::MAX, |value| value.counter)
+                    .to_le_bytes(),
+            );
+        }
+        digest.update(self.targets.len().to_le_bytes());
+        for (from, targets) in &self.targets {
+            digest.update(self.cursors[from].0.to_le_bytes());
+            digest.update(targets.len().to_le_bytes());
+            for target in targets.iter() {
+                digest.update(target.0.to_le_bytes());
+            }
+        }
+        digest.update(self.regions.len().to_le_bytes());
+        for region in &self.regions {
+            digest.update(region.start.0.to_le_bytes());
+            digest.update(region.end_index.to_le_bytes());
+            digest.update(region.handler.0.to_le_bytes());
+        }
     }
 }
 
