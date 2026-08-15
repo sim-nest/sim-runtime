@@ -20,8 +20,10 @@
 //! }
 //! ```
 
+mod bind;
 mod plan;
 
+pub use bind::{ArgumentInput, ArgumentOrigin, BoundArgument, BoundCall, CallInput, bind};
 pub use plan::{
     BrowseProjection, CallMode, CaptureDescriptor, FunctionPlan, ParameterDescriptor,
     ParameterKind, PlanError,

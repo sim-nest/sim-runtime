@@ -35,3 +35,14 @@ fn manifest_does_not_depend_on_generic_dispatch() {
     let manifest = fs::read_to_string(crate_root().join("Cargo.toml")).unwrap();
     assert!(!manifest.contains("sim-lib-dispatch"));
 }
+
+#[test]
+fn neutral_binding_has_no_language_decision_tables() {
+    let source = fs::read_to_string(crate_root().join("src/bind.rs")).unwrap();
+    for spelling in ["default_value", "defaulted", "keyword_precedence"] {
+        assert!(
+            !source.contains(spelling),
+            "neutral binding contains language decision marker {spelling}"
+        );
+    }
+}
