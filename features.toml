@@ -129,6 +129,8 @@ claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-function/src/callable",
   "spec-test/sim-runtime/crates/sim-lib-function/src/instance",
   "spec-test/sim-runtime/crates/sim-lib-function/tests/contract_shape",
+  "spec-test/sim-runtime/crates/sim-lib-function/tests/neutral_language_specimen",
+  "recipe/sim-runtime/crates/sim-lib-function/01-basics/neutral-language",
 ]
 supports = [
   "feature/sim-runtime/organs",
@@ -459,6 +461,7 @@ steps = [
   { feature = "feature/sim-runtime/property-mechanics", why = "The property row owns descriptor dispatch and reusable property semantics." },
   { feature = "feature/sim-runtime/namespace-organ", why = "The namespace row owns bounded module resolution and caller-supplied source roots." },
   { feature = "feature/sim-runtime/contract-emitter", why = "The emitter row keeps generated runtime contract evidence current." },
+  { specimen = "recipe/sim-runtime/crates/sim-lib-function/01-basics/neutral-language", why = "The terminal checked specimen composes typed lexical capture, positional and named inputs, browsing, managed-cycle collection, and optional generic dispatch without importing an established guest runtime." },
 ]
 
 [[route]]

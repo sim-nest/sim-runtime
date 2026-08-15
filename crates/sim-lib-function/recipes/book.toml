@@ -1,0 +1,3 @@
+id = "cookbook/organ/function"
+title = "Function organ recipes"
+summary = "Language-neutral typed functions, managed captures, and optional dispatch."
