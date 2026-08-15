@@ -40,6 +40,28 @@ claims_specimens = [
 supports = ["feature/sim-runtime/javascript-core-profile", "feature/sim-runtime/guest-language-profiles"]
 
 [[feature]]
+id = "feature/sim-runtime/typed-lazy-typeclass-dictionaries"
+title = "Typed-lazy typeclass evidence dictionaries"
+summary = "Represent a typeclass instance as an explicit language-owned evidence record mapping required method names to implementation symbols."
+owner = "crate/sim-lib-lang-typed-lazy"
+audiences = ["code", "framework"]
+guidance = "Use TypeclassDictionary when the typed-lazy profile must carry explicit evidence that an instance satisfies a typeclass constraint. Compose shared bindings and Shapes for names and admitted values, and managed strong edges when dictionary evidence retains managed implementations. An implementation selected from the dictionary may separately satisfy Callable, but the dictionary itself is neither a Class nor a FunctionInstance or GenericFunction: it witnesses a constraint, owns no declared-parent relation, and performs no call dispatch. The class-ownership and function-ownership ledgers publish and enforce those exclusions."
+claims_anchors = ["anchor/crate/sim-lib-lang-typed-lazy"]
+claims_specimens = ["spec-test/sim-runtime/crates/sim-lib-lang-typed-lazy/src/lib"]
+supports = ["feature/sim-runtime/binding-organ", "feature/sim-runtime/gc-tracing"]
+
+[[feature]]
+id = "feature/sim-runtime/prolog-predicate-clause-store"
+title = "Prolog predicates as indexed clause sets"
+summary = "Keep each Prolog predicate language-owned as the indexed set of logic-organ clauses resolved through unification and backtracking."
+owner = "crate/sim-lib-lang-prolog"
+audiences = ["code", "framework"]
+guidance = "Use the Prolog surface with sim-lib-logic LogicDb for predicate identity, ordered clauses, indexing, unification, backtracking, and constraints. Compose shared bindings and Shapes only at the language boundary. A predicate may be invoked by Prolog goal resolution, but it is neither a Class nor a FunctionInstance or GenericFunction: its clauses are alternatives in relational search, not methods, overloads, or callable bodies. The class-ownership and function-ownership ledgers classify it as a non-participant and publish the mismatch reasons."
+claims_anchors = ["anchor/crate/sim-lib-lang-prolog", "anchor/crate/sim-lib-logic"]
+claims_specimens = ["spec-test/sim-runtime/crates/sim-lib-logic/src/tests/organ_proof"]
+supports = ["feature/sim-runtime/organs", "feature/sim-runtime/binding-organ"]
+
+[[feature]]
 id = "feature/sim-runtime/class-semantics"
 title = "Language-neutral declared class semantics"
 summary = "Own checked declared-parent class descriptors projected onto the kernel Class protocol, with bounded lineage policies and managed, non-retaining caches for linearizations and derived member views."

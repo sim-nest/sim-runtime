@@ -21,6 +21,18 @@ pub struct GuestFrame {
 }
 "#;
 
+const DICTIONARY_FUNCTION_ADAPTER: &str = r#"
+pub fn adapt_typeclass_dictionary(dictionary: TypeclassDictionary) -> FunctionInstance<DictionaryBody> {
+    FunctionInstance::new(dictionary)
+}
+"#;
+
+const DICTIONARY_MANAGED_EDGES: &str = r#"
+pub struct TypeclassDictionary {
+    managed_edges: Vec<ManagedHandle>,
+}
+"#;
+
 #[derive(Debug)]
 struct Policy {
     owner: String,
@@ -29,6 +41,16 @@ struct Policy {
     parameter_fields: Vec<String>,
     capture_fields: Vec<String>,
     legacy_paths: Vec<(String, String)>,
+    non_participants: Vec<NonParticipant>,
+}
+
+#[derive(Debug)]
+struct NonParticipant {
+    model: String,
+    terms: Vec<String>,
+    mismatch_code: String,
+    reason: String,
+    approved_relationships: Vec<String>,
 }
 
 impl Policy {
@@ -49,6 +71,16 @@ impl Policy {
                 (path, reason)
             })
             .collect();
+        let non_participants = sections(&source, "[[non_participant]]")
+            .map(|row| NonParticipant {
+                model: scalar(row, "model"),
+                terms: array(row, "source_terms"),
+                mismatch_code: scalar(row, "mismatch_code"),
+                reason: scalar(row, "reason"),
+                approved_relationships: array(row, "approved_relationships"),
+            })
+            .collect::<Vec<_>>();
+        assert!(!non_participants.is_empty());
         Self {
             owner,
             remediation,
@@ -56,11 +88,12 @@ impl Policy {
             parameter_fields: array(&source, "parameter_fields"),
             capture_fields: array(&source, "capture_fields"),
             legacy_paths,
+            non_participants,
         }
     }
 
     fn findings(&self, path: &Path, source: &str) -> Vec<String> {
-        public_structs(source)
+        let mut findings = public_structs(source)
             .into_iter()
             .filter_map(|item| {
                 let fields = field_names(&item);
@@ -71,7 +104,24 @@ impl Policy {
                     path.display(), self.owner, self.remediation
                 ))
             })
-            .collect()
+            .collect::<Vec<_>>();
+        let lower = source.to_ascii_lowercase();
+        if lower.contains("functioninstance") {
+            for exclusion in &self.non_participants {
+                if exclusion.terms.iter().any(|term| lower.contains(term)) {
+                    findings.push(format!(
+                        "{} recasts {} as FunctionInstance [{}]: {}",
+                        path.display(),
+                        exclusion.model,
+                        exclusion.mismatch_code,
+                        exclusion.reason
+                    ));
+                }
+            }
+        }
+        findings.sort();
+        findings.dedup();
+        findings
     }
 
     fn legacy_reason(&self, path: &str) -> Option<&str> {
@@ -80,6 +130,13 @@ impl Policy {
             .find(|(candidate, _)| candidate == path)
             .map(|(_, reason)| reason.as_str())
     }
+}
+
+fn sections<'a>(source: &'a str, heading: &str) -> impl Iterator<Item = &'a str> {
+    source
+        .split(heading)
+        .skip(1)
+        .map(|row| row.split("[[").next().unwrap_or(row))
 }
 
 fn scalar(source: &str, key: &str) -> String {
@@ -188,6 +245,40 @@ fn guard_rejects_shadow_schema_and_admits_language_policy() {
             .findings(Path::new("frame.rs"), LANGUAGE_POLICY_ONLY)
             .is_empty()
     );
+}
+
+#[test]
+fn guard_rejects_dictionary_function_adapter_but_admits_managed_edges() {
+    let root = repository_root();
+    let policy = Policy::load(&root);
+    let findings = policy.findings(
+        Path::new("dictionary_adapter.rs"),
+        DICTIONARY_FUNCTION_ADAPTER,
+    );
+    assert!(findings.iter().any(|finding| {
+        finding.contains("typeclass-dictionary")
+            && finding.contains("dictionary-is-constraint-evidence-not-callable-identity")
+    }));
+    assert!(
+        policy
+            .findings(Path::new("dictionary.rs"), DICTIONARY_MANAGED_EDGES)
+            .is_empty()
+    );
+    let prolog = policy
+        .non_participants
+        .iter()
+        .find(|entry| entry.model == "prolog-predicate")
+        .expect("Prolog must be classified in the function exclusion ledger");
+    assert!(!prolog.reason.is_empty());
+    assert_eq!(prolog.approved_relationships, ["binding", "shape"]);
+    for entry in &policy.non_participants {
+        assert!(
+            !entry.model.is_empty()
+                && !entry.terms.is_empty()
+                && !entry.mismatch_code.is_empty()
+                && !entry.reason.is_empty()
+        );
+    }
 }
 
 #[test]
