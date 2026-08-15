@@ -8,8 +8,10 @@
 
 mod adt;
 mod claims;
+mod cursor;
 mod dialect;
 mod glob_dialect;
+mod ir;
 mod lua_dialect;
 mod match_form;
 mod matching;
@@ -27,8 +29,12 @@ pub use claims::{
     pattern_organ_symbol, pattern_tag_op_key, publish_pattern_organ_claims,
     publish_pattern_organ_claims_for_lib,
 };
+pub use cursor::{ByteDomain, ByteOffset, CodeUnitDomain, CodeUnitOffset, Cursor, SymbolDomain};
 pub use dialect::PatternDialect;
 pub use glob_dialect::{GlobPatternDialect, compile_glob_pattern};
+pub use ir::{
+    Anchor, AssertionId, CaptureId, EnginePolicy, IrError, IrNode, PatternIr, RepeatBounds,
+};
 pub use lua_dialect::{LuaPatternDialect, compile_lua_pattern};
 pub use match_form::MatchForm;
 pub use matching::{
