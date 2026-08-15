@@ -5,8 +5,9 @@ mod graph;
 mod lattice;
 
 pub use engine::{
-    DataflowError, DataflowEvent, DataflowFailure, DataflowResult, DataflowSolution, DataflowUsage,
-    FixpointEngine,
+    CausalPredecessor, ContinuationFingerprint, DataflowContinuation, DataflowError, DataflowEvent,
+    DataflowExplanation, DataflowFailure, DataflowProgress, DataflowProgressResult, DataflowResult,
+    DataflowSolution, DataflowUsage, FixpointEngine,
 };
 pub use graph::{
     AdaptedGraph, AdapterBuildResult, Boundary, DataflowGraph, Edge, EdgeClass, EdgeSpec,

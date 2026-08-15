@@ -5,7 +5,7 @@ use std::{
     hash::Hash,
 };
 
-use crate::{BudgetKind, QueryBudgets};
+use crate::{BudgetKind, ContinuationToken, FingerprintValue, QueryBudgets, ValueFingerprint};
 
 use super::{AdmittedTransfer, DataflowGraph, EdgeClass, JoinSemilattice, TransferPolicy};
 
@@ -19,7 +19,7 @@ pub enum DataflowFailure {
 }
 
 /// A stable observation from one fixpoint run.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum DataflowEvent<N, E, C> {
     /// A node was removed from the ordered worklist.
     Visit(N),
@@ -50,6 +50,15 @@ pub struct DataflowUsage {
 pub enum DataflowError<N, E, L> {
     /// A seed names no node in the immutable graph.
     UnknownSeed(N),
+    /// A continuation was presented to inputs other than the ones it captured.
+    ContinuationMismatch {
+        /// Fingerprint category that changed.
+        changed: ContinuationFingerprint,
+        /// Fingerprint captured by the continuation.
+        expected: ValueFingerprint,
+        /// Fingerprint supplied while resuming.
+        actual: ValueFingerprint,
+    },
     /// A declared budget was exhausted at a node or edge.
     BudgetExceeded {
         /// Exhausted core budget class.
@@ -89,6 +98,103 @@ pub enum DataflowError<N, E, L> {
     },
 }
 
+/// Content identity checked before a suspended solve may resume.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ContinuationFingerprint {
+    /// Immutable graph structure and locations.
+    Graph,
+    /// Admitted transfer semantics and configuration.
+    Policy,
+    /// Bottom value and canonical seed set.
+    Dependencies,
+}
+
+/// One causal predecessor retained for a changed node state.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct CausalPredecessor<N, E> {
+    /// Node whose output caused the change, or the seeded node itself.
+    pub node: N,
+    /// Propagation edge, absent for a seed fact.
+    pub edge: Option<E>,
+}
+
+/// A bounded explanation that cannot masquerade as complete after truncation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DataflowExplanation<N, E> {
+    predecessors: Box<[CausalPredecessor<N, E>]>,
+    omitted: usize,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct CausalRecord<N, E> {
+    retained: Vec<CausalPredecessor<N, E>>,
+    omitted: usize,
+}
+
+impl<N, E> DataflowExplanation<N, E> {
+    /// Returns the retained causal predecessors in deterministic discovery order.
+    pub fn predecessors(&self) -> &[CausalPredecessor<N, E>] {
+        &self.predecessors
+    }
+
+    /// Returns whether causal evidence was omitted by the requested bound.
+    pub const fn truncated(&self) -> bool {
+        self.omitted != 0
+    }
+
+    /// Returns the exact number of causal predecessors omitted by the bound.
+    pub const fn omitted(&self) -> usize {
+        self.omitted
+    }
+}
+
+/// A content-bound snapshot of an incomplete deterministic worklist solve.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DataflowContinuation<N, E, C, S> {
+    token: ContinuationToken,
+    graph: ValueFingerprint,
+    policy: ValueFingerprint,
+    dependencies: ValueFingerprint,
+    states: BTreeMap<N, S>,
+    pending: BTreeSet<N>,
+    events: Vec<DataflowEvent<N, E, C>>,
+    causes: BTreeMap<N, CausalRecord<N, E>>,
+    cause_limit: usize,
+    usage: DataflowUsage,
+}
+
+impl<N, E, C, S> DataflowContinuation<N, E, C, S> {
+    /// Returns the canonical core continuation handle bound to this snapshot.
+    pub const fn token(&self) -> ContinuationToken {
+        self.token
+    }
+
+    /// Returns the graph fingerprint captured by this snapshot.
+    pub const fn graph_fingerprint(&self) -> ValueFingerprint {
+        self.graph
+    }
+}
+
+/// Outcome of a resumable solve step.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum DataflowProgress<N, E, C, S> {
+    /// The worklist converged.
+    Complete(DataflowSolution<N, E, C, S>),
+    /// Work remains and is captured without loss.
+    Suspended(DataflowContinuation<N, E, C, S>),
+}
+
+/// Result of one resumable fixpoint step.
+pub type DataflowProgressResult<N, E, L, C, S> =
+    Result<DataflowProgress<N, E, C, S>, DataflowError<N, E, L>>;
+
+#[derive(Clone, Copy)]
+struct ContinuationIdentity {
+    graph: ValueFingerprint,
+    policy: ValueFingerprint,
+    dependencies: ValueFingerprint,
+}
+
 /// Result of one fixpoint solve.
 pub type DataflowResult<N, E, L, C, S> =
     Result<DataflowSolution<N, E, C, S>, DataflowError<N, E, L>>;
@@ -106,6 +212,7 @@ pub struct DataflowSolution<N, E, C, S> {
     states: BTreeMap<N, S>,
     events: Vec<DataflowEvent<N, E, C>>,
     usage: DataflowUsage,
+    causes: BTreeMap<N, CausalRecord<N, E>>,
 }
 
 impl<N: Ord, E, C, S> DataflowSolution<N, E, C, S> {
@@ -124,6 +231,27 @@ impl<N: Ord, E, C, S> DataflowSolution<N, E, C, S> {
     /// Returns exact resource consumption.
     pub const fn usage(&self) -> DataflowUsage {
         self.usage
+    }
+
+    /// Explains a node with at most `limit` causal predecessors.
+    pub fn explain(&self, node: &N, limit: usize) -> Option<DataflowExplanation<N, E>>
+    where
+        N: Clone,
+        E: Clone,
+    {
+        let causes = self.causes.get(node)?;
+        let retained = causes
+            .retained
+            .iter()
+            .take(limit)
+            .cloned()
+            .collect::<Vec<_>>();
+        Some(DataflowExplanation {
+            omitted: causes
+                .omitted
+                .saturating_add(causes.retained.len().saturating_sub(retained.len())),
+            predecessors: retained.into_boxed_slice(),
+        })
     }
 }
 
@@ -190,6 +318,7 @@ impl FixpointEngine {
             .map(|node| (node.id().clone(), bottom.clone()))
             .collect::<BTreeMap<_, _>>();
         let mut pending = BTreeSet::new();
+        let mut causes = BTreeMap::<N, CausalRecord<N, E>>::new();
         for (node_id, seed) in seeds {
             let Some(node) = graph.node(&node_id) else {
                 return Err(DataflowError::UnknownSeed(node_id));
@@ -217,7 +346,16 @@ impl FixpointEngine {
                     budgets,
                     node.location().clone(),
                 )?;
-                pending.insert(node_id);
+                pending.insert(node_id.clone());
+                record_cause(
+                    &mut causes,
+                    node_id.clone(),
+                    CausalPredecessor {
+                        node: node_id,
+                        edge: None,
+                    },
+                    0,
+                );
             }
         }
 
@@ -293,6 +431,15 @@ impl FixpointEngine {
                         target.location().clone(),
                     )?;
                     pending.insert(target_id.clone());
+                    record_cause(
+                        &mut causes,
+                        target_id.clone(),
+                        CausalPredecessor {
+                            node: node_id.clone(),
+                            edge: Some(edge_id.clone()),
+                        },
+                        0,
+                    );
                 }
             }
         }
@@ -300,7 +447,289 @@ impl FixpointEngine {
             states,
             events,
             usage,
+            causes,
         })
+    }
+
+    /// Starts a solve and executes at most `max_visits` complete worklist nodes.
+    ///
+    /// Unlike resource refusal inside [`Self::solve`], this cooperative boundary
+    /// snapshots only between nodes, so resumption never repeats callbacks or
+    /// presents a shortened event stream as complete.
+    pub fn start_resumable<N, E, L, C, S, P>(
+        graph: &DataflowGraph<N, E, L, C>,
+        transfer: &AdmittedTransfer<P>,
+        bottom: S,
+        seeds: impl IntoIterator<Item = (N, S)>,
+        max_visits: usize,
+        explanation_limit: usize,
+    ) -> DataflowProgressResult<N, E, L, C, S>
+    where
+        N: Clone + Hash + Ord,
+        E: Clone + Hash + Ord,
+        L: Clone + Hash + Ord,
+        C: Clone + Hash + Ord,
+        S: JoinSemilattice + Hash,
+        P: TransferPolicy<S>,
+    {
+        let seeds = seeds.into_iter().collect::<BTreeMap<_, _>>();
+        let dependencies = (&bottom, &seeds).incremental_fingerprint();
+        let mut states = graph
+            .nodes()
+            .map(|node| (node.id().clone(), bottom.clone()))
+            .collect::<BTreeMap<_, _>>();
+        let mut pending = BTreeSet::new();
+        let mut causes = BTreeMap::<N, CausalRecord<N, E>>::new();
+        for (node_id, seed) in seeds {
+            if graph.node(&node_id).is_none() {
+                return Err(DataflowError::UnknownSeed(node_id));
+            }
+            let joined = states[&node_id].join(&seed);
+            if joined != states[&node_id] {
+                states.insert(node_id.clone(), joined);
+                pending.insert(node_id.clone());
+                record_cause(
+                    &mut causes,
+                    node_id.clone(),
+                    CausalPredecessor {
+                        node: node_id,
+                        edge: None,
+                    },
+                    explanation_limit,
+                );
+            }
+        }
+        let continuation = make_continuation(
+            ContinuationIdentity {
+                graph: graph.fingerprint(),
+                policy: transfer.fingerprint(),
+                dependencies,
+            },
+            states,
+            pending,
+            Vec::new(),
+            causes,
+            DataflowUsage::default(),
+            explanation_limit,
+        );
+        Self::resume_bound(graph, transfer, continuation, max_visits)
+    }
+
+    /// Resumes a content-bound snapshot, refusing every changed input identity.
+    pub fn resume<N, E, L, C, S, P>(
+        graph: &DataflowGraph<N, E, L, C>,
+        transfer: &AdmittedTransfer<P>,
+        bottom: &S,
+        seeds: impl IntoIterator<Item = (N, S)>,
+        continuation: DataflowContinuation<N, E, C, S>,
+        max_visits: usize,
+    ) -> DataflowProgressResult<N, E, L, C, S>
+    where
+        N: Clone + Hash + Ord,
+        E: Clone + Hash + Ord,
+        L: Clone + Hash + Ord,
+        C: Clone + Hash + Ord,
+        S: JoinSemilattice + Hash,
+        P: TransferPolicy<S>,
+    {
+        check_fingerprint(
+            ContinuationFingerprint::Graph,
+            continuation.graph,
+            graph.fingerprint(),
+        )?;
+        check_fingerprint(
+            ContinuationFingerprint::Policy,
+            continuation.policy,
+            transfer.fingerprint(),
+        )?;
+        let seeds = seeds.into_iter().collect::<BTreeMap<_, _>>();
+        check_fingerprint(
+            ContinuationFingerprint::Dependencies,
+            continuation.dependencies,
+            (bottom, &seeds).incremental_fingerprint(),
+        )?;
+        Self::resume_bound(graph, transfer, continuation, max_visits)
+    }
+
+    fn resume_bound<N, E, L, C, S, P>(
+        graph: &DataflowGraph<N, E, L, C>,
+        transfer: &AdmittedTransfer<P>,
+        continuation: DataflowContinuation<N, E, C, S>,
+        max_visits: usize,
+    ) -> DataflowProgressResult<N, E, L, C, S>
+    where
+        N: Clone + Hash + Ord,
+        E: Clone + Hash + Ord,
+        L: Clone + Hash + Ord,
+        C: Clone + Hash + Ord,
+        S: JoinSemilattice + Hash,
+        P: TransferPolicy<S>,
+    {
+        let DataflowContinuation {
+            graph: graph_fingerprint,
+            policy: policy_fingerprint,
+            dependencies,
+            mut states,
+            mut pending,
+            mut events,
+            mut causes,
+            mut usage,
+            cause_limit,
+            ..
+        } = continuation;
+        let mut visits = 0;
+        while visits < max_visits {
+            let Some(node_id) = pending.pop_first() else {
+                return Ok(DataflowProgress::Complete(DataflowSolution {
+                    states,
+                    events,
+                    usage,
+                    causes,
+                }));
+            };
+            visits += 1;
+            usage.work = usage.work.saturating_add(2);
+            events.push(DataflowEvent::Visit(node_id.clone()));
+            let output = transfer.transfer(&states[&node_id]);
+            let node = graph
+                .node(&node_id)
+                .expect("snapshot node belongs to graph");
+            if !states[&node_id].less_equal(&output) {
+                return Err(DataflowError::NodeFailure {
+                    failure: DataflowFailure::Transfer,
+                    node: node_id,
+                    location: node.location().clone(),
+                });
+            }
+            for edge_id in graph.successors(&node_id).expect("node index is complete") {
+                let edge = graph.edge(edge_id).expect("edge index is complete");
+                let (_, target_id) = edge.predecessor_and_successor();
+                usage.observations = usage.observations.saturating_add(1);
+                usage.work = usage.work.saturating_add(1);
+                events.push(DataflowEvent::Propagate {
+                    edge: edge_id.clone(),
+                    class: edge.class().clone(),
+                });
+                let joined = states[target_id].join(&output);
+                if joined != states[target_id] {
+                    usage.output = usage.output.saturating_add(joined.state_size());
+                    states.insert(target_id.clone(), joined);
+                    pending.insert(target_id.clone());
+                    record_cause(
+                        &mut causes,
+                        target_id.clone(),
+                        CausalPredecessor {
+                            node: node_id.clone(),
+                            edge: Some(edge_id.clone()),
+                        },
+                        cause_limit,
+                    );
+                }
+            }
+        }
+        if pending.is_empty() {
+            Ok(DataflowProgress::Complete(DataflowSolution {
+                states,
+                events,
+                usage,
+                causes,
+            }))
+        } else {
+            Ok(DataflowProgress::Suspended(make_continuation(
+                ContinuationIdentity {
+                    graph: graph_fingerprint,
+                    policy: policy_fingerprint,
+                    dependencies,
+                },
+                states,
+                pending,
+                events,
+                causes,
+                usage,
+                cause_limit,
+            )))
+        }
+    }
+}
+
+fn check_fingerprint<N, E, L>(
+    changed: ContinuationFingerprint,
+    expected: ValueFingerprint,
+    actual: ValueFingerprint,
+) -> Result<(), DataflowError<N, E, L>> {
+    if expected == actual {
+        Ok(())
+    } else {
+        Err(DataflowError::ContinuationMismatch {
+            changed,
+            expected,
+            actual,
+        })
+    }
+}
+
+fn make_continuation<N, E, C, S>(
+    identity: ContinuationIdentity,
+    states: BTreeMap<N, S>,
+    pending: BTreeSet<N>,
+    events: Vec<DataflowEvent<N, E, C>>,
+    causes: BTreeMap<N, CausalRecord<N, E>>,
+    usage: DataflowUsage,
+    cause_limit: usize,
+) -> DataflowContinuation<N, E, C, S>
+where
+    N: Hash + Ord,
+    E: Hash,
+    C: Hash,
+    S: Hash,
+{
+    let ContinuationIdentity {
+        graph,
+        policy,
+        dependencies,
+    } = identity;
+    let token = ContinuationToken::new(
+        (
+            graph,
+            policy,
+            dependencies,
+            &states,
+            &pending,
+            &events,
+            &causes,
+            cause_limit,
+        )
+            .incremental_fingerprint()
+            .get(),
+    );
+    DataflowContinuation {
+        token,
+        graph,
+        policy,
+        dependencies,
+        states,
+        pending,
+        events,
+        causes,
+        cause_limit,
+        usage,
+    }
+}
+
+fn record_cause<N: Ord, E>(
+    causes: &mut BTreeMap<N, CausalRecord<N, E>>,
+    node: N,
+    cause: CausalPredecessor<N, E>,
+    limit: usize,
+) {
+    let record = causes.entry(node).or_insert_with(|| CausalRecord {
+        retained: Vec::new(),
+        omitted: 0,
+    });
+    if record.retained.len() < limit {
+        record.retained.push(cause);
+    } else {
+        record.omitted = record.omitted.saturating_add(1);
     }
 }
 
@@ -401,7 +830,7 @@ mod tests {
     };
     use std::cell::Cell;
 
-    #[derive(Clone, Debug, Eq, PartialEq)]
+    #[derive(Clone, Debug, Eq, Hash, PartialEq)]
     struct Facts(u8);
 
     impl StateSize for Facts {
@@ -626,5 +1055,123 @@ mod tests {
                 location: "entry"
             }
         );
+    }
+
+    #[test]
+    fn continuation_resumes_exact_worklist_and_refuses_edited_graph() {
+        let graph = DataflowGraph::build(
+            [node(0), node(1), node(2)],
+            [
+                edge(0, 0, 1, GraphDirection::Forward, EdgeClass::Data),
+                edge(1, 1, 2, GraphDirection::Forward, EdgeClass::Data),
+            ],
+        )
+        .unwrap();
+        let policy = AdmittedTransfer::admit(Identity, &[Facts(0), Facts(1)]).unwrap();
+        let progress =
+            FixpointEngine::start_resumable(&graph, &policy, Facts(0), [(0, Facts(1))], 1, 8)
+                .unwrap();
+        let DataflowProgress::Suspended(continuation) = progress else {
+            panic!("one visit must leave the chain incomplete");
+        };
+        assert_ne!(continuation.token().get(), 0);
+
+        let edited = DataflowGraph::build(
+            [node(0), node(1), node(2)],
+            [
+                edge(0, 0, 1, GraphDirection::Forward, EdgeClass::Data),
+                edge(1, 1, 2, GraphDirection::Forward, EdgeClass::Data),
+                edge(2, 0, 2, GraphDirection::Forward, EdgeClass::Control),
+            ],
+        )
+        .unwrap();
+        let error = FixpointEngine::resume(
+            &edited,
+            &policy,
+            &Facts(0),
+            [(0, Facts(1))],
+            continuation.clone(),
+            usize::MAX,
+        )
+        .unwrap_err();
+        assert_eq!(
+            error,
+            DataflowError::ContinuationMismatch {
+                changed: ContinuationFingerprint::Graph,
+                expected: continuation.graph_fingerprint(),
+                actual: edited.fingerprint(),
+            }
+        );
+
+        let resumed = FixpointEngine::resume(
+            &graph,
+            &policy,
+            &Facts(0),
+            [(0, Facts(1))],
+            continuation,
+            usize::MAX,
+        )
+        .unwrap();
+        let DataflowProgress::Complete(solution) = resumed else {
+            panic!("unbounded resume must converge");
+        };
+        assert_eq!(solution.state(&2), Some(&Facts(1)));
+    }
+
+    #[test]
+    fn continuation_refuses_changed_dependencies_and_explanation_reports_omissions() {
+        let graph = DataflowGraph::build(
+            [node(0), node(1), node(2)],
+            [
+                edge(0, 0, 2, GraphDirection::Forward, EdgeClass::Data),
+                edge(1, 1, 2, GraphDirection::Forward, EdgeClass::Control),
+            ],
+        )
+        .unwrap();
+        let policy = AdmittedTransfer::admit(Identity, &[Facts(0), Facts(1), Facts(2)]).unwrap();
+        let DataflowProgress::Suspended(continuation) = FixpointEngine::start_resumable(
+            &graph,
+            &policy,
+            Facts(0),
+            [(0, Facts(1)), (1, Facts(2))],
+            1,
+            1,
+        )
+        .unwrap() else {
+            panic!("one seed must remain pending");
+        };
+        let changed_dependencies = FixpointEngine::resume(
+            &graph,
+            &policy,
+            &Facts(0),
+            [(0, Facts(1))],
+            continuation.clone(),
+            usize::MAX,
+        )
+        .unwrap_err();
+        assert!(matches!(
+            changed_dependencies,
+            DataflowError::ContinuationMismatch {
+                changed: ContinuationFingerprint::Dependencies,
+                ..
+            }
+        ));
+
+        let DataflowProgress::Complete(solution) = FixpointEngine::resume(
+            &graph,
+            &policy,
+            &Facts(0),
+            [(0, Facts(1)), (1, Facts(2))],
+            continuation,
+            usize::MAX,
+        )
+        .unwrap() else {
+            panic!("resume must converge");
+        };
+        let explanation = solution.explain(&2, 1).unwrap();
+        assert_eq!(explanation.predecessors().len(), 1);
+        assert!(explanation.truncated());
+        assert_eq!(explanation.omitted(), 1);
+        assert_eq!(solution.explain(&2, 8).unwrap().omitted(), 1);
     }
 }
