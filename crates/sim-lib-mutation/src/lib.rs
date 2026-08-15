@@ -34,8 +34,9 @@ pub use claims::{
 pub use managed::{
     ArenaError, CollectionMutationReceipt, EdgeAllocationError, EdgeAllocator, EdgeId, EdgeKind,
     EdgeLimits, EdgeSnapshot, EdgeVisitor, EphemeronMutationError, HardCappedRetainPolicy,
-    ManagedArena, ManagedHandle, ManagedId, ManagedNode, ManagedObject, ManagedRole, RootId,
-    RootedHandle, SafepointReceipt, StrongEdgeMutationError, TeardownReceipt, TraceContractVersion,
+    ManagedArena, ManagedHandle, ManagedId, ManagedNode, ManagedObject, ManagedRole,
+    RoleBearingManagedObject, RoleProjectionError, RoleProjectionReceipt, RootId, RootedHandle,
+    SafepointReceipt, StrongEdgeMutationError, TeardownReceipt, TraceContractVersion,
     TraceSnapshot, TypedEdgeId, WeakEdgeMutationError, WeakHandle,
 };
 pub use runtime_key::{PrimitiveRuntimeKeyPolicy, RuntimeKey, RuntimeKeyPolicy};

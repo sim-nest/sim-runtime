@@ -469,6 +469,16 @@ pub struct ManagedNode<R> {
     ephemerons: BTreeMap<EdgeId, (ManagedId, ManagedId)>,
 }
 
+/// A managed object carrying caller-owned role evidence outside graph policy.
+pub trait RoleBearingManagedObject: ManagedObject {
+    /// Role label type chosen by the object owner.
+    type Role;
+    /// Borrows the current audit role.
+    fn managed_role(&self) -> &Self::Role;
+    /// Replaces audit role evidence without changing the managed graph.
+    fn replace_managed_role(&mut self, role: Self::Role) -> Self::Role;
+}
+
 impl<R> ManagedNode<R> {
     /// Constructs an empty node carrying caller-owned role evidence.
     pub const fn new(role: R) -> Self {
@@ -789,6 +799,18 @@ impl<R> ManagedObject for ManagedNode<R> {
     }
 }
 
+impl<R> RoleBearingManagedObject for ManagedNode<R> {
+    type Role = R;
+
+    fn managed_role(&self) -> &Self::Role {
+        self.role()
+    }
+
+    fn replace_managed_role(&mut self, role: Self::Role) -> Self::Role {
+        self.replace_role(role)
+    }
+}
+
 /// Receives every outgoing managed edge of an object.
 pub trait EdgeVisitor {
     /// Visits a retaining edge.
@@ -944,6 +966,54 @@ pub struct SafepointReceipt {
     pub roots: Vec<ManagedId>,
     /// Live objects in allocation order.
     pub objects: Vec<ManagedId>,
+}
+
+/// Bounded, allocation-ordered audit evidence projected from one safepoint.
+///
+/// Labels are caller-owned metadata. They are deliberately absent from tracing
+/// and collection contracts, so changing them cannot affect reachability or
+/// reclamation policy.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RoleProjectionReceipt<L> {
+    /// The base tracing receipt this optional evidence describes.
+    pub safepoint: SafepointReceipt,
+    /// Arena mutation epoch observed by the projection.
+    pub mutation_epoch: u64,
+    /// Owner identities and labels in managed allocation order.
+    pub roles: Vec<(ManagedId, L)>,
+}
+
+/// A failed bounded role-evidence projection.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum RoleProjectionError {
+    /// The requested projection would exceed its explicit row limit.
+    Limit {
+        /// Maximum admitted role rows.
+        limit: usize,
+        /// Number of live managed objects requiring rows.
+        required: usize,
+    },
+    /// The arena rejected the safepoint.
+    Arena(ArenaError),
+}
+
+impl fmt::Display for RoleProjectionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Limit { limit, required } => {
+                write!(f, "role projection limit {limit} requires {required}")
+            }
+            Self::Arena(error) => error.fmt(f),
+        }
+    }
+}
+
+impl Error for RoleProjectionError {}
+
+impl From<ArenaError> for RoleProjectionError {
+    fn from(error: ArenaError) -> Self {
+        Self::Arena(error)
+    }
 }
 
 /// Deterministic evidence returned by explicit arena teardown.
@@ -1285,5 +1355,51 @@ impl<T> ManagedArena<T> {
         self.roots.clear();
         self.kept_alive.clear();
         receipt
+    }
+}
+
+impl<T: RoleBearingManagedObject> ManagedArena<T> {
+    /// Replaces caller-owned role evidence without advancing the graph epoch.
+    pub fn replace_role(
+        &mut self,
+        handle: ManagedHandle,
+        role: T::Role,
+    ) -> Result<T::Role, ArenaError> {
+        self.objects
+            .get_mut(&handle.id)
+            .map(|object| object.replace_managed_role(role))
+            .ok_or(ArenaError::StaleHandle(handle.id))
+    }
+
+    /// Projects optional owner-role evidence at a read-only safepoint.
+    ///
+    /// Admission is checked before invoking `role`, and rows follow managed id
+    /// order. The projection observes objects but is not visible to tracing or
+    /// collector policy.
+    pub fn project_roles(
+        &mut self,
+        limit: usize,
+    ) -> Result<RoleProjectionReceipt<T::Role>, RoleProjectionError>
+    where
+        T::Role: Clone,
+    {
+        let (roles, safepoint) = self.safepoint(|snapshot| {
+            let required = snapshot.objects.len();
+            if required > limit {
+                return Err(RoleProjectionError::Limit { limit, required });
+            }
+            let roles = snapshot
+                .objects
+                .iter()
+                .map(|(&id, object)| (id, object.managed_role().clone()))
+                .collect();
+            Ok((snapshot.mutation_epoch(), roles))
+        })?;
+        let (mutation_epoch, roles) = roles?;
+        Ok(RoleProjectionReceipt {
+            safepoint,
+            mutation_epoch,
+            roles,
+        })
     }
 }

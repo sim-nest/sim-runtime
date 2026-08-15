@@ -494,3 +494,65 @@ fn hard_capped_retain_refuses_at_cap_while_tracing_reclaims_cycles() {
     );
     assert!(arena.allocate(Node::default()).is_ok());
 }
+
+#[test]
+fn relabeling_all_nodes_changes_only_bounded_role_projection() {
+    fn graph() -> (
+        ManagedArena<ManagedNode<&'static str>>,
+        Vec<sim_lib_mutation::ManagedHandle>,
+    ) {
+        let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(3).unwrap());
+        let root = arena.allocate(ManagedNode::new("root")).unwrap();
+        let child = arena.allocate(ManagedNode::new("child")).unwrap();
+        let garbage = arena.allocate(ManagedNode::new("garbage")).unwrap();
+        arena
+            .get_mut(root)
+            .unwrap()
+            .insert_strong(child.id())
+            .unwrap();
+        arena.root(root).unwrap();
+        (arena, vec![root, child, garbage])
+    }
+
+    let (mut original, _) = graph();
+    let (mut relabeled, handles) = graph();
+    for (handle, role) in handles.into_iter().zip(["owner", "member", "discarded"]) {
+        relabeled.replace_role(handle, role).unwrap();
+    }
+
+    let original_projection = original.project_roles(3).unwrap();
+    let relabeled_projection = relabeled.project_roles(3).unwrap();
+    assert_eq!(
+        original_projection.safepoint,
+        relabeled_projection.safepoint
+    );
+    assert_eq!(
+        original_projection.mutation_epoch,
+        relabeled_projection.mutation_epoch
+    );
+    assert_eq!(
+        original_projection
+            .roles
+            .iter()
+            .map(|row| row.0)
+            .collect::<Vec<_>>(),
+        relabeled_projection
+            .roles
+            .iter()
+            .map(|row| row.0)
+            .collect::<Vec<_>>()
+    );
+    assert_ne!(original_projection.roles, relabeled_projection.roles);
+    assert!(matches!(
+        original.project_roles(2),
+        Err(sim_lib_mutation::RoleProjectionError::Limit {
+            limit: 2,
+            required: 3
+        })
+    ));
+
+    assert_eq!(
+        collect(&mut original, limits()),
+        collect(&mut relabeled, limits())
+    );
+}
