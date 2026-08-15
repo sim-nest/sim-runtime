@@ -30,7 +30,10 @@ pub use library_core::{
     PythonModuleAdmission, PythonModulePolicy, PythonSurface, PythonSurfaceState, match_expr,
     python_library_manifest,
 };
-pub use managed::{PythonHeap, PythonHeapPolicy, PythonManagedKind, PythonManagedObject};
+pub use managed::{
+    PythonHeap, PythonHeapExt, PythonHeapPolicy, PythonManagedKind, PythonManagedMutationError,
+    PythonManagedObject,
+};
 pub use matrix_row::{python_core_matrix_row, python_core_source_cases};
 pub use objects::{
     AttributeError, ClassError, DescriptorHook, PythonClass, PythonObjectSpace, PythonObjectValue,

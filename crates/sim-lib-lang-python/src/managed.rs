@@ -1,10 +1,9 @@
-use sim_lib_gc_tracing::{CollectionError, CollectionLimits, CollectionReceipt, collect};
 use sim_lib_mutation::{
-    EdgeId, EdgeVisitor, HardCappedRetainPolicy, ManagedArena, ManagedHandle, ManagedId,
-    ManagedObject,
+    ArenaError, EdgeId, EphemeronMutationError, ManagedHandle, ManagedNode,
+    StrongEdgeMutationError, WeakEdgeMutationError,
 };
 
-/// Language-visible role of a managed Python allocation.
+/// Open Python role label carried by the shared managed node.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum PythonManagedKind {
     /// An instance or class object.
@@ -20,138 +19,111 @@ pub enum PythonManagedKind {
     Container,
 }
 
-/// Cyclic mutable Python payload held exclusively in the shared managed arena.
-#[derive(Clone, Debug, Default)]
-pub struct PythonManagedObject {
-    /// Language-visible allocation role; collection does not special-case it.
-    pub kind: PythonManagedKind,
-    /// Strong links to other Python objects.
-    pub edges: Vec<ManagedId>,
-}
-impl ManagedObject for PythonManagedObject {
-    fn trace_edges(&self, visitor: &mut dyn EdgeVisitor) {
-        for (i, target) in self.edges.iter().copied().enumerate() {
-            visitor.strong(EdgeId(i as u32), target);
-        }
-    }
-    fn clear_weak_edge(&mut self, _: EdgeId, _: ManagedId) -> bool {
-        false
-    }
-    fn clear_ephemeron_edge(&mut self, _: EdgeId, _: ManagedId, _: ManagedId) -> bool {
-        false
-    }
-}
+/// Compatibility name for Python's role-bearing shared managed node.
+pub type PythonManagedObject = ManagedNode<PythonManagedKind>;
 
-/// Explicit reclaim policy. Tracing is the standard; retention is opt-in and inspectable.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum PythonHeapPolicy {
-    /// Run the shared bounded tracing collector.
-    Tracing(CollectionLimits),
-    /// Retain until teardown; strong cycles leak by contract.
-    Retain,
-}
+/// Compatibility name for the shared managed heap instantiated for Python.
+pub type PythonHeap = sim_lib_gc_tracing::ManagedHeap<PythonManagedObject>;
 
-/// Python managed heap composed from the shared arena and optional collector.
-pub struct PythonHeap {
-    arena: ManagedArena<PythonManagedObject>,
-    policy: PythonHeapPolicy,
-}
-impl PythonHeap {
-    /// Create the standard tracing heap.
-    pub fn standard(
-        cap: usize,
-        limits: CollectionLimits,
-    ) -> Result<Self, sim_lib_mutation::ArenaError> {
-        Ok(Self {
-            arena: ManagedArena::new(HardCappedRetainPolicy::new(cap)?),
-            policy: PythonHeapPolicy::Tracing(limits),
-        })
-    }
-    /// Create the explicit no-collector heap whose cycle leak is reported by `cycle_leak_gap`.
-    pub fn retaining(cap: usize) -> Result<Self, sim_lib_mutation::ArenaError> {
-        Ok(Self {
-            arena: ManagedArena::new(HardCappedRetainPolicy::new(cap)?),
-            policy: PythonHeapPolicy::Retain,
-        })
-    }
-    /// Allocate a cyclic-capable value only in the managed arena.
-    pub fn allocate(
-        &mut self,
-        value: PythonManagedObject,
-    ) -> Result<ManagedHandle, sim_lib_mutation::ArenaError> {
-        self.arena.allocate(value)
-    }
-    /// Add a strong language edge between two managed values.
-    pub fn connect(
+/// Compatibility name for the shared heap policy.
+pub type PythonHeapPolicy = sim_lib_gc_tracing::ManagedHeapPolicy;
+
+/// Python-named graph operations over the shared heap and node.
+pub trait PythonHeapExt {
+    /// Adds a checked strong edge and returns its stable edge identity.
+    fn connect(
         &mut self,
         from: ManagedHandle,
         to: ManagedHandle,
-    ) -> Result<(), sim_lib_mutation::ArenaError> {
-        self.arena.get_mut(from)?.edges.push(to.id());
-        Ok(())
+    ) -> Result<EdgeId, PythonManagedMutationError>;
+
+    /// Adds a checked weak edge and returns its stable edge identity.
+    fn connect_weak(
+        &mut self,
+        from: ManagedHandle,
+        to: ManagedHandle,
+    ) -> Result<EdgeId, PythonManagedMutationError>;
+
+    /// Adds a checked ephemeron and returns its stable edge identity.
+    fn connect_ephemeron(
+        &mut self,
+        from: ManagedHandle,
+        key: ManagedHandle,
+        value: ManagedHandle,
+    ) -> Result<EdgeId, PythonManagedMutationError>;
+}
+
+/// A checked Python managed-graph mutation failure.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum PythonManagedMutationError {
+    /// The owning allocation handle is stale.
+    Arena(ArenaError),
+    /// A strong edge could not be admitted.
+    Strong(StrongEdgeMutationError),
+    /// A weak edge could not be admitted.
+    Weak(WeakEdgeMutationError),
+    /// An ephemeron could not be admitted.
+    Ephemeron(EphemeronMutationError),
+}
+
+impl From<ArenaError> for PythonManagedMutationError {
+    fn from(value: ArenaError) -> Self {
+        Self::Arena(value)
     }
-    /// Return the number of live managed allocations.
-    pub fn live_len(&self) -> usize {
-        self.arena.len()
+}
+
+impl PythonHeapExt for PythonHeap {
+    fn connect(
+        &mut self,
+        from: ManagedHandle,
+        to: ManagedHandle,
+    ) -> Result<EdgeId, PythonManagedMutationError> {
+        self.get_mut(from)?
+            .insert_strong(to.id())
+            .map_err(PythonManagedMutationError::Strong)
     }
-    /// Return selected policy.
-    pub const fn policy(&self) -> PythonHeapPolicy {
-        self.policy
+
+    fn connect_weak(
+        &mut self,
+        from: ManagedHandle,
+        to: ManagedHandle,
+    ) -> Result<EdgeId, PythonManagedMutationError> {
+        self.get_mut(from)?
+            .insert_weak(to.id())
+            .map_err(PythonManagedMutationError::Weak)
     }
-    /// Return the explicit retention gap, if selected.
-    pub const fn cycle_leak_gap(&self) -> Option<&'static str> {
-        match self.policy {
-            PythonHeapPolicy::Retain => {
-                Some("unreachable strong cycles are retained until heap teardown")
-            }
-            PythonHeapPolicy::Tracing(_) => None,
-        }
-    }
-    /// Run a safepoint. Retention performs no implicit collection.
-    pub fn collect(&mut self) -> Result<Option<CollectionReceipt>, CollectionError> {
-        match self.policy {
-            PythonHeapPolicy::Tracing(limits) => collect(&mut self.arena, limits).map(Some),
-            PythonHeapPolicy::Retain => Ok(None),
-        }
+
+    fn connect_ephemeron(
+        &mut self,
+        from: ManagedHandle,
+        key: ManagedHandle,
+        value: ManagedHandle,
+    ) -> Result<EdgeId, PythonManagedMutationError> {
+        self.get_mut(from)?
+            .insert_ephemeron(key.id(), value.id())
+            .map_err(PythonManagedMutationError::Ephemeron)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sim_lib_gc_tracing::CollectionLimits;
 
     fn limits() -> CollectionLimits {
         CollectionLimits {
             objects: 8,
-            edges: 8,
+            edges: 16,
             stack: 8,
-            work: 32,
+            work: 64,
             clears: 8,
             finalizers: 0,
         }
     }
 
     #[test]
-    fn tracing_is_standard_and_retention_is_explicit() {
-        let standard = PythonHeap::standard(8, limits()).unwrap();
-        assert!(matches!(standard.policy(), PythonHeapPolicy::Tracing(_)));
-        assert_eq!(standard.cycle_leak_gap(), None);
-        let retaining = PythonHeap::retaining(8).unwrap();
-        assert_eq!(retaining.policy(), PythonHeapPolicy::Retain);
-        assert!(retaining.cycle_leak_gap().unwrap().contains("cycles"));
-    }
-
-    #[test]
-    fn unreachable_python_objects_are_reclaimed_by_shared_collector() {
-        let mut heap = PythonHeap::standard(8, limits()).unwrap();
-        heap.allocate(PythonManagedObject::default()).unwrap();
-        let receipt = heap.collect().unwrap().unwrap();
-        assert_eq!(receipt.swept.len(), 1);
-    }
-
-    #[test]
-    fn heterogeneous_language_cycle_is_reclaimed_without_observable_mutation() {
-        let mut heap = PythonHeap::standard(8, limits()).unwrap();
+    fn shared_node_preserves_heterogeneous_cycle_behavior() {
+        let mut heap = PythonHeap::tracing(8, limits()).unwrap();
         let kinds = [
             PythonManagedKind::Instance,
             PythonManagedKind::Closure,
@@ -161,22 +133,58 @@ mod tests {
         ];
         let handles: Vec<_> = kinds
             .into_iter()
-            .map(|kind| {
-                heap.allocate(PythonManagedObject {
-                    kind,
-                    edges: vec![],
-                })
-                .unwrap()
-            })
+            .map(|kind| heap.allocate(PythonManagedObject::new(kind)).unwrap())
             .collect();
         for pair in handles.windows(2) {
             heap.connect(pair[0], pair[1]).unwrap();
         }
         heap.connect(handles[4], handles[0]).unwrap();
         let visible_result = 42;
-        let receipt = heap.collect().unwrap().unwrap();
-        assert_eq!(receipt.swept.len(), 5);
+        assert_eq!(
+            heap.collect().unwrap().unwrap().swept,
+            handles.iter().map(|handle| handle.id()).collect::<Vec<_>>()
+        );
         assert_eq!(heap.live_len(), 0);
         assert_eq!(visible_result, 42);
+    }
+
+    #[test]
+    fn shared_heap_preserves_exact_retention_gap() {
+        let mut heap = PythonHeap::retaining(2).unwrap();
+        heap.allocate(PythonManagedObject::new(PythonManagedKind::Instance))
+            .unwrap();
+        assert_eq!(
+            heap.cycle_leak_gap(),
+            Some("unreachable strong cycles are retained until heap teardown")
+        );
+        assert_eq!(heap.collect().unwrap(), None);
+        assert_eq!(heap.live_len(), 1);
+    }
+
+    #[test]
+    fn python_weak_and_ephemeron_edges_clear_on_shared_collector() {
+        let mut heap = PythonHeap::tracing(8, limits()).unwrap();
+        let owner = heap
+            .allocate(PythonManagedObject::new(PythonManagedKind::Container))
+            .unwrap();
+        let weak_target = heap
+            .allocate(PythonManagedObject::new(PythonManagedKind::Instance))
+            .unwrap();
+        let key = heap
+            .allocate(PythonManagedObject::new(PythonManagedKind::Instance))
+            .unwrap();
+        let value = heap
+            .allocate(PythonManagedObject::new(PythonManagedKind::Instance))
+            .unwrap();
+        let weak = heap.connect_weak(owner, weak_target).unwrap();
+        let ephemeron = heap.connect_ephemeron(owner, key, value).unwrap();
+        let root = heap.root(owner).unwrap();
+
+        let receipt = heap.collect().unwrap().unwrap();
+        assert_eq!(receipt.swept, [weak_target.id(), key.id(), value.id()]);
+        assert_eq!(receipt.cleared_weak, [(owner.id(), weak)]);
+        assert_eq!(receipt.cleared_ephemerons, [(owner.id(), ephemeron)]);
+        assert!(heap.get(owner).unwrap().edge_snapshot().is_empty());
+        heap.release_root(root).unwrap();
     }
 }
