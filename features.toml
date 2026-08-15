@@ -42,15 +42,18 @@ supports = ["feature/sim-runtime/javascript-core-profile", "feature/sim-runtime/
 [[feature]]
 id = "feature/sim-runtime/incremental-query-core"
 title = "Incremental query core"
-summary = "Provide the generic memo graph algorithm that runtime organs can wrap without depending on SIM value surfaces."
+summary = "Provide the generic memo graph and the one proof-producing dataflow fixpoint engine that runtime organs can wrap without depending on SIM value surfaces."
 owner = "crate/sim-incremental-core"
 audiences = ["code"]
-guidance = "Use this row when maintaining the dependency-light incremental calculation core. SIM value conversion and runtime loading are owned by the incremental query organ."
+guidance = "Use this row when maintaining dependency-light incremental calculation. It owns both memoized expression queries and the generic, deterministic dataflow worklist, including graph identity, admitted transfer laws, budgets, continuations, explanations, widening, incremental invalidation, and completion proofs. Domain crates supply transfer rules; they must not add another generic worklist or fixpoint cache. SIM value conversion and runtime loading are owned by the incremental query organ."
 claims_anchors = [
   "anchor/crate/sim-incremental-core",
 ]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-incremental-core/src/tests",
+  "spec-test/sim-runtime/crates/sim-incremental-core/tests/definite_assignment_specimen",
+  "spec-test/sim-runtime/crates/sim-incremental-core/tests/range_analysis_specimen",
+  "spec-test/sim-runtime/crates/sim-incremental-core/tests/ownership_guard",
 ]
 supports = [
   "feature/sim-runtime/incremental-query-organ",
@@ -473,6 +476,17 @@ steps = [
   { feature = "feature/sim-runtime/incremental-query-core", why = "The core row owns the dependency-light memo graph and cutoff algorithm." },
   { feature = "feature/sim-runtime/incremental-query-organ", why = "The organ row owns SIM conversion, capability gates, shapes, reports, immutable completed-analysis projection, and loadable exports." },
   { specimen = "spec-test/sim-runtime/crates/sim-lib-incremental/src/tests", why = "The checked tests exercise registration, invalidation, verification, cutoff, reports, Card projection, and proof-backed analysis browsing." },
+]
+
+[[route]]
+id = "route/add-dataflow-analysis"
+task = "Add a proof-producing dataflow analysis"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/incremental-query-core", why = "The core owns the one generic worklist, lattice admission, widening, continuations, explanations, incremental reuse, and completion proofs; callers contribute only domain transfer rules." },
+  { specimen = "spec-test/sim-runtime/crates/sim-incremental-core/tests/definite_assignment_specimen", why = "The forward definite-assignment specimen covers branches, loops, unreachable code, exceptional edges, diagnostics, and exact incremental invalidation." },
+  { specimen = "spec-test/sim-runtime/crates/sim-incremental-core/tests/range_analysis_specimen", why = "The backward range specimen proves explicit fingerprinted widening, typed budget exhaustion, resumability, explanations, and deterministic proof identity." },
+  { specimen = "spec-test/sim-runtime/crates/sim-incremental-core/tests/ownership_guard", why = "The structural guard rejects a second memoized worklist while explicitly classifying domain transfer rules and unrelated algorithms." },
 ]
 
 [[route]]

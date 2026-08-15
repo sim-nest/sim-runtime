@@ -1,0 +1,26 @@
+schema = "sim.dataflow-ownership/v1"
+owner = "sim-incremental-core"
+
+# These are structural roles. A candidate must contain both a queued frontier
+# and retained keyed state; vocabulary such as `worklist` is not itself a hit.
+frontier_types = ["VecDeque", "BinaryHeap"]
+retained_state_types = ["BTreeMap", "HashMap"]
+
+[[classifier]]
+class = "domain-transfer-rules"
+reason = "A transfer rule computes one domain state from another and owns neither a queued frontier nor retained fixpoint state."
+
+[[classifier]]
+class = "non-dataflow-algorithm"
+reason = "A queued or memoized algorithm outside dataflow is exempt only when its distinct domain and termination contract are stated here."
+crates = ["sim-lib-gc-tracing"]
+
+[[classifier]]
+class = "non-dataflow-algorithm"
+reason = "The conformance harness retains named test cases and scheduled case ids; it executes each case once and has no lattice, propagation, join, or fixpoint contract."
+crates = ["sim-lib-standard-core"]
+
+[[classifier]]
+class = "non-dataflow-algorithm"
+reason = "Typed job queues retain per-class FIFO jobs and drain them under explicit limits; jobs do not join lattice state, propagate graph facts, or iterate to a fixpoint."
+crates = ["sim-lib-control"]
