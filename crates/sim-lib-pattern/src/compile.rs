@@ -343,7 +343,7 @@ impl Instruction<char, TextClass> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ByteDomain, CodeUnitDomain, EnginePolicy, RepeatBounds};
+    use crate::{ByteDomain, EnginePolicy, RepeatBounds, ScalarDomain};
     use std::collections::BTreeMap;
 
     fn byte_ir(root: IrNode<u8, &'static str>) -> PatternIr<ByteDomain, &'static str> {
@@ -410,7 +410,7 @@ mod tests {
 
     #[test]
     fn text_classes_reuse_shared_membership() {
-        let ir = PatternIr::<CodeUnitDomain, TextClass>::new(
+        let ir = PatternIr::<ScalarDomain, TextClass>::new(
             IrNode::Extension(TextClass::Digit),
             BTreeMap::new(),
             &EnginePolicy::new([TextClass::Digit]),

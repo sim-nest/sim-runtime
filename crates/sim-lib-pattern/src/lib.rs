@@ -11,6 +11,7 @@ mod claims;
 mod compile;
 mod cursor;
 mod dialect;
+mod domain_execute;
 mod execute;
 mod extension;
 mod glob_dialect;
@@ -36,8 +37,15 @@ pub use compile::{
     AssertionProgram, Automaton, CompilationEvidence, Instruction, State, StateId, TagBoundary,
     compile,
 };
-pub use cursor::{ByteDomain, ByteOffset, CodeUnitDomain, CodeUnitOffset, Cursor, SymbolDomain};
+pub use cursor::{
+    ByteDomain, ByteOffset, CodeUnitDomain, CodeUnitOffset, Cursor, ScalarDomain, ScalarOffset,
+    SymbolDomain,
+};
 pub use dialect::PatternDialect;
+pub use domain_execute::{
+    DomainCaptureSpan, DomainExecutionOutcome, DomainMatch, execute_bytes, execute_code_units,
+    execute_scalars, require_code_unit_offset,
+};
 pub use execute::{
     CaptureSpan, ExecutionLimit, ExecutionMatch, ExecutionOutcome, ExecutionReceipt,
     UnsupportedFeature, execute_regular,

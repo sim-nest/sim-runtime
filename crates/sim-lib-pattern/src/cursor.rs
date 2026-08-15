@@ -1,6 +1,10 @@
 //! Type-separated subject symbols and pattern cursors.
 
+use core::fmt::Debug;
 use core::marker::PhantomData;
+
+/// Checked exact-text offset types owned by `sim-text`.
+pub use sim_text::{CodeUnitOffset, ScalarOffset};
 
 /// A symbol domain defines both the unit consumed by a pattern and its offset type.
 ///
@@ -10,16 +14,12 @@ pub trait SymbolDomain {
     /// One symbol consumed from a subject.
     type Symbol;
     /// A position in both the pattern source and the subject.
-    type Offset: Copy + Eq + Ord;
+    type Offset: Copy + Debug + Eq + Ord;
 }
 
 /// A byte offset.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ByteOffset(pub usize);
-
-/// A Unicode code-unit offset.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct CodeUnitOffset(pub usize);
 
 /// A domain whose symbols and offsets are bytes.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -30,13 +30,21 @@ impl SymbolDomain for ByteDomain {
     type Offset = ByteOffset;
 }
 
-/// A domain whose symbols are Unicode scalar values and whose offsets count
-/// encoded code units.
+/// A domain whose symbols and offsets are Unicode scalar values.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ScalarDomain;
+
+impl SymbolDomain for ScalarDomain {
+    type Symbol = char;
+    type Offset = ScalarOffset;
+}
+
+/// A domain whose symbols and offsets are exact UTF-16 code units.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CodeUnitDomain;
 
 impl SymbolDomain for CodeUnitDomain {
-    type Symbol = char;
+    type Symbol = u16;
     type Offset = CodeUnitOffset;
 }
 
@@ -46,7 +54,7 @@ impl SymbolDomain for CodeUnitDomain {
 /// use sim_lib_pattern::{ByteDomain, ByteOffset, CodeUnitDomain, CodeUnitOffset, Cursor};
 ///
 /// fn run_bytes(_: Cursor<ByteDomain>) {}
-/// let text_cursor = Cursor::<CodeUnitDomain>::new(CodeUnitOffset(0), CodeUnitOffset(0));
+/// let text_cursor = Cursor::<CodeUnitDomain>::new(CodeUnitOffset::new(0), CodeUnitOffset::new(0));
 /// run_bytes(text_cursor);
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

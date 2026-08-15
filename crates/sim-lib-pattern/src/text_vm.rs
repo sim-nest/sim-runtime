@@ -1,8 +1,8 @@
 //! Legacy text-program compatibility lowering into the shared pattern engine.
 
 use crate::{
-    Anchor, CaptureId, CodeUnitDomain, EnginePolicy, ExecutionOutcome, IrNode, PatternIr,
-    RepeatBounds, compile, execute::execute_spanning,
+    Anchor, CaptureId, EnginePolicy, ExecutionOutcome, IrNode, PatternIr, RepeatBounds,
+    ScalarDomain, compile, execute::execute_spanning,
 };
 use std::collections::BTreeMap;
 
@@ -252,7 +252,7 @@ pub fn run_text_pattern(
     None
 }
 
-fn lower_text_program(ops: &[TextOp]) -> Option<PatternIr<CodeUnitDomain, TextExtension>> {
+fn lower_text_program(ops: &[TextOp]) -> Option<PatternIr<ScalarDomain, TextExtension>> {
     let mut frames = vec![Vec::new()];
     let mut next_capture = 0u32;
     for op in ops {

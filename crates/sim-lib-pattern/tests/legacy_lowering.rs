@@ -1,6 +1,4 @@
-use sim_lib_pattern::{
-    TextLimits, compile_glob_pattern, compile_lua_pattern, run_text_pattern,
-};
+use sim_lib_pattern::{TextLimits, compile_glob_pattern, compile_lua_pattern, run_text_pattern};
 
 fn span(pattern: &str, subject: &str) -> Option<(usize, usize)> {
     let ops = compile_lua_pattern(pattern).unwrap();
@@ -23,7 +21,11 @@ fn legacy_lua_programs_lower_without_changing_observations() {
         ("(😀+)", "x😀😀y", Some((1, 9))),
     ];
     for (pattern, subject, expected) in cases {
-        assert_eq!(span(pattern, subject), expected, "{pattern:?} over {subject:?}");
+        assert_eq!(
+            span(pattern, subject),
+            expected,
+            "{pattern:?} over {subject:?}"
+        );
     }
 
     let captures = compile_lua_pattern("(%a+)%s+(%d+)").unwrap();

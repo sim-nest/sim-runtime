@@ -10,9 +10,10 @@ fn cursor_preserves_independent_positions() {
     assert_eq!(byte_cursor.source_position(), ByteOffset(3));
     assert_eq!(byte_cursor.subject_position(), ByteOffset(11));
 
-    let code_unit_cursor = Cursor::<CodeUnitDomain>::new(CodeUnitOffset(2), CodeUnitOffset(7));
-    assert_eq!(code_unit_cursor.source_position(), CodeUnitOffset(2));
-    assert_eq!(code_unit_cursor.subject_position(), CodeUnitOffset(7));
+    let code_unit_cursor =
+        Cursor::<CodeUnitDomain>::new(CodeUnitOffset::new(2), CodeUnitOffset::new(7));
+    assert_eq!(code_unit_cursor.source_position(), CodeUnitOffset::new(2));
+    assert_eq!(code_unit_cursor.subject_position(), CodeUnitOffset::new(7));
 }
 
 #[test]

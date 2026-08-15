@@ -153,6 +153,24 @@ claims_specimens = [
 ]
 
 [[feature]]
+id = "feature/sim-runtime/pattern-cursor-domains"
+title = "Typed pattern cursor domains"
+summary = "Execute bounded patterns over byte, Unicode scalar, or exact UTF-16 code-unit subjects while retaining the offset domain in every match and capture position."
+owner = "crate/sim-lib-pattern"
+audiences = ["code", "framework"]
+guidance = "Use execute_bytes, execute_scalars, or execute_code_units according to the dialect's symbol semantics. The exact adapter composes sim-text CodeUnitString and its checked scalar/code-unit conversions; never cast an offset or decode a lone surrogate merely to match it."
+claims_anchors = [
+  "anchor/crate/sim-lib-pattern",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-pattern/tests/cursor_domains",
+]
+supports = [
+  "feature/sim-runtime/organs",
+  "feature/sim-foundation/exact-code-unit-text",
+]
+
+[[feature]]
 id = "feature/sim-runtime/function-organ"
 title = "Typed managed function organ"
 summary = "Compose immutable function declarations with concrete guest body policies, collector-visible captures, kernel invocation, and optional dispatch methods."
@@ -580,6 +598,16 @@ steps = [
   { feature = "feature/sim-runtime/namespace-organ", why = "The namespace row owns bounded module resolution and caller-supplied source roots." },
   { feature = "feature/sim-runtime/contract-emitter", why = "The emitter row keeps generated runtime contract evidence current." },
   { specimen = "recipe/sim-runtime/crates/sim-lib-function/01-basics/neutral-language", why = "The terminal checked specimen composes typed lexical capture, positional and named inputs, browsing, managed-cycle collection, and optional generic dispatch without importing an established guest runtime." },
+]
+
+[[route]]
+id = "route/match-exact-code-unit-text"
+task = "Match exact UTF-16 text without losing code-unit positions"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-foundation/exact-code-unit-text", why = "The sim-text value preserves paired and lone surrogate units and owns checked conversion between scalar and code-unit offsets." },
+  { feature = "feature/sim-runtime/pattern-cursor-domains", why = "The pattern organ executes directly over exact units and returns domain-typed match and capture offsets." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-pattern/tests/cursor_domains", why = "The checked specimen matches a lone surrogate and stops between a surrogate pair's halves without admitting that position as a scalar offset." },
 ]
 
 [[route]]

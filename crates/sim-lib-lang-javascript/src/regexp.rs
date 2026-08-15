@@ -133,7 +133,15 @@ impl JavascriptRegExp {
     }
     /// Execute under an explicit shared-VM step bound.
     pub fn find(&self, subject: &str, init: usize, max_steps: usize) -> Option<TextMatch> {
-        run_text_pattern(&self.ops, subject, init, TextLimits { max_steps })
+        run_text_pattern(
+            &self.ops,
+            subject,
+            init,
+            TextLimits {
+                max_steps,
+                ..TextLimits::default()
+            },
+        )
     }
 }
 fn syntax(offset: usize, reason: &'static str) -> JavascriptRegExpError {
