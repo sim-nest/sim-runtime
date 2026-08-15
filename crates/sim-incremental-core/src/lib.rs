@@ -45,6 +45,7 @@
 //! ```
 
 mod budget;
+pub mod dataflow;
 mod engine;
 mod error;
 mod fingerprint;
