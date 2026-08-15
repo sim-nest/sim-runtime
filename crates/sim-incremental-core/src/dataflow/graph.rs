@@ -137,7 +137,7 @@ impl<E, N, C> Edge<E, N, C> {
         self.direction
     }
 
-    fn predecessor_and_successor(&self) -> (&N, &N) {
+    pub(super) fn predecessor_and_successor(&self) -> (&N, &N) {
         match self.direction {
             GraphDirection::Forward => (&self.source, &self.target),
             GraphDirection::Reverse => (&self.target, &self.source),
