@@ -13,7 +13,9 @@ use std::{cell::RefCell, collections::BTreeMap, mem::size_of, sync::Arc};
 
 use crate::{
     ClassDefinition, ClassDefinitionId, ClassLoader, ClassLoaderId, ClassSpaceRevision,
-    JavaClassMetadata, JavaMember, JavaMemberKind, PreparedJvmPolicy,
+    DynamicBootstrap, DynamicLinkError, JavaClassMetadata, JavaMember, JavaMemberKind,
+    PreparedJvmPolicy, STRING_CONCAT_BOOTSTRAP_DESCRIPTOR, STRING_CONCAT_BOOTSTRAP_NAME,
+    STRING_CONCAT_BOOTSTRAP_OWNER,
 };
 
 /// Resolves the verification type of a loadable constant-pool entry.
@@ -1040,6 +1042,186 @@ pub enum VerificationTransferKind {
     MemoryType,
     /// An array opcode was applied to a non-array or to the wrong primitive array kind.
     ArrayType,
+    /// A method descriptor, argument, receiver, or result is incompatible with the site.
+    InvocationType,
+    /// The invocation instruction disagrees with the resolved member's staticness.
+    InvocationStaticness,
+    /// The symbolic owner kind disagrees with the class/interface invocation instruction.
+    InvocationOwnerKind,
+    /// Signature-polymorphic invocation is outside the admitted JVM profile.
+    SignaturePolymorphic,
+    /// An `invokedynamic` bootstrap is outside the executor's admitted protocol registry.
+    DynamicBootstrap(DynamicLinkError),
+}
+
+/// Resolution-only facts for one ordinary invocation instruction.
+#[derive(Clone, Debug)]
+pub struct VerificationInvocation<'a> {
+    /// Internal name of the symbolic method owner.
+    pub owner: &'a str,
+    /// Whether the symbolic owner carries `ACC_INTERFACE`.
+    pub owner_is_interface: bool,
+    /// Resolved declaration; verification never selects or executes its body.
+    pub method: &'a JavaMember,
+    /// Whether ordinary member-access checks admit the declaration.
+    pub accessible: bool,
+    /// Whether resolution classified the declaration as signature-polymorphic.
+    pub signature_polymorphic: bool,
+}
+
+/// Resolution-only facts for one `invokedynamic` instruction.
+#[derive(Clone, Debug)]
+pub struct VerificationDynamicInvocation<'a> {
+    /// Bootstrap identity retained verbatim for fail-closed diagnostics.
+    pub bootstrap: &'a DynamicBootstrap,
+    /// Invoked method descriptor from the dynamic constant-pool entry.
+    pub descriptor: &'a str,
+}
+
+/// Applies an ordinary invocation's descriptor and receiver rules without linkage or selection.
+pub fn transfer_invocation_instruction(
+    instruction: &crate::PreparedJvmInstruction,
+    offset: usize,
+    state: &VerificationState,
+    invocation: &VerificationInvocation<'_>,
+    environment: &VerificationEnvironment<'_>,
+    lineage_limit: usize,
+) -> Result<VerificationState, VerificationTransferError> {
+    use Opcode::*;
+    let opcode = instruction.opcode();
+    let fail = |kind| VerificationTransferError {
+        instruction: instruction.id(),
+        offset,
+        opcode,
+        kind,
+    };
+    if !matches!(
+        opcode,
+        Invokevirtual | Invokespecial | Invokestatic | Invokeinterface
+    ) || !matches!(
+        instruction.instruction().operands.first(),
+        Some(InstructionOperand::Constant(_))
+    ) {
+        return Err(fail(VerificationTransferKind::MalformedPreparedInput));
+    }
+    if invocation.signature_polymorphic {
+        return Err(fail(VerificationTransferKind::SignaturePolymorphic));
+    }
+    if !invocation.accessible {
+        return Err(fail(VerificationTransferKind::MemberAccess));
+    }
+    let wants_static = opcode == Invokestatic;
+    if invocation.method.is_static() != wants_static {
+        return Err(fail(VerificationTransferKind::InvocationStaticness));
+    }
+    if (opcode == Invokeinterface) != invocation.owner_is_interface {
+        return Err(fail(VerificationTransferKind::InvocationOwnerKind));
+    }
+    let (arguments, result) = method_descriptor(invocation.method.descriptor())
+        .ok_or_else(|| fail(VerificationTransferKind::InvocationType))?;
+    transfer_invocation_values(
+        state,
+        &arguments,
+        result,
+        (!wants_static).then_some((invocation.owner, environment, lineage_limit)),
+    )
+    .map_err(|kind| fail(kind))
+}
+
+/// Applies an admitted dynamic site's descriptor without consulting or mutating linker state.
+pub fn transfer_dynamic_invocation_instruction(
+    instruction: &crate::PreparedJvmInstruction,
+    offset: usize,
+    state: &VerificationState,
+    invocation: &VerificationDynamicInvocation<'_>,
+) -> Result<VerificationState, VerificationTransferError> {
+    let opcode = instruction.opcode();
+    let fail = |kind| VerificationTransferError {
+        instruction: instruction.id(),
+        offset,
+        opcode,
+        kind,
+    };
+    if opcode != Opcode::Invokedynamic
+        || !matches!(
+            instruction.instruction().operands.first(),
+            Some(InstructionOperand::Constant(_))
+        )
+    {
+        return Err(fail(VerificationTransferKind::MalformedPreparedInput));
+    }
+    let bootstrap = invocation.bootstrap;
+    if bootstrap.owner != STRING_CONCAT_BOOTSTRAP_OWNER
+        || bootstrap.name != STRING_CONCAT_BOOTSTRAP_NAME
+        || bootstrap.descriptor != STRING_CONCAT_BOOTSTRAP_DESCRIPTOR
+    {
+        return Err(fail(VerificationTransferKind::DynamicBootstrap(
+            DynamicLinkError::UnadmittedBootstrap {
+                owner: bootstrap.owner.clone(),
+                name: bootstrap.name.clone(),
+                descriptor: bootstrap.descriptor.clone(),
+            },
+        )));
+    }
+    let (arguments, result) = method_descriptor(invocation.descriptor)
+        .ok_or_else(|| fail(VerificationTransferKind::InvocationType))?;
+    transfer_invocation_values(state, &arguments, result, None).map_err(|kind| fail(kind))
+}
+
+fn transfer_invocation_values(
+    state: &VerificationState,
+    arguments: &[VerificationType],
+    result: Option<VerificationType>,
+    receiver: Option<(&str, &VerificationEnvironment<'_>, usize)>,
+) -> Result<VerificationState, VerificationTransferKind> {
+    let mut values = stack_values(&state.stack);
+    let consumed = arguments.len() + usize::from(receiver.is_some());
+    if values.len() < consumed {
+        return Err(VerificationTransferKind::StackBounds);
+    }
+    let base = values.len() - consumed;
+    let argument_base = base + usize::from(receiver.is_some());
+    if !values[argument_base..]
+        .iter()
+        .zip(arguments)
+        .all(|(actual, expected)| verification_category_matches(actual, expected))
+    {
+        return Err(VerificationTransferKind::InvocationType);
+    }
+    if let Some((owner, environment, lineage_limit)) = receiver {
+        match &values[base] {
+            VerificationType::Null => {}
+            VerificationType::Reference(actual)
+                if environment
+                    .reference_assignability(
+                        actual,
+                        &ReferenceType::Class(owner.into()),
+                        lineage_limit,
+                    )
+                    .is_ok_and(|answer| answer.value == VerificationAssignability::Assignable) => {}
+            _ => return Err(VerificationTransferKind::InvocationType),
+        }
+    }
+    values.truncate(base);
+    if let Some(result) = result {
+        values.push(result);
+    }
+    let mut next = state.clone();
+    next.stack = stack_from_values(state.stack.capacity(), values)
+        .map_err(|_| VerificationTransferKind::StackBounds)?;
+    Ok(next)
+}
+
+fn method_descriptor(
+    descriptor: &str,
+) -> Option<(Vec<VerificationType>, Option<VerificationType>)> {
+    let arguments = descriptor_arguments(descriptor)?;
+    let close = descriptor.find(')')?;
+    let result = &descriptor[close + 1..];
+    if result == "V" {
+        return Some((arguments, None));
+    }
+    Some((arguments, Some(descriptor_verification_type(result)?)))
 }
 
 /// Resolution facts consumed by the object/array/field verifier family.
@@ -2805,7 +2987,7 @@ mod tests {
         ByteReader, CodeException, ConstantPool, InstructionErrorKind, Opcode, decode_instructions,
     };
     use sim_incremental_core::dataflow::{EdgeClass, LawSuite};
-    use sim_kernel::SourceId;
+    use sim_kernel::{Cx, DefaultFactory, NoopEvalPolicy, SourceId};
 
     const NONE: &[JvmSlotKind] = &[];
     const INT: &[JvmSlotKind] = &[JvmSlotKind::CategoryOne];
@@ -2854,6 +3036,32 @@ mod tests {
             b'e', 1, 0, 1, b'I', 12, 0, 3, 0, 4, 9, 0, 2, 0, 5,
         ];
         ConstantPool::decode(&mut ByteReader::new(&bytes, bytes.len()), 61).unwrap()
+    }
+
+    fn invocation_pool(tag: u8) -> ConstantPool {
+        let mut bytes = vec![0, if tag == 18 { 6 } else { 7 }, tag];
+        if tag == 18 {
+            bytes.extend_from_slice(&[0, 0, 0, 2]);
+            bytes.extend_from_slice(&[12, 0, 3, 0, 4]);
+            bytes.extend_from_slice(&[
+                1, 0, 4, b'w', b'o', b'r', b'k', 1, 0, 4, b'(', b'I', b')', b'J', 1, 0, 1, b'X',
+            ]);
+        } else {
+            bytes.extend_from_slice(&[0, 2, 0, 3, 7, 0, 6, 12, 0, 4, 0, 5]);
+            bytes.extend_from_slice(&[
+                1, 0, 4, b'w', b'o', b'r', b'k', 1, 0, 4, b'(', b'I', b')', b'J', 1, 0, 12, b's',
+                b'a', b'm', b'p', b'l', b'e', b'/', b'O', b'w', b'n', b'e', b'r',
+            ]);
+        }
+        ConstantPool::decode(&mut ByteReader::new(&bytes, bytes.len()), 61).unwrap()
+    }
+
+    fn test_method(descriptor: &str, access_flags: u16) -> JavaMember {
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        JavaClassMetadata::test_class(&cx, "Owner", &[], 0, &[("work", descriptor, access_flags)])
+            .select_method("work", descriptor)
+            .unwrap()
+            .clone()
     }
 
     fn prepared(bytes: &[u8], handlers: &[CodeException]) -> LocatedCode<PreparedJvmPolicy> {
@@ -2991,6 +3199,147 @@ mod tests {
         let initialized = VerificationType::Reference(ReferenceType::Class("sample/Value".into()));
         assert_eq!(next.locals.get(0), Some(&initialized));
         assert_eq!(stack_values(&next.stack), vec![initialized]);
+    }
+
+    #[test]
+    fn every_invocation_kind_checks_descriptor_receiver_and_owner_kind() {
+        let pool = invocation_pool(10);
+        let loader = crate::ClassLoader::new(1);
+        let environment = VerificationEnvironment::new(&loader, 1);
+        let cases = [
+            (Opcode::Invokevirtual, false, 0),
+            (Opcode::Invokespecial, false, 0),
+            (Opcode::Invokestatic, false, 0x0008),
+        ];
+        for (opcode, owner_is_interface, flags) in cases {
+            let suffix: &[u8] = if opcode == Opcode::Invokeinterface {
+                &[2, 0]
+            } else {
+                &[]
+            };
+            let bytes = [opcode as u8, 0, 1]
+                .into_iter()
+                .chain(suffix.iter().copied())
+                .collect::<Vec<_>>();
+            let code = prepared_with_pool(&bytes, &[], &pool);
+            let method = test_method("(I)J", flags);
+            let mut stack = VerificationFrame::new(FrameKind::OperandStack, 4);
+            if opcode != Opcode::Invokestatic {
+                stack
+                    .push(VerificationType::Reference(ReferenceType::Class(
+                        "Owner".into(),
+                    )))
+                    .unwrap();
+            }
+            stack.push(VerificationType::Int).unwrap();
+            let next = transfer_invocation_instruction(
+                code.instruction(code.cursor(InstructionId(0)).unwrap())
+                    .instruction(),
+                0,
+                &VerificationState {
+                    locals: VerificationFrame::new(FrameKind::Locals, 0),
+                    stack,
+                },
+                &VerificationInvocation {
+                    owner: "Owner",
+                    owner_is_interface,
+                    method: &method,
+                    accessible: true,
+                    signature_polymorphic: false,
+                },
+                &environment,
+                1,
+            )
+            .unwrap();
+            assert_eq!(stack_values(&next.stack), [VerificationType::Long]);
+        }
+
+        let pool = invocation_pool(11);
+        let code = prepared_with_pool(&[Opcode::Invokeinterface as u8, 0, 1, 2, 0], &[], &pool);
+        let method = test_method("(I)J", 0);
+        let mut stack = VerificationFrame::new(FrameKind::OperandStack, 3);
+        stack.push(VerificationType::Null).unwrap();
+        stack.push(VerificationType::Int).unwrap();
+        transfer_invocation_instruction(
+            code.instruction(code.cursor(InstructionId(0)).unwrap())
+                .instruction(),
+            0,
+            &VerificationState {
+                locals: VerificationFrame::new(FrameKind::Locals, 0),
+                stack,
+            },
+            &VerificationInvocation {
+                owner: "Owner",
+                owner_is_interface: true,
+                method: &method,
+                accessible: true,
+                signature_polymorphic: false,
+            },
+            &environment,
+            1,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn dynamic_verification_reuses_executor_identity_without_linkage() {
+        let pool = invocation_pool(18);
+        let code = prepared_with_pool(&[Opcode::Invokedynamic as u8, 0, 1, 0, 0], &[], &pool);
+        let instruction = code
+            .instruction(code.cursor(InstructionId(0)).unwrap())
+            .instruction();
+        let mut stack = VerificationFrame::new(FrameKind::OperandStack, 3);
+        stack.push(VerificationType::Int).unwrap();
+        let state = VerificationState {
+            locals: VerificationFrame::new(FrameKind::Locals, 0),
+            stack,
+        };
+        let refused = DynamicBootstrap {
+            owner: "sample/Bootstrap".into(),
+            name: "link".into(),
+            descriptor: "()V".into(),
+        };
+        let error = transfer_dynamic_invocation_instruction(
+            instruction,
+            0,
+            &state,
+            &VerificationDynamicInvocation {
+                bootstrap: &refused,
+                descriptor: "(I)J",
+            },
+        )
+        .unwrap_err();
+        assert_eq!(
+            error.kind,
+            VerificationTransferKind::DynamicBootstrap(DynamicLinkError::UnadmittedBootstrap {
+                owner: refused.owner.clone(),
+                name: refused.name.clone(),
+                descriptor: refused.descriptor.clone(),
+            })
+        );
+
+        let cache = crate::DynamicLinkCache::new();
+        let admitted = DynamicBootstrap {
+            owner: STRING_CONCAT_BOOTSTRAP_OWNER.into(),
+            name: STRING_CONCAT_BOOTSTRAP_NAME.into(),
+            descriptor: STRING_CONCAT_BOOTSTRAP_DESCRIPTOR.into(),
+        };
+        let next = transfer_dynamic_invocation_instruction(
+            instruction,
+            0,
+            &state,
+            &VerificationDynamicInvocation {
+                bootstrap: &admitted,
+                descriptor: "(I)J",
+            },
+        )
+        .unwrap();
+        assert_eq!(stack_values(&next.stack), [VerificationType::Long]);
+        assert_eq!(
+            cache.live_len(),
+            0,
+            "verification must not link or allocate a cache entry"
+        );
     }
 
     #[test]
