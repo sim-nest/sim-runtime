@@ -13,6 +13,7 @@ mod close;
 mod condition;
 mod conditional;
 mod coroutine;
+mod exception;
 mod generator;
 mod jobs;
 mod matching;
@@ -37,6 +38,9 @@ pub use close::{CloseGuard, run_with_close_guards};
 pub use condition::{Condition, ConditionHandler, ConditionStack, signal_condition};
 pub use conditional::IfForm;
 pub use coroutine::{Coroutine, CoroutineFrame, CoroutineFrameStep, CoroutineLane, CoroutineStep};
+pub use exception::{
+    ExceptionGraphBudget, ExceptionGraphEdge, ExceptionGraphView, ManagedException,
+};
 pub use generator::{Generator, GeneratorStep};
 pub use jobs::{
     AdmissionLimit, CheckpointError, CheckpointReceipt, DrainReceipt, JobId, JobQueues, JobReceipt,
