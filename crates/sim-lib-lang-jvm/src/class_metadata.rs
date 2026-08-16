@@ -59,6 +59,19 @@ impl JavaMember {
     pub const fn is_final(&self) -> bool {
         self.access_flags & 0x0010 != 0
     }
+
+    /// Whether this declaration carries the JVM `ACC_ABSTRACT` flag.
+    pub const fn is_abstract(&self) -> bool {
+        self.access_flags & 0x0400 != 0
+    }
+
+    /// Whether this declaration carries the JVM `ACC_BRIDGE` flag.
+    ///
+    /// Bridge status is descriptive only: selection deliberately does not
+    /// special-case it because bridges are ordinary methods in the JVM.
+    pub const fn is_bridge(&self) -> bool {
+        self.access_flags & 0x0040 != 0
+    }
 }
 
 /// Kind of a JVM member declaration.
@@ -145,6 +158,28 @@ impl JavaClassMetadata {
             members: Vec::new(),
             array_component: None,
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_class(
+        cx: &Cx,
+        binary_name: &str,
+        direct_parents: &[&str],
+        access_flags: u16,
+        methods: &[(&str, &str, u16)],
+    ) -> Self {
+        let mut metadata = Self::test_identity(cx, binary_name, direct_parents);
+        metadata.access_flags = access_flags;
+        metadata.members = methods
+            .iter()
+            .map(|(name, descriptor, access_flags)| JavaMember {
+                name: (*name).into(),
+                descriptor: (*descriptor).into(),
+                access_flags: *access_flags,
+                kind: JavaMemberKind::Method,
+            })
+            .collect();
+        metadata
     }
 
     pub(crate) fn from_shell(

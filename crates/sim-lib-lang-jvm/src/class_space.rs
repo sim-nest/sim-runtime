@@ -84,6 +84,24 @@ impl ClassDefinition {
     pub fn id(&self) -> &ClassDefinitionId {
         &self.id
     }
+
+    #[cfg(test)]
+    pub(crate) fn test_definition(metadata: crate::JavaClassMetadata) -> Self {
+        let loader = metadata.resolution().loader();
+        let binary_name = metadata.resolution().binary_name().to_owned();
+        Self {
+            id: ClassDefinitionId {
+                loader,
+                binary_name,
+                content_key: 1,
+            },
+            classfile: Expr::Nil,
+            content: Arc::from([]),
+            metadata: Arc::new(metadata),
+            literals: BTreeMap::new(),
+            resolution_records: BTreeMap::new(),
+        }
+    }
     /// Retained, decoded classfile projection.
     pub fn classfile(&self) -> &Expr {
         &self.classfile

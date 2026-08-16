@@ -16,6 +16,7 @@ mod execution;
 mod failure;
 mod field;
 mod intrinsic;
+mod invocation;
 mod limits;
 mod managed;
 mod numeric;
@@ -58,6 +59,10 @@ pub use field::{
 pub use intrinsic::{
     BoxValue, INTRINSIC_TABLE, IntrinsicError, IntrinsicMember, IntrinsicSupport, PrimitiveBox,
     PrimitiveBoxes, admit_intrinsic,
+};
+pub use invocation::{
+    InvocationError, InvocationKind, SelectedMethod, call_transfer, return_transfer,
+    select_invocation,
 };
 pub use limits::{ExecutionLimits, ResourceLimits};
 pub use managed::{JVM_ROLE_EDGE_TABLE, JvmEdge, JvmGraphError, JvmHeap, JvmRole, JvmRoleEdges};
