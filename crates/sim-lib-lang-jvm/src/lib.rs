@@ -6,10 +6,15 @@
 //! policy is then layered over shared machine storage, limits, managed handles,
 //! kernel values, and the language-neutral raised envelope.
 
+mod class_space;
 mod failure;
 mod limits;
 mod value;
 
+pub use class_space::{
+    ClassDefinition, ClassDefinitionId, ClassLoader, ClassLoaderId, LazyClass,
+    class_load_capability,
+};
 pub use failure::{
     AdmissionFailure, FailureCondition, FailureHome, JavaThrowable, ResourceFailure,
 };
