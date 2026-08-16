@@ -47,7 +47,37 @@ fn manifests_freeze_the_supported_baseline() {
     assert_eq!(supported["unsupported"].as_array().unwrap().len(), 5);
 
     let intrinsics: toml::Value = sim_lib_lang_jvm::INTRINSIC_MANIFEST.parse().unwrap();
-    assert!(intrinsics["members"].as_array().unwrap().is_empty());
+    let manifest_members = intrinsics["members"].as_array().unwrap();
+    assert_eq!(
+        manifest_members.len(),
+        sim_lib_lang_jvm::INTRINSIC_TABLE.len()
+    );
+    for (manifest, compiled) in manifest_members
+        .iter()
+        .zip(sim_lib_lang_jvm::INTRINSIC_TABLE)
+    {
+        assert_eq!(manifest["class"].as_str(), Some(compiled.class));
+        assert_eq!(manifest["name"].as_str(), Some(compiled.name));
+        assert_eq!(manifest["descriptor"].as_str(), Some(compiled.descriptor));
+        assert_eq!(
+            manifest["arguments_shape"].as_str(),
+            Some(compiled.arguments_shape)
+        );
+        assert_eq!(
+            manifest["result_shape"].as_str(),
+            Some(compiled.result_shape)
+        );
+        assert_eq!(manifest["capability"].as_str(), Some(compiled.capability));
+        assert_eq!(manifest["effect"].as_str(), Some(compiled.effect));
+        assert_eq!(manifest["work"].as_integer(), Some(compiled.work.into()));
+        assert_eq!(
+            manifest["support"].as_str(),
+            Some(match compiled.support {
+                sim_lib_lang_jvm::IntrinsicSupport::Supported => "supported",
+                sim_lib_lang_jvm::IntrinsicSupport::Unsupported => "unsupported",
+            })
+        );
+    }
 
     let ledger: toml::Value = sim_lib_lang_jvm::REUSE_LEDGER.parse().unwrap();
     assert_eq!(ledger["organ"].as_array().unwrap().len(), 9);

@@ -21,6 +21,8 @@ pub enum JvmRole {
     Statics,
     /// A managed Java string.
     String,
+    /// A managed primitive wrapper value.
+    PrimitiveBox,
     /// A throwable and its causal diagnostic graph.
     Throwable,
     /// Monitor bookkeeping associated with an object.
@@ -123,6 +125,12 @@ pub const JVM_ROLE_EDGE_TABLE: &[JvmRoleEdges] = &[
     JvmRoleEdges {
         role: JvmRole::String,
         strong: &[JvmEdge::StringStorage, JvmEdge::Class],
+        weak: &[],
+        ephemeron: &[],
+    },
+    JvmRoleEdges {
+        role: JvmRole::PrimitiveBox,
+        strong: &[JvmEdge::Class],
         weak: &[],
         ephemeron: &[],
     },

@@ -9,6 +9,7 @@
 mod class_metadata;
 mod class_space;
 mod failure;
+mod intrinsic;
 mod limits;
 mod managed;
 mod text;
@@ -24,6 +25,10 @@ pub use class_space::{
 pub use failure::{
     AdmissionFailure, FailureCondition, FailureHome, JavaThrowable, ResourceFailure,
 };
+pub use intrinsic::{
+    BoxValue, INTRINSIC_TABLE, IntrinsicError, IntrinsicMember, IntrinsicSupport, PrimitiveBox,
+    PrimitiveBoxes, admit_intrinsic,
+};
 pub use limits::{ExecutionLimits, ResourceLimits};
 pub use managed::{JVM_ROLE_EDGE_TABLE, JvmEdge, JvmGraphError, JvmHeap, JvmRole, JvmRoleEdges};
 pub use text::{ADMITTED_CORE_MEMBERS, JavaClassMirror, JavaCoreMember, JavaString};
@@ -35,5 +40,5 @@ pub const REUSE_LEDGER: &str = include_str!("../reuse-ledger.toml");
 /// The admitted classfile baseline and explicit unsupported inventory.
 pub const SUPPORTED_RUNTIME: &str = include_str!("../supported-runtime.toml");
 
-/// The closed, initially empty intrinsic manifest.
+/// The closed intrinsic manifest.
 pub const INTRINSIC_MANIFEST: &str = include_str!("../intrinsics.toml");

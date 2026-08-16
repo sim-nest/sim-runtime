@@ -1,2 +1,30 @@
 schema = "sim.jvm-intrinsic-manifest/v1"
-members = []
+
+# This authored projection mirrors INTRINSIC_TABLE. Each row is an exact tuple;
+# runtime admission never dispatches on a member name alone.
+members = [
+  { class = "java/lang/Boolean", name = "valueOf", descriptor = "(Z)Ljava/lang/Boolean;", arguments_shape = "tuple<boolean>", result_shape = "reference<java/lang/Boolean>", capability = "none", effect = "managed-allocation", work = 2, support = "supported" },
+  { class = "java/lang/Boolean", name = "booleanValue", descriptor = "()Z", arguments_shape = "receiver<java/lang/Boolean>", result_shape = "boolean", capability = "none", effect = "pure", work = 1, support = "supported" },
+  { class = "java/lang/Boolean", name = "<init>", descriptor = "(Z)V", arguments_shape = "receiver<java/lang/Boolean>+tuple<boolean>", result_shape = "void", capability = "none", effect = "unsupported", work = 0, support = "unsupported" },
+  { class = "java/lang/Byte", name = "valueOf", descriptor = "(B)Ljava/lang/Byte;", arguments_shape = "tuple<byte>", result_shape = "reference<java/lang/Byte>", capability = "none", effect = "managed-allocation", work = 2, support = "supported" },
+  { class = "java/lang/Byte", name = "byteValue", descriptor = "()B", arguments_shape = "receiver<java/lang/Byte>", result_shape = "byte", capability = "none", effect = "pure", work = 1, support = "supported" },
+  { class = "java/lang/Byte", name = "<init>", descriptor = "(B)V", arguments_shape = "receiver<java/lang/Byte>+tuple<byte>", result_shape = "void", capability = "none", effect = "unsupported", work = 0, support = "unsupported" },
+  { class = "java/lang/Character", name = "valueOf", descriptor = "(C)Ljava/lang/Character;", arguments_shape = "tuple<char>", result_shape = "reference<java/lang/Character>", capability = "none", effect = "managed-allocation", work = 2, support = "supported" },
+  { class = "java/lang/Character", name = "charValue", descriptor = "()C", arguments_shape = "receiver<java/lang/Character>", result_shape = "char", capability = "none", effect = "pure", work = 1, support = "supported" },
+  { class = "java/lang/Character", name = "<init>", descriptor = "(C)V", arguments_shape = "receiver<java/lang/Character>+tuple<char>", result_shape = "void", capability = "none", effect = "unsupported", work = 0, support = "unsupported" },
+  { class = "java/lang/Short", name = "valueOf", descriptor = "(S)Ljava/lang/Short;", arguments_shape = "tuple<short>", result_shape = "reference<java/lang/Short>", capability = "none", effect = "managed-allocation", work = 2, support = "supported" },
+  { class = "java/lang/Short", name = "shortValue", descriptor = "()S", arguments_shape = "receiver<java/lang/Short>", result_shape = "short", capability = "none", effect = "pure", work = 1, support = "supported" },
+  { class = "java/lang/Short", name = "<init>", descriptor = "(S)V", arguments_shape = "receiver<java/lang/Short>+tuple<short>", result_shape = "void", capability = "none", effect = "unsupported", work = 0, support = "unsupported" },
+  { class = "java/lang/Integer", name = "valueOf", descriptor = "(I)Ljava/lang/Integer;", arguments_shape = "tuple<int>", result_shape = "reference<java/lang/Integer>", capability = "none", effect = "managed-allocation", work = 2, support = "supported" },
+  { class = "java/lang/Integer", name = "intValue", descriptor = "()I", arguments_shape = "receiver<java/lang/Integer>", result_shape = "int", capability = "none", effect = "pure", work = 1, support = "supported" },
+  { class = "java/lang/Integer", name = "<init>", descriptor = "(I)V", arguments_shape = "receiver<java/lang/Integer>+tuple<int>", result_shape = "void", capability = "none", effect = "unsupported", work = 0, support = "unsupported" },
+  { class = "java/lang/Long", name = "valueOf", descriptor = "(J)Ljava/lang/Long;", arguments_shape = "tuple<long>", result_shape = "reference<java/lang/Long>", capability = "none", effect = "managed-allocation", work = 2, support = "supported" },
+  { class = "java/lang/Long", name = "longValue", descriptor = "()J", arguments_shape = "receiver<java/lang/Long>", result_shape = "long", capability = "none", effect = "pure", work = 1, support = "supported" },
+  { class = "java/lang/Long", name = "<init>", descriptor = "(J)V", arguments_shape = "receiver<java/lang/Long>+tuple<long>", result_shape = "void", capability = "none", effect = "unsupported", work = 0, support = "unsupported" },
+  { class = "java/lang/Float", name = "valueOf", descriptor = "(F)Ljava/lang/Float;", arguments_shape = "tuple<float>", result_shape = "reference<java/lang/Float>", capability = "none", effect = "managed-allocation", work = 2, support = "supported" },
+  { class = "java/lang/Float", name = "floatValue", descriptor = "()F", arguments_shape = "receiver<java/lang/Float>", result_shape = "float", capability = "none", effect = "pure", work = 1, support = "supported" },
+  { class = "java/lang/Float", name = "<init>", descriptor = "(F)V", arguments_shape = "receiver<java/lang/Float>+tuple<float>", result_shape = "void", capability = "none", effect = "unsupported", work = 0, support = "unsupported" },
+  { class = "java/lang/Double", name = "valueOf", descriptor = "(D)Ljava/lang/Double;", arguments_shape = "tuple<double>", result_shape = "reference<java/lang/Double>", capability = "none", effect = "managed-allocation", work = 2, support = "supported" },
+  { class = "java/lang/Double", name = "doubleValue", descriptor = "()D", arguments_shape = "receiver<java/lang/Double>", result_shape = "double", capability = "none", effect = "pure", work = 1, support = "supported" },
+  { class = "java/lang/Double", name = "<init>", descriptor = "(D)V", arguments_shape = "receiver<java/lang/Double>+tuple<double>", result_shape = "void", capability = "none", effect = "unsupported", work = 0, support = "unsupported" },
+]

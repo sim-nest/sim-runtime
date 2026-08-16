@@ -21,6 +21,7 @@ fn edge_table_is_complete_over_the_role_enum() {
         JvmRole::Loader,
         JvmRole::Statics,
         JvmRole::String,
+        JvmRole::PrimitiveBox,
         JvmRole::Throwable,
         JvmRole::Monitor,
         JvmRole::PreparedMethod,
