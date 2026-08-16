@@ -1,4 +1,4 @@
-use sim_codec_classfile::{ClassfileCodec, inspect_classfile};
+use sim_codec_classfile::{ClassfileCodec, OPCODES, inspect_classfile};
 use sim_kernel::CodecId;
 use sim_lib_class::ClassDescriptor;
 use sim_lib_control::Raised;
@@ -88,6 +88,24 @@ fn manifests_freeze_the_supported_baseline() {
 
     let ledger: toml::Value = sim_lib_lang_jvm::REUSE_LEDGER.parse().unwrap();
     assert_eq!(ledger["organ"].as_array().unwrap().len(), 9);
+}
+
+#[test]
+fn generated_coverage_differs_from_manifests_by_zero() {
+    let intrinsics: toml::Value = sim_lib_lang_jvm::INTRINSIC_MANIFEST.parse().unwrap();
+    let intrinsic_manifest_total = intrinsics["members"].as_array().unwrap().len();
+    assert_eq!(
+        intrinsic_manifest_total.abs_diff(sim_lib_lang_jvm::INTRINSIC_TABLE.len()),
+        0
+    );
+
+    // OPCODES is itself generated from sim-codec-classfile's opcode-manifest.tsv;
+    // JVM policy consumes that complete byte-indexed table instead of restating it.
+    let opcode_manifest_total = OPCODES.len();
+    let opcode_coverage_total = (u8::MIN..=u8::MAX)
+        .filter(|byte| OPCODES[usize::from(*byte)].opcode as u8 == *byte)
+        .count();
+    assert_eq!(opcode_manifest_total.abs_diff(opcode_coverage_total), 0);
 }
 
 #[test]

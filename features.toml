@@ -750,14 +750,16 @@ title = "Loadable bounded JVM profile"
 summary = "Decode caller-authorized classfile bytes and execute bounded JVM calls, managed objects, arrays, exceptions, and exact Java text through one host-registered library."
 owner = "crate/sim-lib-lang-jvm"
 audiences = ["user", "code", "framework"]
-guidance = "Load JvmLanguageLib through the standard bootloader or enable the SDK standard-jvm feature. Supply bytes explicitly under jvm.class.load and invoke only under jvm.invoke; never construct an ambient classpath, a second Cx, or a JVM-owned copy of shared machine, managed, control, source-authority, or classfile-decoder policy."
+guidance = "Load JvmLanguageLib through the standard bootloader or enable the SDK standard-jvm feature. Supply bytes explicitly under jvm.class.load and invoke only under jvm.invoke. The generated opcode coverage consumes sim-codec-classfile's complete manifest table, and the intrinsic table is generated directly from intrinsics.toml. The jvm-ownership.toml Index enforcement policy rejects classfile parsers, opcode lists, private stacks or frames, raw Vec<u16> strings, shadow managed graphs, ambient classpaths, string-based class matching, unwind payload records, and alternate method-entry or drive paths. Never construct a second Cx or a JVM-owned copy of shared machine, managed, control, source-authority, classfile-decoder, class, namespace, or text policy."
 claims_anchors = ["anchor/crate/sim-lib-lang-jvm"]
 claims_specimens = [
   "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/authorized-static-call",
   "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/product_specimen",
+  "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/ownership_guard",
+  "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/baseline",
 ]
 supports = ["feature/sim-runtime/guest-language-profiles", "feature/sim-runtime/organs"]
-composes = ["crate/sim-codec-classfile", "crate/sim-lib-machine", "crate/sim-lib-gc-tracing"]
+composes = ["crate/sim-codec-classfile", "crate/sim-lib-machine", "crate/sim-lib-mutation", "crate/sim-lib-gc-tracing", "crate/sim-lib-control", "crate/sim-lib-core", "crate/sim-lib-class", "crate/sim-lib-namespace", "crate/sim-text"]
 
 [[route]]
 id = "route/run-authorized-jvm"
@@ -765,7 +767,13 @@ task = "Run authorized JVM classfile bytes"
 audiences = ["user", "code", "framework"]
 steps = [
   { feature = "feature/sim-runtime/jvm-loadable-profile", why = "The runtime row owns bounded JVM semantics while reusing the shared classfile decoder, machine, managed graph, exceptions, and source authority." },
+  { feature = "feature/sim-runtime/machine-contract", why = "The shared machine owns slots, frames, iterative drive, and safepoint publication." },
+  { feature = "feature/sim-runtime/gc-tracing", why = "The managed and tracing organs own object identity, graph edges, roots, and bounded collection." },
+  { feature = "feature/sim-runtime/class-semantics", why = "The class organ owns language-neutral declared-class structure while JVM loader identity remains JVM policy." },
+  { feature = "feature/sim-runtime/capabilities-read-eval", why = "The source-authority organ keeps class loading explicit and diminished rather than ambient." },
   { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/product_specimen", why = "The public specimen executes static, managed-object, array, guest-exception, and exact-concat cases." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/ownership_guard", why = "Policy fixtures reject every prohibited ownership fork and scan the production JVM sources." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/baseline", why = "Generated opcode and intrinsic coverage totals differ from their manifests by zero." },
 ]
 
 [[route]]

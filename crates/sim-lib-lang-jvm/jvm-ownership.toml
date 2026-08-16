@@ -1,0 +1,32 @@
+schema = "sim.jvm-ownership/v1"
+owner = "sim-lib-lang-jvm"
+
+# These source-fact patterns describe ownership forks, not merely vocabulary.
+# The guard applies them to declarations and field types in the JVM crate.
+forbidden_type_suffixes = [
+  "ClassfileParser",
+  "OpcodeList",
+  "OpcodeTable",
+  "OperandStack",
+  "FrameStack",
+  "PrivateFrame",
+  "ShadowManagedGraph",
+  "ObjectGraph",
+  "Classpath",
+  "ClassPath",
+  "UnwindPayload",
+]
+forbidden_function_names = [
+  "parse_classfile",
+  "drive_method",
+  "drive_intrinsic",
+  "drive_dynamic",
+  "enter_method",
+  "execute_method",
+]
+forbidden_field_types = ["Vec<u16>"]
+forbidden_source_patterns = [
+  "match class_name.as_str()",
+  "match binary_name.as_str()",
+]
+allowed_public_drive = "drive"

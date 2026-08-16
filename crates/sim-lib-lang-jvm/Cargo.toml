@@ -27,5 +27,8 @@ sim-shape = { version = "0.2.1" }
 sim-kernel = { version = "0.2.0", features = ["test-support"] }
 toml = "0.8"
 
+[build-dependencies]
+toml = "0.8"
+
 [lints]
 workspace = true

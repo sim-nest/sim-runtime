@@ -92,7 +92,7 @@ enum Parameter {
 
 #[derive(Clone, Debug)]
 enum Piece {
-    Literal(Vec<u16>),
+    Literal(CodeUnitString),
     Argument(usize),
     Constant(usize),
 }
@@ -127,7 +127,7 @@ impl LinkedStringConcat {
         let mut output = Vec::new();
         for piece in &self.pieces {
             match piece {
-                Piece::Literal(units) => append(&mut output, units)?,
+                Piece::Literal(units) => append(&mut output, units.as_code_units())?,
                 Piece::Constant(index) => append_constant(&mut output, &self.constants[*index])?,
                 Piece::Argument(index) => append_argument(
                     &mut output,
@@ -258,7 +258,9 @@ fn link(
         };
         if let Some(piece) = marker {
             if !literal.is_empty() {
-                pieces.push(Piece::Literal(std::mem::take(&mut literal)));
+                pieces.push(Piece::Literal(CodeUnitString::from_code_units(
+                    std::mem::take(&mut literal),
+                )));
             }
             pieces.push(piece);
             if unit == 1 {
@@ -271,7 +273,7 @@ fn link(
         }
     }
     if !literal.is_empty() {
-        pieces.push(Piece::Literal(literal));
+        pieces.push(Piece::Literal(CodeUnitString::from_code_units(literal)));
     }
     if argument != parameters.len() || constant != constants.len() {
         return Err(DynamicLinkError::InvalidRecipe(format!(

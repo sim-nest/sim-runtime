@@ -139,25 +139,10 @@ pub struct IntrinsicMember {
     pub support: IntrinsicSupport,
 }
 
-macro_rules! wrapper_rows {
-    ($(($class:literal, $primitive:literal, $descriptor:literal)),+ $(,)?) => { &[
-        $(IntrinsicMember { class: $class, name: "valueOf", descriptor: concat!("(", $descriptor, ")L", $class, ";"), arguments_shape: concat!("tuple<", $primitive, ">"), result_shape: concat!("reference<", $class, ">"), capability: "none", effect: "managed-allocation", work: 2, support: IntrinsicSupport::Supported },
-        IntrinsicMember { class: $class, name: concat!($primitive, "Value"), descriptor: concat!("()", $descriptor), arguments_shape: concat!("receiver<", $class, ">"), result_shape: $primitive, capability: "none", effect: "pure", work: 1, support: IntrinsicSupport::Supported },
-        IntrinsicMember { class: $class, name: "<init>", descriptor: concat!("(", $descriptor, ")V"), arguments_shape: concat!("receiver<", $class, ">+tuple<", $primitive, ">"), result_shape: "void", capability: "none", effect: "unsupported", work: 0, support: IntrinsicSupport::Unsupported },)+
-    ] };
-}
-
-/// The single closed table used for intrinsic lookup and admission.
-pub const INTRINSIC_TABLE: &[IntrinsicMember] = wrapper_rows![
-    ("java/lang/Boolean", "boolean", "Z"),
-    ("java/lang/Byte", "byte", "B"),
-    ("java/lang/Character", "char", "C"),
-    ("java/lang/Short", "short", "S"),
-    ("java/lang/Integer", "int", "I"),
-    ("java/lang/Long", "long", "J"),
-    ("java/lang/Float", "float", "F"),
-    ("java/lang/Double", "double", "D"),
-];
+/// The single closed table used for intrinsic lookup and admission, generated
+/// directly from `intrinsics.toml`.
+pub const INTRINSIC_TABLE: &[IntrinsicMember] =
+    include!(concat!(env!("OUT_DIR"), "/jvm_intrinsics.rs"));
 
 /// Intrinsic lookup or admission failure.
 #[derive(Clone, Debug, Eq, PartialEq)]
