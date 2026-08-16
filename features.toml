@@ -126,7 +126,7 @@ title = "Capabilities and read-eval"
 summary = "Gate diminished read-eval and surface packing through explicit runtime libraries and capability checks."
 owner = "crate/sim-lib-core"
 audiences = ["code", "framework"]
-guidance = "Use this row when a framework needs diminished evaluation, read policy, or capability-gated loading."
+guidance = "Use this row when a framework needs diminished evaluation, read policy, or capability-gated loading. ReadEvalBroker records exactly one decision event per admission; use admit_with_event when a surrounding lifecycle receipt must retain that exact authority decision without copying it into another ledger."
 claims_anchors = [
   "anchor/crate/sim-lib-core",
   "anchor/runtime-lib/sim-lib-core/read-eval-broker-lib",
@@ -394,7 +394,7 @@ title = "Namespace organ"
 summary = "Expose namespace records plus capability-aware, source-bound module resolution, linking, live bindings, cache lifecycle, and receipts."
 owner = "crate/sim-lib-namespace"
 audiences = ["code", "framework"]
-guidance = "Use Namespace for static package/import records. Use ModuleLoader for source modules: supply a named Table/Dir root, codec, trusted read policy, required and diminished capabilities; retain BindingCell export edges for live replacement and inspect resolution receipts for cache, cycle, and failure decisions."
+guidance = "Use Namespace for static package/import records. Use ModuleLoader for source modules: supply a named Table/Dir root, codec, trusted read policy, required and diminished capabilities; retain BindingCell export edges for live replacement. Ordered resolution receipts distinguish pre-read refusal, decode failure, and evaluation failure, and link the exact existing read-eval decision event whenever admission was reached."
 claims_anchors = [
   "anchor/crate/sim-lib-namespace",
   "anchor/card/cookbook/organ/namespace",

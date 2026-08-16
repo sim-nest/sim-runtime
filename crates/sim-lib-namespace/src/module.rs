@@ -6,7 +6,7 @@ use std::{
     thread::ThreadId,
 };
 
-use sim_kernel::{CapabilityName, Cx, Dir, Error, Expr, Result, Symbol};
+use sim_kernel::{CapabilityName, Cx, Dir, Error, Event, Expr, Result, Symbol};
 use sim_lib_binding::BindingCell;
 use sim_lib_core::{
     ReadEvalBroker, ReadEvalDecision, ReadEvalRequest, ReadEvalSource, RequestOrigin,
@@ -106,8 +106,12 @@ pub enum ModuleResolutionOutcome {
     Linked,
     /// An already linked cache generation was returned.
     CacheHit,
-    /// Resolution, decoding, or evaluation failed.
-    Failed,
+    /// Resolution was refused before read-eval was reached.
+    ReadRefused,
+    /// The selected codec could not decode the source.
+    DecodeFailed,
+    /// Evaluation or its result-shape check failed.
+    EvalFailed,
     /// The initializing thread requested the same canonical module again.
     Cycle,
 }
@@ -123,6 +127,8 @@ pub struct ModuleResolutionReceipt {
     pub outcome: ModuleResolutionOutcome,
     /// Stable failure text when resolution did not link.
     pub detail: Option<String>,
+    /// Exact existing read-eval ledger event, when evaluation was reached.
+    pub read_eval_event: Option<Event>,
 }
 
 enum CacheState {
@@ -135,6 +141,7 @@ enum CacheState {
         generation: u64,
         message: String,
         binding: BindingCell,
+        outcome: ModuleResolutionOutcome,
     },
 }
 
@@ -193,22 +200,26 @@ impl ModuleLoader {
                         instance.generation,
                         ModuleResolutionOutcome::CacheHit,
                         None,
+                        None,
                     );
                     return Ok(instance);
                 }
                 Some(CacheState::Failed {
                     generation,
                     message,
+                    outcome,
                     ..
                 }) => {
                     let generation = *generation;
                     let message = message.clone();
+                    let outcome = *outcome;
                     push_receipt(
                         &mut state,
                         &identity,
                         generation,
-                        ModuleResolutionOutcome::Failed,
+                        outcome,
                         Some(message.clone()),
+                        None,
                     );
                     return Err(Error::Eval(message));
                 }
@@ -225,6 +236,7 @@ impl ModuleLoader {
                         generation,
                         ModuleResolutionOutcome::Cycle,
                         Some(message.clone()),
+                        None,
                     );
                     return Err(Error::Eval(message));
                 }
@@ -307,9 +319,8 @@ impl ModuleLoader {
         generation: u64,
         binding: BindingCell,
     ) -> Result<ModuleInstance> {
-        let result = (|| {
-            let source = read_source(cx, request.root.as_ref(), &identity.path)?;
-            self.broker.admit(
+        let admission = match read_source(cx, request.root.as_ref(), &identity.path) {
+            Ok(source) => Some(self.broker.admit_with_event(
                 cx,
                 ReadEvalRequest::new(
                     RequestOrigin::with_detail(
@@ -321,8 +332,19 @@ impl ModuleLoader {
                     request.authority,
                     Arc::new(AnyShape),
                 ),
-            )
-        })();
+            )?),
+            Err(error) => {
+                return self.finish_refused(identity, generation, binding, error);
+            }
+        };
+        let admission = admission.expect("successful read creates an admission");
+        let outcome = match admission.decision.outcome {
+            sim_lib_core::ReadEvalOutcome::DecodeFailed => ModuleResolutionOutcome::DecodeFailed,
+            sim_lib_core::ReadEvalOutcome::Admitted => ModuleResolutionOutcome::Linked,
+            _ => ModuleResolutionOutcome::EvalFailed,
+        };
+        let event = admission.event;
+        let result = admission.result;
         let mut state = self.lock_state()?;
         match result {
             Ok(value) => {
@@ -341,6 +363,7 @@ impl ModuleLoader {
                     generation,
                     ModuleResolutionOutcome::Linked,
                     None,
+                    Some(event),
                 );
                 self.changed.notify_all();
                 Ok(instance)
@@ -353,19 +376,51 @@ impl ModuleLoader {
                         generation,
                         message: message.clone(),
                         binding,
+                        outcome,
                     },
                 );
                 push_receipt(
                     &mut state,
                     &identity,
                     generation,
-                    ModuleResolutionOutcome::Failed,
+                    outcome,
                     Some(message.clone()),
+                    Some(event),
                 );
                 self.changed.notify_all();
                 Err(Error::Eval(message))
             }
         }
+    }
+
+    fn finish_refused(
+        &self,
+        identity: ModuleIdentity,
+        generation: u64,
+        binding: BindingCell,
+        error: Error,
+    ) -> Result<ModuleInstance> {
+        let message = error.to_string();
+        let mut state = self.lock_state()?;
+        state.cache.insert(
+            identity.clone(),
+            CacheState::Failed {
+                generation,
+                message: message.clone(),
+                binding,
+                outcome: ModuleResolutionOutcome::ReadRefused,
+            },
+        );
+        push_receipt(
+            &mut state,
+            &identity,
+            generation,
+            ModuleResolutionOutcome::ReadRefused,
+            Some(message.clone()),
+            None,
+        );
+        self.changed.notify_all();
+        Err(Error::Eval(message))
     }
 
     fn lock_state(&self) -> Result<MutexGuard<'_, LoaderState>> {
@@ -580,12 +635,14 @@ fn push_receipt(
     generation: u64,
     outcome: ModuleResolutionOutcome,
     detail: Option<String>,
+    read_eval_event: Option<Event>,
 ) {
     state.receipts.push(ModuleResolutionReceipt {
         identity: identity.clone(),
         generation,
         outcome,
         detail,
+        read_eval_event,
     });
 }
 

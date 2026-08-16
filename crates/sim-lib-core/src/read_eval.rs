@@ -199,6 +199,16 @@ pub struct ReadEvalBroker {
     ledger: decision::ReadEvalLedger,
 }
 
+/// The value-or-error and the single ledger event produced by one admission.
+pub struct ReadEvalAdmission {
+    /// Evaluation result returned to the caller.
+    pub result: Result<Value>,
+    /// Decision recorded for this admission.
+    pub decision: ReadEvalDecision,
+    /// Exact event carrying `decision` in the broker ledger.
+    pub event: Event,
+}
+
 impl ReadEvalBroker {
     /// Creates a broker with an empty decision ledger.
     pub fn new() -> Self {
@@ -207,6 +217,15 @@ impl ReadEvalBroker {
 
     /// Admits one explicit read-eval request or fails closed.
     pub fn admit(&self, cx: &mut Cx, request: ReadEvalRequest) -> Result<Value> {
+        self.admit_with_event(cx, request)?.result
+    }
+
+    /// Admits one request and returns the exact decision event alongside its result.
+    pub fn admit_with_event(
+        &self,
+        cx: &mut Cx,
+        request: ReadEvalRequest,
+    ) -> Result<ReadEvalAdmission> {
         if let Err(err) = request
             .authority
             .read_policy()
@@ -216,17 +235,16 @@ impl ReadEvalBroker {
                 Error::TrustDenied { .. } => ReadEvalOutcome::TrustDenied,
                 _ => ReadEvalOutcome::CapDenied,
             };
-            self.record(cx, &request, &CapabilitySet::new(), outcome)?;
-            return Err(err);
+            return self.admission(cx, &request, &CapabilitySet::new(), outcome, Err(err));
         }
         if let Err(err) = cx.require_all(request.authority.requires()) {
-            self.record(
+            return self.admission(
                 cx,
                 &request,
                 &CapabilitySet::new(),
                 ReadEvalOutcome::MissingPower,
-            )?;
-            return Err(err);
+                Err(err),
+            );
         }
 
         let active = diminish(cx.capabilities(), request.authority.allow());
@@ -240,43 +258,67 @@ impl ReadEvalBroker {
         }) {
             Ok(expr) => expr,
             Err(err) => {
-                self.record(cx, &request, &active, ReadEvalOutcome::DecodeFailed)?;
-                return Err(err);
+                return self.admission(
+                    cx,
+                    &request,
+                    &active,
+                    ReadEvalOutcome::DecodeFailed,
+                    Err(err),
+                );
             }
         };
         let value = match cx.with_capabilities(active.clone(), |cx| cx.eval_expr(expr)) {
             Ok(value) => value,
             Err(err) => {
-                self.record(cx, &request, &active, ReadEvalOutcome::EvalFailed)?;
-                return Err(err);
+                return self.admission(
+                    cx,
+                    &request,
+                    &active,
+                    ReadEvalOutcome::EvalFailed,
+                    Err(err),
+                );
             }
         };
 
         let matched = match request.expected_shape.check_value(cx, value.clone()) {
             Ok(matched) => matched,
             Err(err) => {
-                self.record(cx, &request, &active, ReadEvalOutcome::ShapeError)?;
-                return Err(err);
+                return self.admission(
+                    cx,
+                    &request,
+                    &active,
+                    ReadEvalOutcome::ShapeError,
+                    Err(err),
+                );
             }
         };
         if matched.accepted {
-            self.record(cx, &request, &active, ReadEvalOutcome::Admitted)?;
-            return Ok(value);
+            return self.admission(cx, &request, &active, ReadEvalOutcome::Admitted, Ok(value));
         }
 
         let diagnostics =
             match shape_diagnostics(cx, request.expected_shape.as_ref(), matched.diagnostics) {
                 Ok(diagnostics) => diagnostics,
                 Err(err) => {
-                    self.record(cx, &request, &active, ReadEvalOutcome::ShapeError)?;
-                    return Err(err);
+                    return self.admission(
+                        cx,
+                        &request,
+                        &active,
+                        ReadEvalOutcome::ShapeError,
+                        Err(err),
+                    );
                 }
             };
-        self.record(cx, &request, &active, ReadEvalOutcome::ShapeDenied)?;
-        Err(Error::WrongShape {
-            expected: request.expected_shape.id().unwrap_or(ShapeId(0)),
-            diagnostics,
-        })
+        self.admission(
+            cx,
+            &request,
+            &active,
+            ReadEvalOutcome::ShapeDenied,
+            Err(Error::WrongShape {
+                expected: request.expected_shape.id().unwrap_or(ShapeId(0)),
+                diagnostics,
+            }),
+        )
     }
 
     /// Returns read-eval decisions recorded in the broker's default run.
@@ -294,15 +336,21 @@ impl ReadEvalBroker {
         self.ledger.events_for_run(run)
     }
 
-    fn record(
+    fn admission(
         &self,
         cx: &mut Cx,
         request: &ReadEvalRequest,
         active: &CapabilitySet,
         outcome: ReadEvalOutcome,
-    ) -> Result<Event> {
+        result: Result<Value>,
+    ) -> Result<ReadEvalAdmission> {
         let decision = decision::decision_from_request(request, active, outcome);
-        self.ledger.record(cx, &decision)
+        let event = self.ledger.record(cx, &decision)?;
+        Ok(ReadEvalAdmission {
+            result,
+            decision,
+            event,
+        })
     }
 }
 

@@ -305,10 +305,65 @@ fn failure_is_cached_and_receipted_deterministically() {
             .map(|r| r.outcome)
             .collect::<Vec<_>>(),
         vec![
-            ModuleResolutionOutcome::Failed,
-            ModuleResolutionOutcome::Failed
+            ModuleResolutionOutcome::DecodeFailed,
+            ModuleResolutionOutcome::DecodeFailed
         ]
     );
+}
+
+#[test]
+fn lifecycle_receipts_link_exactly_one_decision_only_after_read() {
+    let mut cx = context();
+    let root = Arc::new(MemoryDir::default());
+    root.source(&mut cx, "good.sim", "\"linked\"");
+    root.source(&mut cx, "decode.sim", "(");
+    root.source(&mut cx, "eval.sim", "nil");
+    let loader = ModuleLoader::new();
+
+    loader
+        .load(&mut cx, request(root.clone(), "missing.sim", None))
+        .unwrap_err();
+    loader
+        .load(&mut cx, request(root.clone(), "decode.sim", None))
+        .unwrap_err();
+    let mut eval_request = request(root.clone(), "eval.sim", None);
+    eval_request.authority = SourceAuthority::new(
+        ReadPolicy {
+            trust: TrustLevel::TrustedSource,
+            capabilities: CapabilitySet::new().grant(read_eval_capability()),
+        },
+        vec![CapabilityName::new("test.missing")],
+        CapabilitySet::new().grant(read_eval_capability()),
+    )
+    .unwrap();
+    loader.load(&mut cx, eval_request).unwrap_err();
+    loader
+        .load(&mut cx, request(root, "good.sim", None))
+        .unwrap();
+
+    let receipts = loader.receipts().unwrap();
+    assert_eq!(
+        receipts
+            .iter()
+            .map(|receipt| receipt.outcome)
+            .collect::<Vec<_>>(),
+        vec![
+            ModuleResolutionOutcome::ReadRefused,
+            ModuleResolutionOutcome::DecodeFailed,
+            ModuleResolutionOutcome::EvalFailed,
+            ModuleResolutionOutcome::Linked,
+        ]
+    );
+    assert!(receipts[0].read_eval_event.is_none());
+    let linked = receipts[1..]
+        .iter()
+        .map(|receipt| receipt.read_eval_event.as_ref().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        linked.iter().map(|event| event.seq).collect::<Vec<_>>(),
+        vec![0, 1, 2]
+    );
+    assert_eq!(loader.decisions(&cx).unwrap().len(), linked.len());
 }
 
 #[test]
