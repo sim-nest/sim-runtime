@@ -19,6 +19,7 @@ mod intrinsic;
 mod limits;
 mod managed;
 mod numeric;
+mod resolution;
 mod text;
 mod value;
 
@@ -61,6 +62,10 @@ pub use intrinsic::{
 pub use limits::{ExecutionLimits, ResourceLimits};
 pub use managed::{JVM_ROLE_EDGE_TABLE, JvmEdge, JvmGraphError, JvmHeap, JvmRole, JvmRoleEdges};
 pub use numeric::{NumericExecutionError, execute_numeric_instruction};
+pub use resolution::{
+    AccessDecision, ConstantResolution, ConstantResolutionError, ConstantResolutionKind,
+    ResolutionCache, RuntimeNest, RuntimePackage,
+};
 pub use text::{ADMITTED_CORE_MEMBERS, JavaClassMirror, JavaCoreMember, JavaString};
 pub use value::{JvmReference, JvmValue, JvmValueWidth, PrimitiveCategory, ReturnCategory};
 

@@ -54,9 +54,32 @@ pub struct ClassDefinition {
     content: Arc<[u8]>,
     metadata: Arc<crate::JavaClassMetadata>,
     literals: BTreeMap<u16, crate::JavaString>,
+    resolution_records: BTreeMap<u16, crate::resolution::SymbolicConstant>,
 }
 
 impl ClassDefinition {
+    #[cfg(test)]
+    pub(crate) fn test(
+        loader: ClassLoaderId,
+        binary_name: &str,
+        content_key: u64,
+        metadata: crate::JavaClassMetadata,
+        resolution_records: BTreeMap<u16, crate::resolution::SymbolicConstant>,
+    ) -> Arc<Self> {
+        Arc::new(Self {
+            id: ClassDefinitionId {
+                loader,
+                binary_name: binary_name.into(),
+                content_key,
+            },
+            classfile: Expr::Nil,
+            content: Arc::from([]),
+            metadata: Arc::new(metadata),
+            literals: BTreeMap::new(),
+            resolution_records,
+        })
+    }
+
     /// Content-bound definition identity.
     pub fn id(&self) -> &ClassDefinitionId {
         &self.id
@@ -77,6 +100,13 @@ impl ClassDefinition {
     /// Returns the Java-visible class mirror for this definition.
     pub fn mirror(self: &Arc<Self>) -> crate::JavaClassMirror {
         crate::JavaClassMirror::new(self.clone())
+    }
+
+    pub(crate) fn resolution_record(
+        &self,
+        index: u16,
+    ) -> Option<&crate::resolution::SymbolicConstant> {
+        self.resolution_records.get(&index)
     }
 }
 
@@ -122,6 +152,19 @@ impl ClassLoader {
     #[cfg(test)]
     pub(crate) fn simulate_class_space_change(&self) {
         self.revision.fetch_add(1, Ordering::Release);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_insert(&self, definition: Arc<ClassDefinition>) {
+        self.definitions
+            .lock()
+            .unwrap()
+            .insert(definition.id.binary_name.clone(), definition);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_remove(&self, binary_name: &str) {
+        self.definitions.lock().unwrap().remove(binary_name);
     }
 
     /// Interns exact code units in this loader's bounded literal namespace.
@@ -211,16 +254,23 @@ impl ClassLoader {
                 .map_err(|_| Error::Eval("constant-pool index overflow".into()))?;
             literals.insert(index, self.intern(units)?);
         }
+        let resolution_records = crate::resolution::symbolic_constants(&shell)?;
         let definition = Arc::new(ClassDefinition {
             id,
             classfile,
             content: bytes.into(),
             metadata,
             literals,
+            resolution_records,
         });
         definitions.insert(request.binary_name.clone(), definition.clone());
         self.revision.fetch_add(1, Ordering::Release);
         Ok(definition)
+    }
+
+    /// Returns a currently loaded definition without initiating class loading.
+    pub fn loaded(&self, binary_name: &str) -> Result<Option<Arc<ClassDefinition>>> {
+        Ok(self.definitions()?.get(binary_name).cloned())
     }
 }
 
