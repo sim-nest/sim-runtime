@@ -98,6 +98,35 @@ pub struct JavaClassMetadata {
 }
 
 impl JavaClassMetadata {
+    #[cfg(test)]
+    pub(crate) fn test_identity(cx: &Cx, binary_name: &str, direct_parents: &[&str]) -> Self {
+        let shape: ShapeRef = cx.factory().opaque(Arc::new(AnyShape)).unwrap();
+        Self {
+            descriptor: ClassDescriptor::new(ClassDescriptorInput {
+                identity: ClassIdentity::checked(
+                    derived_class_id(ClassLoaderId(1), binary_name),
+                    Symbol::new(binary_name),
+                )
+                .unwrap(),
+                parents: Vec::new(),
+                constructor_shape: shape.clone(),
+                instance_shape: shape,
+                members: Vec::new(),
+                read_construction: None,
+                metadata: Vec::new(),
+            })
+            .unwrap(),
+            access_flags: 0,
+            resolution: JavaResolutionEvidence {
+                loader: ClassLoaderId(1),
+                binary_name: binary_name.into(),
+                direct_parents: direct_parents.iter().map(|name| (*name).into()).collect(),
+            },
+            members: Vec::new(),
+            array_component: None,
+        }
+    }
+
     pub(crate) fn from_shell(
         cx: &Cx,
         definition: &ClassDefinitionId,

@@ -25,6 +25,9 @@ fn boundary_table_exhaustively_assigns_each_failure_once() {
             FailureCondition::NullDereference => FailureHome::JavaThrowable,
             FailureCondition::Arithmetic => FailureHome::JavaThrowable,
             FailureCondition::ClassCast => FailureHome::JavaThrowable,
+            FailureCondition::ArrayIndexOutOfBounds => FailureHome::JavaThrowable,
+            FailureCondition::ArrayStore => FailureHome::JavaThrowable,
+            FailureCondition::NegativeArraySize => FailureHome::JavaThrowable,
             FailureCondition::InvalidClassfile => FailureHome::Admission,
             FailureCondition::UnauthorizedLinkage => FailureHome::Admission,
             FailureCondition::ExecutionAdmissionLimit => FailureHome::Admission,
@@ -41,6 +44,9 @@ fn boundary_table_exhaustively_assigns_each_failure_once() {
         FailureCondition::NullDereference,
         FailureCondition::Arithmetic,
         FailureCondition::ClassCast,
+        FailureCondition::ArrayIndexOutOfBounds,
+        FailureCondition::ArrayStore,
+        FailureCondition::NegativeArraySize,
         FailureCondition::InvalidClassfile,
         FailureCondition::UnauthorizedLinkage,
         FailureCondition::ExecutionAdmissionLimit,
@@ -54,4 +60,8 @@ fn boundary_table_exhaustively_assigns_each_failure_once() {
     for condition in all {
         assert_eq!(condition.home(), asserted_by_exhaustive_match(condition));
     }
+    assert_eq!(
+        FailureCondition::ArrayStore.java_class(),
+        Some("java/lang/ArrayStoreException")
+    );
 }

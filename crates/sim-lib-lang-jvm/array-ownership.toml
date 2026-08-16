@@ -1,0 +1,6 @@
+schema = "sim.jvm-array-ownership/v1"
+owner = "sim-lib-lang-jvm"
+decision = "new"
+candidate = "sim-lib-sequence::SparseSequence"
+candidate_anchor = "crates/sim-lib-sequence/src/mutable.rs#SparseSequence"
+reason = "SparseSequence is growable and sparse: set may extend length and absent positions are holes. Java arrays require immutable length, dense default initialization, and a distinct null reference value. Reusing it would weaken the Java identity and mutation contract. The JVM therefore owns a dense fixed-length payload and composes sim-lib-mutation edges for reference retention."

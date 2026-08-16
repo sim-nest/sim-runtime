@@ -179,6 +179,8 @@ pub enum JvmGraphError {
     },
     /// Shared-node edge allocation failed.
     Allocation(EdgeAllocationError),
+    /// A compare-and-mutate edge operation found stale graph state.
+    StrongMutation(StrongEdgeMutationError),
 }
 
 impl From<ArenaError> for JvmGraphError {
@@ -190,7 +192,7 @@ impl From<StrongEdgeMutationError> for JvmGraphError {
     fn from(value: StrongEdgeMutationError) -> Self {
         match value {
             StrongEdgeMutationError::Allocation(e) => Self::Allocation(e),
-            _ => unreachable!("insertion only reports allocation failures"),
+            other => Self::StrongMutation(other),
         }
     }
 }
@@ -260,6 +262,34 @@ impl JvmHeap {
             });
         }
         Ok(node.insert_strong(target.id())?)
+    }
+
+    /// Replaces a retaining edge after validating both live handles.
+    pub fn replace_strong(
+        &mut self,
+        owner: ManagedHandle,
+        edge: EdgeId,
+        expected: ManagedHandle,
+        replacement: ManagedHandle,
+    ) -> Result<(), JvmGraphError> {
+        self.heap.get(replacement)?;
+        self.heap
+            .get_mut(owner)?
+            .replace_strong(edge, expected.id(), replacement.id())?;
+        Ok(())
+    }
+
+    /// Removes a retaining edge after validating the expected target.
+    pub fn remove_strong(
+        &mut self,
+        owner: ManagedHandle,
+        edge: EdgeId,
+        expected: ManagedHandle,
+    ) -> Result<(), JvmGraphError> {
+        self.heap
+            .get_mut(owner)?
+            .remove_strong(edge, expected.id())?;
+        Ok(())
     }
 
     /// Adds a weak edge admitted by the owner's role.

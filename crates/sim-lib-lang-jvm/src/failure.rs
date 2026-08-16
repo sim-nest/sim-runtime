@@ -10,6 +10,12 @@ pub enum FailureCondition {
     Arithmetic,
     /// A guest reference failed a checked cast.
     ClassCast,
+    /// A guest array access used an index outside its fixed bounds.
+    ArrayIndexOutOfBounds,
+    /// A guest attempted to store an incompatible reference in an array.
+    ArrayStore,
+    /// A guest requested an array with a negative length.
+    NegativeArraySize,
     /// Decoded class data violates the supported classfile contract.
     InvalidClassfile,
     /// A class or member cannot be authorized in the supplied class space.
@@ -45,9 +51,12 @@ impl FailureCondition {
     /// Classifies every condition into exactly one failure home.
     pub const fn home(self) -> FailureHome {
         match self {
-            Self::NullDereference | Self::Arithmetic | Self::ClassCast => {
-                FailureHome::JavaThrowable
-            }
+            Self::NullDereference
+            | Self::Arithmetic
+            | Self::ClassCast
+            | Self::ArrayIndexOutOfBounds
+            | Self::ArrayStore
+            | Self::NegativeArraySize => FailureHome::JavaThrowable,
             Self::InvalidClassfile | Self::UnauthorizedLinkage | Self::ExecutionAdmissionLimit => {
                 FailureHome::Admission
             }
@@ -57,6 +66,19 @@ impl FailureCondition {
             | Self::ManagedObjectBudget
             | Self::ClassfileByteBudget
             | Self::InternedStringBudget => FailureHome::Resource,
+        }
+    }
+
+    /// Exact guest throwable class for throwable-owned conditions.
+    pub const fn java_class(self) -> Option<&'static str> {
+        match self {
+            Self::NullDereference => Some("java/lang/NullPointerException"),
+            Self::Arithmetic => Some("java/lang/ArithmeticException"),
+            Self::ClassCast => Some("java/lang/ClassCastException"),
+            Self::ArrayIndexOutOfBounds => Some("java/lang/ArrayIndexOutOfBoundsException"),
+            Self::ArrayStore => Some("java/lang/ArrayStoreException"),
+            Self::NegativeArraySize => Some("java/lang/NegativeArraySizeException"),
+            _ => None,
         }
     }
 }

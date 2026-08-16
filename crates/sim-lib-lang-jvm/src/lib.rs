@@ -6,6 +6,7 @@
 //! policy is then layered over shared machine storage, limits, managed handles,
 //! kernel values, and the language-neutral raised envelope.
 
+mod array;
 mod class_metadata;
 mod class_space;
 mod code;
@@ -20,6 +21,10 @@ mod numeric;
 mod text;
 mod value;
 
+pub use array::{
+    ArrayAllocationError, ArrayComponent, ArrayOperationError, ArrayPrimitive, JavaArray,
+    JavaArrayTree, MAX_ARRAY_DIMENSIONS,
+};
 pub use class_metadata::{
     JavaClassMetadata, JavaHierarchyCheck, JavaMember, JavaMemberKind, JavaResolutionEvidence,
 };
@@ -65,3 +70,6 @@ pub const INTRINSIC_MANIFEST: &str = include_str!("../intrinsics.toml");
 
 /// Auditable ownership decision for every JVM numeric instruction family.
 pub const NUMERIC_OWNERSHIP: &str = include_str!("../numeric-ownership.toml");
+
+/// Auditable storage-ownership decision for Java arrays.
+pub const ARRAY_OWNERSHIP: &str = include_str!("../array-ownership.toml");
