@@ -1,0 +1,72 @@
+schema = "sim.jvm-reuse-ledger/v1"
+
+[[organ]]
+product = "CHARACTERIZE_1"
+crate = "sim-lib-lang-javascript"
+version = "0.1.6"
+anchor = "crates/sim-lib-lang-javascript/src/lib.rs"
+decision = "reuse guest-policy characterization pattern only; no implementation is copied"
+
+[[organ]]
+product = "INDEX_9"
+crate = "sim-tooling"
+version = "0.1.0"
+anchor = "../sim-tooling/src/index_find.rs"
+decision = "reuse Index discovery and record its current coverage gap for the new crate"
+
+[[organ]]
+product = "MANAGED_2"
+crate = "sim-lib-mutation"
+version = "0.1.4"
+anchor = "crates/sim-lib-mutation/src/managed.rs#ManagedNode"
+decision = "reuse managed graph ownership for every future JVM heap object"
+
+[[organ]]
+product = "UTF16_2"
+crate = "sim-text"
+version = "0.1.0"
+anchor = "../sim-foundation/crates/sim-text/src/lib.rs#CodeUnitString"
+decision = "reuse exact code-unit text; Rust String is not a Java value"
+
+[[organ]]
+product = "MACHINE_2"
+crate = "sim-lib-machine"
+version = "0.1.0"
+anchor = "crates/sim-lib-machine/src/code.rs#LocatedCode"
+decision = "reuse bounded decoded-instruction machine storage and receipts"
+
+[[organ]]
+product = "CLASSFILE_2"
+crate = "sim-codec-classfile"
+version = "0.1.0"
+anchor = "../sim-codecs/crates/sim-codec-classfile/src/runtime.rs#ClassfileCodec"
+decision = "reuse the lossless decoder and its sole opcode manifest"
+
+[[organ]]
+product = "CLASS_2"
+crate = "sim-lib-class"
+version = "0.1.0"
+anchor = "crates/sim-lib-class/src/descriptor.rs#ClassDescriptor"
+decision = "reuse checked class descriptors and inheritance semantics"
+
+[[organ]]
+product = "EXCEPTIONS_3"
+crate = "sim-lib-control"
+version = "0.1.5"
+anchor = "crates/sim-lib-control/src/model.rs#Raised"
+decision = "reuse the common raised envelope; do not add a JVM unwind carrier"
+
+[[organ]]
+product = "MODULES_2"
+crate = "sim-lib-namespace"
+version = "0.1.3"
+anchor = "crates/sim-lib-namespace/src/module.rs#SourceModulePolicy"
+supporting_anchor = "crates/sim-lib-core/src/read_eval.rs#SourceAuthority"
+supporting_crate = "sim-lib-core"
+supporting_version = "0.1.4"
+decision = "reuse caller-authorized source resolution; no ambient classpath"
+
+[[finding]]
+surface = "SIM Index"
+detail = "The new sim-lib-lang-jvm crate has no generated Index anchor until its authored feature metadata phase."
+disposition = "recorded coverage gap; no duplicate implementation permitted"

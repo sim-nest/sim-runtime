@@ -1,0 +1,15 @@
+schema = "sim.jvm-fixtures/v1"
+
+[[fixture]]
+path = "javac/StaticInt.class"
+provenance = "javac --release 8 -g:none StaticInt.java"
+major_version = 52
+method = "wholePipeline:(II)I"
+required_opcodes = ["iload_0", "iload_1", "iadd", "iconst_2", "imul", "ireturn"]
+
+[[fixture]]
+path = "hand-built/Minimal.class"
+provenance = "fixtures/build-fixtures.py deterministic classfile writer"
+major_version = 45
+method = "value:()I"
+required_opcodes = ["bipush", "ireturn"]

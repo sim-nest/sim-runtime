@@ -18,6 +18,7 @@ members = [
   "crates/sim-lib-lang-islisp",
   "crates/sim-lib-lang-julia",
   "crates/sim-lib-lang-javascript",
+  "crates/sim-lib-lang-jvm",
   "crates/sim-lib-lang-lua",
   "crates/sim-lib-lang-matrix",
   "crates/sim-lib-lang-python",

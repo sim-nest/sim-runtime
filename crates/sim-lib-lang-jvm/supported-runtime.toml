@@ -1,0 +1,31 @@
+schema = "sim.jvm-supported-runtime/v1"
+
+[classfile_versions]
+minimum_major = 45
+maximum_major = 69
+source = "sim-codec-classfile 0.1.0 scope.toml [classfile_version]"
+
+[opcodes]
+admission = "all non-reserved, version-admitted rows"
+source = "sim-codec-classfile 0.1.0 opcode-manifest.tsv"
+parallel_inventory_forbidden = true
+
+[[unsupported]]
+id = "native-methods"
+boundary = "method admission"
+
+[[unsupported]]
+id = "threads"
+boundary = "class and intrinsic admission"
+
+[[unsupported]]
+id = "reflection"
+boundary = "class and intrinsic admission"
+
+[[unsupported]]
+id = "jni"
+boundary = "method admission"
+
+[[unsupported]]
+id = "unadmitted-bootstraps"
+boundary = "bootstrap linkage admission"
