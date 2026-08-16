@@ -126,7 +126,7 @@ title = "Capabilities and read-eval"
 summary = "Gate diminished read-eval and surface packing through explicit runtime libraries and capability checks."
 owner = "crate/sim-lib-core"
 audiences = ["code", "framework"]
-guidance = "Use this row when a framework needs diminished evaluation, read policy, or capability-gated loading. ReadEvalBroker records exactly one decision event per admission; use admit_with_event when a surrounding lifecycle receipt must retain that exact authority decision without copying it into another ledger."
+guidance = "Use this row when a framework needs diminished evaluation, read policy, or capability-gated loading. Construct the indivisible SourceAuthority in trusted host code and pass it through ReadEvalRequest or DynamicSourcePolicy; guest syntax and semantic wrappers must not repeat read_policy, requires, and allow or define a generic admission type. ReadEvalBroker records exactly one decision event per admission; use admit_with_event when a surrounding lifecycle receipt must retain that exact authority decision without copying it into another ledger. source-authority.toml records wired and deliberately unwired guests, and the sim-lib-core guard enforces the source fact."
 claims_anchors = [
   "anchor/crate/sim-lib-core",
   "anchor/runtime-lib/sim-lib-core/read-eval-broker-lib",
@@ -134,6 +134,7 @@ claims_anchors = [
 ]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-standard-core/src/read_construct",
+  "spec-test/sim-runtime/crates/sim-lib-core/src/source_authority_ownership_tests",
 ]
 
 [[feature]]
@@ -722,6 +723,17 @@ steps = [
   { feature = "feature/sim-sdk/characterization-facade", why = "The SDK presents the public migration types without exposing standard-core internals." },
   { specimen = "recipe/sim-runtime/crates/sim-lib-standard-core/01-basics/characterize-migration", why = "The public recipe states the capture-before, refactor, capture-after, strict-compare contract." },
   { specimen = "spec-test/sim-sdk/tests/characterization", why = "The downstream test proves identical captures and a located mismatch through SDK-visible types." },
+]
+
+[[route]]
+id = "route/admit-dynamic-source"
+task = "Admit dynamic guest source without copying authority"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/capabilities-read-eval", why = "The core owner keeps trusted read policy, required caller powers, and diminished allowed powers in one host-built SourceAuthority." },
+  { feature = "feature/sim-sdk/source-authority-facade", why = "The SDK presents the canonical authority, request, broker, and dynamic-policy builders directly without a facade envelope." },
+  { specimen = "recipe/sim-sdk/source-authority/dynamic-text", why = "The public Rust recipe constructs authority through the SDK and proves admitted and missing-caller-power outcomes through the shared broker." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-core/src/source_authority_ownership_tests", why = "The source-fact guard permits guest semantic wrappers, rejects repeated authority fields and generic admission types, and classifies unwired guests without adding behavior." },
 ]
 
 [[route]]

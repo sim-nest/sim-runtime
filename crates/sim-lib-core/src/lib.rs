@@ -5,10 +5,18 @@
 //! The kernel defines the `Lib`/`Registry`/`ExportRecord` contracts; this crate
 //! supplies the shared substrate for declaring exported value cards as data and
 //! installing them once, idempotently, into a registry.
+//!
+//! Source admission has one separate, deliberately indivisible product:
+//! [`SourceAuthority`] carries trusted host policy, caller requirements, and
+//! diminished allowed powers into [`ReadEvalRequest`] or [`DynamicSourcePolicy`].
+//! Guest libraries may add source syntax and semantic policy, but never another
+//! admission envelope. The host constructs authority; source data cannot.
 
 use sim_kernel::Symbol;
 
 mod read_eval;
+#[cfg(test)]
+mod source_authority_ownership_tests;
 pub mod surface;
 
 /// Recipes embedded at build time from this crate's `recipes/` tree.

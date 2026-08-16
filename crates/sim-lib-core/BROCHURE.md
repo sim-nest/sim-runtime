@@ -11,6 +11,9 @@ This library is the quiet foundation the other libraries stand on. When a librar
 - Setup runs once and stays clean, even if it is triggered more than once.
 - Every library declares what it offers in the same plain, inspectable form.
 - Shared bookkeeping means individual libraries stay small and focused.
+- One host-built source-authority value keeps trusted policy, required powers,
+  and diminished allowed powers together from request construction through the
+  recorded admission decision; guest languages cannot mint or widen it.
 
 ## Where it fits
 

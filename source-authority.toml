@@ -1,0 +1,73 @@
+schema = "sim.source-authority-ownership/v1"
+owner = "crates/sim-lib-core/src/read_eval.rs::SourceAuthority"
+remediation = "Pass sim_lib_core::SourceAuthority into shared request and policy constructors; keep only irreducible guest semantics in guest structs."
+guest_crate_prefix = "sim-lib-lang-"
+forbidden_type_suffixes = ["Admission", "Authority", "SourceRequest"]
+authority_fields = ["read_policy", "requires", "allow"]
+
+# Every registered guest is recorded even when it has no source-evaluation
+# entry point. `unwired` is evidence of absence, never a promise of behavior.
+[[guest]]
+crate = "sim-lib-lang-javascript"
+status = "wired"
+anchor = "crates/sim-lib-lang-javascript/src/modules.rs"
+
+[[guest]]
+crate = "sim-lib-lang-python"
+status = "wired"
+anchor = "crates/sim-lib-lang-python/src/library_core.rs"
+
+[[guest]]
+crate = "sim-lib-lang-typescript"
+status = "unwired"
+reason = "Notation erases to the JavaScript profile and owns no evaluator."
+
+[[guest]]
+crate = "sim-lib-lang-lua"
+status = "unwired"
+reason = "The profile has no dynamic-source entry point."
+
+[[guest]]
+crate = "sim-lib-lang-cl"
+status = "unwired"
+reason = "The profile has no dynamic-source entry point."
+
+[[guest]]
+crate = "sim-lib-lang-clojure"
+status = "unwired"
+reason = "The profile has no dynamic-source entry point."
+
+[[guest]]
+crate = "sim-lib-lang-genconf"
+status = "unwired"
+reason = "The generated conformance profile has no dynamic-source entry point."
+
+[[guest]]
+crate = "sim-lib-lang-islisp"
+status = "unwired"
+reason = "The profile has no dynamic-source entry point."
+
+[[guest]]
+crate = "sim-lib-lang-julia"
+status = "unwired"
+reason = "The profile has no dynamic-source entry point."
+
+[[guest]]
+crate = "sim-lib-lang-prolog"
+status = "unwired"
+reason = "Queries use the logic organ rather than dynamic source admission."
+
+[[guest]]
+crate = "sim-lib-lang-ruby"
+status = "unwired"
+reason = "The profile has no dynamic-source entry point."
+
+[[guest]]
+crate = "sim-lib-lang-scheme"
+status = "unwired"
+reason = "The profile has no dynamic-source entry point."
+
+[[guest]]
+crate = "sim-lib-lang-typed-lazy"
+status = "unwired"
+reason = "The profile has no dynamic-source entry point."
