@@ -41,7 +41,10 @@ pub use jobs::{
     AdmissionLimit, CheckpointError, CheckpointReceipt, DrainReceipt, JobId, JobQueues, JobReceipt,
     JobStatus, RuntimeJobClass, WorkLimit,
 };
-pub use model::{ContinuationValue, ControlResultValue};
+pub use model::{
+    ContinuationValue, ControlResultValue, RAISED_SYMBOL, Raised, RaisedBrowseBudget,
+    RaisedBrowseProjection, RaisedShape,
+};
 pub use nonlocal::{LabeledPrompt, NonLocalExit, NonLocalExitKind, escape_to_label};
 pub use ops::{
     ControlFunction, abort_symbol, capture_symbol, physical_sensing_trace_symbol, prompt_symbol,
@@ -52,11 +55,22 @@ pub use policy::{
     segmented_control_policy,
 };
 pub use prompt::{ControlPrompt, ControlTag, raise_prompt};
-pub use protected::{ProtectedOutcome, protected_call};
+pub use protected::{ProtectedOutcome, protected_call, protected_call_with};
 pub use restart::{Restart, RestartStack, invoke_restart};
 pub use resume::{FrameError, FrameLimits, ResumableFrame, ResumePacket, ResumeResult, StepBudget};
 pub use runtime::{ControlLib, control_exports, install_control_lib, manifest_name};
 pub use unwind::{CleanupStack, Unwind};
+
+/// Exceptional unwind specialized to the shared raised envelope.
+pub type RaisedUnwind<R, B, C> = Unwind<R, B, C, Raised>;
+/// Protected-call result specialized to the shared raised envelope.
+pub type RaisedProtectedOutcome = ProtectedOutcome<Raised>;
+/// Condition payload specialized to the shared raised envelope.
+pub type RaisedCondition = Condition<Raised>;
+/// Resume input specialized to throwing the shared raised envelope.
+pub type RaisedResumePacket<T> = ResumePacket<T, Raised>;
+/// Resume result specialized to failure with the shared raised envelope.
+pub type RaisedResumeResult<T, R> = ResumeResult<T, R, Raised>;
 
 /// Cookbook recipes for this lib, embedded at build time.
 pub static RECIPES: sim_cookbook::EmbeddedDir =

@@ -10,14 +10,14 @@ use crate::ContinuationValue;
 /// The condition system's analogue of a raised exception, but resumable: the
 /// payload travels to the nearest matching [`ConditionHandler`].
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Condition {
+pub struct Condition<P = Ref> {
     kind: Symbol,
-    payload: Ref,
+    payload: P,
 }
 
-impl Condition {
+impl<P> Condition<P> {
     /// Builds a condition of the given `kind` carrying `payload`.
-    pub fn new(kind: Symbol, payload: Ref) -> Self {
+    pub fn new(kind: Symbol, payload: P) -> Self {
         Self { kind, payload }
     }
 
@@ -27,7 +27,7 @@ impl Condition {
     }
 
     /// Returns the payload delivered to the handler.
-    pub fn payload(&self) -> &Ref {
+    pub fn payload(&self) -> &P {
         &self.payload
     }
 }
@@ -109,7 +109,7 @@ impl ConditionStack {
     ///
     /// Fails with [`Error::Eval`](sim_kernel::Error::Eval) when no handler
     /// matches the condition kind.
-    pub fn signal(&self, cx: &mut Cx, condition: Condition) -> Result<ContinuationValue> {
+    pub fn signal(&self, cx: &mut Cx, condition: Condition<Ref>) -> Result<ContinuationValue> {
         let handler = self.nearest_handler(condition.kind())?;
         let mut request = ControlCapture::new(
             handler.prompt().clone(),
@@ -144,7 +144,7 @@ impl ConditionStack {
 pub fn signal_condition(
     cx: &mut Cx,
     stack: &ConditionStack,
-    condition: Condition,
+    condition: Condition<Ref>,
 ) -> Result<ContinuationValue> {
     stack.signal(cx, condition)
 }
