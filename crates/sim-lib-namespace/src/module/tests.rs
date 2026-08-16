@@ -20,6 +20,7 @@ use sim_lib_mutation::{
 };
 
 use super::*;
+use crate::{MAX_SPECIFIER_BYTES, MAX_SPECIFIER_CANDIDATES, SpecifierRefusalCode};
 use sim_kernel::{CapabilitySet, ReadPolicy};
 
 #[derive(Default)]
@@ -212,6 +213,72 @@ fn relative_resolution_and_root_escape_are_explicit() {
         .load(&mut cx, request(root, "../../escape.sim", Some(importer)))
         .unwrap_err();
     assert!(error.to_string().contains("escapes supplied root"));
+}
+
+#[test]
+fn identity_specifier_policy_preserves_every_landed_specifier_byte_for_byte() {
+    let importer = ModuleIdentity {
+        root: Symbol::new("fixture"),
+        path: "pkg/main.sim".to_owned(),
+    };
+    let policy = IdentitySpecifierPolicy;
+    for specifier in [
+        "plain.sim",
+        "pkg/nested.sim",
+        "./sibling.sim",
+        "../parent.sim",
+        "with spaces.sim",
+        "unicodé.sim",
+    ] {
+        let request =
+            SpecifierPolicyRequest::new(Some(importer.clone()), vec![specifier.to_owned()])
+                .unwrap();
+        let normalized = policy.resolve(&request).unwrap();
+        assert_eq!(normalized.as_str().as_bytes(), specifier.as_bytes());
+    }
+}
+
+#[test]
+fn identity_policy_refuses_fallback_and_all_policy_inputs_are_bounded() {
+    let policy = IdentitySpecifierPolicy;
+    let alternatives = SpecifierPolicyRequest::new(
+        None,
+        vec!["module.sim".to_owned(), "module/index.sim".to_owned()],
+    )
+    .unwrap();
+    let refusal = policy.resolve(&alternatives).unwrap_err();
+    assert_eq!(
+        refusal.code(),
+        SpecifierRefusalCode::IdentityRequiresOneCandidate
+    );
+    assert_eq!(
+        refusal.detail(),
+        "identity module specifier policy requires exactly one candidate, got 2"
+    );
+
+    assert_eq!(
+        SpecifierPolicyRequest::new(None, Vec::new())
+            .unwrap_err()
+            .code(),
+        SpecifierRefusalCode::NoCandidates
+    );
+    assert_eq!(
+        SpecifierPolicyRequest::new(
+            None,
+            (0..=MAX_SPECIFIER_CANDIDATES)
+                .map(|index| format!("{index}.sim"))
+                .collect(),
+        )
+        .unwrap_err()
+        .code(),
+        SpecifierRefusalCode::TooManyCandidates
+    );
+    assert_eq!(
+        SpecifierPolicyRequest::new(None, vec!["x".repeat(MAX_SPECIFIER_BYTES + 1)])
+            .unwrap_err()
+            .code(),
+        SpecifierRefusalCode::CandidateTooLong
+    );
 }
 
 #[test]

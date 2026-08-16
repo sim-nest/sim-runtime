@@ -13,6 +13,8 @@ use sim_lib_core::{
 };
 use sim_shape::AnyShape;
 
+use crate::{IdentitySpecifierPolicy, ModuleSpecifierPolicy, SpecifierPolicyRequest};
+
 /// Capability required before namespace source resolution begins.
 pub fn module_load_capability() -> CapabilityName {
     CapabilityName::new("namespace.module.load")
@@ -142,11 +144,22 @@ struct LoaderState {
 }
 
 /// Source-bound module cache. No loader lock is held during storage or user evaluation.
-#[derive(Default)]
 pub struct ModuleLoader {
     state: Mutex<LoaderState>,
     changed: Condvar,
     broker: ReadEvalBroker,
+    specifier_policy: Arc<dyn ModuleSpecifierPolicy>,
+}
+
+impl Default for ModuleLoader {
+    fn default() -> Self {
+        Self {
+            state: Mutex::new(LoaderState::default()),
+            changed: Condvar::new(),
+            broker: ReadEvalBroker::default(),
+            specifier_policy: Arc::new(IdentitySpecifierPolicy),
+        }
+    }
 }
 
 impl ModuleLoader {
@@ -155,10 +168,18 @@ impl ModuleLoader {
         Self::default()
     }
 
+    /// Creates a loader with an explicit bounded textual specifier policy.
+    pub fn with_specifier_policy(specifier_policy: Arc<dyn ModuleSpecifierPolicy>) -> Self {
+        Self {
+            specifier_policy,
+            ..Self::default()
+        }
+    }
+
     /// Resolves and links a module, sharing concurrent work and cached failures.
     pub fn load(&self, cx: &mut Cx, request: ModuleRequest) -> Result<ModuleInstance> {
         cx.require(&module_load_capability())?;
-        let identity = canonical_identity(&request)?;
+        let identity = canonical_identity(&request, self.specifier_policy.as_ref())?;
         let owner = std::thread::current().id();
         let (generation, binding) = loop {
             let mut state = self.lock_state()?;
@@ -233,7 +254,7 @@ impl ModuleLoader {
     /// Forces a replacement load while preserving existing live bindings.
     pub fn reload(&self, cx: &mut Cx, request: ModuleRequest) -> Result<ModuleInstance> {
         cx.require(&module_load_capability())?;
-        let identity = canonical_identity(&request)?;
+        let identity = canonical_identity(&request, self.specifier_policy.as_ref())?;
         let owner = std::thread::current().id();
         let (generation, binding) = {
             let mut state = self.lock_state()?;
@@ -348,14 +369,24 @@ impl ModuleLoader {
     }
 }
 
-fn canonical_identity(request: &ModuleRequest) -> Result<ModuleIdentity> {
-    let absolute = request.specifier.starts_with('/');
+fn canonical_identity(
+    request: &ModuleRequest,
+    policy: &dyn ModuleSpecifierPolicy,
+) -> Result<ModuleIdentity> {
+    let policy_request =
+        SpecifierPolicyRequest::new(request.importer.clone(), vec![request.specifier.clone()])
+            .map_err(|refusal| Error::Eval(refusal.to_string()))?;
+    let specifier = policy
+        .resolve(&policy_request)
+        .map_err(|refusal| Error::Eval(refusal.to_string()))?;
+    let specifier = specifier.as_str();
+    let absolute = specifier.starts_with('/');
     if absolute {
         return Err(Error::Eval(
             "module specifier must be root-relative, not absolute".to_owned(),
         ));
     }
-    let mut parts = if request.specifier.starts_with('.') {
+    let mut parts = if specifier.starts_with('.') {
         let importer = request
             .importer
             .as_ref()
@@ -371,7 +402,7 @@ fn canonical_identity(request: &ModuleRequest) -> Result<ModuleIdentity> {
     } else {
         Vec::new()
     };
-    for part in request.specifier.split('/') {
+    for part in specifier.split('/') {
         match part {
             "" | "." => {}
             ".." => {
