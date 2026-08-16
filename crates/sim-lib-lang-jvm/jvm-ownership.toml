@@ -24,6 +24,9 @@ forbidden_type_suffixes = [
   "ShapeRankedJavaBridge",
   "JvmFunctionOrgan",
   "GlobalLambdaCache",
+  "PrivateStatistics",
+  "AlternateInterpreter",
+  "FusedOpcodeTable",
 ]
 forbidden_function_names = [
   "parse_classfile",
@@ -35,10 +38,14 @@ forbidden_function_names = [
   "parse_verification_bytes",
   "verify_opcode",
   "link_lambda_at_method_entry",
+  "decode_in_drive",
+  "specialize_unchecked",
+  "execute_fused_unmapped",
 ]
 forbidden_field_types = ["Vec<u16>", "verified: bool"]
 forbidden_source_patterns = [
   "match class_name.as_str()",
   "match binary_name.as_str()",
+  "static OPCODE_TABLE:",
 ]
 allowed_public_drive = "drive"

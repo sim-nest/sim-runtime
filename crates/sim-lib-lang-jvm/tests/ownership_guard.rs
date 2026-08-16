@@ -58,6 +58,22 @@ const VIOLATIONS: &[(&str, &str)] = &[
     ),
     ("duplicate function organ", "pub struct JvmFunctionOrgan;"),
     ("strong global cache", "pub struct GlobalLambdaCache;"),
+    ("raw decode in drive", "pub fn decode_in_drive() {}"),
+    (
+        "duplicate opcode table",
+        "static OPCODE_TABLE: [u8; 1] = [0];",
+    ),
+    (
+        "unchecked specialization",
+        "pub fn specialize_unchecked() {}",
+    ),
+    ("private statistics", "pub struct PrivateStatistics;"),
+    ("alternate interpreter", "pub struct AlternateInterpreter;"),
+    (
+        "unmapped fused operation",
+        "pub fn execute_fused_unmapped() {}",
+    ),
+    ("fused opcode table", "pub struct FusedOpcodeTable;"),
 ];
 
 #[derive(Debug)]

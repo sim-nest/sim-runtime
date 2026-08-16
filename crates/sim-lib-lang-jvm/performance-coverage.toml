@@ -1,0 +1,25 @@
+schema = "sim.jvm-performance-coverage/v1"
+source_roadmap = "BYTECODE_SPEED_4"
+prepared_code = "crates/sim-lib-lang-jvm/src/code.rs::prepare_code"
+micro_ops = "crates/sim-lib-lang-jvm/src/code.rs::PreparedMicroOp"
+dispatch_table = "crates/sim-lib-lang-jvm/src/verifier_rules_generated.rs::PREPARED_DISPATCH"
+superinstruction_manifest = "crates/sim-lib-lang-jvm/superinstructions.toml"
+superinstruction_table = "crates/sim-lib-lang-jvm/src/superinstructions_generated.rs::FUSED_DEFINITIONS"
+fidelity_contract = "crates/sim-lib-lang-jvm/src/entry.rs::ExecutionPermit"
+ownership_policy = "crates/sim-lib-lang-jvm/jvm-ownership.toml"
+
+[[benchmark]]
+workload = "jvm-bytecode-cold-preparation"
+owner_repository = "sim-tooling"
+raw_artifact = "benchmarks/bytecode-speed-4/tiger-cold-preparation.json"
+content_key = "sha256:4bc7d2383522c22f9b937ad4552259deb61dffdfca2cd223b0b5fe10a50a0360"
+samples_per_arm = 20
+outcome = "inconclusive"
+
+[[benchmark]]
+workload = "jvm-bytecode-warm-execution"
+owner_repository = "sim-tooling"
+raw_artifact = "benchmarks/bytecode-speed-4/tiger-warm-execution.json"
+content_key = "sha256:3410df991be855eebeb1b3acdd54440168575470e643b6c93ba4dc606376ae7d"
+samples_per_arm = 20
+outcome = "inconclusive"
