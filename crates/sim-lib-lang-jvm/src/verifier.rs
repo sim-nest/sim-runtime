@@ -10,14 +10,20 @@ use sim_incremental_core::dataflow::{
     EdgeClass, EdgeSpec, FixpointEngine, GraphBuildError, GraphDirection, JoinSemilattice,
     LocatedGraphAdapter, NodeSpec, StateSize, TransferPolicy,
 };
+use sim_incremental_core::{FingerprintValue, Observation, Revision, ValueFingerprint};
 use sim_lib_machine::{LocatedCode, SourceLocation};
-use std::{cell::RefCell, collections::BTreeMap, mem::size_of, sync::Arc};
+use std::{
+    cell::RefCell,
+    collections::BTreeMap,
+    mem::size_of,
+    sync::{Arc, Mutex, MutexGuard, Weak},
+};
 
 use crate::{
     ClassDefinition, ClassDefinitionId, ClassLoader, ClassLoaderId, ClassSpaceRevision,
-    DynamicBootstrap, DynamicLinkError, JavaClassMetadata, JavaMember, JavaMemberKind,
-    PreparedJvmPolicy, STRING_CONCAT_BOOTSTRAP_DESCRIPTOR, STRING_CONCAT_BOOTSTRAP_NAME,
-    STRING_CONCAT_BOOTSTRAP_OWNER,
+    DynamicBootstrap, DynamicLinkError, JavaClassMetadata, JavaMember, JavaMemberKind, JvmEdge,
+    JvmGraphError, JvmHeap, JvmRole, PreparedJvmPolicy, STRING_CONCAT_BOOTSTRAP_DESCRIPTOR,
+    STRING_CONCAT_BOOTSTRAP_NAME, STRING_CONCAT_BOOTSTRAP_OWNER,
 };
 
 /// Resolves the verification type of a loadable constant-pool entry.
@@ -1786,20 +1792,26 @@ pub enum UnreachableHandlerPolicy {
 /// A sealed proof that every reachable instruction and exceptional path in one method was checked.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MethodVerificationProof {
-    fixpoint: sim_incremental_core::ValueFingerprint,
+    fixpoint: ValueFingerprint,
     dependencies: Vec<ClassDefinitionId>,
+    dependency_observations: Vec<Observation<ClassDefinitionId>>,
     unreachable_handlers: Box<[usize]>,
 }
 
 impl MethodVerificationProof {
     /// Content identity of the stable shared-dataflow fixpoint.
-    pub const fn fixpoint(&self) -> sim_incremental_core::ValueFingerprint {
+    pub const fn fixpoint(&self) -> ValueFingerprint {
         self.fixpoint
     }
 
     /// Loaded class definitions captured while validating catch assignability.
     pub fn dependencies(&self) -> &[ClassDefinitionId] {
         &self.dependencies
+    }
+
+    /// Exact content and class-space observations made while sealing the method.
+    pub fn dependency_observations(&self) -> &[Observation<ClassDefinitionId>] {
+        &self.dependency_observations
     }
 
     /// Exception-table rows that no reachable throwing instruction can enter.
@@ -1972,6 +1984,17 @@ where
             return Err(MethodVerificationError::UnreachableHandler { row: *row });
         }
     }
+    let dependency_observations = environment
+        .dependencies()
+        .iter()
+        .map(|dependency| {
+            Observation::read(
+                dependency.class().clone(),
+                Revision::new(dependency.revision().number()),
+                dependency.class().incremental_fingerprint(),
+            )
+        })
+        .collect();
     Ok(MethodVerificationProof {
         fixpoint: proof.identity(),
         dependencies: environment
@@ -1979,8 +2002,213 @@ where
             .iter()
             .map(|dependency| dependency.class().clone())
             .collect(),
+        dependency_observations,
         unreachable_handlers: unreachable.into_boxed_slice(),
     })
+}
+
+/// One method's stable identity inside a whole-class verification proof.
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ClassMethodProofIdentity {
+    method: String,
+    proof: ValueFingerprint,
+}
+
+impl ClassMethodProofIdentity {
+    /// Binds a declared method identity to its completed dataflow proof.
+    pub fn new(method: impl Into<String>, proof: ValueFingerprint) -> Self {
+        Self {
+            method: method.into(),
+            proof,
+        }
+    }
+
+    /// Stable declared method identity (normally name plus descriptor).
+    pub fn method(&self) -> &str {
+        &self.method
+    }
+
+    /// Stable whole-method proof identity.
+    pub const fn proof(&self) -> ValueFingerprint {
+        self.proof
+    }
+}
+
+/// Immutable proof for every structural constraint and method of one exact class.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ClassVerificationProof {
+    owner: ClassDefinitionId,
+    structural: ValueFingerprint,
+    methods: Box<[ClassMethodProofIdentity]>,
+    dependencies: Box<[Observation<ClassDefinitionId>]>,
+    identity: ValueFingerprint,
+}
+
+impl ClassVerificationProof {
+    /// Exact class definition proved.
+    pub fn owner(&self) -> &ClassDefinitionId {
+        &self.owner
+    }
+
+    /// Fingerprint of class-level constraints (header, members, and attributes).
+    pub const fn structural_fingerprint(&self) -> ValueFingerprint {
+        self.structural
+    }
+
+    /// Method proofs in stable declared-method order.
+    pub fn methods(&self) -> &[ClassMethodProofIdentity] {
+        &self.methods
+    }
+
+    /// Deduplicated exact dependency observations, ordered by class identity.
+    pub fn dependencies(&self) -> &[Observation<ClassDefinitionId>] {
+        &self.dependencies
+    }
+
+    /// Content identity equal for incremental and clean recomputation.
+    pub const fn identity(&self) -> ValueFingerprint {
+        self.identity
+    }
+}
+
+/// Refusal to aggregate incomplete or ambiguous method evidence.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ClassVerificationError {
+    /// Two proofs claimed the same declared method identity.
+    DuplicateMethod(String),
+}
+
+/// Aggregates stable method proofs and structural evidence into one exact class proof.
+pub fn seal_class_verification(
+    owner: &ClassDefinitionId,
+    owner_revision: ClassSpaceRevision,
+    structural: ValueFingerprint,
+    methods: impl IntoIterator<Item = (String, MethodVerificationProof)>,
+) -> Result<ClassVerificationProof, ClassVerificationError> {
+    let mut identities = Vec::new();
+    let mut dependencies = BTreeMap::new();
+    dependencies.insert(
+        owner.clone(),
+        Observation::read(
+            owner.clone(),
+            Revision::new(owner_revision.number()),
+            owner.incremental_fingerprint(),
+        ),
+    );
+    for (method, proof) in methods {
+        if identities
+            .iter()
+            .any(|identity: &ClassMethodProofIdentity| identity.method == method)
+        {
+            return Err(ClassVerificationError::DuplicateMethod(method));
+        }
+        identities.push(ClassMethodProofIdentity::new(method, proof.fixpoint));
+        for observation in proof.dependency_observations {
+            dependencies.insert(observation.key().clone(), observation);
+        }
+    }
+    identities.sort();
+    let dependencies = dependencies.into_values().collect::<Vec<_>>();
+    let identity = (
+        owner,
+        structural,
+        &identities,
+        dependencies
+            .iter()
+            .map(|observation| (observation.key(), observation.fingerprint()))
+            .collect::<Vec<_>>(),
+    )
+        .incremental_fingerprint();
+    Ok(ClassVerificationProof {
+        owner: owner.clone(),
+        structural,
+        methods: identities.into_boxed_slice(),
+        dependencies: dependencies.into_boxed_slice(),
+        identity,
+    })
+}
+
+struct ClassProofCacheEntry {
+    owner: Weak<ClassDefinition>,
+    request: ValueFingerprint,
+    proof: Arc<ClassVerificationProof>,
+    _managed_proof: sim_lib_mutation::ManagedHandle,
+}
+
+/// Whole-class proof memo whose managed entries are ephemerons keyed by class mirrors.
+#[derive(Default)]
+pub struct ClassVerificationCache {
+    entries: Mutex<BTreeMap<ClassDefinitionId, ClassProofCacheEntry>>,
+}
+
+impl ClassVerificationCache {
+    /// Creates an empty whole-class proof memo.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Reuses a proof only when its requested input and every observation remain exact.
+    pub fn lookup<F>(
+        &self,
+        owner: &Arc<ClassDefinition>,
+        request: ValueFingerprint,
+        mut current: F,
+    ) -> Option<Arc<ClassVerificationProof>>
+    where
+        F: FnMut(&ClassDefinitionId) -> Option<ValueFingerprint>,
+    {
+        let mut entries = self.entries();
+        entries.retain(|_, entry| entry.owner.strong_count() != 0);
+        let entry = entries.get(owner.id())?;
+        if entry.request != request
+            || entry
+                .proof
+                .dependencies
+                .iter()
+                .any(|observation| current(observation.key()) != observation.fingerprint())
+        {
+            return None;
+        }
+        Some(Arc::clone(&entry.proof))
+    }
+
+    /// Installs a proof under the managed class key without retaining that class.
+    pub fn insert(
+        &self,
+        heap: &mut JvmHeap,
+        cache: sim_lib_mutation::ManagedHandle,
+        owner_handle: sim_lib_mutation::ManagedHandle,
+        owner: &Arc<ClassDefinition>,
+        request: ValueFingerprint,
+        proof: ClassVerificationProof,
+    ) -> Result<Arc<ClassVerificationProof>, JvmGraphError> {
+        let managed_proof = heap.allocate(JvmRole::Cache).map_err(JvmGraphError::from)?;
+        heap.ephemeron(cache, JvmEdge::DerivedEntry, owner_handle, managed_proof)?;
+        let proof = Arc::new(proof);
+        self.entries().insert(
+            owner.id().clone(),
+            ClassProofCacheEntry {
+                owner: Arc::downgrade(owner),
+                request,
+                proof: Arc::clone(&proof),
+                _managed_proof: managed_proof,
+            },
+        );
+        Ok(proof)
+    }
+
+    /// Number of entries whose managed-class keys still exist.
+    pub fn live_len(&self) -> usize {
+        let mut entries = self.entries();
+        entries.retain(|_, entry| entry.owner.strong_count() != 0);
+        entries.len()
+    }
+
+    fn entries(&self) -> MutexGuard<'_, BTreeMap<ClassDefinitionId, ClassProofCacheEntry>> {
+        self.entries
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
 }
 
 /// Checks target declarations after the shared engine has joined all incoming states.
@@ -2943,6 +3171,7 @@ mod environment_tests {
     use super::*;
     use crate::{ClassDefinition, ClassInitializationState, ClassLoader};
     use sim_kernel::{Cx, DefaultFactory, NoopEvalPolicy};
+    use sim_lib_gc_tracing::CollectionLimits;
     use std::{
         collections::BTreeMap,
         sync::atomic::{AtomicUsize, Ordering},
@@ -2974,6 +3203,156 @@ mod environment_tests {
             metadata,
             BTreeMap::new(),
         ));
+    }
+
+    fn observed_method(
+        fixpoint: u64,
+        dependencies: &[(&Arc<ClassDefinition>, ClassSpaceRevision)],
+    ) -> MethodVerificationProof {
+        MethodVerificationProof {
+            fixpoint: ValueFingerprint::new(fixpoint),
+            dependencies: dependencies
+                .iter()
+                .map(|(class, _)| class.id().clone())
+                .collect(),
+            dependency_observations: dependencies
+                .iter()
+                .map(|(class, revision)| {
+                    Observation::read(
+                        class.id().clone(),
+                        Revision::new(revision.number()),
+                        class.id().incremental_fingerprint(),
+                    )
+                })
+                .collect(),
+            unreachable_handlers: Box::new([]),
+        }
+    }
+
+    fn collection_limits() -> CollectionLimits {
+        CollectionLimits {
+            objects: 32,
+            edges: 32,
+            stack: 32,
+            work: 128,
+            clears: 32,
+            finalizers: 0,
+        }
+    }
+
+    #[test]
+    fn class_proofs_are_exact_incremental_and_collectible() {
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let loader = ClassLoader::new(4096);
+        insert(&cx, &loader, "Base", &[], &[]);
+        insert(
+            &cx,
+            &loader,
+            "Owner",
+            &["Base"],
+            &[("a", "()V", 0), ("b", "()V", 0)],
+        );
+        insert(&cx, &loader, "Other", &[], &[("stable", "()V", 0)]);
+        let base = loader.loaded("Base").unwrap().unwrap();
+        let owner = loader.loaded("Owner").unwrap().unwrap();
+        let other = loader.loaded("Other").unwrap().unwrap();
+        let revision = loader.revision();
+        let methods = || {
+            vec![
+                (
+                    "a()V".into(),
+                    observed_method(11, &[(&owner, revision), (&base, revision)]),
+                ),
+                ("b()V".into(), observed_method(12, &[(&owner, revision)])),
+            ]
+        };
+        let structural = ValueFingerprint::new(20);
+        let clean = seal_class_verification(owner.id(), revision, structural, methods()).unwrap();
+        let incremental =
+            seal_class_verification(owner.id(), revision, structural, methods()).unwrap();
+        assert_eq!(incremental.identity(), clean.identity());
+        assert_eq!(clean.dependencies().len(), 2);
+
+        let mut heap = JvmHeap::new(8, collection_limits()).unwrap();
+        let managed_cache = heap.allocate(JvmRole::Cache).unwrap();
+        let managed_owner = heap.allocate(JvmRole::ClassMirror).unwrap();
+        let managed_other = heap.allocate(JvmRole::ClassMirror).unwrap();
+        let cache_root = heap.root(managed_cache).unwrap();
+        let owner_root = heap.root(managed_owner).unwrap();
+        let other_root = heap.root(managed_other).unwrap();
+        let cache = ClassVerificationCache::new();
+        let request = (owner.id(), structural, clean.methods()).incremental_fingerprint();
+        let cached = cache
+            .insert(
+                &mut heap,
+                managed_cache,
+                managed_owner,
+                &owner,
+                request,
+                clean,
+            )
+            .unwrap();
+        let other_structural = ValueFingerprint::new(30);
+        let other_proof = seal_class_verification(
+            other.id(),
+            revision,
+            other_structural,
+            [(
+                "stable()V".into(),
+                observed_method(31, &[(&other, revision)]),
+            )],
+        )
+        .unwrap();
+        let other_request =
+            (other.id(), other_structural, other_proof.methods()).incremental_fingerprint();
+        cache
+            .insert(
+                &mut heap,
+                managed_cache,
+                managed_other,
+                &other,
+                other_request,
+                other_proof,
+            )
+            .unwrap();
+        let current = |id: &ClassDefinitionId| {
+            loader
+                .loaded(id.binary_name())
+                .ok()
+                .flatten()
+                .filter(|class| class.id() == id)
+                .map(|class| class.id().incremental_fingerprint())
+        };
+        assert!(Arc::ptr_eq(
+            &cached,
+            &cache.lookup(&owner, request, current).unwrap()
+        ));
+        let edited_method_request = ValueFingerprint::new(request.get().wrapping_add(1));
+        assert!(
+            cache
+                .lookup(&owner, edited_method_request, current)
+                .is_none()
+        );
+
+        let replacement = JavaClassMetadata::test_class(&cx, "Base", &[], 0, &[("new", "()V", 0)]);
+        loader.test_insert(ClassDefinition::test(
+            loader.id(),
+            "Base",
+            999,
+            replacement,
+            BTreeMap::new(),
+        ));
+        assert!(cache.lookup(&owner, request, current).is_none());
+        assert!(cache.lookup(&other, other_request, current).is_some());
+
+        heap.release_root(owner_root).unwrap();
+        let receipt = heap.collect().unwrap();
+        assert_eq!(receipt.cleared_ephemerons.len(), 1);
+        assert_eq!(receipt.cleared_ephemerons[0].0, managed_cache.id());
+        assert!(receipt.swept.contains(&managed_owner.id()));
+        assert!(!receipt.swept.contains(&managed_other.id()));
+        heap.release_root(other_root).unwrap();
+        heap.release_root(cache_root).unwrap();
     }
 
     #[test]

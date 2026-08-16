@@ -86,7 +86,7 @@ fn verifier_provider_is_the_only_integration_seam() {
             .is_some_and(|extension| extension == "rs")
             && source.file_name().unwrap() != "entry.rs"
         {
-            let text = fs::read_to_string(source).unwrap();
+            let text = fs::read_to_string(&source).unwrap();
             assert!(
                 !text.contains("provider.verify("),
                 "second verifier integration point in {}",

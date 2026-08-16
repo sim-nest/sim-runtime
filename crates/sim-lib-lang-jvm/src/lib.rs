@@ -104,17 +104,18 @@ pub use surface::{
 pub use text::{ADMITTED_CORE_MEMBERS, JavaClassMirror, JavaCoreMember, JavaString};
 pub use value::{JvmReference, JvmValue, JvmValueWidth, PrimitiveCategory, ReturnCategory};
 pub use verifier::{
-    ExpandedStackMapFrame, FrameError, FrameKind, MethodVerificationError, MethodVerificationProof,
-    ReferenceType, StackMapConstraintError, ThrowCapability, UnreachableHandlerPolicy,
-    VERIFIER_RULES, VerificationAssignability, VerificationClass, VerificationConstantResolver,
-    VerificationDependency, VerificationEdgeClass, VerificationEdgeId, VerificationEnvironment,
-    VerificationField, VerificationFrame, VerificationGraph, VerificationGraphError,
-    VerificationJoinRule, VerificationNodeLocation, VerificationQuery, VerificationQueryError,
-    VerificationQueryEvidence, VerificationQueryFailure, VerificationState,
-    VerificationTransferError, VerificationTransferKind, VerificationType, VerificationTypeJoin,
-    VerificationTypeWidth, VerifierRule, VerifierRuleFamily, build_verification_graph,
-    seal_method_verification, transfer_memory_instruction, transfer_storage_instruction,
-    verifier_rule,
+    ClassMethodProofIdentity, ClassVerificationCache, ClassVerificationError,
+    ClassVerificationProof, ExpandedStackMapFrame, FrameError, FrameKind, MethodVerificationError,
+    MethodVerificationProof, ReferenceType, StackMapConstraintError, ThrowCapability,
+    UnreachableHandlerPolicy, VERIFIER_RULES, VerificationAssignability, VerificationClass,
+    VerificationConstantResolver, VerificationDependency, VerificationEdgeClass,
+    VerificationEdgeId, VerificationEnvironment, VerificationField, VerificationFrame,
+    VerificationGraph, VerificationGraphError, VerificationJoinRule, VerificationNodeLocation,
+    VerificationQuery, VerificationQueryError, VerificationQueryEvidence, VerificationQueryFailure,
+    VerificationState, VerificationTransferError, VerificationTransferKind, VerificationType,
+    VerificationTypeJoin, VerificationTypeWidth, VerifierRule, VerifierRuleFamily,
+    build_verification_graph, seal_class_verification, seal_method_verification,
+    transfer_memory_instruction, transfer_storage_instruction, verifier_rule,
 };
 
 /// The mechanically checked reuse ledger frozen before guest semantics land.
