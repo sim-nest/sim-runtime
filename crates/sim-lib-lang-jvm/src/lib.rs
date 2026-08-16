@@ -8,6 +8,7 @@
 
 mod class_metadata;
 mod class_space;
+mod code;
 mod entry;
 mod failure;
 mod intrinsic;
@@ -22,6 +23,10 @@ pub use class_metadata::{
 pub use class_space::{
     ClassDefinition, ClassDefinitionId, ClassLoader, ClassLoaderId, ClassSpaceRevision, LazyClass,
     class_load_capability,
+};
+pub use code::{
+    JvmInstructionPolicy, JvmInstructionSemantics, JvmSlotKind, PreparationError,
+    PreparedExceptionHandler, PreparedJvmInstruction, PreparedJvmPolicy, RootEffect, prepare_code,
 };
 pub use entry::{
     ClassfilePermit, EntryRefusal, EntryTarget, ExecutionPermit, NoVerifier, PreparedEntry,
