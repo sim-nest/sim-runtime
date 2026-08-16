@@ -91,6 +91,22 @@ fn manifests_freeze_the_supported_baseline() {
 }
 
 #[test]
+fn final_proof_is_wired_to_the_single_frozen_acceptance_file() {
+    let reference: toml::Value = include_str!("../bytecode-speed-acceptance.toml")
+        .parse()
+        .unwrap();
+    assert_eq!(reference["owner_repository"].as_str(), Some("sim-tooling"));
+    assert_eq!(
+        reference["path"].as_str(),
+        Some("benchmarks/bytecode-speed-4/acceptance.toml")
+    );
+    assert_eq!(
+        reference["final_proof_phase"].as_str(),
+        Some("BYTECODESPEED4.14")
+    );
+}
+
+#[test]
 fn generated_coverage_differs_from_manifests_by_zero() {
     let intrinsics: toml::Value = sim_lib_lang_jvm::INTRINSIC_MANIFEST.parse().unwrap();
     let intrinsic_manifest_total = intrinsics["members"].as_array().unwrap().len();
