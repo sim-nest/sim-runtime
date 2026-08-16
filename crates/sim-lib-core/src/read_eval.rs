@@ -306,6 +306,117 @@ impl ReadEvalBroker {
     }
 }
 
+/// Reusable policy for dynamic source evaluated through a named codec.
+///
+/// The policy fixes only the source provenance and codec. Authority and the
+/// expected result shape remain explicit inputs to every evaluation, so a
+/// guest-language wrapper cannot accidentally retain or widen either one.
+/// Callers that need origin detail must provide it in [`RequestOrigin`] when
+/// constructing the policy.
+#[derive(Clone)]
+pub struct DynamicSourcePolicy {
+    broker: ReadEvalBroker,
+    codec: Symbol,
+    origin: RequestOrigin,
+}
+
+impl DynamicSourcePolicy {
+    /// Builds a policy with its own decision ledger.
+    pub fn new(codec: Symbol, origin: RequestOrigin) -> Self {
+        Self::with_broker(ReadEvalBroker::new(), codec, origin)
+    }
+
+    /// Builds a policy over an existing broker.
+    ///
+    /// Cloned brokers share their ledger, allowing several origin/codec
+    /// policies to expose one ordered decision stream.
+    pub fn with_broker(broker: ReadEvalBroker, codec: Symbol, origin: RequestOrigin) -> Self {
+        Self {
+            broker,
+            codec,
+            origin,
+        }
+    }
+
+    /// Evaluates text decoded through this policy's codec.
+    pub fn evaluate_text(
+        &self,
+        cx: &mut Cx,
+        text: impl Into<String>,
+        authority: SourceAuthority,
+        expected_shape: Arc<dyn Shape>,
+    ) -> Result<Value> {
+        self.evaluate(
+            cx,
+            ReadEvalSource::Text(text.into()),
+            authority,
+            expected_shape,
+        )
+    }
+
+    /// Evaluates bytes decoded through this policy's codec.
+    pub fn evaluate_bytes(
+        &self,
+        cx: &mut Cx,
+        bytes: impl Into<Vec<u8>>,
+        authority: SourceAuthority,
+        expected_shape: Arc<dyn Shape>,
+    ) -> Result<Value> {
+        self.evaluate(
+            cx,
+            ReadEvalSource::Bytes(bytes.into()),
+            authority,
+            expected_shape,
+        )
+    }
+
+    /// Evaluates an already-decoded expression through the same admission gate.
+    pub fn evaluate_expr(
+        &self,
+        cx: &mut Cx,
+        expr: Expr,
+        authority: SourceAuthority,
+        expected_shape: Arc<dyn Shape>,
+    ) -> Result<Value> {
+        self.evaluate(cx, ReadEvalSource::Expr(expr), authority, expected_shape)
+    }
+
+    /// Evaluates any supported source form through the shared broker law.
+    pub fn evaluate(
+        &self,
+        cx: &mut Cx,
+        source: ReadEvalSource,
+        authority: SourceAuthority,
+        expected_shape: Arc<dyn Shape>,
+    ) -> Result<Value> {
+        self.broker.admit(
+            cx,
+            ReadEvalRequest::new(
+                self.origin.clone(),
+                self.codec.clone(),
+                source,
+                authority,
+                expected_shape,
+            ),
+        )
+    }
+
+    /// Returns decisions recorded in the policy's default run.
+    pub fn decisions(&self, cx: &Cx) -> Result<Vec<ReadEvalDecision>> {
+        self.broker.decisions(cx)
+    }
+
+    /// Returns decisions recorded for `run`.
+    pub fn decisions_for_run(&self, cx: &Cx, run: &Ref) -> Result<Vec<ReadEvalDecision>> {
+        self.broker.decisions_for_run(cx, run)
+    }
+
+    /// Returns raw ledger events recorded for `run`.
+    pub fn events_for_run(&self, run: &Ref) -> Result<Vec<Event>> {
+        self.broker.events_for_run(run)
+    }
+}
+
 impl Object for ReadEvalBroker {
     fn display(&self, _cx: &mut Cx) -> Result<String> {
         Ok("#<read-eval-broker>".to_owned())

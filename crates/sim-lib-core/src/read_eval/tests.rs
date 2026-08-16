@@ -301,3 +301,91 @@ fn bytes_source_decodes_through_named_codec() {
 
     assert_eq!(value.object().as_expr(&mut cx).unwrap(), Expr::Nil);
 }
+
+#[test]
+fn dynamic_policies_share_broker_ledger_across_origins_and_codecs() {
+    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
+    cx.load_lib(&LispCodecLib::new(sim_kernel::CodecId(1)).unwrap())
+        .unwrap();
+    let broker = ReadEvalBroker::new();
+    let text_origin = RequestOrigin::with_detail(
+        Symbol::qualified("test", "dynamic-text"),
+        Expr::String("caller-supplied-detail".to_owned()),
+    );
+    let text = DynamicSourcePolicy::with_broker(
+        broker.clone(),
+        Symbol::qualified("codec", "lisp"),
+        text_origin.clone(),
+    );
+    let expr_origin = RequestOrigin::new(Symbol::qualified("test", "dynamic-expr"));
+    let expr = DynamicSourcePolicy::with_broker(
+        broker,
+        Symbol::qualified("codec", "alternate"),
+        expr_origin.clone(),
+    );
+
+    let text_value = text
+        .evaluate_text(
+            &mut cx,
+            "\"shared\"",
+            SourceAuthority::new(trusted_read_eval_policy(), Vec::new(), CapabilitySet::new())
+                .unwrap(),
+            Arc::new(ExprKindShape::new(ExprKind::String)),
+        )
+        .unwrap();
+    assert_eq!(
+        text_value.object().as_expr(&mut cx).unwrap(),
+        Expr::String("shared".to_owned())
+    );
+    expr.evaluate_expr(
+        &mut cx,
+        Expr::Nil,
+        SourceAuthority::new(trusted_read_eval_policy(), Vec::new(), CapabilitySet::new()).unwrap(),
+        Arc::new(AnyShape),
+    )
+    .unwrap();
+
+    let decisions = text.decisions(&cx).unwrap();
+    assert_eq!(decisions.len(), 2);
+    assert_eq!(decisions[0].origin, text_origin);
+    assert_eq!(decisions[0].codec, Symbol::qualified("codec", "lisp"));
+    assert_eq!(decisions[1].origin, expr_origin);
+    assert_eq!(decisions[1].codec, Symbol::qualified("codec", "alternate"));
+    assert!(
+        decisions
+            .iter()
+            .all(|decision| decision.outcome == ReadEvalOutcome::Admitted)
+    );
+    assert_eq!(
+        expr.events_for_run(&read_eval_decision_run())
+            .unwrap()
+            .len(),
+        2
+    );
+}
+
+#[test]
+fn dynamic_policy_bytes_use_the_same_gate_and_codec_failure_law() {
+    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
+    let policy = DynamicSourcePolicy::new(
+        Symbol::qualified("codec", "missing"),
+        RequestOrigin::new(Symbol::qualified("test", "dynamic-bytes")),
+    );
+
+    policy
+        .evaluate_bytes(
+            &mut cx,
+            b"nil".to_vec(),
+            SourceAuthority::new(trusted_read_eval_policy(), Vec::new(), CapabilitySet::new())
+                .unwrap(),
+            Arc::new(AnyShape),
+        )
+        .unwrap_err();
+
+    assert_eq!(
+        policy.decisions(&cx).unwrap()[0].outcome,
+        ReadEvalOutcome::DecodeFailed
+    );
+}
