@@ -6,12 +6,16 @@
 //! policy is then layered over shared machine storage, limits, managed handles,
 //! kernel values, and the language-neutral raised envelope.
 
+mod class_metadata;
 mod class_space;
 mod failure;
 mod limits;
 mod managed;
 mod value;
 
+pub use class_metadata::{
+    JavaClassMetadata, JavaHierarchyCheck, JavaMember, JavaMemberKind, JavaResolutionEvidence,
+};
 pub use class_space::{
     ClassDefinition, ClassDefinitionId, ClassLoader, ClassLoaderId, LazyClass,
     class_load_capability,

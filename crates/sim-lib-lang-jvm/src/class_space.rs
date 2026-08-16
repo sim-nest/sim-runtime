@@ -21,7 +21,7 @@ pub fn class_load_capability() -> CapabilityName {
 
 /// Stable identity of one class-loader namespace.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ClassLoaderId(u64);
+pub struct ClassLoaderId(pub(crate) u64);
 
 /// A definition identity bound to loader namespace and exact classfile content.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -52,6 +52,7 @@ pub struct ClassDefinition {
     id: ClassDefinitionId,
     classfile: Expr,
     content: Arc<[u8]>,
+    metadata: Arc<crate::JavaClassMetadata>,
 }
 
 impl ClassDefinition {
@@ -62,6 +63,10 @@ impl ClassDefinition {
     /// Retained, decoded classfile projection.
     pub fn classfile(&self) -> &Expr {
         &self.classfile
+    }
+    /// Neutral class face and retained JVM policy metadata.
+    pub fn metadata(&self) -> &Arc<crate::JavaClassMetadata> {
+        &self.metadata
     }
 }
 
@@ -127,7 +132,7 @@ impl ClassLoader {
                 self.max_classfile_bytes
             )));
         }
-        let classfile = decode_named_class(
+        let (classfile, shell, validated) = decode_named_class(
             &request.binary_name,
             bytes.clone(),
             self.max_classfile_bytes,
@@ -143,14 +148,19 @@ impl ClassLoader {
                 request.binary_name, self.id.0
             )));
         }
+        let id = ClassDefinitionId {
+            loader: self.id,
+            binary_name: request.binary_name.clone(),
+            content_key,
+        };
+        let metadata = Arc::new(crate::JavaClassMetadata::from_shell(
+            cx, &id, &shell, &validated,
+        )?);
         let definition = Arc::new(ClassDefinition {
-            id: ClassDefinitionId {
-                loader: self.id,
-                binary_name: request.binary_name.clone(),
-                content_key,
-            },
+            id,
             classfile,
             content: bytes.into(),
+            metadata,
         });
         definitions.insert(request.binary_name.clone(), definition.clone());
         Ok(definition)
@@ -219,7 +229,11 @@ fn read_components(cx: &mut Cx, dir: &dyn Dir, components: &[&str], path: &str) 
     }
 }
 
-fn decode_named_class(binary_name: &str, bytes: Vec<u8>, bound: usize) -> Result<Expr> {
+fn decode_named_class(
+    binary_name: &str,
+    bytes: Vec<u8>,
+    bound: usize,
+) -> Result<(Expr, ClassShell, sim_codec_classfile::ValidatedClassShell)> {
     let codec = CodecId(139);
     let budget = ShellBudget {
         interfaces: bound,
@@ -261,7 +275,8 @@ fn decode_named_class(binary_name: &str, bytes: Vec<u8>, bound: usize) -> Result
             internal.replace('/', ".")
         )));
     }
-    sim_codec_classfile::inspect_classfile(codec, bytes, bound)
+    let projection = sim_codec_classfile::inspect_classfile(codec, bytes, bound)?;
+    Ok((projection, shell, validated))
 }
 
 fn content_key(bytes: &[u8]) -> u64 {
@@ -472,5 +487,86 @@ mod tests {
             .resolve(&mut cx)
             .unwrap();
         assert!(Arc::ptr_eq(&first, &repeated));
+    }
+
+    #[test]
+    fn loaded_class_projects_a_browsable_shape_checked_class() {
+        let mut cx = context(true);
+        let definition = ClassLoader::new(4096)
+            .request(
+                Symbol::new("classes"),
+                Arc::new(FixtureDir::new()),
+                "Minimal",
+                authority(),
+            )
+            .unwrap()
+            .resolve(&mut cx)
+            .unwrap();
+        let class = definition.metadata().class_value(&cx, 16, 64).unwrap();
+        assert!(class.object().as_class().is_some());
+        let sample = cx
+            .factory()
+            .string("value supplied by Lisp".into())
+            .unwrap();
+        let checked = definition
+            .metadata()
+            .descriptor()
+            .instance_shape()
+            .object()
+            .as_shape()
+            .unwrap()
+            .check_value(&mut cx, sample)
+            .unwrap();
+        assert!(checked.accepted);
+        assert_eq!(
+            definition.metadata().resolution().loader(),
+            definition.id().loader()
+        );
+    }
+
+    #[test]
+    fn nested_array_class_identity_is_stable_and_component_derived() {
+        let mut cx = context(true);
+        let definition = ClassLoader::new(4096)
+            .request(
+                Symbol::new("classes"),
+                Arc::new(FixtureDir::new()),
+                "Minimal",
+                authority(),
+            )
+            .unwrap()
+            .resolve(&mut cx)
+            .unwrap();
+        let first = Arc::new(
+            crate::JavaClassMetadata::array_of(&cx, definition.metadata().clone()).unwrap(),
+        );
+        let nested = crate::JavaClassMetadata::array_of(&cx, first.clone()).unwrap();
+        let repeated = crate::JavaClassMetadata::array_of(&cx, first).unwrap();
+        assert_eq!(
+            nested.descriptor().identity().id(),
+            repeated.descriptor().identity().id()
+        );
+        assert_eq!(nested.resolution().binary_name(), "[[Minimal");
+        assert_eq!(
+            nested.array_component().unwrap().resolution().binary_name(),
+            "[Minimal"
+        );
+        assert_eq!(
+            nested.is_assignable_to_binary_name("java.lang.Object", 1),
+            crate::JavaHierarchyCheck::Match
+        );
+        assert_eq!(
+            nested.is_assignable_to_binary_name("[[Minimal", 0),
+            crate::JavaHierarchyCheck::BudgetExhausted { limit: 0 }
+        );
+    }
+
+    #[test]
+    fn java_method_selection_has_metadata_only_api_shape() {
+        let _selector: for<'a> fn(
+            &'a crate::JavaClassMetadata,
+            &str,
+            &str,
+        ) -> Option<&'a crate::JavaMember> = crate::JavaClassMetadata::select_method;
     }
 }
