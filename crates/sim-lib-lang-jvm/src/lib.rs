@@ -8,6 +8,7 @@
 
 mod array;
 mod benchmark;
+mod cache;
 mod class_metadata;
 mod class_space;
 mod code;
@@ -42,6 +43,7 @@ pub use array::{
     JavaArrayTree, MAX_ARRAY_DIMENSIONS,
 };
 pub use benchmark::{JvmBenchmarkCounters, JvmBenchmarkPhase};
+pub use cache::{CacheGuard, GuardedCacheKind, GuardedOutcomeCache};
 pub use class_metadata::{
     JavaClassMetadata, JavaHierarchyCheck, JavaMember, JavaMemberKind, JavaResolutionEvidence,
 };
