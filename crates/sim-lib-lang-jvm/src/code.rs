@@ -115,8 +115,6 @@ pub enum PreparedMicroOp {
 
 /// Exact proof identity and converged frames offered to preparation.
 pub struct VerificationPreparation<'a> {
-    /// Enables the verified specialization tier. `false` forces checked operations.
-    pub enabled: bool,
     /// Whole-class proof produced by the verifier.
     pub proof: &'a ClassVerificationProof,
     /// Exact class expected by the method being prepared.
@@ -602,7 +600,7 @@ fn select_micro_op(
     targets: &[InstructionId],
     handlers: &[PreparedCatchEntry],
 ) -> PreparedMicroOp {
-    let Some(verification) = verification.filter(|verification| verification.enabled) else {
+    let Some(verification) = verification else {
         return PreparedMicroOp::Checked;
     };
     let proof = verification.proof;
@@ -824,7 +822,6 @@ mod identity_tests {
         let (loader, definition, proof, state) = exact_fixture();
         let frames = [(sim_codec_classfile::InstructionId(0), state)];
         let exact = VerificationPreparation {
-            enabled: true,
             proof: &proof,
             owner: definition.id(),
             revision: loader.revision(),
@@ -846,9 +843,8 @@ mod identity_tests {
         assert_eq!(guarantee.stack_width(), 2);
         assert_eq!(guarantee.local_width(), 2);
 
-        for mutation in 0..5 {
+        for mutation in 1..5 {
             let candidate = VerificationPreparation {
-                enabled: mutation != 0,
                 revision: if mutation == 1 {
                     loader.simulate_class_space_change();
                     loader.revision()
