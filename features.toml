@@ -505,7 +505,7 @@ title = "Capability-gated Python library core"
 summary = "Run embedded, capability-scoped, agent-authored Python over SIM values with ordered matching, supplied-root modules, and diminished eval/exec."
 owner = "crate/sim-lib-lang-python"
 audiences = ["code", "framework"]
-guidance = "Start here for embedded Python scripting, not CPython replacement compatibility. Source enters through codec/python; eval and exec require read-eval plus host-authored diminished DynamicAdmission. Use match_expr only for Shape-represented ordered cases, PythonModulePolicy only with a caller-supplied Dir, and inspect PYTHON_FIDELITY and python_library_manifest before claiming behavior. Explicit absences never fall back to CPython or host access."
+guidance = "Start here for embedded Python scripting, not CPython replacement compatibility. Source enters through codec/python; build eval and exec entries with dynamic_python_policy and pass host-authored diminished SourceAuthority directly. Use match_expr only for Shape-represented ordered cases, build imports with python_module_policy and a caller-supplied Dir, and inspect PYTHON_FIDELITY and python_library_manifest before claiming behavior. Python owns no authority envelope or generic source policy; its named constructors return the shared policies. Explicit absences never fall back to CPython or host access."
 claims_anchors = [
   "anchor/crate/sim-lib-lang-python",
 ]

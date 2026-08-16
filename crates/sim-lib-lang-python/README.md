@@ -17,12 +17,12 @@ private language organ.
 ## Capability-gated `eval`, `exec`, and imports
 
 Dynamic Python is safer than ambient CPython evaluation by construction.
-`DynamicPython` sends both `eval` and `exec` through the installed source codec
+`dynamic_python_policy` builds both `eval` and `exec` entries over the shared source policy
 and the canonical diminished read-eval broker. The caller must supply a trusted
 `ReadPolicy`, already hold every required capability, and choose the smaller
 capability set visible to decoded code. Source text cannot mint authority.
 
-`PythonModulePolicy` likewise resolves only through a caller-supplied `Dir`,
+`python_module_policy` likewise builds the shared policy that resolves only through a caller-supplied `Dir`,
 then delegates decoding, failure/cycle caching, live exports, and receipts to
 the shared namespace module lifecycle. It never searches host paths.
 

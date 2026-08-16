@@ -30,9 +30,9 @@ pub use function::{
     PythonBodyPolicy, PythonCallError, PythonFunction, PythonFunctionFlags, PythonSignature,
 };
 pub use library_core::{
-    DynamicAdmission, DynamicPython, MatchCase, MatchOutcome, PythonLibraryManifest,
-    PythonModuleAdmission, PythonModulePolicy, PythonSurface, PythonSurfaceState, match_expr,
-    python_library_manifest,
+    MatchCase, MatchOutcome, PythonLibraryManifest, PythonSurface, PythonSurfaceState,
+    dynamic_python_policy, dynamic_python_policy_with_codec, match_expr, python_library_manifest,
+    python_module_policy, python_module_policy_with_codec,
 };
 pub use managed::{
     PythonHeap, PythonHeapExt, PythonHeapPolicy, PythonManagedKind, PythonManagedMutationError,

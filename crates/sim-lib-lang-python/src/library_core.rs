@@ -2,13 +2,9 @@
 
 use std::sync::Arc;
 
-use sim_kernel::{
-    CapabilityName, CapabilitySet, Cx, Dir, Expr, ReadPolicy, Result, Shape, ShapeBindings, Symbol,
-    Value,
-};
-use sim_lib_core::{ReadEvalBroker, ReadEvalRequest, ReadEvalSource, RequestOrigin};
-use sim_lib_namespace::{ModuleInstance, ModuleLoader, ModuleRequest};
-use sim_shape::AnyShape;
+use sim_kernel::{Cx, Expr, Result, Shape, ShapeBindings, Symbol};
+use sim_lib_core::{DynamicSourcePolicy, RequestOrigin};
+use sim_lib_namespace::{IdentitySpecifierPolicy, SourceModulePolicy};
 
 use crate::python_core_matrix_row;
 
@@ -174,154 +170,27 @@ pub fn match_expr(
     Ok(MatchOutcome::NoMatch)
 }
 
-/// Python policy wrapper around the canonical source-module lifecycle.
-pub struct PythonModulePolicy {
-    loader: ModuleLoader,
-    codec: Symbol,
+/// Build Python's module entry over the shared source-module policy.
+pub fn python_module_policy() -> SourceModulePolicy {
+    python_module_policy_with_codec(Symbol::qualified("codec", "python"))
 }
 
-impl Default for PythonModulePolicy {
-    fn default() -> Self {
-        Self::with_codec(Symbol::qualified("codec", "python"))
-    }
+/// Build Python's module entry for an installed compatible source codec.
+pub fn python_module_policy_with_codec(codec: Symbol) -> SourceModulePolicy {
+    SourceModulePolicy::new(codec, Arc::new(IdentitySpecifierPolicy))
 }
 
-impl PythonModulePolicy {
-    /// Build a module policy for an installed compatible source codec.
-    pub fn with_codec(codec: Symbol) -> Self {
-        Self {
-            loader: ModuleLoader::new(),
-            codec,
-        }
-    }
-
-    /// Load a `.py` source module from the only supplied directory root.
-    pub fn load(
-        &self,
-        cx: &mut Cx,
-        specifier: impl Into<String>,
-        admission: PythonModuleAdmission,
-    ) -> Result<ModuleInstance> {
-        self.loader.load(
-            cx,
-            ModuleRequest {
-                root_id: admission.root_id,
-                root: admission.root,
-                importer: None,
-                specifier: specifier.into(),
-                codec: self.codec.clone(),
-                read_policy: admission.read_policy,
-                requires: admission.requires,
-                allow: admission.allow,
-            },
-        )
-    }
-
-    /// Inspect canonical lifecycle receipts, including cycles and cached failures.
-    pub fn receipts(&self) -> Result<Vec<sim_lib_namespace::ModuleResolutionReceipt>> {
-        self.loader.receipts()
-    }
+/// Build one Python dynamic-source entry over the shared source policy.
+pub fn dynamic_python_policy(operation: &str) -> DynamicSourcePolicy {
+    dynamic_python_policy_with_codec(operation, Symbol::qualified("codec", "python"))
 }
 
-/// Host-authored storage and authority envelope for one Python module load.
-pub struct PythonModuleAdmission {
-    /// Stable caller-assigned identity for the supplied root.
-    pub root_id: Symbol,
-    /// The only directory visible to module resolution.
-    pub root: Arc<dyn Dir>,
-    /// Trusted policy used by diminished read-eval.
-    pub read_policy: ReadPolicy,
-    /// Powers the importing caller must already hold.
-    pub requires: Vec<CapabilityName>,
-    /// Diminished powers visible while decoding and evaluating.
-    pub allow: CapabilitySet,
-}
-
-/// Capability-gated Python `eval` and `exec` with no ambient authority.
-pub struct DynamicPython {
-    broker: ReadEvalBroker,
-    codec: Symbol,
-}
-
-impl Default for DynamicPython {
-    fn default() -> Self {
-        Self::with_codec(Symbol::qualified("codec", "python"))
-    }
-}
-
-impl DynamicPython {
-    /// Build the dynamic surface for an installed compatible source codec.
-    pub fn with_codec(codec: Symbol) -> Self {
-        Self {
-            broker: ReadEvalBroker::new(),
-            codec,
-        }
-    }
-
-    /// Evaluate text through the installed Python codec under diminished powers.
-    pub fn eval(
-        &self,
-        cx: &mut Cx,
-        source: impl Into<String>,
-        admission: DynamicAdmission,
-    ) -> Result<Value> {
-        self.admit(cx, "eval", source.into(), admission)
-    }
-
-    /// Execute text through the same installed codec and diminished read-eval gate.
-    pub fn exec(
-        &self,
-        cx: &mut Cx,
-        source: impl Into<String>,
-        admission: DynamicAdmission,
-    ) -> Result<Value> {
-        self.admit(cx, "exec", source.into(), admission)
-    }
-
-    fn admit(
-        &self,
-        cx: &mut Cx,
-        operation: &str,
-        source: String,
-        admission: DynamicAdmission,
-    ) -> Result<Value> {
-        self.broker.admit(
-            cx,
-            ReadEvalRequest {
-                origin: RequestOrigin::new(Symbol::qualified("python", operation)),
-                codec: self.codec.clone(),
-                source: ReadEvalSource::Text(source),
-                read_policy: admission.read_policy,
-                requires: admission.requires,
-                allow: admission.allow,
-                expected_shape: admission.expected_shape,
-            },
-        )
-    }
-}
-
-/// Host-authored authority envelope for dynamic Python source.
-pub struct DynamicAdmission {
-    /// Trusted read policy; source text cannot create this value.
-    pub read_policy: ReadPolicy,
-    /// Powers the caller must hold.
-    pub requires: Vec<CapabilityName>,
-    /// Diminished powers visible while decoding and evaluating.
-    pub allow: CapabilitySet,
-    /// Shape required of the resulting value.
-    pub expected_shape: Arc<dyn Shape>,
-}
-
-impl DynamicAdmission {
-    /// Build an admission envelope requiring only the canonical read-eval power.
-    pub fn new(read_policy: ReadPolicy, allow: CapabilitySet) -> Self {
-        Self {
-            read_policy,
-            requires: Vec::new(),
-            allow,
-            expected_shape: Arc::new(AnyShape),
-        }
-    }
+/// Build one Python dynamic-source entry for an installed compatible codec.
+pub fn dynamic_python_policy_with_codec(operation: &str, codec: Symbol) -> DynamicSourcePolicy {
+    DynamicSourcePolicy::new(
+        codec,
+        RequestOrigin::new(Symbol::qualified("python", operation)),
+    )
 }
 
 #[cfg(test)]
@@ -330,11 +199,13 @@ mod tests {
 
     use sim_codec_lisp::LispCodecLib;
     use sim_kernel::{
-        ClassId, ClassRef, CodecId, DefaultFactory, EagerPolicy, Error, Object, ObjectCompat,
-        Table, TrustLevel, read_eval_capability,
+        CapabilityName, CapabilitySet, ClassId, ClassRef, CodecId, DefaultFactory, Dir,
+        EagerPolicy, Error, Object, ObjectCompat, ReadPolicy, Table, TrustLevel, Value,
+        read_eval_capability,
     };
+    use sim_lib_core::SourceAuthority;
     use sim_lib_namespace::{ModuleResolutionOutcome, module_load_capability};
-    use sim_shape::{CaptureShape, ExactExprShape, ListShape};
+    use sim_shape::{AnyShape, CaptureShape, ExactExprShape, ListShape};
 
     use super::*;
 
@@ -350,6 +221,10 @@ mod tests {
             trust: TrustLevel::TrustedSource,
             capabilities: CapabilitySet::new().grant(read_eval_capability()),
         }
+    }
+
+    fn authority(requires: Vec<CapabilityName>) -> SourceAuthority {
+        SourceAuthority::new(trusted(), requires, CapabilitySet::new()).unwrap()
     }
 
     #[test]
@@ -441,20 +316,17 @@ mod tests {
     #[test]
     fn dynamic_eval_and_exec_require_authority_and_diminish_it() {
         let (mut cx, seat) = context();
-        let dynamic = DynamicPython::with_codec(Symbol::qualified("codec", "lisp"));
-        let denied = dynamic
-            .eval(
-                &mut cx,
-                "42",
-                DynamicAdmission::new(
-                    ReadPolicy {
-                        trust: TrustLevel::Untrusted,
-                        capabilities: CapabilitySet::new(),
-                    },
-                    CapabilitySet::new(),
-                ),
-            )
-            .unwrap_err();
+        let eval = dynamic_python_policy_with_codec("eval", Symbol::qualified("codec", "lisp"));
+        let exec = dynamic_python_policy_with_codec("exec", Symbol::qualified("codec", "lisp"));
+        let denied = SourceAuthority::new(
+            ReadPolicy {
+                trust: TrustLevel::Untrusted,
+                capabilities: CapabilitySet::new(),
+            },
+            Vec::new(),
+            CapabilitySet::new(),
+        )
+        .unwrap_err();
         assert!(matches!(
             denied,
             Error::TrustDenied { .. } | Error::CapabilityDenied { .. }
@@ -462,47 +334,31 @@ mod tests {
 
         seat.grant(&mut cx, read_eval_capability()).unwrap();
         let missing = CapabilityName::new("python.dynamic.required");
-        let denied = dynamic
-            .exec(
+        let denied = exec
+            .evaluate_text(
                 &mut cx,
                 "42",
-                DynamicAdmission {
-                    read_policy: trusted(),
-                    requires: vec![missing.clone()],
-                    allow: CapabilitySet::new(),
-                    expected_shape: Arc::new(AnyShape),
-                },
+                authority(vec![missing.clone()]),
+                Arc::new(AnyShape),
             )
             .unwrap_err();
         assert!(matches!(denied, Error::CapabilityDenied { .. }));
         seat.grant(&mut cx, missing).unwrap();
-        let value = dynamic
-            .eval(
-                &mut cx,
-                "42",
-                DynamicAdmission::new(trusted(), CapabilitySet::new()),
-            )
+        let value = eval
+            .evaluate_text(&mut cx, "42", authority(Vec::new()), Arc::new(AnyShape))
             .unwrap();
         assert_eq!(value.object().display(&mut cx).unwrap(), "42");
-        let value = dynamic
-            .exec(
-                &mut cx,
-                "42",
-                DynamicAdmission::new(trusted(), CapabilitySet::new()),
-            )
+        let value = exec
+            .evaluate_text(&mut cx, "42", authority(Vec::new()), Arc::new(AnyShape))
             .unwrap();
         assert_eq!(value.object().display(&mut cx).unwrap(), "42");
 
-        let denied = dynamic
-            .eval(
+        let denied = eval
+            .evaluate_text(
                 &mut cx,
                 "42",
-                DynamicAdmission {
-                    read_policy: trusted(),
-                    requires: Vec::new(),
-                    allow: CapabilitySet::new(),
-                    expected_shape: Arc::new(ExactExprShape::new(Expr::String("not-42".into()))),
-                },
+                authority(Vec::new()),
+                Arc::new(ExactExprShape::new(Expr::String("not-42".into()))),
             )
             .unwrap_err();
         assert!(matches!(denied, Error::WrongShape { .. }));
@@ -608,30 +464,39 @@ mod tests {
         seat.grant(&mut cx, read_eval_capability()).unwrap();
         let root = Arc::new(MemoryDir::default());
         root.source(&mut cx, "answer.py", "42");
-        let modules = PythonModulePolicy::with_codec(Symbol::qualified("codec", "lisp"));
-        let admission = |root: Arc<MemoryDir>, requires| PythonModuleAdmission {
-            root_id: Symbol::new("supplied"),
-            root,
-            read_policy: trusted(),
-            requires,
-            allow: CapabilitySet::new(),
+        let modules = python_module_policy_with_codec(Symbol::qualified("codec", "lisp"));
+        let load = |modules: &SourceModulePolicy,
+                    cx: &mut Cx,
+                    root: Arc<MemoryDir>,
+                    specifier: &str,
+                    requires| {
+            modules.load(
+                cx,
+                Symbol::new("supplied"),
+                root,
+                specifier,
+                authority(requires),
+            )
         };
         let denied = modules
             .load(
                 &mut cx,
+                Symbol::new("supplied"),
+                root.clone(),
                 "answer.py",
-                admission(root.clone(), vec![module_load_capability()]),
+                authority(vec![module_load_capability()]),
             )
             .unwrap_err();
         assert!(matches!(denied, Error::CapabilityDenied { .. }));
         seat.grant(&mut cx, module_load_capability()).unwrap();
-        let loaded = modules
-            .load(
-                &mut cx,
-                "answer.py",
-                admission(root.clone(), vec![module_load_capability()]),
-            )
-            .unwrap();
+        let loaded = load(
+            &modules,
+            &mut cx,
+            root.clone(),
+            "answer.py",
+            vec![module_load_capability()],
+        )
+        .unwrap();
         assert_eq!(
             loaded
                 .default_export()
@@ -643,17 +508,9 @@ mod tests {
             "42"
         );
         root.source(&mut cx, "broken.py", "(");
-        assert!(
-            modules
-                .load(&mut cx, "broken.py", admission(root.clone(), vec![]),)
-                .is_err()
-        );
+        assert!(load(&modules, &mut cx, root.clone(), "broken.py", vec![]).is_err());
         root.source(&mut cx, "broken.py", "41");
-        assert!(
-            modules
-                .load(&mut cx, "broken.py", admission(root, vec![]),)
-                .is_err()
-        );
+        assert!(load(&modules, &mut cx, root, "broken.py", vec![]).is_err());
         assert_eq!(
             modules
                 .receipts()
@@ -663,8 +520,8 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![
                 ModuleResolutionOutcome::Linked,
-                ModuleResolutionOutcome::Failed,
-                ModuleResolutionOutcome::Failed
+                ModuleResolutionOutcome::DecodeFailed,
+                ModuleResolutionOutcome::DecodeFailed
             ]
         );
     }
