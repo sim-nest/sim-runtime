@@ -31,6 +31,73 @@ fn trusted_read_eval_policy() -> ReadPolicy {
     )
 }
 
+#[test]
+fn source_authority_checks_policy_and_preserves_power_semantics() {
+    let first = CapabilityName::new("power.first");
+    let second = CapabilityName::new("power.second");
+    let allowed = CapabilitySet::new()
+        .grant(second.clone())
+        .grant(first.clone())
+        .grant(second.clone());
+
+    let authority = SourceAuthority::new(
+        trusted_read_eval_policy(),
+        vec![second.clone(), first.clone(), second.clone()],
+        allowed,
+    )
+    .unwrap();
+
+    assert_eq!(
+        authority.requires(),
+        &[second.clone(), first.clone(), second]
+    );
+    assert_eq!(authority.allow().iter().count(), 2);
+    assert!(authority.allow().contains(&first));
+
+    let untrusted = policy(
+        TrustLevel::Untrusted,
+        CapabilitySet::new().grant(read_eval_capability()),
+    );
+    assert!(matches!(
+        SourceAuthority::new(untrusted, Vec::new(), CapabilitySet::new()),
+        Err(Error::TrustDenied { .. })
+    ));
+    assert!(matches!(
+        SourceAuthority::new(
+            policy(TrustLevel::TrustedSource, CapabilitySet::new()),
+            Vec::new(),
+            CapabilitySet::new(),
+        ),
+        Err(Error::CapabilityDenied { .. })
+    ));
+}
+
+#[test]
+fn source_authority_projection_and_debug_redact_trusted_policy() {
+    let authority = SourceAuthority::new(
+        trusted_read_eval_policy(),
+        vec![CapabilityName::new("power.required")],
+        CapabilitySet::new().grant(CapabilityName::new("power.allowed")),
+    )
+    .unwrap();
+
+    let Datum::Node { tag, fields } = authority.decision_datum() else {
+        panic!("authority decision projection must be a datum node");
+    };
+    assert_eq!(tag, Symbol::qualified("source", "authority"));
+    assert_eq!(
+        fields
+            .iter()
+            .find(|(name, _)| name.name.as_ref() == "read-policy")
+            .map(|(_, value)| value),
+        Some(&Datum::Symbol(Symbol::new("redacted")))
+    );
+    let rendered = format!("{authority:?}");
+    assert!(rendered.contains("<redacted>"));
+    assert!(!rendered.contains("TrustedSource"));
+    assert!(!rendered.contains("read-eval"));
+}
+
 fn request_with(source: ReadEvalSource, expected_shape: Arc<dyn Shape>) -> ReadEvalRequest {
     ReadEvalRequest {
         origin: origin(),

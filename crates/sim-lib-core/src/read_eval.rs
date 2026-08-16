@@ -3,13 +3,13 @@
 mod config;
 mod decision;
 
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
 
 use sim_codec::{Input, decode_with_codec};
 use sim_kernel::{
-    AbiVersion, CapabilityName, CapabilitySet, Cx, Diagnostic, Error, Event, Export, Expr, Lib,
-    LibManifest, LibTarget, Linker, LoadCx, Object, ReadPolicy, Ref, Result, Shape, ShapeId,
-    Symbol, Value, Version, read_eval_capability,
+    AbiVersion, CapabilityName, CapabilitySet, Cx, Datum, Diagnostic, Error, Event, Export, Expr,
+    Lib, LibManifest, LibTarget, Linker, LoadCx, Object, ReadPolicy, Ref, Result, Shape, ShapeId,
+    Symbol, Value, Version, diminish, read_eval_capability,
 };
 use sim_shape::expected_shape_diagnostic;
 
@@ -81,6 +81,84 @@ pub enum ReadEvalSource {
     Expr(Expr),
 }
 
+/// Immutable host authority shared by requests that load or evaluate source.
+///
+/// Construction is deliberately available only from trusted Rust code. Source
+/// data has no decoder or read-constructor for this value, and its data
+/// projection omits the trusted read policy.
+#[derive(Clone, PartialEq, Eq)]
+pub struct SourceAuthority {
+    read_policy: ReadPolicy,
+    requires: Vec<CapabilityName>,
+    allow: CapabilitySet,
+}
+
+impl fmt::Debug for SourceAuthority {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("SourceAuthority")
+            .field("read_policy", &"<redacted>")
+            .field("requires", &self.requires)
+            .field("allow", &self.allow)
+            .finish()
+    }
+}
+
+impl SourceAuthority {
+    /// Builds authority after checking that its read policy admits explicit
+    /// evaluation. Required powers retain caller order; allowed powers retain
+    /// set semantics.
+    pub fn new(
+        read_policy: ReadPolicy,
+        requires: Vec<CapabilityName>,
+        allow: CapabilitySet,
+    ) -> Result<Self> {
+        read_policy.require(&read_eval_capability())?;
+        Ok(Self {
+            read_policy,
+            requires,
+            allow,
+        })
+    }
+
+    /// Returns the trusted policy governing source decoding.
+    pub fn read_policy(&self) -> &ReadPolicy {
+        &self.read_policy
+    }
+
+    /// Returns the caller powers required before source evaluation.
+    pub fn requires(&self) -> &[CapabilityName] {
+        &self.requires
+    }
+
+    /// Returns the maximum powers allowed during source evaluation.
+    pub fn allow(&self) -> &CapabilitySet {
+        &self.allow
+    }
+
+    /// Projects authority for decision data without exposing read-policy
+    /// trust or capability internals.
+    pub fn decision_datum(&self) -> Datum {
+        Datum::Node {
+            tag: Symbol::qualified("source", "authority"),
+            fields: vec![
+                (
+                    Symbol::new("requires"),
+                    capability_names_datum(self.requires()),
+                ),
+                (
+                    Symbol::new("allow"),
+                    capability_names_datum(self.allow().iter()),
+                ),
+                (
+                    Symbol::new("read-policy"),
+                    Datum::Symbol(Symbol::new("redacted")),
+                ),
+            ],
+        }
+    }
+}
+
 /// A single explicit, host-authorized read-eval admission request.
 pub struct ReadEvalRequest {
     /// Open origin data describing who asked for eval.
@@ -132,7 +210,7 @@ impl ReadEvalBroker {
             return Err(err);
         }
 
-        let active = diminish_capabilities(cx.capabilities(), &request.allow);
+        let active = diminish(cx.capabilities(), &request.allow);
         let expr = match cx.with_capabilities(active.clone(), |cx| {
             decode_source(
                 cx,
@@ -285,12 +363,13 @@ fn decode_source(
     }
 }
 
-fn diminish_capabilities(current: &CapabilitySet, allowed: &CapabilitySet) -> CapabilitySet {
-    current
-        .iter()
-        .filter(|capability| allowed.contains(capability))
-        .cloned()
-        .fold(CapabilitySet::new(), CapabilitySet::grant)
+fn capability_names_datum<'a>(capabilities: impl IntoIterator<Item = &'a CapabilityName>) -> Datum {
+    Datum::Vector(
+        capabilities
+            .into_iter()
+            .map(|capability| Datum::String(capability.as_str().to_owned()))
+            .collect(),
+    )
 }
 
 fn shape_diagnostics(
