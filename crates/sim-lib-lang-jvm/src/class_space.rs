@@ -55,6 +55,7 @@ pub struct ClassDefinition {
     metadata: Arc<crate::JavaClassMetadata>,
     literals: BTreeMap<u16, crate::JavaString>,
     resolution_records: BTreeMap<u16, crate::resolution::SymbolicConstant>,
+    shell: Arc<ClassShell>,
 }
 
 impl ClassDefinition {
@@ -77,6 +78,7 @@ impl ClassDefinition {
             metadata: Arc::new(metadata),
             literals: BTreeMap::new(),
             resolution_records,
+            shell: Arc::new(empty_test_shell()),
         })
     }
 
@@ -100,6 +102,7 @@ impl ClassDefinition {
             metadata: Arc::new(metadata),
             literals: BTreeMap::new(),
             resolution_records: BTreeMap::new(),
+            shell: Arc::new(empty_test_shell()),
         }
     }
     /// Retained, decoded classfile projection.
@@ -109,6 +112,10 @@ impl ClassDefinition {
     /// Neutral class face and retained JVM policy metadata.
     pub fn metadata(&self) -> &Arc<crate::JavaClassMetadata> {
         &self.metadata
+    }
+    /// Retained structural classfile shell used by bounded code browsing and execution.
+    pub fn shell(&self) -> &ClassShell {
+        &self.shell
     }
     /// Returns the interned Java string denoted by a `CONSTANT_String` index.
     pub fn string_literal(&self, constant_index: u16) -> Option<&crate::JavaString> {
@@ -209,6 +216,27 @@ impl ClassLoader {
         })
     }
 
+    /// Defines an explicitly supplied classfile after checking JVM load authority.
+    ///
+    /// Unlike [`Self::request`], this surface performs no directory or transport
+    /// access: the caller supplies the complete, bounded byte string.
+    pub fn define_bytes(
+        &self,
+        cx: &mut Cx,
+        binary_name: impl Into<String>,
+        bytes: Vec<u8>,
+    ) -> Result<Arc<ClassDefinition>> {
+        cx.require(&class_load_capability())?;
+        let binary_name = binary_name.into();
+        validate_binary_name(&binary_name)?;
+        self.define_decoded(cx, binary_name, bytes)
+    }
+
+    /// Returns at most `limit` loaded definitions in binary-name order.
+    pub fn browse_classes(&self, limit: usize) -> Result<Vec<Arc<ClassDefinition>>> {
+        Ok(self.definitions()?.values().take(limit).cloned().collect())
+    }
+
     fn definitions(&self) -> Result<MutexGuard<'_, BTreeMap<String, Arc<ClassDefinition>>>> {
         self.definitions
             .lock()
@@ -230,25 +258,37 @@ impl ClassLoader {
                 self.max_classfile_bytes
             )));
         }
-        let (classfile, shell, validated) = decode_named_class(
-            &request.binary_name,
-            bytes.clone(),
-            self.max_classfile_bytes,
-        )?;
+        self.define_decoded(cx, request.binary_name.clone(), bytes)
+    }
+
+    fn define_decoded(
+        &self,
+        cx: &mut Cx,
+        binary_name: String,
+        bytes: Vec<u8>,
+    ) -> Result<Arc<ClassDefinition>> {
+        if bytes.len() > self.max_classfile_bytes {
+            return Err(Error::Eval(format!(
+                "classfile exceeds {} byte allowance",
+                self.max_classfile_bytes
+            )));
+        }
+        let (classfile, shell, validated) =
+            decode_named_class(&binary_name, bytes.clone(), self.max_classfile_bytes)?;
         let content_key = content_key(&bytes);
         let mut definitions = self.definitions()?;
-        if let Some(existing) = definitions.get(&request.binary_name) {
+        if let Some(existing) = definitions.get(&binary_name) {
             if existing.content.as_ref() == bytes.as_slice() {
                 return Ok(existing.clone());
             }
             return Err(Error::Eval(format!(
                 "duplicate definition of {} in loader {}",
-                request.binary_name, self.id.0
+                binary_name, self.id.0
             )));
         }
         let id = ClassDefinitionId {
             loader: self.id,
-            binary_name: request.binary_name.clone(),
+            binary_name: binary_name.clone(),
             content_key,
         };
         let metadata = Arc::new(crate::JavaClassMetadata::from_shell(
@@ -280,8 +320,9 @@ impl ClassLoader {
             metadata,
             literals,
             resolution_records,
+            shell: Arc::new(shell),
         });
-        definitions.insert(request.binary_name.clone(), definition.clone());
+        definitions.insert(binary_name, definition.clone());
         self.revision.fetch_add(1, Ordering::Release);
         Ok(definition)
     }
@@ -290,6 +331,17 @@ impl ClassLoader {
     pub fn loaded(&self, binary_name: &str) -> Result<Option<Arc<ClassDefinition>>> {
         Ok(self.definitions()?.get(binary_name).cloned())
     }
+}
+
+#[cfg(test)]
+fn empty_test_shell() -> ClassShell {
+    decode_named_class(
+        "Minimal",
+        include_bytes!("../fixtures/hand-built/Minimal.class").to_vec(),
+        4096,
+    )
+    .expect("checked JVM fixture")
+    .1
 }
 
 /// Identity of one exact class-space state, not a mutable validity flag.

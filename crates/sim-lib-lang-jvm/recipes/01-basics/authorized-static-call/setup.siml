@@ -1,0 +1,3 @@
+; `STATIC_INT_CLASS_BYTES` is injected by the checked recipe harness.
+(jvm/define "StaticInt" STATIC_INT_CLASS_BYTES)
+(jvm/invoke-static "StaticInt" "wholePipeline" "(II)I" 3 4)

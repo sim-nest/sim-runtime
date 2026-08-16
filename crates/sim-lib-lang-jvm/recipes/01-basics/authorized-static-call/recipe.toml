@@ -1,0 +1,3 @@
+title = "Define authorized class bytes and call a static method"
+kind = "lisp"
+entry = "setup.siml"

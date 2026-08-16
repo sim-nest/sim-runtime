@@ -26,6 +26,7 @@ mod managed;
 mod monitor;
 mod numeric;
 mod resolution;
+mod surface;
 mod text;
 mod value;
 
@@ -92,6 +93,10 @@ pub use numeric::{NumericExecutionError, execute_numeric_instruction};
 pub use resolution::{
     AccessDecision, ConstantResolution, ConstantResolutionError, ConstantResolutionKind,
     ResolutionCache, RuntimeNest, RuntimePackage,
+};
+pub use surface::{
+    JVM_DECLARED_ABSENCES, JvmBrowse, JvmLanguageLib, JvmSurface, install_jvm_language_lib,
+    jvm_browse_capability, jvm_invoke_capability, jvm_language_profile,
 };
 pub use text::{ADMITTED_CORE_MEMBERS, JavaClassMirror, JavaCoreMember, JavaString};
 pub use value::{JvmReference, JvmValue, JvmValueWidth, PrimitiveCategory, ReturnCategory};
