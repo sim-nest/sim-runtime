@@ -30,7 +30,7 @@ pub use fidelity::{
     javascript_fidelity_dimensions, javascript_regression_cases,
 };
 pub use jobs::{
-    JavascriptAsyncFunction, JavascriptException, JavascriptGenerator, JavascriptJobClass,
+    JavascriptAsyncFunction, JavascriptExceptionRealm, JavascriptGenerator, JavascriptJobClass,
     JavascriptJobs, JavascriptPromise, JavascriptPromiseState,
 };
 pub use json::{

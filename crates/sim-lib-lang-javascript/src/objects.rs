@@ -673,6 +673,57 @@ mod tests {
         assert!(m.private_key(class, "y").is_err());
         assert!(m.delete(o, &s("answer")).unwrap());
     }
+
+    #[test]
+    fn error_cause_and_aggregate_members_remain_ordered_object_properties() {
+        let mut m = model();
+        let error = m.ordinary().unwrap();
+        let aggregate = m.ordinary().unwrap();
+        let members = m.ordinary().unwrap();
+        let cause = JavascriptValue::String("root".into());
+        m.define_data(error, s("cause"), cause.clone(), true, false, true)
+            .unwrap();
+        m.define_data(
+            members,
+            s("0"),
+            JavascriptValue::String("first".into()),
+            true,
+            true,
+            true,
+        )
+        .unwrap();
+        m.define_data(
+            members,
+            s("1"),
+            JavascriptValue::String("second".into()),
+            true,
+            true,
+            true,
+        )
+        .unwrap();
+        m.define_data(
+            aggregate,
+            s("errors"),
+            JavascriptValue::Managed(members),
+            true,
+            false,
+            true,
+        )
+        .unwrap();
+
+        assert_eq!(m.get(error, &s("cause"), 4).unwrap(), Some(cause));
+        assert!(m.enumerable_keys(error).is_empty());
+        assert!(m.enumerable_keys(aggregate).is_empty());
+        assert_eq!(m.enumerable_keys(members), vec![s("0"), s("1")]);
+        assert_eq!(
+            m.get(members, &s("0"), 4).unwrap(),
+            Some(JavascriptValue::String("first".into()))
+        );
+        assert_eq!(
+            m.get(members, &s("1"), 4).unwrap(),
+            Some(JavascriptValue::String("second".into()))
+        );
+    }
     #[test]
     fn functions_arrows_construction_shapes_and_gaps_are_explicit() {
         let mut m = model();
