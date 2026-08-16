@@ -26,6 +26,7 @@ sim-lib-lang-typed-lazy = { version = "0.1.4", path = "../sim-lib-lang-typed-laz
 sim-lib-standard-core = { version = "0.1.4", path = "../sim-lib-standard-core" }
 
 [dev-dependencies]
+sim-lib-control = { version = "0.1.5", path = "../sim-lib-control" }
 sim-lib-lang-genconf = { version = "0.1.3", path = "../sim-lib-lang-genconf" }
 sim-test-support = { version = "0.1.0" }
 
