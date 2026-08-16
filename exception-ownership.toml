@@ -1,0 +1,28 @@
+schema = "sim.exception-ownership/v1"
+owner = "crates/sim-lib-control"
+remediation = "Raise sim_lib_control::Raised with a class from the declared class descriptor, match it with match_raised_class, and keep guest relations in ManagedException stable edges."
+crate_prefix = "sim-"
+
+class_fields = ["class", "error_class", "exception_class", "throwable_class", "name", "error_name", "exception_name"]
+payload_fields = ["message", "payload", "value", "args"]
+relation_containers = ["Box", "Vec"]
+relation_record_terms = ["Error", "Exception", "Throwable", "Raised"]
+
+# Exceptions are exact declared-owner records, never global field-name waivers.
+[[guest_object]]
+path = "crates/sim-lib-lang-python/src/resumable.rs"
+record = "PythonExceptionData"
+fields = ["class", "message", "origin", "suppress_context", "group_message"]
+reason = "The Python Error object owns guest-visible arguments and rendering; its cause, context, and group members are ManagedException edges."
+
+[[guest_object]]
+path = "crates/sim-lib-lang-python/src/function.rs"
+record = "PythonCallError"
+fields = ["class", "traceback_origin", "message"]
+reason = "This is a call-binding diagnostic projected into Python policy, not a raised carrier or exception relation store."
+
+[[guest_object]]
+path = "crates/sim-lib-lang-javascript/src/objects.rs"
+record = "JavascriptCallError"
+fields = ["origin", "message"]
+reason = "This is a host call-binding diagnostic, not a thrown-value carrier; JavaScript Error objects remain ordinary managed guest objects."

@@ -5,6 +5,16 @@
 //! The kernel defines the control-policy contracts; this crate supplies the
 //! concrete control organ (coroutines, generators, restarts, non-local exits)
 //! layered over those contracts.
+//!
+//! ## Raising guest values
+//!
+//! Every guest raises the non-recursive [`Raised`] envelope. The guest obtains
+//! the envelope's class identity from its declared class descriptor, retains
+//! the ordinary guest value as the payload, and stores cause, context, group,
+//! or suppression relationships as stable edges in [`ManagedException`].
+//! Handlers select that class through [`match_raised_class`]; neither a guest
+//! language nor a host adapter needs another throwable record or relation
+//! chain.
 
 mod r#async;
 mod backtrack;
@@ -27,6 +37,11 @@ mod restart;
 mod resume;
 mod runtime;
 mod unwind;
+
+#[cfg(test)]
+mod exception_ownership_guard {
+    include!("../tests/exceptions3_carrier_ownership.rs");
+}
 
 pub use r#async::{AsyncPoll, AsyncTask};
 pub use backtrack::{BacktrackStep, Backtracker};
