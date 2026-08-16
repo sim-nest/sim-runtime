@@ -45,6 +45,13 @@ fn manifests_freeze_the_supported_baseline() {
         Some(69)
     );
     assert_eq!(supported["unsupported"].as_array().unwrap().len(), 5);
+    assert_eq!(
+        supported["unsupported"][1]["includes"]
+            .as_array()
+            .unwrap()
+            .len(),
+        4
+    );
 
     let intrinsics: toml::Value = sim_lib_lang_jvm::INTRINSIC_MANIFEST.parse().unwrap();
     let manifest_members = intrinsics["members"].as_array().unwrap();

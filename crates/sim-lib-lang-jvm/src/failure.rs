@@ -16,6 +16,8 @@ pub enum FailureCondition {
     ArrayStore,
     /// A guest requested an array with a negative length.
     NegativeArraySize,
+    /// A guest attempted to exit a monitor it does not own.
+    IllegalMonitorState,
     /// Decoded class data violates the supported classfile contract.
     InvalidClassfile,
     /// A class or member cannot be authorized in the supplied class space.
@@ -56,7 +58,8 @@ impl FailureCondition {
             | Self::ClassCast
             | Self::ArrayIndexOutOfBounds
             | Self::ArrayStore
-            | Self::NegativeArraySize => FailureHome::JavaThrowable,
+            | Self::NegativeArraySize
+            | Self::IllegalMonitorState => FailureHome::JavaThrowable,
             Self::InvalidClassfile | Self::UnauthorizedLinkage | Self::ExecutionAdmissionLimit => {
                 FailureHome::Admission
             }
@@ -78,6 +81,7 @@ impl FailureCondition {
             Self::ArrayIndexOutOfBounds => Some("java/lang/ArrayIndexOutOfBoundsException"),
             Self::ArrayStore => Some("java/lang/ArrayStoreException"),
             Self::NegativeArraySize => Some("java/lang/NegativeArraySizeException"),
+            Self::IllegalMonitorState => Some("java/lang/IllegalMonitorStateException"),
             _ => None,
         }
     }

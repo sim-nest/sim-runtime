@@ -22,6 +22,7 @@ mod intrinsic;
 mod invocation;
 mod limits;
 mod managed;
+mod monitor;
 mod numeric;
 mod resolution;
 mod text;
@@ -80,6 +81,7 @@ pub use invocation::{
 };
 pub use limits::{ExecutionLimits, ResourceLimits};
 pub use managed::{JVM_ROLE_EDGE_TABLE, JvmEdge, JvmGraphError, JvmHeap, JvmRole, JvmRoleEdges};
+pub use monitor::{MonitorError, MonitorLane, MonitorTable};
 pub use numeric::{NumericExecutionError, execute_numeric_instruction};
 pub use resolution::{
     AccessDecision, ConstantResolution, ConstantResolutionError, ConstantResolutionKind,

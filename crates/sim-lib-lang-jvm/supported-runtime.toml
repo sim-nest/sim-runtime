@@ -17,6 +17,7 @@ boundary = "method admission"
 [[unsupported]]
 id = "threads"
 boundary = "class and intrinsic admission"
+includes = ["thread-enumeration", "monitor-wait", "monitor-notify", "scheduling"]
 
 [[unsupported]]
 id = "reflection"
