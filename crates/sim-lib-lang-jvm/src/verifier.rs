@@ -1,5 +1,6 @@
 //! JVM verification types and lawful dataflow frames.
 
+use crate::VerifierCoverage;
 use sim_codec_classfile::{
     InstructionId, InstructionOperand, Opcode, StackMapFrame, StackMapTableAttribute,
     VerificationType as ClassfileVerificationType,

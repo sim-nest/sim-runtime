@@ -16,3 +16,9 @@ Ordinary SIM code reaches the profile through the shaped `jvm/define`,
 invocation and bounded browsing require separate capabilities. Fidelity always
 names the absent verifier, class library, and lambda linkage before positive
 evidence.
+
+Sealed verification evidence is inspectable through bounded, immutable class,
+method, and frame views. `VerificationExplanation` turns typed refusals into a
+stable code and a human reason, while generated `VERIFIER_COVERAGE` proves that
+all 256 shared opcode rows have exactly one verifier-rule owner. These views do
+not accept a `verified` boolean and cannot construct or mutate a proof.

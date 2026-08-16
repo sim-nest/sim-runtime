@@ -87,7 +87,7 @@ fn manifests_freeze_the_supported_baseline() {
     }
 
     let ledger: toml::Value = sim_lib_lang_jvm::REUSE_LEDGER.parse().unwrap();
-    assert_eq!(ledger["organ"].as_array().unwrap().len(), 9);
+    assert_eq!(ledger["organ"].as_array().unwrap().len(), 11);
 }
 
 #[test]
@@ -106,6 +106,34 @@ fn generated_coverage_differs_from_manifests_by_zero() {
         .filter(|byte| OPCODES[usize::from(*byte)].opcode as u8 == *byte)
         .count();
     assert_eq!(opcode_manifest_total.abs_diff(opcode_coverage_total), 0);
+    assert_eq!(
+        sim_lib_lang_jvm::VERIFIER_COVERAGE.opcode_rows,
+        OPCODES.len()
+    );
+    assert_eq!(sim_lib_lang_jvm::VERIFIER_COVERAGE.rule_families, 5);
+}
+
+#[test]
+fn verification_failures_are_readable_without_internal_state() {
+    let explanation = sim_lib_lang_jvm::VerificationExplanation::for_method(
+        &sim_lib_lang_jvm::MethodVerificationError::UnreachableHandler { row: 7 },
+    );
+    assert_eq!(explanation.code, "unreachable-handler");
+    assert!(explanation.reason.contains("row 7"));
+}
+
+#[test]
+fn verification_frames_have_bounded_read_only_views() {
+    let mut frame =
+        sim_lib_lang_jvm::VerificationFrame::new(sim_lib_lang_jvm::FrameKind::Locals, 3);
+    frame
+        .set_local(0, sim_lib_lang_jvm::VerificationType::Int)
+        .unwrap();
+    let view = sim_lib_lang_jvm::VerificationFrameView::bounded(&frame, 1);
+    assert!(view.reachable);
+    assert_eq!(view.capacity, 3);
+    assert_eq!(view.slots.as_ref(), &[Some("Int".into())]);
+    assert_eq!(view.omitted, 2);
 }
 
 #[test]

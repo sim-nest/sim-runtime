@@ -259,3 +259,6 @@ pub static VERIFIER_RULES: [VerifierRule; 256] = [
     VerifierRule { opcode: Opcode::Impdep1, family: VerifierRuleFamily::ExplicitRefusal },
     VerifierRule { opcode: Opcode::Impdep2, family: VerifierRuleFamily::ExplicitRefusal },
 ];
+
+/// Coverage derived with the rule table from the owning manifest.
+pub const VERIFIER_COVERAGE: VerifierCoverage = VerifierCoverage { opcode_rows: 256, rule_families: 5, source: "supported-runtime.toml + sim-codec-classfile::OPCODES" };

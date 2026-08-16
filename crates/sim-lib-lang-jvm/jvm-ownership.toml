@@ -15,6 +15,10 @@ forbidden_type_suffixes = [
   "Classpath",
   "ClassPath",
   "UnwindPayload",
+  "VerificationByteParser",
+  "VerificationWorklist",
+  "VerificationControlFlowGraph",
+  "VerifierOpcodeSwitch",
 ]
 forbidden_function_names = [
   "parse_classfile",
@@ -23,8 +27,10 @@ forbidden_function_names = [
   "drive_dynamic",
   "enter_method",
   "execute_method",
+  "parse_verification_bytes",
+  "verify_opcode",
 ]
-forbidden_field_types = ["Vec<u16>"]
+forbidden_field_types = ["Vec<u16>", "verified: bool"]
 forbidden_source_patterns = [
   "match class_name.as_str()",
   "match binary_name.as_str()",

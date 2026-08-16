@@ -22,6 +22,27 @@ const VIOLATIONS: &[(&str, &str)] = &[
     ("unwind payload", "pub struct JvmUnwindPayload;"),
     ("alternate entry", "pub fn enter_method() {}"),
     ("alternate drive", "pub fn drive_method() {}"),
+    (
+        "verification byte parser",
+        "pub struct VerificationByteParser;",
+    ),
+    (
+        "private verifier worklist",
+        "pub struct VerificationWorklist;",
+    ),
+    (
+        "private verifier CFG",
+        "pub struct VerificationControlFlowGraph;",
+    ),
+    (
+        "boolean verified flag",
+        "pub struct ResultRow { verified: bool }",
+    ),
+    ("duplicate opcode switch", "pub fn verify_opcode() {}"),
+    (
+        "verifier opcode inventory",
+        "pub struct VerifierOpcodeSwitch;",
+    ),
 ];
 
 #[derive(Debug)]

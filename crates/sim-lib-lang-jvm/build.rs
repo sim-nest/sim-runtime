@@ -117,6 +117,15 @@ fn generate_verifier_rules() -> String {
         ));
     }
     generated.push_str("];\n");
+    let family_count = owners
+        .iter()
+        .flatten()
+        .copied()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    generated.push_str(&format!(
+        "\n/// Coverage derived with the rule table from the owning manifest.\npub const VERIFIER_COVERAGE: VerifierCoverage = VerifierCoverage {{ opcode_rows: 256, rule_families: {family_count}, source: \"supported-runtime.toml + sim-codec-classfile::OPCODES\" }};\n"
+    ));
     let inventories = fs::read_dir("src")
         .expect("read JVM source directory")
         .filter_map(Result::ok)

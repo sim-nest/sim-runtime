@@ -19,6 +19,7 @@ mod execution;
 mod failure;
 mod field;
 mod initialization;
+mod inspection;
 mod intrinsic;
 mod invocation;
 mod limits;
@@ -81,6 +82,10 @@ pub use initialization::{
     ClassInitialization, ClassInitializationState, InitializationAction, InitializationError,
     InitializationLane, InitializationPlan, InitializationResume, InitializationSnapshot,
 };
+pub use inspection::{
+    ClassVerificationView, MethodVerificationView, VerificationExplanation, VerificationFrameView,
+    VerifierCoverage,
+};
 pub use intrinsic::{
     BoxValue, INTRINSIC_TABLE, IntrinsicError, IntrinsicMember, IntrinsicSupport, PrimitiveBox,
     PrimitiveBoxes, admit_intrinsic,
@@ -108,8 +113,8 @@ pub use verifier::{
     ClassMethodProofIdentity, ClassVerificationCache, ClassVerificationError,
     ClassVerificationProof, ExpandedStackMapFrame, FrameError, FrameKind, MethodVerificationError,
     MethodVerificationProof, ReferenceType, StackMapConstraintError, ThrowCapability,
-    UnreachableHandlerPolicy, VERIFIER_RULES, VerificationAssignability, VerificationClass,
-    VerificationConstantResolver, VerificationDependency, VerificationEdgeClass,
+    UnreachableHandlerPolicy, VERIFIER_COVERAGE, VERIFIER_RULES, VerificationAssignability,
+    VerificationClass, VerificationConstantResolver, VerificationDependency, VerificationEdgeClass,
     VerificationEdgeId, VerificationEnvironment, VerificationField, VerificationFrame,
     VerificationGraph, VerificationGraphError, VerificationJoinRule, VerificationNodeLocation,
     VerificationQuery, VerificationQueryError, VerificationQueryEvidence, VerificationQueryFailure,
