@@ -13,6 +13,7 @@ mod code;
 mod constructor;
 mod control;
 mod entry;
+mod exception;
 mod execution;
 mod failure;
 mod field;
@@ -39,7 +40,7 @@ pub use class_space::{
 };
 pub use code::{
     JvmInstructionPolicy, JvmInstructionSemantics, JvmSlotKind, PreparationError,
-    PreparedExceptionHandler, PreparedJvmInstruction, PreparedJvmPolicy, RootEffect, prepare_code,
+    PreparedCatchEntry, PreparedJvmInstruction, PreparedJvmPolicy, RootEffect, prepare_code,
 };
 pub use constructor::{
     ConstructorState, ConstructorStateError, UninitializedUse, VerifiedConstructorState,
@@ -50,6 +51,10 @@ pub use control::{
 pub use entry::{
     ClassfilePermit, EntryRefusal, EntryTarget, ExecutionPermit, NoVerifier, PreparedEntry,
     ResolvedEntry, StaticAdmission, VerificationFidelity, VerifierProvider, drive,
+};
+pub use exception::{
+    JavaHandlerEntry, JavaThrowError, JavaThrowSite, JavaThrowableHeap, JavaThrowableMutationError,
+    JavaThrowableRelation, JavaThrowableState, execute_athrow, unwind_java_frame,
 };
 pub use execution::{
     ExecutionError, JvmConstantResolver, JvmWorkReceipt, execute_storage_instruction,

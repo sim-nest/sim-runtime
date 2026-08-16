@@ -42,7 +42,7 @@ pub struct RootEffect {
 
 /// One classfile exception-table row resolved entirely to prepared instruction identities.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct PreparedExceptionHandler {
+pub struct PreparedCatchEntry {
     /// Original exception-table row, preserving classfile search order.
     pub row: usize,
     /// First protected instruction, inclusive.
@@ -112,7 +112,7 @@ pub struct PreparedJvmInstruction {
     input_width: usize,
     output_width: usize,
     root_effect: RootEffect,
-    handler_membership: Box<[PreparedExceptionHandler]>,
+    handler_membership: Box<[PreparedCatchEntry]>,
     handler_entries: Box<[usize]>,
 }
 
@@ -148,7 +148,7 @@ impl PreparedJvmInstruction {
     }
 
     /// Returns exception-table rows whose protected range contains this instruction.
-    pub fn handler_membership(&self) -> &[PreparedExceptionHandler] {
+    pub fn handler_membership(&self) -> &[PreparedCatchEntry] {
         &self.handler_membership
     }
 
@@ -235,7 +235,7 @@ pub fn prepare_code<P: JvmInstructionPolicy>(
                 u32::from(entry.start_pc) <= located.offset
                     && located.offset < u32::from(entry.end_pc)
             })
-            .map(|(row, entry)| PreparedExceptionHandler {
+            .map(|(row, entry)| PreparedCatchEntry {
                 row,
                 start: decoded.offsets[&u32::from(entry.start_pc)],
                 end: decoded.offsets.get(&u32::from(entry.end_pc)).copied(),
