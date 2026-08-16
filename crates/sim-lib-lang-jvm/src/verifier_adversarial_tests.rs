@@ -85,17 +85,16 @@ struct Policy;
 impl JvmInstructionPolicy for Policy {
     fn semantics(opcode: Opcode) -> Option<JvmInstructionSemantics> {
         let empty: &[JvmSlotKind] = &[];
-        Some(JvmInstructionSemantics {
-            pops: empty,
-            pushes: empty,
-            safepoint: false,
-        })
-        .filter(|_| {
-            matches!(
-                opcode,
-                Opcode::Nop | Opcode::Goto | Opcode::Return | Opcode::Athrow
-            )
-        })
+        match opcode {
+            Opcode::Nop | Opcode::Goto | Opcode::Return | Opcode::Athrow => {
+                Some(JvmInstructionSemantics {
+                    pops: empty,
+                    pushes: empty,
+                    safepoint: false,
+                })
+            }
+            _ => None,
+        }
     }
 }
 
