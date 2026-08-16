@@ -2813,7 +2813,7 @@ Source `crates/sim-incremental-core/tests/ownership_guard.rs`:
 
 //! Structural ownership guard for the generic dataflow worklist.
 
-use std::{env, fs, path::PathBuf};
+use std::{fs, path::PathBuf};
 
 const SHADOW_ENGINE: &str = r#"
 pub struct Solver<N, S> {
@@ -2947,7 +2947,19 @@ fn first_line(item: &str) -> &str {
 }
 
 fn repository_root() -> PathBuf {
-    let mut path = env::current_dir().expect("test working directory must exist");
+    let source = PathBuf::from(file!());
+    let source = if source.is_absolute() {
+        source
+    } else {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .map(|ancestor| ancestor.join(&source))
+            .find(|candidate| candidate.is_file())
+            .expect("ownership guard source path must exist below a manifest ancestor")
+    };
+    let mut path = source
+        .canonicalize()
+        .expect("ownership guard source path must resolve");
     loop {
         if path.join("dataflow-ownership.toml").is_file() {
             return path;
