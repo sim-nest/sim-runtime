@@ -24,6 +24,7 @@ sim-text = { version = "0.1.0" }
 sim-shape = { version = "0.2.1" }
 
 [dev-dependencies]
+sim-kernel = { version = "0.2.0", features = ["test-support"] }
 toml = "0.8"
 
 [lints]

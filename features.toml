@@ -744,6 +744,30 @@ steps = [
   { feature = "feature/sim-runtime/library-loading", why = "The loading row owns standard and language-profile runtime libraries." },
 ]
 
+[[feature]]
+id = "feature/sim-runtime/jvm-loadable-profile"
+title = "Loadable bounded JVM profile"
+summary = "Decode caller-authorized classfile bytes and execute bounded JVM calls, managed objects, arrays, exceptions, and exact Java text through one host-registered library."
+owner = "crate/sim-lib-lang-jvm"
+audiences = ["user", "code", "framework"]
+guidance = "Load JvmLanguageLib through the standard bootloader or enable the SDK standard-jvm feature. Supply bytes explicitly under jvm.class.load and invoke only under jvm.invoke; never construct an ambient classpath, a second Cx, or a JVM-owned copy of shared machine, managed, control, source-authority, or classfile-decoder policy."
+claims_anchors = ["anchor/crate/sim-lib-lang-jvm"]
+claims_specimens = [
+  "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/authorized-static-call",
+  "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/product_specimen",
+]
+supports = ["feature/sim-runtime/guest-language-profiles", "feature/sim-runtime/organs"]
+composes = ["crate/sim-codec-classfile", "crate/sim-lib-machine", "crate/sim-lib-gc-tracing"]
+
+[[route]]
+id = "route/run-authorized-jvm"
+task = "Run authorized JVM classfile bytes"
+audiences = ["user", "code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/jvm-loadable-profile", why = "The runtime row owns bounded JVM semantics while reusing the shared classfile decoder, machine, managed graph, exceptions, and source authority." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/product_specimen", why = "The public specimen executes static, managed-object, array, guest-exception, and exact-concat cases." },
+]
+
 [[route]]
 id = "route/add-host-exec-primitive"
 task = "Add a host exec primitive"

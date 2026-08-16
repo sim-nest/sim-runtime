@@ -26,6 +26,7 @@ mod managed;
 mod monitor;
 mod numeric;
 mod resolution;
+mod specimen;
 mod surface;
 mod text;
 mod value;
@@ -94,6 +95,7 @@ pub use resolution::{
     AccessDecision, ConstantResolution, ConstantResolutionError, ConstantResolutionKind,
     ResolutionCache, RuntimeNest, RuntimePackage,
 };
+pub use specimen::{JvmProductSpecimen, run_product_specimen};
 pub use surface::{
     JVM_DECLARED_ABSENCES, JvmBrowse, JvmLanguageLib, JvmSurface, install_jvm_language_lib,
     jvm_browse_capability, jvm_invoke_capability, jvm_language_profile,
