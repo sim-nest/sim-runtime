@@ -5,7 +5,8 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use sim_lib_control::CleanupStack;
-use sim_lib_mutation::ManagedHandle;
+use sim_lib_machine::ManagedRootSource;
+use sim_lib_mutation::{ManagedHandle, ManagedId};
 
 use crate::FailureCondition;
 
@@ -141,5 +142,52 @@ impl MonitorTable {
             state.records.remove(&object);
         }
         state.releases.push(object);
+    }
+}
+
+impl ManagedRootSource for MonitorTable {
+    fn visit_managed_roots(&self, visit: &mut dyn FnMut(ManagedId) -> bool) -> bool {
+        self.0
+            .borrow()
+            .acquisitions
+            .iter()
+            .filter(|acquisition| acquisition.live)
+            .all(|acquisition| visit(acquisition.object.id()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sim_lib_control::{CleanupStack, Unwind};
+    use sim_lib_machine::RootSnapshot;
+    use sim_lib_mutation::{HardCappedRetainPolicy, ManagedArena, ManagedNode};
+
+    use super::*;
+
+    #[test]
+    fn live_monitor_acquisitions_are_roots_and_every_abrupt_cleanup_is_idempotent() {
+        let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(1).unwrap());
+        let object = arena.allocate(ManagedNode::new(())).unwrap();
+        let monitors = MonitorTable::new();
+        let mut cleanups = CleanupStack::<Unwind<(), (), (), ()>>::new();
+        monitors.enter(MonitorLane(4), object, &mut cleanups);
+        monitors.enter(MonitorLane(4), object, &mut cleanups);
+
+        assert_eq!(
+            RootSnapshot::scan(&monitors, sim_lib_control::WorkLimit(2))
+                .unwrap()
+                .roots(),
+            &[object.id(), object.id()]
+        );
+        cleanups.unwind(Unwind::Exception(()));
+        assert_eq!(monitors.recursion(object), 0);
+        assert_eq!(monitors.release_order(), vec![object, object]);
+        assert!(monitors.exit(MonitorLane(4), object).is_err());
+        assert!(
+            RootSnapshot::scan(&monitors, sim_lib_control::WorkLimit(0))
+                .unwrap()
+                .roots()
+                .is_empty()
+        );
     }
 }

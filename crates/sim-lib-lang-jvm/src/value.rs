@@ -1,6 +1,6 @@
 use sim_kernel::Value;
-use sim_lib_machine::ValueWidthPolicy;
-use sim_lib_mutation::ManagedHandle;
+use sim_lib_machine::{ManagedRootSource, ValueWidthPolicy};
+use sim_lib_mutation::{ManagedHandle, ManagedId};
 
 /// JVM primitive computational categories.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -44,6 +44,12 @@ impl JvmReference {
     }
 }
 
+impl ManagedRootSource for JvmReference {
+    fn visit_managed_roots(&self, visit: &mut dyn FnMut(ManagedId) -> bool) -> bool {
+        self.0.is_none_or(|handle| visit(handle.id()))
+    }
+}
+
 /// Values carried by the JVM profile on the neutral machine storage organ.
 #[derive(Clone, Debug)]
 pub enum JvmValue {
@@ -67,6 +73,17 @@ impl JvmValue {
         match self {
             Self::Long(_) | Self::Double(_) => 2,
             Self::Int(_) | Self::Float(_) | Self::Reference(_) | Self::Kernel(_) => 1,
+        }
+    }
+}
+
+impl ManagedRootSource for JvmValue {
+    fn visit_managed_roots(&self, visit: &mut dyn FnMut(ManagedId) -> bool) -> bool {
+        match self {
+            Self::Reference(reference) => reference.visit_managed_roots(visit),
+            Self::Int(_) | Self::Float(_) | Self::Long(_) | Self::Double(_) | Self::Kernel(_) => {
+                true
+            }
         }
     }
 }
@@ -101,5 +118,36 @@ impl ReturnCategory {
             Self::Primitive(category) => category.logical_width(),
             Self::Reference => 1,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sim_lib_control::WorkLimit;
+    use sim_lib_machine::RootSnapshot;
+    use sim_lib_mutation::{HardCappedRetainPolicy, ManagedArena, ManagedNode};
+
+    use super::*;
+
+    #[test]
+    fn machine_snapshot_sees_every_jvm_reference_and_skips_primitives_and_null() {
+        let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(3).unwrap());
+        let handles = (0..3)
+            .map(|_| arena.allocate(ManagedNode::new(())).unwrap())
+            .collect::<Vec<_>>();
+        let values = vec![
+            JvmValue::Reference(JvmReference::managed(handles[0])),
+            JvmValue::Int(7),
+            JvmValue::Reference(JvmReference::NULL),
+            JvmValue::Reference(JvmReference::managed(handles[1])),
+            JvmValue::Long(9),
+            JvmValue::Reference(JvmReference::managed(handles[2])),
+        ];
+
+        assert_eq!(
+            RootSnapshot::scan(&values, WorkLimit(3)).unwrap().roots(),
+            handles.iter().map(|handle| handle.id()).collect::<Vec<_>>()
+        );
+        assert!(RootSnapshot::scan(&values, WorkLimit(2)).is_err());
     }
 }

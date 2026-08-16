@@ -7,7 +7,7 @@ use sim_lib_control::{
     Raised, RaisedUnwind, match_raised_class,
 };
 use sim_lib_gc_tracing::{CollectionError, CollectionLimits, CollectionReceipt, ManagedHeap};
-use sim_lib_machine::{StackError, UnitStack};
+use sim_lib_machine::{ManagedRootSource, StackError, UnitStack};
 use sim_lib_mutation::{ArenaError, EdgeId, ManagedHandle, RootedHandle, StrongEdgeMutationError};
 
 use crate::{JvmReference, JvmValue, JvmValueWidth, PreparedCatchEntry, PreparedJvmInstruction};
@@ -178,6 +178,15 @@ pub struct JavaHandlerEntry {
     pub instruction: InstructionId,
     /// The thrown managed object, the sole entry-stack value.
     pub throwable: JvmReference,
+}
+
+impl ManagedRootSource for JavaHandlerEntry {
+    fn visit_managed_roots(
+        &self,
+        visit: &mut dyn FnMut(sim_lib_mutation::ManagedId) -> bool,
+    ) -> bool {
+        self.throwable.visit_managed_roots(visit)
+    }
 }
 
 /// Typed failure during `athrow` or handler selection.

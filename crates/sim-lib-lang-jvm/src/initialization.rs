@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use sim_lib_control::Raised;
+use sim_lib_machine::ManagedRootSource;
 use sim_lib_mutation::{ManagedHandle, RootedHandle};
 
 use crate::{JvmEdge, JvmGraphError, JvmHeap, JvmRole};
@@ -282,5 +283,18 @@ impl ClassInitialization {
     /// Managed class mirror owning this transition state.
     pub const fn class_mirror(&self) -> ManagedHandle {
         self.class_mirror
+    }
+}
+
+impl ManagedRootSource for ClassInitialization {
+    fn visit_managed_roots(
+        &self,
+        visit: &mut dyn FnMut(sim_lib_mutation::ManagedId) -> bool,
+    ) -> bool {
+        if !visit(self.class_mirror.id()) {
+            return false;
+        }
+        self.failure_root
+            .is_none_or(|failure| visit(failure.handle().id()))
     }
 }
