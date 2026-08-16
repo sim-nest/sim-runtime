@@ -761,6 +761,7 @@ pub struct GeneratedLambdaClass {
     mirror: ManagedHandle,
     descriptor: ClassDescriptor,
     members: Vec<GeneratedLambdaMember>,
+    serializable: bool,
 }
 
 impl GeneratedLambdaClass {
@@ -787,6 +788,11 @@ impl GeneratedLambdaClass {
     /// JVM linker declarations in factory, SAM, then bridge order.
     pub fn members(&self) -> &[GeneratedLambdaMember] {
         &self.members
+    }
+
+    /// Whether the checked bootstrap requested Java lambda serialization.
+    pub const fn serializable(&self) -> bool {
+        self.serializable
     }
 
     /// Selects a callable lambda member by the JVM's exact name-and-descriptor key.
@@ -998,6 +1004,7 @@ impl GeneratedLambdaClassSpace {
             mirror,
             descriptor,
             members,
+            serializable: plan.serializable,
         });
         self.classes.insert(
             key,
@@ -1129,6 +1136,35 @@ pub struct ManagedLambdaInstance {
     root: RootedHandle,
 }
 
+/// Located refusal to manufacture a Java serialized-lambda replacement.
+///
+/// SIM does not invoke host Java serialization or serialize the Rust function
+/// object. A replacement can be admitted only after the JVM language library
+/// owns exact managed `SerializedLambda` data and an authorized, validating
+/// read-resolution protocol.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum LambdaSerializationError {
+    /// The bootstrap did not declare this generated class serializable.
+    NotDeclared {
+        /// Capturing loader identity.
+        loader: crate::ClassLoaderId,
+        /// Generated class identity.
+        class: String,
+        /// Managed lambda object on which replacement was requested.
+        object: ManagedHandle,
+    },
+    /// Serialization was declared, but the exact managed replacement/read
+    /// protocol is not present and no weaker host mechanism is permitted.
+    ManagedReplacementUnavailable {
+        /// Capturing loader identity.
+        loader: crate::ClassLoaderId,
+        /// Generated class identity.
+        class: String,
+        /// Managed lambda object on which replacement was requested.
+        object: ManagedHandle,
+    },
+}
+
 impl ManagedLambdaInstance {
     /// Neutral function object carrying the exact capture cells.
     pub fn function(&self) -> &Arc<FunctionInstance<JvmFunctionPolicyBody>> {
@@ -1138,6 +1174,33 @@ impl ManagedLambdaInstance {
     /// Managed JVM object identity.
     pub const fn managed(&self) -> ManagedHandle {
         self.managed
+    }
+
+    /// Refuses serialization until the exact managed replacement protocol exists.
+    ///
+    /// This is deliberately a located runtime failure instead of an opaque
+    /// omission. In particular, this method never consults a host JVM, a host
+    /// serializer, or the captured Rust [`FunctionInstance`].
+    pub fn serialized_replacement(
+        &self,
+        class: &GeneratedLambdaClass,
+    ) -> Result<std::convert::Infallible, LambdaSerializationError> {
+        let location = || (class.loader(), class.binary_name().to_owned(), self.managed);
+        if class.serializable() {
+            let (loader, class, object) = location();
+            Err(LambdaSerializationError::ManagedReplacementUnavailable {
+                loader,
+                class,
+                object,
+            })
+        } else {
+            let (loader, class, object) = location();
+            Err(LambdaSerializationError::NotDeclared {
+                loader,
+                class,
+                object,
+            })
+        }
     }
 
     /// Releases this explicit heap root.
@@ -2219,7 +2282,7 @@ mod tests {
             instantiated_method_type: functional.method_descriptor.clone(),
             marker_interfaces: vec![],
             bridges: vec![],
-            serializable: false,
+            serializable: true,
         };
         let mut classes = GeneratedLambdaClassSpace::new();
         let generated = classes
@@ -2311,6 +2374,17 @@ mod tests {
                 .unwrap(),
             captured_value
         );
+        assert_eq!(
+            first_instance.serialized_replacement(&generated),
+            Err(LambdaSerializationError::ManagedReplacementUnavailable {
+                loader: loader.id(),
+                class: generated.binary_name().to_owned(),
+                object: first_instance.managed(),
+            })
+        );
+        let source = include_str!("linker.rs");
+        assert!(!source.contains(concat!("Object", "OutputStream")));
+        assert!(!source.contains(concat!("bincode", "::serialize")));
         first_instance.release(&mut heap).unwrap();
         second_instance.release(&mut heap).unwrap();
 

@@ -103,12 +103,12 @@ pub use linker::{
     GeneratedLambdaMemberRole, JvmAdaptation, JvmAdaptationError, JvmFunctionPlan,
     JvmFunctionPolicyBody, LambdaBootstrapError, LambdaBootstrapPlan, LambdaBootstrapProtocol,
     LambdaFactoryCache, LambdaFactoryError, LambdaInvocationOutcome, LambdaMethodCall,
-    LambdaMethodPipeline, LambdaProtocolTail, LinkageCache, LinkageFailure, LinkageState,
-    LocatedJvmAdaptation, ManagedLambdaFactory, ManagedLambdaInstance, MethodIdentity,
-    ResolvedBootstrapArgument, ResolvedDirectHandle, SelectedLambdaMember, SiteKey,
-    StatelessLambdaIdentity, compile_jvm_function_plan, decode_lambda_bootstrap,
-    discover_functional_interface, executor_admitted_lambda_protocols, invoke_lambda_member,
-    resolve_direct_handle, validate_functional_interface,
+    LambdaMethodPipeline, LambdaProtocolTail, LambdaSerializationError, LinkageCache,
+    LinkageFailure, LinkageState, LocatedJvmAdaptation, ManagedLambdaFactory,
+    ManagedLambdaInstance, MethodIdentity, ResolvedBootstrapArgument, ResolvedDirectHandle,
+    SelectedLambdaMember, SiteKey, StatelessLambdaIdentity, compile_jvm_function_plan,
+    decode_lambda_bootstrap, discover_functional_interface, executor_admitted_lambda_protocols,
+    invoke_lambda_member, resolve_direct_handle, validate_functional_interface,
 };
 pub use managed::{JVM_ROLE_EDGE_TABLE, JvmEdge, JvmGraphError, JvmHeap, JvmRole, JvmRoleEdges};
 pub use monitor::{MonitorError, MonitorLane, MonitorTable};
