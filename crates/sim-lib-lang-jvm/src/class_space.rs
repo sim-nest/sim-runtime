@@ -83,6 +83,7 @@ impl ClassDefinition {
 /// An isolated, authority-requiring JVM class space.
 pub struct ClassLoader {
     id: ClassLoaderId,
+    revision: AtomicU64,
     definitions: Mutex<BTreeMap<String, Arc<ClassDefinition>>>,
     intern_pool: crate::text::JavaInternPool,
     max_classfile_bytes: usize,
@@ -98,6 +99,7 @@ impl ClassLoader {
     pub fn with_intern_limit(max_classfile_bytes: usize, max_interned_strings: usize) -> Self {
         Self {
             id: ClassLoaderId(NEXT_LOADER_ID.fetch_add(1, Ordering::Relaxed)),
+            revision: AtomicU64::new(0),
             definitions: Mutex::new(BTreeMap::new()),
             intern_pool: crate::text::JavaInternPool::new(max_interned_strings),
             max_classfile_bytes,
@@ -107,6 +109,19 @@ impl ClassLoader {
     /// Returns this loader's isolated namespace identity.
     pub fn id(&self) -> ClassLoaderId {
         self.id
+    }
+
+    /// Returns the current identity of this loader's class-space contents.
+    pub fn revision(&self) -> ClassSpaceRevision {
+        ClassSpaceRevision {
+            loader: self.id,
+            revision: self.revision.load(Ordering::Acquire),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn simulate_class_space_change(&self) {
+        self.revision.fetch_add(1, Ordering::Release);
     }
 
     /// Interns exact code units in this loader's bounded literal namespace.
@@ -204,7 +219,27 @@ impl ClassLoader {
             literals,
         });
         definitions.insert(request.binary_name.clone(), definition.clone());
+        self.revision.fetch_add(1, Ordering::Release);
         Ok(definition)
+    }
+}
+
+/// Identity of one exact class-space state, not a mutable validity flag.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ClassSpaceRevision {
+    loader: ClassLoaderId,
+    revision: u64,
+}
+
+impl ClassSpaceRevision {
+    /// Loader namespace whose state this revision identifies.
+    pub const fn loader(self) -> ClassLoaderId {
+        self.loader
+    }
+
+    /// Monotonic revision within the loader namespace.
+    pub const fn number(self) -> u64 {
+        self.revision
     }
 }
 
@@ -335,8 +370,13 @@ mod tests {
     };
 
     use sim_kernel::{
-        CapabilitySet, ClassId, ClassRef, DefaultFactory, EagerPolicy, Object, ObjectCompat,
-        ReadPolicy, Table, TrustLevel, Value, read_eval_capability,
+        CapabilitySet, ClassId, ClassRef, CodecId, DefaultFactory, EagerPolicy, Object,
+        ObjectCompat, Origin, ReadPolicy, SourceId, Span, Table, TrustLevel, Value,
+        read_eval_capability,
+    };
+    use sim_lib_machine::{
+        AdmissionLimits, AdmissionPolicy, InstructionPolicy, LocatedCode, LocatedInstruction,
+        MachineDescription, MachinePermit, SourceLocation,
     };
 
     use super::*;
@@ -647,5 +687,147 @@ mod tests {
             &str,
             &str,
         ) -> Option<&'a crate::JavaMember> = crate::JavaClassMetadata::select_method;
+    }
+
+    struct TestInstructions;
+    impl InstructionPolicy for TestInstructions {
+        type Instruction = u8;
+        type InstructionId = u8;
+        fn instruction_id(instruction: &u8) -> u8 {
+            *instruction
+        }
+    }
+    struct TestAdmission;
+    impl AdmissionPolicy<TestInstructions, ()> for TestAdmission {
+        type Refusal = ();
+        fn validate_description(
+            _: &MachineDescription<'_, TestInstructions, ()>,
+        ) -> std::result::Result<(), ()> {
+            Ok(())
+        }
+        fn validate_instruction(_: &u8, _: &()) -> std::result::Result<(), ()> {
+            Ok(())
+        }
+        fn encode_metadata(_: &(), _: &mut Vec<u8>) {}
+        fn encode_instruction(instruction: &u8, output: &mut Vec<u8>) {
+            output.push(*instruction);
+        }
+    }
+    fn machine_permit() -> MachinePermit {
+        let code = LocatedCode::<TestInstructions>::freeze(
+            vec![LocatedInstruction::new(
+                1,
+                1,
+                SourceLocation::Bytes(Origin {
+                    codec: CodecId(1),
+                    source: SourceId("jvm-entry-test".into()),
+                    span: Span { start: 0, end: 1 },
+                    trivia: vec![],
+                }),
+                false,
+                None,
+            )],
+            vec![],
+            vec![],
+        )
+        .unwrap();
+        let description = MachineDescription::new(
+            &code,
+            AdmissionLimits {
+                instructions: 1,
+                operand_units: 1,
+                slots: 1,
+                frames: 1,
+                work: 1,
+            },
+            &(),
+        );
+        MachinePermit::admit::<_, _, TestAdmission>(&description).unwrap()
+    }
+
+    #[test]
+    fn one_entry_pipeline_defers_effects_and_rejects_stale_revision_by_identity() {
+        let mut cx = context(true);
+        let loader = ClassLoader::new(4096);
+        let class = loader
+            .request(
+                Symbol::new("classes"),
+                Arc::new(FixtureDir::new()),
+                "Minimal",
+                authority(),
+            )
+            .unwrap()
+            .resolve(&mut cx)
+            .unwrap();
+        let allocations = AtomicUsize::new(0);
+        let static_writes = AtomicUsize::new(0);
+        let prepare = |target| {
+            crate::ClassfilePermit::new(&loader, class.clone())
+                .unwrap()
+                .resolve(target)
+                .unwrap()
+                .admit(&machine_permit())
+                .verify(&crate::NoVerifier)
+                .unwrap()
+                .permit()
+        };
+        let target = || ("value".into(), "()I".into());
+        for target in [
+            crate::EntryTarget::Method {
+                name: target().0,
+                descriptor: target().1,
+            },
+            crate::EntryTarget::Intrinsic {
+                name: target().0,
+                descriptor: target().1,
+            },
+            crate::EntryTarget::Dynamic {
+                name: target().0,
+                descriptor: target().1,
+            },
+        ] {
+            crate::drive(prepare(target), || {}).unwrap();
+        }
+        let live = prepare(crate::EntryTarget::Method {
+            name: target().0,
+            descriptor: target().1,
+        });
+        assert_eq!(
+            (
+                allocations.load(Ordering::SeqCst),
+                static_writes.load(Ordering::SeqCst)
+            ),
+            (0, 0)
+        );
+        assert_eq!(live.fidelity(), crate::VerificationFidelity::StaticChecked);
+        crate::drive(live, || {
+            allocations.fetch_add(1, Ordering::SeqCst);
+            static_writes.fetch_add(1, Ordering::SeqCst);
+        })
+        .unwrap();
+        assert_eq!(
+            (
+                allocations.load(Ordering::SeqCst),
+                static_writes.load(Ordering::SeqCst)
+            ),
+            (1, 1)
+        );
+
+        let stale = prepare(crate::EntryTarget::Dynamic {
+            name: target().0,
+            descriptor: target().1,
+        });
+        let admitted = loader.revision();
+        loader.simulate_class_space_change();
+        let error = crate::drive(stale, || allocations.fetch_add(1, Ordering::SeqCst)).unwrap_err();
+        assert!(
+            matches!(error, crate::EntryRefusal::StaleClassSpace { admitted: found, current, .. }
+            if found == admitted && current != admitted)
+        );
+        assert_eq!(
+            allocations.load(Ordering::SeqCst),
+            1,
+            "stale refusal precedes the effect"
+        );
     }
 }

@@ -8,6 +8,7 @@
 
 mod class_metadata;
 mod class_space;
+mod entry;
 mod failure;
 mod intrinsic;
 mod limits;
@@ -19,8 +20,12 @@ pub use class_metadata::{
     JavaClassMetadata, JavaHierarchyCheck, JavaMember, JavaMemberKind, JavaResolutionEvidence,
 };
 pub use class_space::{
-    ClassDefinition, ClassDefinitionId, ClassLoader, ClassLoaderId, LazyClass,
+    ClassDefinition, ClassDefinitionId, ClassLoader, ClassLoaderId, ClassSpaceRevision, LazyClass,
     class_load_capability,
+};
+pub use entry::{
+    ClassfilePermit, EntryRefusal, EntryTarget, ExecutionPermit, NoVerifier, PreparedEntry,
+    ResolvedEntry, StaticAdmission, VerificationFidelity, VerifierProvider, drive,
 };
 pub use failure::{
     AdmissionFailure, FailureCondition, FailureHome, JavaThrowable, ResourceFailure,
