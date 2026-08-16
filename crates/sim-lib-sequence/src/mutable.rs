@@ -184,6 +184,20 @@ pub struct OrderedTableIter<K, V> {
     next_slot: usize,
 }
 
+impl<K, V> Clone for OrderedTableIter<K, V> {
+    fn clone(&self) -> Self {
+        let state = self.state.borrow();
+        state
+            .active_iterators
+            .set(state.active_iterators.get().saturating_add(1));
+        drop(state);
+        Self {
+            state: Rc::clone(&self.state),
+            next_slot: self.next_slot,
+        }
+    }
+}
+
 impl<K, V> Iterator for OrderedTableIter<K, V>
 where
     K: Clone,
@@ -272,6 +286,14 @@ where
 /// Live iterator over cloned insertion-ordered set members.
 pub struct OrderedSetIter<K> {
     inner: OrderedTableIter<K, ()>,
+}
+
+impl<K> Clone for OrderedSetIter<K> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
 }
 
 impl<K> Iterator for OrderedSetIter<K>
