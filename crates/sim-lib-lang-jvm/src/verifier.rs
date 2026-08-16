@@ -1022,6 +1022,233 @@ pub enum VerificationTransferKind {
         /// Refused constant-pool index.
         index: u16,
     },
+    /// An allocated reference was used before its constructor completed.
+    UninitializedUse,
+    /// A constructor invocation did not name `<init>` or did not consume an uninitialized receiver.
+    IllegalConstructorReceiver,
+    /// Incompatible initialized and uninitialized aliases met at a control-flow join.
+    InitializationMerge,
+    /// An exceptional edge would expose an uninitialized alias at handler entry.
+    UninitializedHandlerEntry,
+}
+
+/// Resolved symbolic facts for one constructor invocation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VerificationConstructor {
+    /// Internal class name of the constructed object.
+    pub owner: Box<str>,
+    /// Exact JVM member name; legal initialization requires `<init>`.
+    pub name: Box<str>,
+    /// Exact JVM method descriptor.
+    pub descriptor: Box<str>,
+    /// Exact allocation-site type legally consumed by this resolved constructor.
+    pub receiver: VerificationType,
+}
+
+/// Applies `new`, retaining the prepared instruction identity as the allocation-site type.
+pub fn transfer_new_instruction(
+    instruction: &crate::PreparedJvmInstruction,
+    offset: usize,
+    state: &VerificationState,
+) -> Result<VerificationState, VerificationTransferError> {
+    let fail = |kind| VerificationTransferError {
+        instruction: instruction.id(),
+        offset,
+        opcode: instruction.opcode(),
+        kind,
+    };
+    if instruction.opcode() != Opcode::New
+        || !matches!(
+            instruction.instruction().operands.as_slice(),
+            [InstructionOperand::Constant(_)]
+        )
+    {
+        return Err(fail(VerificationTransferKind::MalformedPreparedInput));
+    }
+    let mut next = state.clone();
+    next.stack
+        .push(VerificationType::Uninitialized(instruction.id().0))
+        .map_err(|_| fail(VerificationTransferKind::StackBounds))?;
+    Ok(next)
+}
+
+/// Applies `invokespecial <init>`, replacing every frame alias after successful initialization.
+pub fn transfer_constructor_instruction(
+    instruction: &crate::PreparedJvmInstruction,
+    offset: usize,
+    state: &VerificationState,
+    constructor: &VerificationConstructor,
+) -> Result<VerificationState, VerificationTransferError> {
+    let fail = |kind| VerificationTransferError {
+        instruction: instruction.id(),
+        offset,
+        opcode: instruction.opcode(),
+        kind,
+    };
+    if instruction.opcode() != Opcode::Invokespecial
+        || !matches!(
+            instruction.instruction().operands.as_slice(),
+            [InstructionOperand::Constant(_)]
+        )
+    {
+        return Err(fail(VerificationTransferKind::MalformedPreparedInput));
+    }
+    if constructor.name.as_ref() != "<init>" {
+        return Err(fail(VerificationTransferKind::IllegalConstructorReceiver));
+    }
+    let arguments = descriptor_arguments(&constructor.descriptor)
+        .ok_or_else(|| fail(VerificationTransferKind::MalformedPreparedInput))?;
+    let mut values = stack_values(&state.stack);
+    if values.len() < arguments.len() + 1 {
+        return Err(fail(VerificationTransferKind::StackBounds));
+    }
+    let receiver_index = values.len() - arguments.len() - 1;
+    if !values[receiver_index + 1..]
+        .iter()
+        .zip(&arguments)
+        .all(|(actual, expected)| verification_category_matches(actual, expected))
+    {
+        return Err(fail(VerificationTransferKind::Category));
+    }
+    let receiver = values[receiver_index].clone();
+    if receiver != constructor.receiver
+        || !matches!(
+            receiver,
+            VerificationType::Uninitialized(_) | VerificationType::UninitializedThis
+        )
+    {
+        return Err(fail(VerificationTransferKind::IllegalConstructorReceiver));
+    }
+    let initialized = VerificationType::Reference(ReferenceType::Class(constructor.owner.clone()));
+    values.truncate(receiver_index);
+    for value in &mut values {
+        if *value == receiver {
+            *value = initialized.clone();
+        }
+    }
+    let mut next = state.clone();
+    replace_alias(&mut next.locals, &receiver, &initialized);
+    replace_alias(&mut next.stack, &receiver, &initialized);
+    next.stack = stack_from_values(next.stack.capacity(), values)
+        .map_err(|_| fail(VerificationTransferKind::StackBounds))?;
+    Ok(next)
+}
+
+/// Rejects a control-flow merge that combines initialized state with a live allocation alias.
+pub fn join_initialization_states(
+    instruction: InstructionId,
+    offset: usize,
+    left: &VerificationState,
+    right: &VerificationState,
+) -> Result<VerificationState, VerificationTransferError> {
+    let fail = || VerificationTransferError {
+        instruction,
+        offset,
+        opcode: Opcode::Nop,
+        kind: VerificationTransferKind::InitializationMerge,
+    };
+    reject_initialization_conflict(&left.locals, &right.locals)
+        .then_some(())
+        .ok_or_else(fail)?;
+    reject_initialization_conflict(&left.stack, &right.stack)
+        .then_some(())
+        .ok_or_else(fail)?;
+    Ok(VerificationState {
+        locals: left.locals.join(&right.locals),
+        stack: left.stack.join(&right.stack),
+    })
+}
+
+/// Builds a handler-entry state only when no pre-initialization alias is live.
+pub fn handler_entry_state(
+    instruction: InstructionId,
+    offset: usize,
+    state: &VerificationState,
+    exception: ReferenceType,
+) -> Result<VerificationState, VerificationTransferError> {
+    if frame_has_uninitialized(&state.locals) || frame_has_uninitialized(&state.stack) {
+        return Err(VerificationTransferError {
+            instruction,
+            offset,
+            opcode: Opcode::Athrow,
+            kind: VerificationTransferKind::UninitializedHandlerEntry,
+        });
+    }
+    let mut stack = VerificationFrame::new(FrameKind::OperandStack, state.stack.capacity());
+    stack
+        .push(VerificationType::Reference(exception))
+        .map_err(|_| VerificationTransferError {
+            instruction,
+            offset,
+            opcode: Opcode::Athrow,
+            kind: VerificationTransferKind::StackBounds,
+        })?;
+    Ok(VerificationState {
+        locals: state.locals.clone(),
+        stack,
+    })
+}
+
+fn descriptor_arguments(descriptor: &str) -> Option<Vec<VerificationType>> {
+    let bytes = descriptor.as_bytes();
+    if bytes.first() != Some(&b'(') {
+        return None;
+    }
+    let mut cursor = 1;
+    let mut arguments = Vec::new();
+    while bytes.get(cursor) != Some(&b')') {
+        arguments.push(parse_descriptor_type(descriptor, &mut cursor).ok()?);
+    }
+    Some(arguments)
+}
+
+fn replace_alias(frame: &mut VerificationFrame, from: &VerificationType, to: &VerificationType) {
+    if let VerificationFrame::Reachable { slots, .. } = frame {
+        for slot in slots.iter_mut() {
+            if matches!(slot, Slot::Value(value) if value == from) {
+                *slot = Slot::Value(to.clone());
+            }
+        }
+    }
+}
+
+fn frame_has_uninitialized(frame: &VerificationFrame) -> bool {
+    frame.normalized_slots().is_some_and(|slots| {
+        slots.iter().any(|slot| {
+            matches!(
+                slot,
+                Slot::Value(
+                    VerificationType::Uninitialized(_) | VerificationType::UninitializedThis
+                )
+            )
+        })
+    })
+}
+
+fn reject_initialization_conflict(left: &VerificationFrame, right: &VerificationFrame) -> bool {
+    match (left.normalized_slots(), right.normalized_slots()) {
+        (Some(left), Some(right)) => {
+            left.iter()
+                .zip(right)
+                .all(|(left, right)| match (left, right) {
+                    (Slot::Value(a), Slot::Value(b)) => {
+                        let a_uninit = matches!(
+                            a,
+                            VerificationType::Uninitialized(_)
+                                | VerificationType::UninitializedThis
+                        );
+                        let b_uninit = matches!(
+                            b,
+                            VerificationType::Uninitialized(_)
+                                | VerificationType::UninitializedThis
+                        );
+                        a_uninit == b_uninit && (!a_uninit || a == b)
+                    }
+                    _ => true,
+                })
+        }
+        _ => true,
+    }
 }
 
 /// Descriptor-derived return category used by the control verifier.
@@ -1100,6 +1327,9 @@ pub fn transfer_control_instruction(
             return Ok(next);
         }
     };
+    if frame_has_uninitialized(&state.locals) || frame_has_uninitialized(&state.stack) {
+        return Err(fail(VerificationTransferKind::UninitializedUse));
+    }
     let compatible = match (actual_return, return_type) {
         (None, VerificationReturnType::Void) => true,
         (Some(actual), VerificationReturnType::Value(declared)) => actual.less_equal(declared),
@@ -2425,6 +2655,8 @@ mod tests {
                 ),
                 Opcode::Ireturn => (INT, NONE),
                 Opcode::Ifeq => (INT, NONE),
+                Opcode::New => (NONE, INT),
+                Opcode::Invokespecial => (INT, NONE),
                 Opcode::Return | Opcode::Goto | Opcode::Jsr | Opcode::Ret => (NONE, NONE),
                 _ if verifier_rule(opcode).family == VerifierRuleFamily::ConstantsLocalsStack => {
                     (NONE, NONE)
@@ -2447,7 +2679,15 @@ mod tests {
     }
 
     fn prepared(bytes: &[u8], handlers: &[CodeException]) -> LocatedCode<PreparedJvmPolicy> {
-        let decoded = decode_instructions(bytes, 61, &empty_pool()).unwrap();
+        prepared_with_pool(bytes, handlers, &empty_pool())
+    }
+
+    fn prepared_with_pool(
+        bytes: &[u8],
+        handlers: &[CodeException],
+        pool: &ConstantPool,
+    ) -> LocatedCode<PreparedJvmPolicy> {
+        let decoded = decode_instructions(bytes, 61, pool).unwrap();
         prepare_code::<GraphPolicy>(
             &decoded,
             bytes.len(),
@@ -2494,6 +2734,135 @@ mod tests {
             })
             .collect::<Vec<_>>();
         assert_eq!(exceptional_sources, [2]);
+    }
+
+    #[test]
+    fn allocation_sites_of_the_same_class_remain_distinct_types() {
+        let pool = ConstantPool::decode(
+            &mut ByteReader::new(
+                &[
+                    0, 3, 7, 0, 2, 1, 0, 12, b's', b'a', b'm', b'p', b'l', b'e', b'/', b'V', b'a',
+                    b'l', b'u', b'e',
+                ],
+                64,
+            ),
+            61,
+        )
+        .unwrap();
+        let code = prepared_with_pool(
+            &[Opcode::New as u8, 0, 1, Opcode::New as u8, 0, 1],
+            &[],
+            &pool,
+        );
+        let initial = VerificationState {
+            locals: VerificationFrame::new(FrameKind::Locals, 0),
+            stack: VerificationFrame::new(FrameKind::OperandStack, 2),
+        };
+        let first = transfer_new_instruction(
+            code.instruction(code.cursor(InstructionId(0)).unwrap())
+                .instruction(),
+            0,
+            &initial,
+        )
+        .unwrap();
+        let second = transfer_new_instruction(
+            code.instruction(code.cursor(InstructionId(1)).unwrap())
+                .instruction(),
+            3,
+            &first,
+        )
+        .unwrap();
+        assert_eq!(
+            stack_values(&second.stack),
+            vec![
+                VerificationType::Uninitialized(0),
+                VerificationType::Uninitialized(1)
+            ]
+        );
+    }
+
+    #[test]
+    fn successful_constructor_replaces_every_alias() {
+        let pool_bytes = [
+            0, 7, 10, 0, 2, 0, 3, 7, 0, 4, 12, 0, 5, 0, 6, 1, 0, 12, b's', b'a', b'm', b'p', b'l',
+            b'e', b'/', b'V', b'a', b'l', b'u', b'e', 1, 0, 6, b'<', b'i', b'n', b'i', b't', b'>',
+            1, 0, 3, b'(', b')', b'V',
+        ];
+        let pool =
+            ConstantPool::decode(&mut ByteReader::new(&pool_bytes, pool_bytes.len()), 61).unwrap();
+        let code = prepared_with_pool(&[Opcode::Invokespecial as u8, 0, 1], &[], &pool);
+        let alias = VerificationType::Uninitialized(7);
+        let mut locals = VerificationFrame::new(FrameKind::Locals, 2);
+        locals.set_local(0, alias.clone()).unwrap();
+        let mut stack = VerificationFrame::new(FrameKind::OperandStack, 2);
+        stack.push(alias.clone()).unwrap();
+        stack.push(alias).unwrap();
+        let next = transfer_constructor_instruction(
+            code.instruction(code.cursor(InstructionId(0)).unwrap())
+                .instruction(),
+            0,
+            &VerificationState { locals, stack },
+            &VerificationConstructor {
+                owner: "sample/Value".into(),
+                name: "<init>".into(),
+                descriptor: "()V".into(),
+                receiver: VerificationType::Uninitialized(7),
+            },
+        )
+        .unwrap();
+        let initialized = VerificationType::Reference(ReferenceType::Class("sample/Value".into()));
+        assert_eq!(next.locals.get(0), Some(&initialized));
+        assert_eq!(stack_values(&next.stack), vec![initialized]);
+    }
+
+    #[test]
+    fn initialized_uninitialized_backward_merge_is_refused() {
+        let mut left = VerificationFrame::new(FrameKind::Locals, 1);
+        left.set_local(0, VerificationType::Uninitialized(2))
+            .unwrap();
+        let mut right = VerificationFrame::new(FrameKind::Locals, 1);
+        right
+            .set_local(
+                0,
+                VerificationType::Reference(ReferenceType::Class("sample/Value".into())),
+            )
+            .unwrap();
+        let error = join_initialization_states(
+            InstructionId(1),
+            4,
+            &VerificationState {
+                locals: left,
+                stack: VerificationFrame::new(FrameKind::OperandStack, 0),
+            },
+            &VerificationState {
+                locals: right,
+                stack: VerificationFrame::new(FrameKind::OperandStack, 0),
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.kind, VerificationTransferKind::InitializationMerge);
+    }
+
+    #[test]
+    fn handler_entry_refuses_a_live_uninitialized_alias() {
+        let mut locals = VerificationFrame::new(FrameKind::Locals, 1);
+        locals
+            .set_local(0, VerificationType::Uninitialized(4))
+            .unwrap();
+        let error = handler_entry_state(
+            InstructionId(3),
+            8,
+            &VerificationState {
+                locals,
+                stack: VerificationFrame::new(FrameKind::OperandStack, 1),
+            },
+            ReferenceType::Class("java/lang/Throwable".into()),
+        )
+        .unwrap_err();
+        assert_eq!(
+            error.kind,
+            VerificationTransferKind::UninitializedHandlerEntry
+        );
     }
 
     #[test]
