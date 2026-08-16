@@ -55,7 +55,8 @@ pub use class_space::{
 pub use code::{
     JvmInstructionPolicy, JvmInstructionSemantics, JvmSlotKind, PreparationError,
     PreparedCatchEntry, PreparedCodeIdentity, PreparedJvmInstruction, PreparedJvmOperands,
-    PreparedJvmPolicy, RootEffect, prepare_code, prepare_code_bound,
+    PreparedJvmPolicy, PreparedMicroOp, PreparedValueGuarantee, PreparedVerificationGuarantee,
+    RootEffect, VerificationPreparation, prepare_code, prepare_code_bound, prepare_code_verified,
 };
 pub use constructor::{
     ConstructorState, ConstructorStateError, UninitializedUse, VerifiedConstructorState,

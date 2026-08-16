@@ -4,14 +4,18 @@ use sim_codec_classfile::{
     CodeException, DecodedCode, ExceptionHandlerRange, Instruction, InstructionError,
     InstructionErrorKind, InstructionId, InstructionOperand, Opcode, validate_exception_handlers,
 };
+use sim_incremental_core::ValueFingerprint;
 use sim_kernel::{CodecId, Origin, SourceId, Span};
 use sim_lib_machine::{
     BranchTarget, CodeError, InstructionPolicy, LocatedCode, LocatedInstruction, SourceLocation,
     TargetLocation,
 };
 
-use crate::ClassSpaceRevision;
 use crate::verifier::{PREPARED_DISPATCH, PreparedDispatchFamily};
+use crate::{
+    ClassDefinitionId, ClassSpaceRevision, ClassVerificationProof, ReferenceType,
+    VerificationFrame, VerificationState, VerificationType,
+};
 
 /// The JVM storage category consumed or produced by an instruction.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -41,6 +45,94 @@ pub struct RootEffect {
     pub removed: usize,
     /// Reference results added to the stack.
     pub added: usize,
+}
+
+/// Primitive or reference fact retained from a verifier frame slot.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum PreparedValueGuarantee {
+    /// An integer-family category-one value.
+    Int,
+    /// A binary32 category-one value.
+    Float,
+    /// A signed category-two value.
+    Long,
+    /// A binary64 category-two value.
+    Double,
+    /// The null reference, assignable to every initialized reference type.
+    Null,
+    /// An initialized reference with its exact verifier assignability identity.
+    Reference(ReferenceType),
+    /// A receiver or allocation that has not completed initialization.
+    Uninitialized,
+}
+
+/// Exact verifier facts that allow one prepared instruction to omit dynamic checks.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PreparedVerificationGuarantee {
+    stack_width: usize,
+    local_width: usize,
+    stack: Box<[PreparedValueGuarantee]>,
+    locals: Box<[(usize, PreparedValueGuarantee)]>,
+    targets: Box<[InstructionId]>,
+    handlers: Box<[PreparedCatchEntry]>,
+}
+
+impl PreparedVerificationGuarantee {
+    /// Occupied operand-stack width before the instruction.
+    pub const fn stack_width(&self) -> usize {
+        self.stack_width
+    }
+    /// Fixed local-frame width proved for the instruction.
+    pub const fn local_width(&self) -> usize {
+        self.local_width
+    }
+    /// Ordered initialized and uninitialized operand categories.
+    pub fn stack(&self) -> &[PreparedValueGuarantee] {
+        &self.stack
+    }
+    /// Usable local slots and their exact categories.
+    pub fn locals(&self) -> &[(usize, PreparedValueGuarantee)] {
+        &self.locals
+    }
+    /// Resolved branch targets covered by this instruction fact.
+    pub fn targets(&self) -> &[InstructionId] {
+        &self.targets
+    }
+    /// Resolved handlers covering this instruction.
+    pub fn handlers(&self) -> &[PreparedCatchEntry] {
+        &self.handlers
+    }
+}
+
+/// Check policy selected for a single prepared instruction.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum PreparedMicroOp {
+    /// Ordinary operation retaining all runtime checks.
+    Checked,
+    /// Specialized operation justified by an exact current verifier fact.
+    Verified(PreparedVerificationGuarantee),
+}
+
+/// Exact proof identity and converged frames offered to preparation.
+pub struct VerificationPreparation<'a> {
+    /// Enables the verified specialization tier. `false` forces checked operations.
+    pub enabled: bool,
+    /// Whole-class proof produced by the verifier.
+    pub proof: &'a ClassVerificationProof,
+    /// Exact class expected by the method being prepared.
+    pub owner: &'a ClassDefinitionId,
+    /// Exact class-space revision currently observed.
+    pub revision: ClassSpaceRevision,
+    /// Exact verifier policy expected by the runtime.
+    pub policy: ValueFingerprint,
+    /// Exact structural fingerprint expected by the runtime.
+    pub structural: ValueFingerprint,
+    /// Stable method name plus descriptor.
+    pub method: &'a str,
+    /// Exact method fixpoint identity expected by the caller.
+    pub method_proof: ValueFingerprint,
+    /// Converged entry frames keyed by stream-local instruction identity.
+    pub frames: &'a [(InstructionId, VerificationState)],
 }
 
 /// Identity of prepared method code, invalidated by either bytecode or class-space change.
@@ -188,6 +280,7 @@ pub struct PreparedJvmInstruction {
     code_identity: Option<PreparedCodeIdentity>,
     handler_membership: Box<[PreparedCatchEntry]>,
     handler_entries: Box<[usize]>,
+    micro_op: PreparedMicroOp,
 }
 
 impl PreparedJvmInstruction {
@@ -250,6 +343,11 @@ impl PreparedJvmInstruction {
     pub fn handler_entries(&self) -> &[usize] {
         &self.handler_entries
     }
+
+    /// Returns the checked or exactly verified operation selected during preparation.
+    pub fn micro_op(&self) -> &PreparedMicroOp {
+        &self.micro_op
+    }
 }
 
 /// Shared-machine identity policy for prepared JVM instructions.
@@ -305,7 +403,7 @@ pub fn prepare_code<P: JvmInstructionPolicy>(
     exception_table: &[CodeException],
     source: SourceId,
 ) -> Result<LocatedCode<PreparedJvmPolicy>, PreparationError> {
-    prepare_code_inner::<P>(decoded, code_length, exception_table, source, None)
+    prepare_code_inner::<P>(decoded, code_length, exception_table, source, None, None)
 }
 
 /// Lowers code while binding every prepared instruction to exact bytes and class-space revision.
@@ -322,6 +420,26 @@ pub fn prepare_code_bound<P: JvmInstructionPolicy>(
         exception_table,
         source,
         Some(PreparedCodeIdentity::new(code, revision)),
+        None,
+    )
+}
+
+/// Lowers code and selects verified micro-ops only from an exact current proof and frame fact.
+pub fn prepare_code_verified<P: JvmInstructionPolicy>(
+    decoded: &DecodedCode,
+    code: &[u8],
+    exception_table: &[CodeException],
+    source: SourceId,
+    verification: VerificationPreparation<'_>,
+) -> Result<LocatedCode<PreparedJvmPolicy>, PreparationError> {
+    let identity = PreparedCodeIdentity::new(code, verification.revision);
+    prepare_code_inner::<P>(
+        decoded,
+        code.len(),
+        exception_table,
+        source,
+        Some(identity),
+        Some(&verification),
     )
 }
 
@@ -331,6 +449,7 @@ fn prepare_code_inner<P: JvmInstructionPolicy>(
     exception_table: &[CodeException],
     source: SourceId,
     code_identity: Option<PreparedCodeIdentity>,
+    verification: Option<&VerificationPreparation<'_>>,
 ) -> Result<LocatedCode<PreparedJvmPolicy>, PreparationError> {
     let ranges: Vec<_> = exception_table
         .iter()
@@ -385,6 +504,8 @@ fn prepare_code_inner<P: JvmInstructionPolicy>(
             })
             .collect::<Vec<_>>();
         let operands = prepare_operands(decoded, located)?;
+        let instruction_targets = targets_for_instruction(decoded, located)?;
+        let micro_op = select_micro_op(verification, located.id, &instruction_targets, &membership);
         let prepared = PreparedJvmInstruction {
             id: located.id,
             opcode,
@@ -398,6 +519,7 @@ fn prepare_code_inner<P: JvmInstructionPolicy>(
             code_identity: code_identity.clone(),
             handler_membership: membership.into_boxed_slice(),
             handler_entries: entries.into_boxed_slice(),
+            micro_op,
         };
         let has_backward_edge = located.instruction.operands.iter().any(
             |operand| matches!(operand, InstructionOperand::Branch(displacement) if *displacement < 0),
@@ -441,6 +563,116 @@ fn prepare_code_inner<P: JvmInstructionPolicy>(
     // nested-region abstraction. The lossless resolved table therefore lives on each protected
     // instruction and is interpreted by JVM abrupt-completion policy.
     LocatedCode::freeze(instructions, targets, Vec::new()).map_err(PreparationError::Machine)
+}
+
+fn targets_for_instruction(
+    decoded: &DecodedCode,
+    located: &sim_codec_classfile::LocatedInstruction,
+) -> Result<Vec<InstructionId>, PreparationError> {
+    located
+        .instruction
+        .operands
+        .iter()
+        .filter_map(|operand| match operand {
+            InstructionOperand::Branch(displacement) => Some(*displacement),
+            _ => None,
+        })
+        .map(|displacement| {
+            let offset = i64::from(located.offset) + i64::from(displacement);
+            let offset =
+                u32::try_from(offset).map_err(|_| PreparationError::BranchOffsetOverflow {
+                    instruction: located.id,
+                    offset: located.offset,
+                    displacement,
+                })?;
+            decoded.offsets.get(&offset).copied().ok_or_else(|| {
+                PreparationError::Classfile(InstructionError {
+                    kind: InstructionErrorKind::InvalidTarget,
+                    offset,
+                    message: "prepared branch target is not an instruction boundary".into(),
+                })
+            })
+        })
+        .collect()
+}
+
+fn select_micro_op(
+    verification: Option<&VerificationPreparation<'_>>,
+    instruction: InstructionId,
+    targets: &[InstructionId],
+    handlers: &[PreparedCatchEntry],
+) -> PreparedMicroOp {
+    let Some(verification) = verification.filter(|verification| verification.enabled) else {
+        return PreparedMicroOp::Checked;
+    };
+    let proof = verification.proof;
+    let exact = proof.owner() == verification.owner
+        && proof.owner_revision() == verification.revision
+        && proof.policy_fingerprint() == verification.policy
+        && proof.structural_fingerprint() == verification.structural
+        && proof.methods().iter().any(|method| {
+            method.method() == verification.method && method.proof() == verification.method_proof
+        });
+    if !exact {
+        return PreparedMicroOp::Checked;
+    }
+    let Some((_, state)) = verification
+        .frames
+        .iter()
+        .find(|(id, _)| *id == instruction)
+    else {
+        return PreparedMicroOp::Checked;
+    };
+    lower_guarantee(state, targets, handlers)
+        .map_or(PreparedMicroOp::Checked, PreparedMicroOp::Verified)
+}
+
+fn lower_guarantee(
+    state: &VerificationState,
+    targets: &[InstructionId],
+    handlers: &[PreparedCatchEntry],
+) -> Option<PreparedVerificationGuarantee> {
+    fn value(value: &VerificationType) -> Option<PreparedValueGuarantee> {
+        Some(match value {
+            VerificationType::Int => PreparedValueGuarantee::Int,
+            VerificationType::Float => PreparedValueGuarantee::Float,
+            VerificationType::Long => PreparedValueGuarantee::Long,
+            VerificationType::Double => PreparedValueGuarantee::Double,
+            VerificationType::Null => PreparedValueGuarantee::Null,
+            VerificationType::Reference(reference) => {
+                PreparedValueGuarantee::Reference(reference.clone())
+            }
+            VerificationType::UninitializedThis | VerificationType::Uninitialized(_) => {
+                PreparedValueGuarantee::Uninitialized
+            }
+            VerificationType::Bottom | VerificationType::Unusable => return None,
+        })
+    }
+    fn entries(frame: &VerificationFrame) -> Option<Vec<(usize, PreparedValueGuarantee)>> {
+        if matches!(frame, VerificationFrame::Bottom { .. }) {
+            return None;
+        }
+        (0..frame.capacity())
+            .filter_map(|slot| frame.get(slot).map(|v| value(v).map(|v| (slot, v))))
+            .collect::<Option<Vec<_>>>()
+    }
+    let stack_entries = entries(&state.stack)?;
+    let local_entries = entries(&state.locals)?;
+    let stack_width = stack_entries
+        .iter()
+        .map(|(_, value)| match value {
+            PreparedValueGuarantee::Long | PreparedValueGuarantee::Double => 2,
+            _ => 1,
+        })
+        .sum();
+    Some(PreparedVerificationGuarantee {
+        stack_width,
+        local_width: state.locals.capacity(),
+        stack: stack_entries.into_iter().map(|(_, value)| value).collect(),
+        locals: local_entries.into_boxed_slice(),
+        targets: targets.into(),
+        handlers: handlers.into(),
+    })
 }
 
 fn prepare_operands(
@@ -530,8 +762,16 @@ fn prepare_operands(
 
 #[cfg(test)]
 mod identity_tests {
-    use super::PreparedCodeIdentity;
-    use crate::ClassLoader;
+    use std::sync::Arc;
+
+    use sim_incremental_core::ValueFingerprint;
+    use sim_kernel::{Cx, DefaultFactory, EagerPolicy};
+
+    use super::{PreparedCodeIdentity, PreparedMicroOp, VerificationPreparation, select_micro_op};
+    use crate::{
+        ClassLoader, ClassVerificationProof, FrameKind, VerificationFrame, VerificationState,
+        VerificationType, class_load_capability,
+    };
 
     #[test]
     fn class_space_revision_bump_invalidates_prepared_code_identity() {
@@ -542,5 +782,101 @@ mod identity_tests {
         loader.simulate_class_space_change();
         assert!(!identity.matches(&bytes, loader.revision()));
         assert!(!identity.matches(&[0x04, 0xac], identity.revision()));
+    }
+
+    fn exact_fixture() -> (
+        ClassLoader,
+        Arc<crate::ClassDefinition>,
+        ClassVerificationProof,
+        VerificationState,
+    ) {
+        let loader = ClassLoader::new(4096);
+        let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+        seat.grant(&mut cx, class_load_capability()).unwrap();
+        let definition = loader
+            .define_bytes(
+                &mut cx,
+                "Minimal",
+                include_bytes!("../fixtures/hand-built/Minimal.class").to_vec(),
+            )
+            .unwrap();
+        let proof = ClassVerificationProof::test(
+            definition.id().clone(),
+            loader.revision(),
+            ValueFingerprint::new(7),
+            ValueFingerprint::new(8),
+            &["value()I"],
+        );
+        let mut locals = VerificationFrame::new(FrameKind::Locals, 2);
+        locals.set_local(0, VerificationType::Int).unwrap();
+        let mut stack = VerificationFrame::new(FrameKind::OperandStack, 2);
+        stack.push(VerificationType::Long).unwrap();
+        (
+            loader,
+            definition,
+            proof,
+            VerificationState { locals, stack },
+        )
+    }
+
+    #[test]
+    fn verified_micro_op_requires_every_exact_identity_component() {
+        let (loader, definition, proof, state) = exact_fixture();
+        let frames = [(sim_codec_classfile::InstructionId(0), state)];
+        let exact = VerificationPreparation {
+            enabled: true,
+            proof: &proof,
+            owner: definition.id(),
+            revision: loader.revision(),
+            policy: ValueFingerprint::new(7),
+            structural: ValueFingerprint::new(8),
+            method: "value()I",
+            method_proof: ValueFingerprint::new(1),
+            frames: &frames,
+        };
+        let selected = select_micro_op(
+            Some(&exact),
+            sim_codec_classfile::InstructionId(0),
+            &[],
+            &[],
+        );
+        let PreparedMicroOp::Verified(guarantee) = selected else {
+            panic!("exact proof refused")
+        };
+        assert_eq!(guarantee.stack_width(), 2);
+        assert_eq!(guarantee.local_width(), 2);
+
+        for mutation in 0..5 {
+            let candidate = VerificationPreparation {
+                enabled: mutation != 0,
+                revision: if mutation == 1 {
+                    loader.simulate_class_space_change();
+                    loader.revision()
+                } else {
+                    proof.owner_revision()
+                },
+                method: if mutation == 2 {
+                    "wrong()V"
+                } else {
+                    "value()I"
+                },
+                policy: if mutation == 3 {
+                    ValueFingerprint::new(70)
+                } else {
+                    ValueFingerprint::new(7)
+                },
+                frames: if mutation == 4 { &[] } else { &frames },
+                ..exact
+            };
+            assert_eq!(
+                select_micro_op(
+                    Some(&candidate),
+                    sim_codec_classfile::InstructionId(0),
+                    &[],
+                    &[]
+                ),
+                PreparedMicroOp::Checked
+            );
+        }
     }
 }
