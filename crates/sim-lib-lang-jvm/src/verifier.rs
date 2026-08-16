@@ -1,7 +1,7 @@
 //! JVM verification types and lawful dataflow frames.
 
 use sim_codec_classfile::{
-    InstructionId, Opcode, StackMapFrame, StackMapTableAttribute,
+    InstructionId, InstructionOperand, Opcode, StackMapFrame, StackMapTableAttribute,
     VerificationType as ClassfileVerificationType,
 };
 use sim_incremental_core::dataflow::{
@@ -15,6 +15,21 @@ use crate::{
     ClassDefinition, ClassDefinitionId, ClassLoader, ClassLoaderId, ClassSpaceRevision,
     JavaClassMetadata, JavaMember, JavaMemberKind, PreparedJvmPolicy,
 };
+
+/// Resolves the verification type of a loadable constant-pool entry.
+pub trait VerificationConstantResolver {
+    /// Returns the type denoted by `index`, or `None` for an invalid constant.
+    fn verification_type(&self, index: u16) -> Option<VerificationType>;
+}
+
+impl<F> VerificationConstantResolver for F
+where
+    F: Fn(u16) -> Option<VerificationType>,
+{
+    fn verification_type(&self, index: u16) -> Option<VerificationType> {
+        self(index)
+    }
+}
 
 /// The single generated verifier owner for an opcode identity.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -960,6 +975,66 @@ pub enum FrameError {
     WrongKind,
 }
 
+/// Typed locals and operand stack at one verifier program point.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VerificationState {
+    /// Fixed-size local-variable frame.
+    pub locals: VerificationFrame,
+    /// Fixed-size operand-stack frame.
+    pub stack: VerificationFrame,
+}
+
+impl VerificationState {
+    /// Builds the reachable method-entry state, including receiver and arguments.
+    pub fn initial(input: &InitialFrameInput<'_>) -> Result<Self, StackMapExpansionError> {
+        let values = derive_initial_locals(input)?;
+        let mut locals = VerificationFrame::new(FrameKind::Locals, input.max_locals);
+        let mut slot = 0;
+        for value in values {
+            let width = type_width(&value);
+            locals
+                .set_local(slot, value)
+                .expect("derive_initial_locals already checked the physical bound");
+            slot += width;
+        }
+        Ok(Self {
+            locals,
+            stack: VerificationFrame::new(FrameKind::OperandStack, input.max_stack),
+        })
+    }
+}
+
+/// Precise reason a constant/local/stack instruction was refused.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum VerificationTransferKind {
+    /// The prepared operand shape is inconsistent with the opcode.
+    MalformedPreparedInput,
+    /// A local index or category-2 extent exceeds `max_locals`.
+    LocalBounds,
+    /// The operand stack underflows or exceeds `max_stack`.
+    StackBounds,
+    /// A local or stack value has the wrong computational category.
+    Category,
+    /// A constant-pool entry is absent or has the wrong width for its opcode.
+    Constant {
+        /// Refused constant-pool index.
+        index: u16,
+    },
+}
+
+/// Located refusal from the constants, locals, and stack transfer family.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VerificationTransferError {
+    /// Shared instruction identity at the refusal.
+    pub instruction: InstructionId,
+    /// Exact classfile byte offset at the refusal.
+    pub offset: usize,
+    /// Opcode being checked.
+    pub opcode: Opcode,
+    /// Stable refusal classification.
+    pub kind: VerificationTransferKind,
+}
+
 /// Method facts needed to derive the verifier's implicit entry frame.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InitialFrameInput<'a> {
@@ -1494,6 +1569,263 @@ impl VerificationFrame {
     }
 }
 
+/// Applies one constants, locals, or stack transfer rule atomically.
+pub fn transfer_storage_instruction<R: VerificationConstantResolver>(
+    instruction: &crate::PreparedJvmInstruction,
+    offset: usize,
+    state: &VerificationState,
+    constants: &R,
+) -> Result<VerificationState, VerificationTransferError> {
+    let opcode = instruction.opcode();
+    let operands = instruction.instruction().operands.as_slice();
+    let fail = |kind| VerificationTransferError {
+        instruction: instruction.id(),
+        offset,
+        opcode,
+        kind,
+    };
+    let mut next = state.clone();
+    if opcode == Opcode::Nop {
+        return operands
+            .is_empty()
+            .then_some(next)
+            .ok_or_else(|| fail(VerificationTransferKind::MalformedPreparedInput));
+    }
+    let constant = match opcode {
+        Opcode::AconstNull => Some(VerificationType::Null),
+        Opcode::IconstM1
+        | Opcode::Iconst0
+        | Opcode::Iconst1
+        | Opcode::Iconst2
+        | Opcode::Iconst3
+        | Opcode::Iconst4
+        | Opcode::Iconst5
+        | Opcode::Bipush
+        | Opcode::Sipush => Some(VerificationType::Int),
+        Opcode::Lconst0 | Opcode::Lconst1 => Some(VerificationType::Long),
+        Opcode::Fconst0 | Opcode::Fconst1 | Opcode::Fconst2 => Some(VerificationType::Float),
+        Opcode::Dconst0 | Opcode::Dconst1 => Some(VerificationType::Double),
+        Opcode::Ldc | Opcode::LdcW | Opcode::Ldc2W => {
+            let [InstructionOperand::Constant(index)] = operands else {
+                return Err(fail(VerificationTransferKind::MalformedPreparedInput));
+            };
+            let value = constants
+                .verification_type(*index)
+                .ok_or_else(|| fail(VerificationTransferKind::Constant { index: *index }))?;
+            let wanted = if opcode == Opcode::Ldc2W { 2 } else { 1 };
+            if type_width(&value) != wanted {
+                return Err(fail(VerificationTransferKind::Constant { index: *index }));
+            }
+            Some(value)
+        }
+        _ => None,
+    };
+    if let Some(value) = constant {
+        if !constant_operands_valid(opcode, operands) {
+            return Err(fail(VerificationTransferKind::MalformedPreparedInput));
+        }
+        next.stack
+            .push(value)
+            .map_err(|_| fail(VerificationTransferKind::StackBounds))?;
+        return Ok(next);
+    }
+    if let Some((slot, expected)) =
+        verifier_local_access(opcode, operands, true).map_err(|kind| fail(kind))?
+    {
+        let value = next
+            .locals
+            .get(slot)
+            .cloned()
+            .ok_or_else(|| fail(VerificationTransferKind::LocalBounds))?;
+        require_verification_category(&value, expected)
+            .then_some(())
+            .ok_or_else(|| fail(VerificationTransferKind::Category))?;
+        next.stack
+            .push(value)
+            .map_err(|_| fail(VerificationTransferKind::StackBounds))?;
+        return Ok(next);
+    }
+    if let Some((slot, expected)) =
+        verifier_local_access(opcode, operands, false).map_err(|kind| fail(kind))?
+    {
+        let mut values = stack_values(&next.stack);
+        let value = values
+            .pop()
+            .ok_or_else(|| fail(VerificationTransferKind::StackBounds))?;
+        require_verification_category(&value, expected)
+            .then_some(())
+            .ok_or_else(|| fail(VerificationTransferKind::Category))?;
+        next.locals
+            .set_local(slot, value)
+            .map_err(|_| fail(VerificationTransferKind::LocalBounds))?;
+        next.stack = stack_from_values(next.stack.capacity(), values)
+            .map_err(|_| fail(VerificationTransferKind::StackBounds))?;
+        return Ok(next);
+    }
+    if opcode == Opcode::Iinc {
+        let [
+            InstructionOperand::Local(slot),
+            InstructionOperand::Immediate(_),
+        ] = operands
+        else {
+            return Err(fail(VerificationTransferKind::MalformedPreparedInput));
+        };
+        let slot = usize::from(*slot);
+        let value = next
+            .locals
+            .get(slot)
+            .ok_or_else(|| fail(VerificationTransferKind::LocalBounds))?;
+        if value != &VerificationType::Int {
+            return Err(fail(VerificationTransferKind::Category));
+        }
+        return Ok(next);
+    }
+    if let Some(choices) = crate::execution::shuffle_descriptor(opcode) {
+        if !operands.is_empty() {
+            return Err(fail(VerificationTransferKind::MalformedPreparedInput));
+        }
+        let values = stack_values(&next.stack);
+        let widths: Vec<_> = values.iter().map(type_width).collect();
+        let Some((input, output)) = choices.iter().find(|(input, _)| widths.ends_with(input))
+        else {
+            return Err(fail(
+                if widths.iter().sum::<usize>() < instruction.input_width() {
+                    VerificationTransferKind::StackBounds
+                } else {
+                    VerificationTransferKind::Category
+                },
+            ));
+        };
+        let prefix = values.len() - input.len();
+        let mut shuffled = values[..prefix].to_vec();
+        shuffled.extend(output.iter().map(|index| values[prefix + index].clone()));
+        next.stack = stack_from_values(next.stack.capacity(), shuffled)
+            .map_err(|_| fail(VerificationTransferKind::StackBounds))?;
+        return Ok(next);
+    }
+    Err(fail(VerificationTransferKind::MalformedPreparedInput))
+}
+
+#[derive(Clone, Copy)]
+enum VerificationCategory {
+    Int,
+    Long,
+    Float,
+    Double,
+    Reference,
+}
+
+fn type_width(value: &VerificationType) -> usize {
+    usize::from(value.width() == Some(VerificationTypeWidth::Category2)) + 1
+}
+
+fn stack_values(frame: &VerificationFrame) -> Vec<VerificationType> {
+    frame
+        .normalized_slots()
+        .into_iter()
+        .flatten()
+        .filter_map(|slot| match slot {
+            Slot::Value(value) => Some(value.clone()),
+            Slot::Unusable | Slot::Category2Tail => None,
+        })
+        .collect()
+}
+
+fn stack_from_values(
+    capacity: usize,
+    values: Vec<VerificationType>,
+) -> Result<VerificationFrame, FrameError> {
+    let mut frame = VerificationFrame::new(FrameKind::OperandStack, capacity);
+    for value in values {
+        frame.push(value)?;
+    }
+    Ok(frame)
+}
+
+fn constant_operands_valid(opcode: Opcode, operands: &[InstructionOperand]) -> bool {
+    match opcode {
+        Opcode::Bipush | Opcode::Sipush => matches!(operands, [InstructionOperand::Immediate(_)]),
+        Opcode::Ldc | Opcode::LdcW | Opcode::Ldc2W => {
+            matches!(operands, [InstructionOperand::Constant(_)])
+        }
+        _ => operands.is_empty(),
+    }
+}
+
+fn require_verification_category(value: &VerificationType, expected: VerificationCategory) -> bool {
+    matches!(
+        (expected, value),
+        (VerificationCategory::Int, VerificationType::Int)
+            | (VerificationCategory::Long, VerificationType::Long)
+            | (VerificationCategory::Float, VerificationType::Float)
+            | (VerificationCategory::Double, VerificationType::Double)
+            | (
+                VerificationCategory::Reference,
+                VerificationType::Null
+                    | VerificationType::Reference(_)
+                    | VerificationType::UninitializedThis
+                    | VerificationType::Uninitialized(_)
+            )
+    )
+}
+
+fn verifier_local_access(
+    opcode: Opcode,
+    operands: &[InstructionOperand],
+    load: bool,
+) -> Result<Option<(usize, VerificationCategory)>, VerificationTransferKind> {
+    use Opcode::*;
+    let (category, fixed) = match (load, opcode) {
+        (true, Iload) | (false, Istore) => (VerificationCategory::Int, None),
+        (true, Lload) | (false, Lstore) => (VerificationCategory::Long, None),
+        (true, Fload) | (false, Fstore) => (VerificationCategory::Float, None),
+        (true, Dload) | (false, Dstore) => (VerificationCategory::Double, None),
+        (true, Aload) | (false, Astore) => (VerificationCategory::Reference, None),
+        _ => match verifier_implicit_local(opcode, load) {
+            Some(value) => value,
+            None => return Ok(None),
+        },
+    };
+    let slot = match fixed {
+        Some(slot) if operands.is_empty() => slot,
+        Some(_) => return Err(VerificationTransferKind::MalformedPreparedInput),
+        None => match operands {
+            [InstructionOperand::Local(slot)] => usize::from(*slot),
+            _ => return Err(VerificationTransferKind::MalformedPreparedInput),
+        },
+    };
+    Ok(Some((slot, category)))
+}
+
+fn verifier_implicit_local(
+    opcode: Opcode,
+    load: bool,
+) -> Option<(VerificationCategory, Option<usize>)> {
+    use Opcode::*;
+    let families = if load {
+        [
+            (Iload0, VerificationCategory::Int),
+            (Lload0, VerificationCategory::Long),
+            (Fload0, VerificationCategory::Float),
+            (Dload0, VerificationCategory::Double),
+            (Aload0, VerificationCategory::Reference),
+        ]
+    } else {
+        [
+            (Istore0, VerificationCategory::Int),
+            (Lstore0, VerificationCategory::Long),
+            (Fstore0, VerificationCategory::Float),
+            (Dstore0, VerificationCategory::Double),
+            (Astore0, VerificationCategory::Reference),
+        ]
+    };
+    families.into_iter().find_map(|(first, category)| {
+        let opcode = opcode as u8 as usize;
+        let first = first as u8 as usize;
+        (opcode >= first && opcode - first < 4).then_some((category, Some(opcode - first)))
+    })
+}
+
 fn invalidate_value_at(slots: &mut [Slot], index: usize) {
     if matches!(slots.get(index), Some(Slot::Value(value)) if value.width() == Some(VerificationTypeWidth::Category2))
         && index + 1 < slots.len()
@@ -1815,6 +2147,9 @@ mod tests {
                 ),
                 Opcode::Ireturn => (INT, NONE),
                 Opcode::Return | Opcode::Goto | Opcode::Jsr | Opcode::Ret => (NONE, NONE),
+                _ if verifier_rule(opcode).family == VerifierRuleFamily::ConstantsLocalsStack => {
+                    (NONE, NONE)
+                }
                 _ => return None,
             };
             Some(JvmInstructionSemantics {
@@ -1961,6 +2296,125 @@ mod tests {
             derive_initial_locals(&frame_input("<init>", "()V", false)).unwrap(),
             [VerificationType::UninitializedThis]
         );
+    }
+
+    fn storage_transfer(
+        bytes: &[u8],
+        locals: VerificationFrame,
+        stack_values: &[VerificationType],
+        stack_capacity: usize,
+    ) -> Result<VerificationState, VerificationTransferError> {
+        let pool = if matches!(bytes.first(), Some(opcode) if *opcode == Opcode::Ldc as u8) {
+            ConstantPool::decode(&mut ByteReader::new(&[0, 2, 3, 0, 0, 0, 42], 7), 61).unwrap()
+        } else {
+            empty_pool()
+        };
+        let decoded = decode_instructions(bytes, 61, &pool).unwrap();
+        let code = prepare_code::<GraphPolicy>(
+            &decoded,
+            bytes.len(),
+            &[],
+            SourceId("Verifier.storage()V".into()),
+        )
+        .unwrap();
+        let instruction = code.instruction(code.entry());
+        let mut stack = VerificationFrame::new(FrameKind::OperandStack, stack_capacity);
+        for value in stack_values {
+            stack.push(value.clone()).unwrap();
+        }
+        transfer_storage_instruction(
+            instruction.instruction(),
+            0,
+            &VerificationState { locals, stack },
+            &|index| (index == 1).then_some(VerificationType::Int),
+        )
+    }
+
+    #[test]
+    fn constants_locals_stores_and_iinc_preserve_typed_bounds() {
+        let input = frame_input("work", "(I)V", true);
+        let initial = VerificationState::initial(&input).unwrap();
+        assert_eq!(initial.locals.get(0), Some(&VerificationType::Int));
+
+        let loaded =
+            storage_transfer(&[Opcode::Iload0 as u8], initial.locals.clone(), &[], 2).unwrap();
+        assert_eq!(stack_values(&loaded.stack), [VerificationType::Int]);
+        let incremented =
+            storage_transfer(&[Opcode::Iinc as u8, 0, 7], loaded.locals.clone(), &[], 2).unwrap();
+        assert_eq!(incremented.locals.get(0), Some(&VerificationType::Int));
+
+        let stored = storage_transfer(
+            &[Opcode::Lstore as u8, 6],
+            VerificationFrame::new(FrameKind::Locals, 8),
+            &[VerificationType::Long],
+            2,
+        )
+        .unwrap();
+        assert_eq!(stored.locals.get(6), Some(&VerificationType::Long));
+        let error = storage_transfer(
+            &[Opcode::Lstore as u8, 7],
+            VerificationFrame::new(FrameKind::Locals, 8),
+            &[VerificationType::Long],
+            2,
+        )
+        .unwrap_err();
+        assert_eq!(error.instruction, InstructionId(0));
+        assert_eq!(error.offset, 0);
+        assert_eq!(error.kind, VerificationTransferKind::LocalBounds);
+
+        let pushed = storage_transfer(
+            &[Opcode::Ldc as u8, 1],
+            VerificationFrame::new(FrameKind::Locals, 0),
+            &[],
+            1,
+        )
+        .unwrap();
+        assert_eq!(stack_values(&pushed.stack), [VerificationType::Int]);
+    }
+
+    #[test]
+    fn every_shuffle_form_uses_the_executor_descriptor() {
+        use VerificationType::{Double, Float, Int, Long};
+        let cases: &[(&[u8], &[VerificationType], &[VerificationType])] = &[
+            (&[Opcode::Pop as u8], &[Int], &[]),
+            (&[Opcode::Pop2 as u8], &[Long], &[]),
+            (&[Opcode::Dup as u8], &[Int], &[Int, Int]),
+            (&[Opcode::DupX1 as u8], &[Int, Float], &[Float, Int, Float]),
+            (&[Opcode::DupX2 as u8], &[Long, Int], &[Int, Long, Int]),
+            (&[Opcode::Dup2 as u8], &[Long], &[Long, Long]),
+            (&[Opcode::Dup2X1 as u8], &[Int, Long], &[Long, Int, Long]),
+            (
+                &[Opcode::Dup2X2 as u8],
+                &[Double, Long],
+                &[Long, Double, Long],
+            ),
+            (&[Opcode::Swap as u8], &[Int, Float], &[Float, Int]),
+        ];
+        for (bytes, input, expected) in cases {
+            let state = storage_transfer(
+                bytes,
+                VerificationFrame::new(FrameKind::Locals, 0),
+                input,
+                8,
+            )
+            .unwrap();
+            assert_eq!(stack_values(&state.stack), *expected);
+        }
+    }
+
+    #[test]
+    fn dup_x1_rejects_a_category_two_split_at_the_instruction_origin() {
+        let error = storage_transfer(
+            &[Opcode::DupX1 as u8],
+            VerificationFrame::new(FrameKind::Locals, 0),
+            &[VerificationType::Long, VerificationType::Int],
+            4,
+        )
+        .unwrap_err();
+        assert_eq!(error.instruction, InstructionId(0));
+        assert_eq!(error.offset, 0);
+        assert_eq!(error.opcode, Opcode::DupX1);
+        assert_eq!(error.kind, VerificationTransferKind::Category);
     }
 
     #[test]

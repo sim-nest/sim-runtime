@@ -284,23 +284,8 @@ fn execute_shuffle(
 ) -> Result<(), ExecutionError> {
     let mut widths = Vec::new();
     stack.visit_values(|value| widths.push(value.logical_width()));
-    let choices: &[(&[usize], &[usize])] = match opcode {
-        Opcode::Pop => &[(&[1], &[])],
-        Opcode::Pop2 => &[(&[2], &[]), (&[1, 1], &[])],
-        Opcode::Dup => &[(&[1], &[0, 0])],
-        Opcode::DupX1 => &[(&[1, 1], &[1, 0, 1])],
-        Opcode::DupX2 => &[(&[2, 1], &[1, 0, 1]), (&[1, 1, 1], &[2, 0, 1, 2])],
-        Opcode::Dup2 => &[(&[2], &[0, 0]), (&[1, 1], &[0, 1, 0, 1])],
-        Opcode::Dup2X1 => &[(&[1, 2], &[1, 0, 1]), (&[1, 1, 1], &[1, 2, 0, 1, 2])],
-        Opcode::Dup2X2 => &[
-            (&[2, 2], &[1, 0, 1]),
-            (&[1, 1, 2], &[2, 0, 1, 2]),
-            (&[2, 1, 1], &[1, 2, 0, 1, 2]),
-            (&[1, 1, 1, 1], &[2, 3, 0, 1, 2, 3]),
-        ],
-        Opcode::Swap => &[(&[1, 1], &[1, 0])],
-        _ => unreachable!(),
-    };
+    let choices =
+        shuffle_descriptor(opcode).ok_or(ExecutionError::MalformedPreparedInput { opcode })?;
     let Some((input, output)) = choices.iter().find(|(input, _)| widths.ends_with(input)) else {
         return Err(ExecutionError::MalformedPreparedInput { opcode });
     };
@@ -323,6 +308,29 @@ fn execute_shuffle(
         .map_err(ExecutionError::Shuffle)?
         .execute(stack)
         .map_err(ExecutionError::Shuffle)
+}
+
+/// Whole-value JVM forms shared by execution and verification.
+pub(crate) fn shuffle_descriptor(
+    opcode: Opcode,
+) -> Option<&'static [(&'static [usize], &'static [usize])]> {
+    Some(match opcode {
+        Opcode::Pop => &[(&[1], &[])],
+        Opcode::Pop2 => &[(&[2], &[]), (&[1, 1], &[])],
+        Opcode::Dup => &[(&[1], &[0, 0])],
+        Opcode::DupX1 => &[(&[1, 1], &[1, 0, 1])],
+        Opcode::DupX2 => &[(&[2, 1], &[1, 0, 1]), (&[1, 1, 1], &[2, 0, 1, 2])],
+        Opcode::Dup2 => &[(&[2], &[0, 0]), (&[1, 1], &[0, 1, 0, 1])],
+        Opcode::Dup2X1 => &[(&[1, 2], &[1, 0, 1]), (&[1, 1, 1], &[1, 2, 0, 1, 2])],
+        Opcode::Dup2X2 => &[
+            (&[2, 2], &[1, 0, 1]),
+            (&[1, 1, 2], &[2, 0, 1, 2]),
+            (&[2, 1, 1], &[1, 2, 0, 1, 2]),
+            (&[1, 1, 1, 1], &[2, 3, 0, 1, 2, 3]),
+        ],
+        Opcode::Swap => &[(&[1, 1], &[1, 0])],
+        _ => return None,
+    })
 }
 
 fn one_immediate(operands: &[InstructionOperand], opcode: Opcode) -> Result<i32, ExecutionError> {

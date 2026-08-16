@@ -105,12 +105,14 @@ pub use text::{ADMITTED_CORE_MEMBERS, JavaClassMirror, JavaCoreMember, JavaStrin
 pub use value::{JvmReference, JvmValue, JvmValueWidth, PrimitiveCategory, ReturnCategory};
 pub use verifier::{
     FrameError, FrameKind, ReferenceType, ThrowCapability, VERIFIER_RULES,
-    VerificationAssignability, VerificationClass, VerificationDependency, VerificationEdgeClass,
-    VerificationEdgeId, VerificationEnvironment, VerificationFrame, VerificationGraph,
-    VerificationGraphError, VerificationJoinRule, VerificationNodeLocation, VerificationQuery,
-    VerificationQueryError, VerificationQueryEvidence, VerificationQueryFailure, VerificationType,
-    VerificationTypeJoin, VerificationTypeWidth, VerifierRule, VerifierRuleFamily,
-    build_verification_graph, verifier_rule,
+    VerificationAssignability, VerificationClass, VerificationConstantResolver,
+    VerificationDependency, VerificationEdgeClass, VerificationEdgeId, VerificationEnvironment,
+    VerificationFrame, VerificationGraph, VerificationGraphError, VerificationJoinRule,
+    VerificationNodeLocation, VerificationQuery, VerificationQueryError, VerificationQueryEvidence,
+    VerificationQueryFailure, VerificationState, VerificationTransferError,
+    VerificationTransferKind, VerificationType, VerificationTypeJoin, VerificationTypeWidth,
+    VerifierRule, VerifierRuleFamily, build_verification_graph, transfer_storage_instruction,
+    verifier_rule,
 };
 
 /// The mechanically checked reuse ledger frozen before guest semantics land.
