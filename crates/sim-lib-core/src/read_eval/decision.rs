@@ -306,8 +306,8 @@ pub(super) fn decision_from_request(
         origin: request.origin.clone(),
         codec: request.codec.clone(),
         expected_shape: request.expected_shape.symbol(),
-        requires: request.requires.clone(),
-        requested: request.allow.iter().cloned().collect(),
+        requires: request.authority.requires().to_vec(),
+        requested: request.authority.allow().iter().cloned().collect(),
         active: active.iter().cloned().collect(),
         outcome,
     }

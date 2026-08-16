@@ -6,9 +6,11 @@ use std::{
     thread::ThreadId,
 };
 
-use sim_kernel::{CapabilityName, CapabilitySet, Cx, Dir, Error, Expr, ReadPolicy, Result, Symbol};
+use sim_kernel::{CapabilityName, Cx, Dir, Error, Expr, Result, Symbol};
 use sim_lib_binding::BindingCell;
-use sim_lib_core::{ReadEvalBroker, ReadEvalRequest, ReadEvalSource, RequestOrigin};
+use sim_lib_core::{
+    ReadEvalBroker, ReadEvalRequest, ReadEvalSource, RequestOrigin, SourceAuthority,
+};
 use sim_shape::AnyShape;
 
 /// Capability required before namespace source resolution begins.
@@ -46,12 +48,29 @@ pub struct ModuleRequest {
     pub specifier: String,
     /// Installed codec used by the read-eval broker.
     pub codec: Symbol,
-    /// Trusted host-built read policy.
-    pub read_policy: ReadPolicy,
-    /// Additional caller powers required by this module.
-    pub requires: Vec<CapabilityName>,
-    /// Diminished powers under which module code evaluates.
-    pub allow: CapabilitySet,
+    /// Trusted host authority governing module source and evaluation.
+    pub authority: SourceAuthority,
+}
+
+impl ModuleRequest {
+    /// Builds a module request with every source and authority input explicit.
+    pub fn new(
+        root_id: Symbol,
+        root: Arc<dyn Dir>,
+        importer: Option<ModuleIdentity>,
+        specifier: String,
+        codec: Symbol,
+        authority: SourceAuthority,
+    ) -> Self {
+        Self {
+            root_id,
+            root,
+            importer,
+            specifier,
+            codec,
+            authority,
+        }
+    }
 }
 
 /// A linked module and its stable live default-export edge.
@@ -265,18 +284,16 @@ impl ModuleLoader {
             let source = read_source(cx, request.root.as_ref(), &identity.path)?;
             self.broker.admit(
                 cx,
-                ReadEvalRequest {
-                    origin: RequestOrigin::with_detail(
+                ReadEvalRequest::new(
+                    RequestOrigin::with_detail(
                         Symbol::qualified("namespace", "module"),
                         Expr::String(format!("{}:{}", identity.root, identity.path)),
                     ),
-                    codec: request.codec,
+                    request.codec,
                     source,
-                    read_policy: request.read_policy,
-                    requires: request.requires,
-                    allow: request.allow,
-                    expected_shape: Arc::new(AnyShape),
-                },
+                    request.authority,
+                    Arc::new(AnyShape),
+                ),
             )
         })();
         let mut state = self.lock_state()?;

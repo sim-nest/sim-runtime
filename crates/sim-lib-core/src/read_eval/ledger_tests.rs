@@ -36,15 +36,13 @@ fn request_with(
     expected_shape: Arc<dyn Shape>,
     allow: CapabilitySet,
 ) -> ReadEvalRequest {
-    ReadEvalRequest {
-        origin: origin(),
-        codec: Symbol::qualified("codec", "lisp"),
+    ReadEvalRequest::new(
+        origin(),
+        Symbol::qualified("codec", "lisp"),
         source,
-        read_policy: trusted_read_eval_policy(),
-        requires: Vec::new(),
-        allow,
+        SourceAuthority::new(trusted_read_eval_policy(), Vec::new(), allow).unwrap(),
         expected_shape,
-    }
+    )
 }
 
 struct ActiveCapabilityPolicy {

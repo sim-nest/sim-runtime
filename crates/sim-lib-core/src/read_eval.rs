@@ -167,14 +167,29 @@ pub struct ReadEvalRequest {
     pub codec: Symbol,
     /// Source to decode and evaluate, or an already-decoded expression.
     pub source: ReadEvalSource,
-    /// Trusted host-built read policy; never derive this from request text.
-    pub read_policy: ReadPolicy,
-    /// Capabilities the caller must already hold before eval can run.
-    pub requires: Vec<CapabilityName>,
-    /// Maximum powers the request allows the eval body to run with.
-    pub allow: CapabilitySet,
+    /// Trusted host authority governing source admission and evaluation.
+    pub authority: SourceAuthority,
     /// Shape the evaluated result must satisfy before it is admitted.
     pub expected_shape: Arc<dyn Shape>,
+}
+
+impl ReadEvalRequest {
+    /// Builds a request whose source authority is explicit and indivisible.
+    pub fn new(
+        origin: RequestOrigin,
+        codec: Symbol,
+        source: ReadEvalSource,
+        authority: SourceAuthority,
+        expected_shape: Arc<dyn Shape>,
+    ) -> Self {
+        Self {
+            origin,
+            codec,
+            source,
+            authority,
+            expected_shape,
+        }
+    }
 }
 
 // sim-non-citizen(reason = "host admission gate object; explicit request data is not a read-constructor surface", kind = "runtime", descriptor = "")
@@ -192,7 +207,11 @@ impl ReadEvalBroker {
 
     /// Admits one explicit read-eval request or fails closed.
     pub fn admit(&self, cx: &mut Cx, request: ReadEvalRequest) -> Result<Value> {
-        if let Err(err) = request.read_policy.require(&read_eval_capability()) {
+        if let Err(err) = request
+            .authority
+            .read_policy()
+            .require(&read_eval_capability())
+        {
             let outcome = match err {
                 Error::TrustDenied { .. } => ReadEvalOutcome::TrustDenied,
                 _ => ReadEvalOutcome::CapDenied,
@@ -200,7 +219,7 @@ impl ReadEvalBroker {
             self.record(cx, &request, &CapabilitySet::new(), outcome)?;
             return Err(err);
         }
-        if let Err(err) = cx.require_all(&request.requires) {
+        if let Err(err) = cx.require_all(request.authority.requires()) {
             self.record(
                 cx,
                 &request,
@@ -210,13 +229,13 @@ impl ReadEvalBroker {
             return Err(err);
         }
 
-        let active = diminish(cx.capabilities(), &request.allow);
+        let active = diminish(cx.capabilities(), request.authority.allow());
         let expr = match cx.with_capabilities(active.clone(), |cx| {
             decode_source(
                 cx,
                 &request.codec,
                 request.source.clone(),
-                request.read_policy.clone(),
+                request.authority.read_policy().clone(),
             )
         }) {
             Ok(expr) => expr,

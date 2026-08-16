@@ -99,15 +99,18 @@ fn source_authority_projection_and_debug_redact_trusted_policy() {
 }
 
 fn request_with(source: ReadEvalSource, expected_shape: Arc<dyn Shape>) -> ReadEvalRequest {
-    ReadEvalRequest {
-        origin: origin(),
-        codec: codec(),
+    ReadEvalRequest::new(
+        origin(),
+        codec(),
         source,
-        read_policy: trusted_read_eval_policy(),
-        requires: Vec::new(),
-        allow: CapabilitySet::new().grant(read_eval_capability()),
+        SourceAuthority::new(
+            trusted_read_eval_policy(),
+            Vec::new(),
+            CapabilitySet::new().grant(read_eval_capability()),
+        )
+        .unwrap(),
         expected_shape,
-    }
+    )
 }
 
 struct ActiveCapabilityPolicy {
@@ -158,15 +161,12 @@ fn install_registers_broker_value() {
 
 #[test]
 fn missing_read_eval_capability_is_denied() {
-    let (mut cx, seat) = probe_cx(read_eval_capability());
-    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
-    let mut request = request_with(
-        ReadEvalSource::Expr(Expr::Nil),
-        Arc::new(ExprKindShape::new(ExprKind::Bool)),
-    );
-    request.read_policy = policy(TrustLevel::TrustedSource, CapabilitySet::new());
-
-    let err = ReadEvalBroker::new().admit(&mut cx, request).unwrap_err();
+    let err = SourceAuthority::new(
+        policy(TrustLevel::TrustedSource, CapabilitySet::new()),
+        Vec::new(),
+        CapabilitySet::new(),
+    )
+    .unwrap_err();
 
     assert!(matches!(
         err,
@@ -176,18 +176,15 @@ fn missing_read_eval_capability_is_denied() {
 
 #[test]
 fn untrusted_read_eval_policy_is_denied() {
-    let (mut cx, seat) = probe_cx(read_eval_capability());
-    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
-    let mut request = request_with(
-        ReadEvalSource::Expr(Expr::Nil),
-        Arc::new(ExprKindShape::new(ExprKind::Bool)),
-    );
-    request.read_policy = policy(
-        TrustLevel::Untrusted,
-        CapabilitySet::new().grant(read_eval_capability()),
-    );
-
-    let err = ReadEvalBroker::new().admit(&mut cx, request).unwrap_err();
+    let err = SourceAuthority::new(
+        policy(
+            TrustLevel::Untrusted,
+            CapabilitySet::new().grant(read_eval_capability()),
+        ),
+        Vec::new(),
+        CapabilitySet::new(),
+    )
+    .unwrap_err();
 
     assert!(matches!(
         err,
@@ -205,7 +202,12 @@ fn required_capability_must_be_held_by_caller() {
         ReadEvalSource::Expr(Expr::Nil),
         Arc::new(ExprKindShape::new(ExprKind::Bool)),
     );
-    request.requires = vec![required.clone()];
+    request.authority = SourceAuthority::new(
+        trusted_read_eval_policy(),
+        vec![required.clone()],
+        CapabilitySet::new().grant(read_eval_capability()),
+    )
+    .unwrap();
 
     let err = ReadEvalBroker::new().admit(&mut cx, request).unwrap_err();
 
@@ -224,7 +226,12 @@ fn allowed_capability_absent_from_caller_is_not_active() {
         ReadEvalSource::Expr(Expr::Nil),
         Arc::new(ExprKindShape::new(ExprKind::Bool)),
     );
-    request.allow = CapabilitySet::new().grant(extra);
+    request.authority = SourceAuthority::new(
+        trusted_read_eval_policy(),
+        Vec::new(),
+        CapabilitySet::new().grant(extra),
+    )
+    .unwrap();
 
     let value = ReadEvalBroker::new().admit(&mut cx, request).unwrap();
 

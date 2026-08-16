@@ -20,6 +20,7 @@ use sim_lib_mutation::{
 };
 
 use super::*;
+use sim_kernel::{CapabilitySet, ReadPolicy};
 
 #[derive(Default)]
 struct MemoryDir {
@@ -155,21 +156,24 @@ fn request(
     specifier: &str,
     importer: Option<ModuleIdentity>,
 ) -> ModuleRequest {
-    ModuleRequest {
-        root_id: Symbol::new("fixture"),
+    ModuleRequest::new(
+        Symbol::new("fixture"),
         root,
         importer,
-        specifier: specifier.to_owned(),
-        codec: Symbol::qualified("codec", "lisp"),
-        read_policy: ReadPolicy {
-            trust: TrustLevel::TrustedSource,
-            capabilities: CapabilitySet::new().grant(read_eval_capability()),
-        },
-        requires: vec![module_load_capability()],
-        allow: CapabilitySet::new()
-            .grant(read_eval_capability())
-            .grant(module_load_capability()),
-    }
+        specifier.to_owned(),
+        Symbol::qualified("codec", "lisp"),
+        SourceAuthority::new(
+            ReadPolicy {
+                trust: TrustLevel::TrustedSource,
+                capabilities: CapabilitySet::new().grant(read_eval_capability()),
+            },
+            vec![module_load_capability()],
+            CapabilitySet::new()
+                .grant(read_eval_capability())
+                .grant(module_load_capability()),
+        )
+        .unwrap(),
+    )
 }
 
 fn value_expr(cx: &mut Cx, module: &ModuleInstance) -> Expr {
