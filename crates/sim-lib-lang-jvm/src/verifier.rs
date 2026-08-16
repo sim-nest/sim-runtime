@@ -1030,6 +1030,173 @@ pub enum VerificationTransferKind {
     InitializationMerge,
     /// An exceptional edge would expose an uninitialized alias at handler entry.
     UninitializedHandlerEntry,
+    /// The resolved member's staticness does not match the field opcode.
+    FieldStaticness,
+    /// The resolved member is not accessible under JVMS 5.4.4.
+    MemberAccess,
+    /// A protected instance member violates the receiver constraint in JVMS 4.10.1.8.
+    ProtectedMemberAccess,
+    /// A field descriptor or array component is incompatible with the operand type.
+    MemoryType,
+    /// An array opcode was applied to a non-array or to the wrong primitive array kind.
+    ArrayType,
+}
+
+/// Resolution facts consumed by the object/array/field verifier family.
+///
+/// These values contain metadata only. Building them through [`VerificationEnvironment`]
+/// preserves verification's no-loading and no-initialization boundary.
+#[derive(Clone, Debug)]
+pub struct VerificationField<'a> {
+    /// Binary name of the class that declared the resolved field.
+    pub declaring: &'a str,
+    /// Resolved field declaration.
+    pub field: &'a JavaMember,
+    /// Whether JVMS 5.4.4 permits the caller to access the declaration.
+    pub accessible: bool,
+    /// Whether the caller is a subclass of the declaring class.
+    pub caller_is_subclass: bool,
+    /// Binary name of the class containing the method being verified.
+    pub caller: &'a str,
+}
+
+/// Applies fields, arrays, casts, type tests, null checks, and monitor rules.
+pub fn transfer_memory_instruction(
+    instruction: &crate::PreparedJvmInstruction,
+    offset: usize,
+    state: &VerificationState,
+    field: Option<&VerificationField<'_>>,
+) -> Result<VerificationState, VerificationTransferError> {
+    use Opcode::*;
+    let opcode = instruction.opcode();
+    let fail = |kind| VerificationTransferError {
+        instruction: instruction.id(),
+        offset,
+        opcode,
+        kind,
+    };
+    let mut values = stack_values(&state.stack);
+    let pop = |values: &mut Vec<VerificationType>| {
+        values
+            .pop()
+            .ok_or_else(|| fail(VerificationTransferKind::StackBounds))
+    };
+    let reference = |value: &VerificationType| {
+        matches!(
+            value,
+            VerificationType::Null | VerificationType::Reference(_)
+        )
+    };
+    match opcode {
+        Getstatic | Putstatic | Getfield | Putfield => {
+            let resolved =
+                field.ok_or_else(|| fail(VerificationTransferKind::MalformedPreparedInput))?;
+            let wants_static = matches!(opcode, Getstatic | Putstatic);
+            if resolved.field.is_static() != wants_static {
+                return Err(fail(VerificationTransferKind::FieldStaticness));
+            }
+            if !resolved.accessible {
+                return Err(fail(VerificationTransferKind::MemberAccess));
+            }
+            let ty = descriptor_verification_type(resolved.field.descriptor())
+                .ok_or_else(|| fail(VerificationTransferKind::MemoryType))?;
+            if matches!(opcode, Putstatic | Putfield) {
+                let actual = pop(&mut values)?;
+                if !verification_category_matches(&actual, &ty) {
+                    return Err(fail(VerificationTransferKind::MemoryType));
+                }
+            }
+            if matches!(opcode, Getfield | Putfield) {
+                let receiver = pop(&mut values)?;
+                if !reference(&receiver) {
+                    return Err(fail(VerificationTransferKind::MemoryType));
+                }
+                if resolved.field.access_flags() & 0x0004 != 0
+                    && resolved.caller_is_subclass
+                    && resolved.caller != resolved.declaring
+                    && !matches!(&receiver, VerificationType::Null)
+                    && !matches!(&receiver, VerificationType::Reference(ReferenceType::Class(name)) if name.as_ref() == resolved.caller)
+                {
+                    return Err(fail(VerificationTransferKind::ProtectedMemberAccess));
+                }
+            }
+            if matches!(opcode, Getstatic | Getfield) {
+                values.push(ty);
+            }
+        }
+        Aaload => {
+            if pop(&mut values)? != VerificationType::Int {
+                return Err(fail(VerificationTransferKind::MemoryType));
+            }
+            let receiver = pop(&mut values)?;
+            let component = array_component(&receiver)
+                .ok_or_else(|| fail(VerificationTransferKind::ArrayType))?;
+            if component.is_empty() {
+                values.push(VerificationType::Reference(ReferenceType::Object));
+            } else if is_primitive_descriptor(component) {
+                return Err(fail(VerificationTransferKind::ArrayType));
+            } else {
+                values.push(
+                    descriptor_reference(component)
+                        .map(VerificationType::Reference)
+                        .map_err(|_| fail(VerificationTransferKind::ArrayType))?,
+                );
+            }
+        }
+        Arraylength => {
+            if array_component(&pop(&mut values)?).is_none() {
+                return Err(fail(VerificationTransferKind::ArrayType));
+            }
+            values.push(VerificationType::Int);
+        }
+        Checkcast | Instanceof => {
+            if !reference(&pop(&mut values)?) {
+                return Err(fail(VerificationTransferKind::MemoryType));
+            }
+            values.push(if opcode == Instanceof {
+                VerificationType::Int
+            } else {
+                VerificationType::Reference(ReferenceType::Object)
+            });
+        }
+        Ifnull | Ifnonnull | Monitorenter | Monitorexit => {
+            if !reference(&pop(&mut values)?) {
+                return Err(fail(VerificationTransferKind::MemoryType));
+            }
+        }
+        Newarray | Anewarray | Multianewarray => {
+            let dimensions = if opcode == Multianewarray { 1 } else { 1 };
+            for _ in 0..dimensions {
+                if pop(&mut values)? != VerificationType::Int {
+                    return Err(fail(VerificationTransferKind::MemoryType));
+                }
+            }
+            values.push(VerificationType::Reference(ReferenceType::Array(
+                "[Ljava/lang/Object;".into(),
+            )));
+        }
+        _ => return Err(fail(VerificationTransferKind::MalformedPreparedInput)),
+    }
+    let mut next = state.clone();
+    next.stack = stack_from_values(state.stack.capacity(), values)
+        .map_err(|_| fail(VerificationTransferKind::StackBounds))?;
+    Ok(next)
+}
+
+fn descriptor_verification_type(descriptor: &str) -> Option<VerificationType> {
+    let mut cursor = 0;
+    let ty = parse_descriptor_type(descriptor, &mut cursor).ok()?;
+    (cursor == descriptor.len()).then_some(ty)
+}
+
+fn array_component(value: &VerificationType) -> Option<&str> {
+    match value {
+        VerificationType::Null => Some(""),
+        VerificationType::Reference(ReferenceType::Array(descriptor)) => {
+            descriptor.strip_prefix('[')
+        }
+        _ => None,
+    }
 }
 
 /// Resolved symbolic facts for one constructor invocation.
@@ -2664,6 +2831,9 @@ mod tests {
                 _ if verifier_rule(opcode).family == VerifierRuleFamily::NumericConversion => {
                     (NONE, NONE)
                 }
+                _ if verifier_rule(opcode).family == VerifierRuleFamily::ObjectArrayField => {
+                    (NONE, NONE)
+                }
                 _ => return None,
             };
             Some(JvmInstructionSemantics {
@@ -2676,6 +2846,14 @@ mod tests {
 
     fn empty_pool() -> ConstantPool {
         ConstantPool::decode(&mut ByteReader::new(&[0, 1], 1), 61).unwrap()
+    }
+
+    fn field_pool() -> ConstantPool {
+        let bytes = [
+            0, 7, 1, 0, 5, b'O', b'w', b'n', b'e', b'r', 7, 0, 1, 1, 0, 5, b'v', b'a', b'l', b'u',
+            b'e', 1, 0, 1, b'I', 12, 0, 3, 0, 4, 9, 0, 2, 0, 5,
+        ];
+        ConstantPool::decode(&mut ByteReader::new(&bytes, bytes.len()), 61).unwrap()
     }
 
     fn prepared(bytes: &[u8], handlers: &[CodeException]) -> LocatedCode<PreparedJvmPolicy> {
@@ -2979,6 +3157,84 @@ mod tests {
             &VerificationState { locals, stack },
             &|index| (index == 1).then_some(VerificationType::Int),
         )
+    }
+
+    fn memory_transfer(
+        opcode: Opcode,
+        input: Vec<VerificationType>,
+        field: Option<&VerificationField<'_>>,
+    ) -> Result<VerificationState, VerificationTransferError> {
+        let bytes = if matches!(
+            opcode,
+            Opcode::Getstatic
+                | Opcode::Putstatic
+                | Opcode::Getfield
+                | Opcode::Putfield
+                | Opcode::Checkcast
+                | Opcode::Instanceof
+                | Opcode::Anewarray
+        ) {
+            vec![opcode as u8, 0, 6]
+        } else {
+            vec![opcode as u8]
+        };
+        let pool = if matches!(
+            opcode,
+            Opcode::Getstatic | Opcode::Putstatic | Opcode::Getfield | Opcode::Putfield
+        ) {
+            field_pool()
+        } else {
+            empty_pool()
+        };
+        let decoded = decode_instructions(&bytes, 61, &pool).unwrap();
+        let code = prepare_code::<GraphPolicy>(
+            &decoded,
+            bytes.len(),
+            &[],
+            SourceId("Verifier.memory()V".into()),
+        )
+        .unwrap();
+        let instruction = code.instruction(code.entry()).instruction();
+        let state = VerificationState {
+            locals: VerificationFrame::new(FrameKind::Locals, 0),
+            stack: stack_from_values(8, input).unwrap(),
+        };
+        transfer_memory_instruction(instruction, 0, &state, field)
+    }
+
+    #[test]
+    fn aaload_refuses_a_primitive_array_under_jvms_4_10_1_9() {
+        let error = memory_transfer(
+            Opcode::Aaload,
+            vec![
+                VerificationType::Reference(ReferenceType::Array("[I".into())),
+                VerificationType::Int,
+            ],
+            None,
+        )
+        .unwrap_err();
+        assert_eq!(error.kind, VerificationTransferKind::ArrayType);
+    }
+
+    #[test]
+    fn protected_field_receiver_obeys_jvms_4_10_1_8() {
+        let declaration = JavaMember::test_field("value", "I", 0x0004);
+        let field = VerificationField {
+            declaring: "base.Owner",
+            field: &declaration,
+            accessible: true,
+            caller_is_subclass: true,
+            caller: "other.Child",
+        };
+        let error = memory_transfer(
+            Opcode::Getfield,
+            vec![VerificationType::Reference(ReferenceType::Class(
+                "unrelated.Peer".into(),
+            ))],
+            Some(&field),
+        )
+        .unwrap_err();
+        assert_eq!(error.kind, VerificationTransferKind::ProtectedMemberAccess);
     }
 
     #[test]
