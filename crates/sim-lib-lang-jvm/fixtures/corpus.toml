@@ -1,0 +1,60 @@
+schema = "sim.jvm-characterization/v1"
+
+# These observations are guest-visible results captured from an OpenJDK 8
+# reference run when StaticInt.class was admitted. The retained class bytes,
+# rather than a locally installed JDK, are the test input.
+[[scenario]]
+id = "javac-static-whole-pipeline"
+classfile = "javac/StaticInt.class"
+kind = "positive-differential"
+operation = "invoke-static:StaticInt.wholePipeline:(II)I"
+arguments = [3, 4]
+expected = "return:int:14"
+reference = "openjdk8:return:int:14"
+normalizations = []
+
+[[scenario]]
+id = "hand-built-minimal-value"
+classfile = "hand-built/Minimal.class"
+kind = "runtime-differential"
+operation = "invoke-static:Minimal.value:()I"
+arguments = []
+expected = "runtime-refusal:unsupported-opcode:bipush"
+reference = "openjdk8:return:int:42"
+normalizations = []
+
+[[scenario]]
+id = "malformed-classfile-magic"
+classfile = "hand-built/Minimal.class"
+kind = "negative"
+operation = "replace-magic-with-zero"
+expected = "classfile-refusal:magic"
+normalizations = []
+
+[[scenario]]
+id = "truncated-classfile-header"
+classfile = "hand-built/Minimal.class"
+kind = "negative"
+operation = "retain-first-three-bytes"
+expected = "classfile-refusal:bytes"
+normalizations = []
+
+[[scenario]]
+id = "missing-static-method"
+classfile = "javac/StaticInt.class"
+kind = "runtime-negative"
+operation = "invoke-static:StaticInt.absent:()I"
+arguments = []
+expected = "runtime-refusal:missing-method"
+normalizations = []
+
+[[finding]]
+id = "reference-adapter-unconfigured"
+disposition = "retained guest-visible OpenJDK 8 observation is checked; no host JDK is required or consulted"
+
+[[finding]]
+id = "minimal-bipush-divergence"
+scenario = "hand-built-minimal-value"
+guest = "runtime-refusal:unsupported-opcode:bipush"
+reference = "openjdk8:return:int:42"
+disposition = "pinned finding; callable-subset repair belongs to a later implementation phase"
