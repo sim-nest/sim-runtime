@@ -11,6 +11,7 @@ use sim_lib_machine::{
 };
 
 use crate::ClassSpaceRevision;
+use crate::verifier::{PREPARED_DISPATCH, PreparedDispatchFamily};
 
 /// The JVM storage category consumed or produced by an instruction.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -177,6 +178,7 @@ pub trait JvmInstructionPolicy {
 pub struct PreparedJvmInstruction {
     id: InstructionId,
     opcode: Opcode,
+    dispatch: PreparedDispatchFamily,
     instruction: Instruction,
     input_width: usize,
     output_width: usize,
@@ -197,6 +199,11 @@ impl PreparedJvmInstruction {
     /// Returns the shared, generated classfile opcode identity.
     pub const fn opcode(&self) -> Opcode {
         self.opcode
+    }
+
+    /// Returns the dense execution family frozen during preparation.
+    pub const fn dispatch_family(&self) -> PreparedDispatchFamily {
+        self.dispatch
     }
 
     /// Returns the losslessly decoded instruction and operands.
@@ -271,6 +278,13 @@ pub enum PreparationError {
         /// Exact classfile byte offset of the instruction.
         offset: u32,
     },
+    /// The generated runtime manifest marks this opcode as a preparation-time refusal.
+    UnsupportedOpcode {
+        /// Shared opcode identity refused before execution.
+        opcode: Opcode,
+        /// Exact classfile byte offset of the instruction.
+        offset: u32,
+    },
     /// A branch displacement overflowed its classfile byte offset.
     BranchOffsetOverflow {
         /// Instruction containing the branch.
@@ -333,6 +347,12 @@ fn prepare_code_inner<P: JvmInstructionPolicy>(
     let mut targets = Vec::new();
     for (index, located) in decoded.instructions.iter().enumerate() {
         let opcode = located.instruction.opcode;
+        let dispatch = PREPARED_DISPATCH[opcode as u8 as usize].ok_or(
+            PreparationError::UnsupportedOpcode {
+                opcode,
+                offset: located.offset,
+            },
+        )?;
         let semantics = P::semantics(opcode).ok_or(PreparationError::MissingInstructionPolicy {
             opcode,
             mnemonic: opcode.metadata().mnemonic,
@@ -368,6 +388,7 @@ fn prepare_code_inner<P: JvmInstructionPolicy>(
         let prepared = PreparedJvmInstruction {
             id: located.id,
             opcode,
+            dispatch,
             instruction: located.instruction.clone(),
             input_width: semantics.input_width(),
             output_width: semantics.output_width(),
