@@ -304,6 +304,8 @@ impl VerificationDependency {
 /// Failure to answer a bounded, read-only class-space query.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum VerificationQueryError {
+    /// A malformed array component descriptor was supplied.
+    InvalidDescriptor(String),
     /// The named class was not already loaded; verification never loads it.
     NotLoaded(String),
     /// The class-space changed while an observation was being recorded.
@@ -389,6 +391,57 @@ pub enum VerificationAssignability {
     NotAssignable,
 }
 
+/// Normative reason for a verifier reference join.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum VerificationJoinRule {
+    /// One input is assignable to the other (JVMS 4.10.1.2).
+    AssignableInput,
+    /// The least loaded common superclass (JVMS 4.10.1.2).
+    CommonSuperclass,
+    /// Unrelated interface types merge to `java/lang/Object` (JVMS 4.10.1.2).
+    UnrelatedInterfaces,
+    /// Array covariance recursively joined the reference component types.
+    ArrayComponents,
+}
+
+/// Dependency and work evidence returned by every bounded verifier query.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VerificationQueryEvidence {
+    /// Loaded class identities consulted by this query, in observation order.
+    pub dependencies: Vec<ClassDefinitionId>,
+    /// Caller-provided hierarchy-node budget.
+    pub node_limit: usize,
+    /// Number of hierarchy nodes charged by the query.
+    pub nodes_used: usize,
+}
+
+/// A successful bounded verifier query and its proof evidence.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VerificationQuery<T> {
+    /// Normative query result.
+    pub value: T,
+    /// Exact dependencies and budget consumption.
+    pub evidence: VerificationQueryEvidence,
+}
+
+/// A refused verifier query with the same dependency and budget evidence as a success.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VerificationQueryFailure {
+    /// Exact reason the query could not be answered normatively.
+    pub error: VerificationQueryError,
+    /// Dependencies and work consumed before refusal.
+    pub evidence: VerificationQueryEvidence,
+}
+
+/// Result of joining two verification types.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VerificationTypeJoin {
+    /// Joined lattice value.
+    pub value: VerificationType,
+    /// Reference rule used when the join required one.
+    pub rule: Option<VerificationJoinRule>,
+}
+
 /// Read-only, non-resolving view of a JVM class-loader namespace.
 ///
 /// Dependency capacity is allocated once by [`Self::new`]. Queries only inspect
@@ -440,6 +493,220 @@ impl<'a> VerificationEnvironment<'a> {
         } else {
             Ok(VerificationAssignability::NotAssignable)
         }
+    }
+
+    /// Checks verifier reference assignability using JVMS 4.10.1.2 rules.
+    pub fn reference_assignability(
+        &self,
+        actual: &ReferenceType,
+        expected: &ReferenceType,
+        node_limit: usize,
+    ) -> Result<VerificationQuery<VerificationAssignability>, VerificationQueryFailure> {
+        let start = self.dependencies.borrow().len();
+        let mut remaining = node_limit;
+        let answer = self.reference_reaches(actual, expected, node_limit, &mut remaining);
+        let value =
+            if answer.map_err(|error| self.query_failure(error, start, node_limit, remaining))? {
+                VerificationAssignability::Assignable
+            } else {
+                VerificationAssignability::NotAssignable
+            };
+        Ok(VerificationQuery {
+            value,
+            evidence: self.query_evidence(start, node_limit, remaining),
+        })
+    }
+
+    /// Joins two verifier values without resolving missing hierarchy metadata.
+    pub fn join_types(
+        &self,
+        left: &VerificationType,
+        right: &VerificationType,
+        node_limit: usize,
+    ) -> Result<VerificationQuery<VerificationTypeJoin>, VerificationQueryFailure> {
+        let start = self.dependencies.borrow().len();
+        let mut remaining = node_limit;
+        let joined = self
+            .join_types_inner(left, right, node_limit, &mut remaining)
+            .map_err(|error| self.query_failure(error, start, node_limit, remaining))?;
+        Ok(VerificationQuery {
+            value: joined,
+            evidence: self.query_evidence(start, node_limit, remaining),
+        })
+    }
+
+    fn query_evidence(
+        &self,
+        start: usize,
+        limit: usize,
+        remaining: usize,
+    ) -> VerificationQueryEvidence {
+        VerificationQueryEvidence {
+            dependencies: self.dependencies.borrow()[start..]
+                .iter()
+                .map(|d| d.class().clone())
+                .collect(),
+            node_limit: limit,
+            nodes_used: limit - remaining,
+        }
+    }
+
+    fn query_failure(
+        &self,
+        error: VerificationQueryError,
+        start: usize,
+        limit: usize,
+        remaining: usize,
+    ) -> VerificationQueryFailure {
+        VerificationQueryFailure {
+            error,
+            evidence: self.query_evidence(start, limit, remaining),
+        }
+    }
+
+    fn reference_reaches(
+        &self,
+        actual: &ReferenceType,
+        expected: &ReferenceType,
+        limit: usize,
+        remaining: &mut usize,
+    ) -> Result<bool, VerificationQueryError> {
+        if actual == expected || matches!(expected, ReferenceType::Object) {
+            return Ok(true);
+        }
+        match (actual, expected) {
+            (ReferenceType::Class(actual), ReferenceType::Class(expected)) => {
+                self.lineage_reaches(actual, expected, limit, remaining)
+            }
+            (ReferenceType::Array(_), ReferenceType::Class(expected))
+                if matches!(
+                    expected.as_ref(),
+                    "java/lang/Cloneable" | "java/io/Serializable"
+                ) =>
+            {
+                Ok(true)
+            }
+            (ReferenceType::Array(actual), ReferenceType::Array(expected)) => {
+                self.array_assignable(actual, expected, limit, remaining)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn array_assignable(
+        &self,
+        actual: &str,
+        expected: &str,
+        limit: usize,
+        remaining: &mut usize,
+    ) -> Result<bool, VerificationQueryError> {
+        let (Some(a), Some(e)) = (actual.strip_prefix('['), expected.strip_prefix('[')) else {
+            return Ok(false);
+        };
+        if is_primitive_descriptor(a) || is_primitive_descriptor(e) {
+            return Ok(a == e);
+        }
+        self.reference_reaches(
+            &descriptor_reference(a)?,
+            &descriptor_reference(e)?,
+            limit,
+            remaining,
+        )
+    }
+
+    fn join_types_inner(
+        &self,
+        left: &VerificationType,
+        right: &VerificationType,
+        limit: usize,
+        remaining: &mut usize,
+    ) -> Result<VerificationTypeJoin, VerificationQueryError> {
+        use VerificationType::{Bottom, Null, Reference, Unusable};
+        let plain = |value| VerificationTypeJoin { value, rule: None };
+        match (left, right) {
+            (Bottom, value) | (value, Bottom) => Ok(plain(value.clone())),
+            (Unusable, _) | (_, Unusable) => Ok(plain(Unusable)),
+            (a, b) if a == b => Ok(plain(a.clone())),
+            (Null, Reference(r)) | (Reference(r), Null) => Ok(plain(Reference(r.clone()))),
+            (Reference(a), Reference(b)) => self.join_references(a, b, limit, remaining),
+            _ => Ok(plain(Unusable)),
+        }
+    }
+
+    fn join_references(
+        &self,
+        left: &ReferenceType,
+        right: &ReferenceType,
+        limit: usize,
+        remaining: &mut usize,
+    ) -> Result<VerificationTypeJoin, VerificationQueryError> {
+        let result = |r, rule| VerificationTypeJoin {
+            value: VerificationType::Reference(r),
+            rule: Some(rule),
+        };
+        if self.reference_reaches(left, right, limit, remaining)? {
+            return Ok(result(right.clone(), VerificationJoinRule::AssignableInput));
+        }
+        if self.reference_reaches(right, left, limit, remaining)? {
+            return Ok(result(left.clone(), VerificationJoinRule::AssignableInput));
+        }
+        if let (ReferenceType::Array(a), ReferenceType::Array(b)) = (left, right) {
+            let (Some(ac), Some(bc)) = (a.strip_prefix('['), b.strip_prefix('[')) else {
+                unreachable!()
+            };
+            if !is_primitive_descriptor(ac) && !is_primitive_descriptor(bc) {
+                let joined = self.join_references(
+                    &descriptor_reference(ac)?,
+                    &descriptor_reference(bc)?,
+                    limit,
+                    remaining,
+                )?;
+                if let VerificationType::Reference(reference) = joined.value {
+                    return Ok(result(
+                        ReferenceType::Array(
+                            format!("[{}", reference_descriptor(&reference)).into_boxed_str(),
+                        ),
+                        VerificationJoinRule::ArrayComponents,
+                    ));
+                }
+            }
+        }
+        let (ReferenceType::Class(a), ReferenceType::Class(b)) = (left, right) else {
+            return Ok(result(
+                ReferenceType::Object,
+                VerificationJoinRule::CommonSuperclass,
+            ));
+        };
+        let ac = self.observe(a)?;
+        let bc = self.observe(b)?;
+        if ac.is_interface() && bc.is_interface() {
+            return Ok(result(
+                ReferenceType::Object,
+                VerificationJoinRule::UnrelatedInterfaces,
+            ));
+        }
+        let mut current = a.to_string();
+        loop {
+            if self.lineage_reaches(b, &current, limit, remaining)? {
+                return Ok(result(
+                    ReferenceType::Class(current.clone().into_boxed_str()),
+                    VerificationJoinRule::CommonSuperclass,
+                ));
+            }
+            if *remaining == 0 {
+                return Err(VerificationQueryError::LineageLimit { limit });
+            }
+            *remaining -= 1;
+            let class = self.observe(&current)?;
+            let Some(parent) = class.metadata().resolution().direct_parents().first() else {
+                break;
+            };
+            current.clone_from(parent);
+        }
+        Ok(result(
+            ReferenceType::Object,
+            VerificationJoinRule::CommonSuperclass,
+        ))
     }
 
     fn lineage_reaches(
@@ -514,6 +781,37 @@ pub enum ReferenceType {
     Class(Box<str>),
     /// An array whose component is itself a verification reference or primitive descriptor.
     Array(Box<str>),
+}
+
+fn is_primitive_descriptor(descriptor: &str) -> bool {
+    descriptor.len() == 1
+        && matches!(
+            descriptor.as_bytes()[0],
+            b'B' | b'C' | b'D' | b'F' | b'I' | b'J' | b'S' | b'Z'
+        )
+}
+
+fn descriptor_reference(descriptor: &str) -> Result<ReferenceType, VerificationQueryError> {
+    if descriptor.starts_with('[') {
+        Ok(ReferenceType::Array(descriptor.into()))
+    } else if let Some(name) = descriptor
+        .strip_prefix('L')
+        .and_then(|d| d.strip_suffix(';'))
+    {
+        Ok(ReferenceType::Class(name.into()))
+    } else {
+        Err(VerificationQueryError::InvalidDescriptor(
+            descriptor.to_owned(),
+        ))
+    }
+}
+
+fn reference_descriptor(reference: &ReferenceType) -> String {
+    match reference {
+        ReferenceType::Object => "Ljava/lang/Object;".to_owned(),
+        ReferenceType::Class(name) => format!("L{name};"),
+        ReferenceType::Array(descriptor) => descriptor.to_string(),
+    }
 }
 
 /// A JVM verification type, ordered from [`Self::Bottom`] to [`Self::Unusable`].
@@ -1023,6 +1321,55 @@ impl VerificationFrame {
         }
     }
 
+    /// Performs a fallible, hierarchy-aware frame join.
+    pub fn join_with_environment(
+        &self,
+        other: &Self,
+        environment: &VerificationEnvironment<'_>,
+        node_limit: usize,
+    ) -> Result<VerificationQuery<Self>, VerificationQueryFailure> {
+        let start = environment.dependencies.borrow().len();
+        let mut remaining = node_limit;
+        if self.kind() != other.kind() || self.capacity() != other.capacity() {
+            return Ok(VerificationQuery {
+                value: Self::new(self.kind(), self.capacity().max(other.capacity())),
+                evidence: environment.query_evidence(start, node_limit, remaining),
+            });
+        }
+        let value = match (self.normalized_slots(), other.normalized_slots()) {
+            (None, _) => other.clone(),
+            (_, None) => self.clone(),
+            (Some(left), Some(right)) => {
+                let mut slots = Vec::with_capacity(left.len());
+                for (a, b) in left.iter().zip(right) {
+                    slots.push(match (a, b) {
+                        (Slot::Value(a), Slot::Value(b)) => Slot::Value(
+                            environment
+                                .join_types_inner(a, b, node_limit, &mut remaining)
+                                .map_err(|error| {
+                                    environment.query_failure(error, start, node_limit, remaining)
+                                })?
+                                .value,
+                        ),
+                        (Slot::Category2Tail, Slot::Category2Tail) => Slot::Category2Tail,
+                        (Slot::Unusable, Slot::Unusable) => Slot::Unusable,
+                        _ => Slot::Unusable,
+                    });
+                }
+                let mut frame = Self::Reachable {
+                    kind: self.kind(),
+                    slots: slots.into_boxed_slice(),
+                };
+                normalize_category2(&mut frame);
+                frame
+            }
+        };
+        Ok(VerificationQuery {
+            value,
+            evidence: environment.query_evidence(start, node_limit, remaining),
+        })
+    }
+
     /// Returns the frame kind.
     #[must_use]
     pub const fn kind(&self) -> FrameKind {
@@ -1141,7 +1488,18 @@ mod environment_tests {
         parents: &[&str],
         methods: &[(&str, &str, u16)],
     ) {
-        let metadata = JavaClassMetadata::test_class(cx, name, parents, 0, methods);
+        insert_with_flags(cx, loader, name, parents, 0, methods);
+    }
+
+    fn insert_with_flags(
+        cx: &Cx,
+        loader: &ClassLoader,
+        name: &str,
+        parents: &[&str],
+        flags: u16,
+        methods: &[(&str, &str, u16)],
+    ) {
+        let metadata = JavaClassMetadata::test_class(cx, name, parents, flags, methods);
         loader.test_insert(ClassDefinition::test(
             loader.id(),
             name,
@@ -1234,6 +1592,77 @@ mod environment_tests {
             environment.class("Missing"),
             Err(VerificationQueryError::NotLoaded(name)) if name == "Missing"
         ));
+    }
+
+    #[test]
+    fn assignability_and_join_apply_bounded_jvms_reference_rules() {
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let loader = ClassLoader::new(4096);
+        insert_with_flags(&cx, &loader, "Left", &[], 0x0200, &[]);
+        insert_with_flags(&cx, &loader, "Right", &[], 0x0200, &[]);
+        insert(&cx, &loader, "Parent", &[], &[]);
+        insert(&cx, &loader, "Child", &["Parent"], &[]);
+        let environment = VerificationEnvironment::new(&loader, 16);
+
+        let array = environment
+            .reference_assignability(
+                &ReferenceType::Array("[LChild;".into()),
+                &ReferenceType::Array("[LParent;".into()),
+                4,
+            )
+            .unwrap();
+        assert_eq!(array.value, VerificationAssignability::Assignable);
+        assert!(array.evidence.nodes_used <= array.evidence.node_limit);
+
+        let joined = environment
+            .join_types(
+                &VerificationType::Reference(ReferenceType::Class("Left".into())),
+                &VerificationType::Reference(ReferenceType::Class("Right".into())),
+                4,
+            )
+            .unwrap();
+        assert_eq!(
+            joined.value,
+            VerificationTypeJoin {
+                value: VerificationType::Reference(ReferenceType::Object),
+                rule: Some(VerificationJoinRule::UnrelatedInterfaces),
+            }
+        );
+    }
+
+    #[test]
+    fn join_refuses_unresolved_hierarchy_and_exhausts_hostile_depth() {
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let loader = ClassLoader::new(4096);
+        insert(&cx, &loader, "Broken", &["Missing"], &[]);
+        insert(&cx, &loader, "Other", &[], &[]);
+        let environment = VerificationEnvironment::new(&loader, 16);
+        assert!(matches!(
+            environment.join_types(
+                &VerificationType::Reference(ReferenceType::Class("Broken".into())),
+                &VerificationType::Reference(ReferenceType::Class("Other".into())),
+                8,
+            ),
+            Err(VerificationQueryFailure { error: VerificationQueryError::NotLoaded(name), .. }) if name == "Missing"
+        ));
+
+        insert(&cx, &loader, "Deep0", &["Deep1"], &[]);
+        insert(&cx, &loader, "Deep1", &["Deep2"], &[]);
+        insert(&cx, &loader, "Deep2", &[], &[]);
+        let failure = environment
+            .reference_assignability(
+                &ReferenceType::Class("Deep0".into()),
+                &ReferenceType::Class("Other".into()),
+                2,
+            )
+            .unwrap_err();
+        assert_eq!(
+            failure.error,
+            VerificationQueryError::LineageLimit { limit: 2 }
+        );
+        assert_eq!(failure.evidence.node_limit, 2);
+        assert_eq!(failure.evidence.nodes_used, 2);
+        assert_eq!(failure.evidence.dependencies.len(), 2);
     }
 }
 

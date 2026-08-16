@@ -107,8 +107,9 @@ pub use verifier::{
     FrameError, FrameKind, ReferenceType, ThrowCapability, VerificationAssignability,
     VerificationClass, VerificationDependency, VerificationEdgeClass, VerificationEdgeId,
     VerificationEnvironment, VerificationFrame, VerificationGraph, VerificationGraphError,
-    VerificationNodeLocation, VerificationQueryError, VerificationType, VerificationTypeWidth,
-    build_verification_graph,
+    VerificationJoinRule, VerificationNodeLocation, VerificationQuery, VerificationQueryError,
+    VerificationQueryEvidence, VerificationQueryFailure, VerificationType, VerificationTypeJoin,
+    VerificationTypeWidth, build_verification_graph,
 };
 
 /// The mechanically checked reuse ledger frozen before guest semantics land.
