@@ -9,7 +9,7 @@ use sim_incremental_core::dataflow::{
     LocatedGraphAdapter, NodeSpec, StateSize,
 };
 use sim_lib_machine::{LocatedCode, SourceLocation};
-use std::{cell::RefCell, mem::size_of, sync::Arc};
+use std::{cell::RefCell, collections::BTreeMap, mem::size_of, sync::Arc};
 
 use crate::{
     ClassDefinition, ClassDefinitionId, ClassLoader, ClassLoaderId, ClassSpaceRevision,
@@ -1015,11 +1015,211 @@ pub enum VerificationTransferKind {
     StackBounds,
     /// A local or stack value has the wrong computational category.
     Category,
+    /// A method exit is incompatible with the method descriptor's return type.
+    ReturnType,
     /// A constant-pool entry is absent or has the wrong width for its opcode.
     Constant {
         /// Refused constant-pool index.
         index: u16,
     },
+}
+
+/// Descriptor-derived return category used by the control verifier.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum VerificationReturnType {
+    /// The method returns no value.
+    Void,
+    /// The method returns this verification type.
+    Value(VerificationType),
+}
+
+/// Applies one branch, switch, or return rule without selecting an edge.
+///
+/// Edge selection remains the graph's concern: both conditional successors receive the same
+/// post-pop state, switches propagate to every declared target, and returns propagate nowhere.
+pub fn transfer_control_instruction(
+    instruction: &crate::PreparedJvmInstruction,
+    offset: usize,
+    state: &VerificationState,
+    return_type: &VerificationReturnType,
+) -> Result<VerificationState, VerificationTransferError> {
+    use Opcode::*;
+    let opcode = instruction.opcode();
+    let operands = instruction.instruction().operands.as_slice();
+    let fail = |kind| VerificationTransferError {
+        instruction: instruction.id(),
+        offset,
+        opcode,
+        kind,
+    };
+    let expected = match opcode {
+        Ifeq | Ifne | Iflt | Ifge | Ifgt | Ifle | Tableswitch | Lookupswitch => {
+            &[VerificationType::Int][..]
+        }
+        IfIcmpeq | IfIcmpne | IfIcmplt | IfIcmpge | IfIcmpgt | IfIcmple => {
+            &[VerificationType::Int, VerificationType::Int][..]
+        }
+        IfAcmpeq | IfAcmpne => &[
+            VerificationType::Reference(ReferenceType::Object),
+            VerificationType::Reference(ReferenceType::Object),
+        ][..],
+        Ifnull | Ifnonnull => &[VerificationType::Reference(ReferenceType::Object)][..],
+        Goto | GotoW => &[][..],
+        Ireturn => &[VerificationType::Int][..],
+        Lreturn => &[VerificationType::Long][..],
+        Freturn => &[VerificationType::Float][..],
+        Dreturn => &[VerificationType::Double][..],
+        Areturn => &[VerificationType::Reference(ReferenceType::Object)][..],
+        Return => &[][..],
+        _ => return Err(fail(VerificationTransferKind::MalformedPreparedInput)),
+    };
+    if !control_operands_valid(opcode, operands) {
+        return Err(fail(VerificationTransferKind::MalformedPreparedInput));
+    }
+    let values = stack_values(&state.stack);
+    if values.len() < expected.len() {
+        return Err(fail(VerificationTransferKind::StackBounds));
+    }
+    let split = values.len() - expected.len();
+    if !values[split..]
+        .iter()
+        .zip(expected)
+        .all(|(actual, wanted)| verification_category_matches(actual, wanted))
+    {
+        return Err(fail(VerificationTransferKind::Category));
+    }
+    let actual_return = match opcode {
+        Ireturn | Lreturn | Freturn | Dreturn | Areturn => {
+            Some(values.last().expect("return input was checked"))
+        }
+        Return => None,
+        _ => {
+            let mut next = state.clone();
+            next.stack = stack_from_values(state.stack.capacity(), values[..split].to_vec())
+                .map_err(|_| fail(VerificationTransferKind::StackBounds))?;
+            return Ok(next);
+        }
+    };
+    let compatible = match (actual_return, return_type) {
+        (None, VerificationReturnType::Void) => true,
+        (Some(actual), VerificationReturnType::Value(declared)) => actual.less_equal(declared),
+        _ => false,
+    };
+    if !compatible {
+        return Err(fail(VerificationTransferKind::ReturnType));
+    }
+    let mut next = state.clone();
+    next.stack = stack_from_values(state.stack.capacity(), values[..split].to_vec())
+        .map_err(|_| fail(VerificationTransferKind::StackBounds))?;
+    Ok(next)
+}
+
+fn verification_category_matches(actual: &VerificationType, wanted: &VerificationType) -> bool {
+    match wanted {
+        VerificationType::Reference(_) => matches!(
+            actual,
+            VerificationType::Null | VerificationType::Reference(_)
+        ),
+        _ => actual == wanted,
+    }
+}
+
+fn control_operands_valid(opcode: Opcode, operands: &[InstructionOperand]) -> bool {
+    use Opcode::*;
+    match opcode {
+        Ifeq | Ifne | Iflt | Ifge | Ifgt | Ifle | IfIcmpeq | IfIcmpne | IfIcmplt | IfIcmpge
+        | IfIcmpgt | IfIcmple | IfAcmpeq | IfAcmpne | Goto | Ifnull | Ifnonnull | GotoW => {
+            matches!(operands, [InstructionOperand::Branch(_)])
+        }
+        Tableswitch => matches!(
+            operands,
+            [InstructionOperand::Branch(_), InstructionOperand::TableLow(low), InstructionOperand::TableHigh(high), rest @ ..]
+            if i64::from(*high) - i64::from(*low) + 1 == rest.len() as i64
+                && rest.iter().all(|operand| matches!(operand, InstructionOperand::Branch(_)))
+        ),
+        Lookupswitch => {
+            matches!(operands.split_first(), Some((InstructionOperand::Branch(_), rest))
+            if rest.len() % 2 == 0 && rest.chunks_exact(2).all(|pair| matches!(pair,
+                [InstructionOperand::LookupKey(_), InstructionOperand::Branch(_)])))
+        }
+        Ireturn | Lreturn | Freturn | Dreturn | Areturn | Return => operands.is_empty(),
+        _ => false,
+    }
+}
+
+/// Refusal while checking joined dataflow states against declared target frames.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum StackMapConstraintError {
+    /// A classfile version requiring target frames omitted one.
+    Missing { instruction: InstructionId },
+    /// A declaration has a different shape or is not a supertype of the inferred state.
+    NotAssignable { instruction: InstructionId },
+    /// An inferred target state was unavailable after dataflow completed.
+    MissingInference { instruction: InstructionId },
+}
+
+/// Checks target declarations after the shared engine has joined all incoming states.
+pub fn check_stack_map_constraints(
+    classfile_version: u16,
+    graph: &VerificationGraph,
+    inferred: &BTreeMap<InstructionId, VerificationState>,
+    declarations: &[ExpandedStackMapFrame],
+    max_locals: usize,
+    max_stack: usize,
+) -> Result<(), StackMapConstraintError> {
+    let declared: BTreeMap<_, _> = declarations
+        .iter()
+        .map(|frame| (frame.instruction, frame))
+        .collect();
+    let targets: std::collections::BTreeSet<_> = graph
+        .edges()
+        .filter(|edge| {
+            matches!(
+                edge.class(),
+                EdgeClass::Custom(
+                    VerificationEdgeClass::Branch | VerificationEdgeClass::Exceptional { .. }
+                )
+            )
+        })
+        .map(|edge| InstructionId(*edge.target()))
+        .collect();
+    for instruction in targets {
+        let Some(frame) = declared.get(&instruction) else {
+            if classfile_version >= 51 {
+                return Err(StackMapConstraintError::Missing { instruction });
+            }
+            continue;
+        };
+        let state = inferred
+            .get(&instruction)
+            .ok_or(StackMapConstraintError::MissingInference { instruction })?;
+        let declared_state = expanded_state(frame, max_locals, max_stack)
+            .ok_or(StackMapConstraintError::NotAssignable { instruction })?;
+        if !state.locals.less_equal(&declared_state.locals)
+            || !state.stack.less_equal(&declared_state.stack)
+            || stack_values(&state.stack).len() != stack_values(&declared_state.stack).len()
+        {
+            return Err(StackMapConstraintError::NotAssignable { instruction });
+        }
+    }
+    Ok(())
+}
+
+fn expanded_state(
+    frame: &ExpandedStackMapFrame,
+    max_locals: usize,
+    max_stack: usize,
+) -> Option<VerificationState> {
+    let mut locals = VerificationFrame::new(FrameKind::Locals, max_locals);
+    let mut slot = 0;
+    for value in &*frame.locals {
+        locals.set_local(slot, value.clone()).ok()?;
+        slot += type_width(value);
+    }
+    Some(VerificationState {
+        locals,
+        stack: stack_from_values(max_stack, frame.stack.to_vec()).ok()?,
+    })
 }
 
 /// Located refusal from the constants, locals, and stack transfer family.
@@ -2224,6 +2424,7 @@ mod tests {
                     INT,
                 ),
                 Opcode::Ireturn => (INT, NONE),
+                Opcode::Ifeq => (INT, NONE),
                 Opcode::Return | Opcode::Goto | Opcode::Jsr | Opcode::Ret => (NONE, NONE),
                 _ if verifier_rule(opcode).family == VerifierRuleFamily::ConstantsLocalsStack => {
                     (NONE, NONE)
@@ -2822,5 +3023,98 @@ mod tests {
         stack.push(VerificationType::Int).unwrap();
         assert_eq!(stack.get(0), Some(&VerificationType::Long));
         assert_eq!(stack.get(2), Some(&VerificationType::Int));
+    }
+
+    #[test]
+    fn conditional_branches_pop_once_for_both_successors_and_returns_match_the_method() {
+        let branch = prepared(
+            &[
+                Opcode::Iconst0 as u8,
+                Opcode::Ifeq as u8,
+                0,
+                4,
+                Opcode::Return as u8,
+                Opcode::Return as u8,
+            ],
+            &[],
+        );
+        let instruction = branch.instruction(branch.next(branch.entry()).unwrap());
+        let mut stack = VerificationFrame::new(FrameKind::OperandStack, 1);
+        stack.push(VerificationType::Int).unwrap();
+        let state = VerificationState {
+            locals: VerificationFrame::new(FrameKind::Locals, 0),
+            stack,
+        };
+        let next = transfer_control_instruction(
+            instruction.instruction(),
+            1,
+            &state,
+            &VerificationReturnType::Void,
+        )
+        .unwrap();
+        assert!(stack_values(&next.stack).is_empty());
+
+        let returning = prepared(&[Opcode::Ireturn as u8], &[]);
+        transfer_control_instruction(
+            returning.instruction(returning.entry()).instruction(),
+            0,
+            &state,
+            &VerificationReturnType::Value(VerificationType::Int),
+        )
+        .unwrap();
+        let error = transfer_control_instruction(
+            returning.instruction(returning.entry()).instruction(),
+            0,
+            &state,
+            &VerificationReturnType::Void,
+        )
+        .unwrap_err();
+        assert_eq!(error.kind, VerificationTransferKind::ReturnType);
+    }
+
+    #[test]
+    fn joined_targets_require_assignable_declared_frames_for_modern_classfiles() {
+        let code = prepared(
+            &[
+                Opcode::Iconst0 as u8,
+                Opcode::Ifeq as u8,
+                0,
+                4,
+                Opcode::Return as u8,
+                Opcode::Return as u8,
+            ],
+            &[],
+        );
+        let graph = build_verification_graph(&code).unwrap();
+        let target = InstructionId(3);
+        let state = VerificationState {
+            locals: VerificationFrame::new(FrameKind::Locals, 0),
+            stack: VerificationFrame::new(FrameKind::OperandStack, 1),
+        };
+        let inferred = BTreeMap::from([(target, state)]);
+        let correct = ExpandedStackMapFrame {
+            offset: 5,
+            instruction: target,
+            locals: Box::new([]),
+            stack: Box::new([]),
+        };
+        check_stack_map_constraints(61, &graph, &inferred, &[correct.clone()], 0, 1).unwrap();
+
+        let wider = ExpandedStackMapFrame {
+            stack: Box::new([VerificationType::Int]),
+            ..correct
+        };
+        assert_eq!(
+            check_stack_map_constraints(61, &graph, &inferred, &[wider], 0, 1),
+            Err(StackMapConstraintError::NotAssignable {
+                instruction: target
+            })
+        );
+        assert_eq!(
+            check_stack_map_constraints(61, &graph, &inferred, &[], 0, 1),
+            Err(StackMapConstraintError::Missing {
+                instruction: target
+            })
+        );
     }
 }
