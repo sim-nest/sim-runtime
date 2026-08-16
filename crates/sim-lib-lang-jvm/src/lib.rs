@@ -11,6 +11,7 @@ mod class_space;
 mod failure;
 mod limits;
 mod managed;
+mod text;
 mod value;
 
 pub use class_metadata::{
@@ -25,6 +26,7 @@ pub use failure::{
 };
 pub use limits::{ExecutionLimits, ResourceLimits};
 pub use managed::{JVM_ROLE_EDGE_TABLE, JvmEdge, JvmGraphError, JvmHeap, JvmRole, JvmRoleEdges};
+pub use text::{ADMITTED_CORE_MEMBERS, JavaClassMirror, JavaCoreMember, JavaString};
 pub use value::{JvmReference, JvmValue, JvmValueWidth, PrimitiveCategory, ReturnCategory};
 
 /// The mechanically checked reuse ledger frozen before guest semantics land.

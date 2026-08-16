@@ -8,7 +8,7 @@ use std::{
     },
 };
 
-use sim_codec_classfile::{ClassShell, Constant, ShellBudget};
+use sim_codec_classfile::{ClassShell, Constant, ConstantSlot, ShellBudget};
 use sim_kernel::{CapabilityName, CodecId, Cx, Dir, Error, Expr, Result, SourceId, Symbol};
 use sim_lib_core::SourceAuthority;
 
@@ -53,6 +53,7 @@ pub struct ClassDefinition {
     classfile: Expr,
     content: Arc<[u8]>,
     metadata: Arc<crate::JavaClassMetadata>,
+    literals: BTreeMap<u16, crate::JavaString>,
 }
 
 impl ClassDefinition {
@@ -68,21 +69,37 @@ impl ClassDefinition {
     pub fn metadata(&self) -> &Arc<crate::JavaClassMetadata> {
         &self.metadata
     }
+    /// Returns the interned Java string denoted by a `CONSTANT_String` index.
+    pub fn string_literal(&self, constant_index: u16) -> Option<&crate::JavaString> {
+        self.literals.get(&constant_index)
+    }
+
+    /// Returns the Java-visible class mirror for this definition.
+    pub fn mirror(self: &Arc<Self>) -> crate::JavaClassMirror {
+        crate::JavaClassMirror::new(self.clone())
+    }
 }
 
 /// An isolated, authority-requiring JVM class space.
 pub struct ClassLoader {
     id: ClassLoaderId,
     definitions: Mutex<BTreeMap<String, Arc<ClassDefinition>>>,
+    intern_pool: crate::text::JavaInternPool,
     max_classfile_bytes: usize,
 }
 
 impl ClassLoader {
     /// Creates an empty loader with a process-local, non-reused identity.
     pub fn new(max_classfile_bytes: usize) -> Self {
+        Self::with_intern_limit(max_classfile_bytes, max_classfile_bytes.max(1))
+    }
+
+    /// Creates a loader with independent classfile-byte and intern-entry bounds.
+    pub fn with_intern_limit(max_classfile_bytes: usize, max_interned_strings: usize) -> Self {
         Self {
             id: ClassLoaderId(NEXT_LOADER_ID.fetch_add(1, Ordering::Relaxed)),
             definitions: Mutex::new(BTreeMap::new()),
+            intern_pool: crate::text::JavaInternPool::new(max_interned_strings),
             max_classfile_bytes,
         }
     }
@@ -90,6 +107,11 @@ impl ClassLoader {
     /// Returns this loader's isolated namespace identity.
     pub fn id(&self) -> ClassLoaderId {
         self.id
+    }
+
+    /// Interns exact code units in this loader's bounded literal namespace.
+    pub fn intern(&self, units: &sim_text::CodeUnitString) -> Result<crate::JavaString> {
+        self.intern_pool.intern(units)
     }
 
     /// Constructs a lazy request. No directory operation occurs until [`LazyClass::resolve`].
@@ -156,11 +178,30 @@ impl ClassLoader {
         let metadata = Arc::new(crate::JavaClassMetadata::from_shell(
             cx, &id, &shell, &validated,
         )?);
+        let mut literals = BTreeMap::new();
+        for (offset, constant) in shell.constant_pool.slots().iter().enumerate() {
+            let ConstantSlot::Entry(Constant::String { string_index }) = constant else {
+                continue;
+            };
+            let Constant::Utf8(units) = shell
+                .constant_pool
+                .entry(*string_index, *string_index)
+                .map_err(|error| Error::Eval(error.to_string()))?
+            else {
+                return Err(Error::Eval(format!(
+                    "constant #{string_index} is not UTF-8"
+                )));
+            };
+            let index = u16::try_from(offset)
+                .map_err(|_| Error::Eval("constant-pool index overflow".into()))?;
+            literals.insert(index, self.intern(units)?);
+        }
         let definition = Arc::new(ClassDefinition {
             id,
             classfile,
             content: bytes.into(),
             metadata,
+            literals,
         });
         definitions.insert(request.binary_name.clone(), definition.clone());
         Ok(definition)
@@ -406,6 +447,44 @@ mod tests {
                 .grant(class_load_capability()),
         )
         .unwrap()
+    }
+
+    fn fixture_with_surrogate_literal() -> Vec<u8> {
+        let mut bytes = include_bytes!("../fixtures/hand-built/Minimal.class").to_vec();
+        // The original pool ends at byte 0x42. Add #8 Utf8 containing one
+        // supplementary character as its exact surrogate pair, and #9 String.
+        bytes[8..10].copy_from_slice(&10_u16.to_be_bytes());
+        bytes.splice(
+            0x42..0x42,
+            [1, 0, 6, 0xed, 0xa0, 0x80, 0xed, 0xb0, 0x80, 8, 0, 8],
+        );
+        bytes
+    }
+
+    #[test]
+    fn loaded_code_unit_can_remain_a_lone_surrogate_through_jvm_operations() {
+        let mut cx = context(true);
+        let root = Arc::new(FixtureDir {
+            bytes: fixture_with_surrogate_literal(),
+            reads: AtomicUsize::new(0),
+        });
+        let loader = ClassLoader::with_intern_limit(4096, 2);
+        let definition = loader
+            .request(Symbol::new("classes"), root, "Minimal", authority())
+            .unwrap()
+            .resolve(&mut cx)
+            .unwrap();
+        let loaded = definition.string_literal(9).unwrap();
+        assert_eq!(loaded.storage().as_code_units(), &[0xd800, 0xdc00]);
+        let lone = loaded.substring(0, 1).unwrap();
+        let interned = loader.intern(lone.storage()).unwrap();
+        assert!(interned.content_equals(&lone));
+        assert!(interned.identical(&loader.intern(lone.storage()).unwrap()));
+        assert_eq!(
+            interned.concat(&lone).unwrap().storage().as_code_units(),
+            &[0xd800, 0xd800]
+        );
+        assert!(definition.mirror().identical(&definition.mirror()));
     }
 
     #[test]
