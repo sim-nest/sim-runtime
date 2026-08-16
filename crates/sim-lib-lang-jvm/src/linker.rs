@@ -2,16 +2,18 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet},
-    sync::Arc,
+    sync::{Arc, Weak},
 };
 
-use sim_kernel::{ClassId, Cx, Error, Ref, ShapeRef, Symbol, Value};
+use sim_kernel::{ClassId, ClassRef, Cx, Error, Ref, ShapeRef, Symbol, Value};
 use sim_lib_class::{
     ClassDescriptor, ClassDescriptorInput, ClassIdentity, DeclaredParent, DescriptorClass,
     MemberShape, OpenMetadataEntry,
 };
-use sim_lib_function::FunctionPlan;
-use sim_lib_mutation::ManagedHandle;
+use sim_lib_function::{
+    BoundCall, CapturedBinding, FunctionBodyPolicy, FunctionInstance, FunctionPlan,
+};
+use sim_lib_mutation::{ManagedHandle, RootedHandle};
 use sim_shape::AnyShape;
 
 use crate::{
@@ -114,6 +116,20 @@ impl JvmFunctionPolicyBody {
     /// Returns the complete, execution-order adaptation program.
     pub fn adaptations(&self) -> &[LocatedJvmAdaptation] {
         &self.adaptations
+    }
+}
+
+impl FunctionBodyPolicy for JvmFunctionPolicyBody {
+    fn invoke(
+        &self,
+        _cx: &mut Cx,
+        _plan: &FunctionPlan,
+        _captures: &[CapturedBinding],
+        _call: BoundCall,
+    ) -> sim_kernel::Result<Value> {
+        Err(Error::Eval(
+            "JVM lambda invocation is not installed until the SAM linker phase".into(),
+        ))
     }
 }
 
@@ -709,7 +725,12 @@ impl GeneratedLambdaClass {
 /// Loader-local class space for byte-free lambda definitions.
 #[derive(Default)]
 pub struct GeneratedLambdaClassSpace {
-    classes: BTreeMap<(crate::ClassLoaderId, String), Arc<GeneratedLambdaClass>>,
+    classes: BTreeMap<(crate::ClassLoaderId, String), GeneratedLambdaClassEntry>,
+}
+
+struct GeneratedLambdaClassEntry {
+    owner: Weak<ClassDefinition>,
+    class: Arc<GeneratedLambdaClass>,
 }
 
 impl GeneratedLambdaClassSpace {
@@ -725,6 +746,7 @@ impl GeneratedLambdaClassSpace {
         cx: &Cx,
         heap: &mut JvmHeap,
         loader: &ClassLoader,
+        owner: &Arc<ClassDefinition>,
         site: &SiteKey,
         factory_descriptor: &str,
         functional: &FunctionalInterface,
@@ -736,8 +758,10 @@ impl GeneratedLambdaClassSpace {
             site.class.binary_name().replace('/', ".")
         );
         let key = (loader.id(), binary_name.clone());
+        self.classes
+            .retain(|_, entry| entry.owner.strong_count() != 0);
         if let Some(existing) = self.classes.get(&key) {
-            return Ok(existing.clone());
+            return Ok(existing.class.clone());
         }
 
         let shape: ShapeRef = cx
@@ -833,7 +857,13 @@ impl GeneratedLambdaClassSpace {
             descriptor,
             members,
         });
-        self.classes.insert(key, generated.clone());
+        self.classes.insert(
+            key,
+            GeneratedLambdaClassEntry {
+                owner: Arc::downgrade(owner),
+                class: generated.clone(),
+            },
+        );
         Ok(generated)
     }
 
@@ -847,8 +877,231 @@ impl GeneratedLambdaClassSpace {
             .range((loader, String::new())..)
             .take_while(|((found, _), _)| *found == loader)
             .take(limit)
-            .map(|(_, class)| class.clone())
+            .filter(|(_, entry)| entry.owner.strong_count() != 0)
+            .map(|(_, entry)| entry.class.clone())
             .collect()
+    }
+
+    /// Number of generated classes whose capturing class remains live.
+    pub fn live_len(&mut self) -> usize {
+        self.classes
+            .retain(|_, entry| entry.owner.strong_count() != 0);
+        self.classes.len()
+    }
+}
+
+/// Java-permitted identity policy for a non-capturing lambda site.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum StatelessLambdaIdentity {
+    /// Allocate on every factory call. This is always valid Java behavior.
+    #[default]
+    Fresh,
+    /// Reuse one instance. Java permits this only for a non-capturing site.
+    PermittedSingleton,
+}
+
+/// One linked, loader-owned lambda factory.
+pub struct ManagedLambdaFactory {
+    class: Arc<GeneratedLambdaClass>,
+    plan: JvmFunctionPlan,
+    class_value: ClassRef,
+    managed: ManagedHandle,
+    identity: StatelessLambdaIdentity,
+    singleton: Option<(Arc<FunctionInstance<JvmFunctionPolicyBody>>, ManagedHandle)>,
+}
+
+impl ManagedLambdaFactory {
+    /// Managed factory node stored as the value of the site ephemeron.
+    pub const fn managed(&self) -> ManagedHandle {
+        self.managed
+    }
+
+    /// Generated class owned by this factory.
+    pub fn generated_class(&self) -> &Arc<GeneratedLambdaClass> {
+        &self.class
+    }
+
+    /// Allocates an instance with captures in exact frozen-plan order.
+    pub fn instantiate(
+        &mut self,
+        heap: &mut JvmHeap,
+        captures: Vec<CapturedBinding>,
+    ) -> Result<ManagedLambdaInstance, LambdaFactoryError> {
+        if captures.len() != self.plan.neutral().captures().len() {
+            return Err(LambdaFactoryError::CaptureArity {
+                expected: self.plan.neutral().captures().len(),
+                actual: captures.len(),
+            });
+        }
+        if captures.is_empty()
+            && self.identity == StatelessLambdaIdentity::PermittedSingleton
+            && let Some((function, managed)) = &self.singleton
+        {
+            let root = heap.root(*managed).map_err(LambdaFactoryError::managed)?;
+            return Ok(ManagedLambdaInstance {
+                function: function.clone(),
+                managed: *managed,
+                root,
+            });
+        }
+        let function = Arc::new(
+            FunctionInstance::new(
+                self.plan.neutral().clone(),
+                self.plan.body().clone(),
+                captures,
+                self.class_value.clone(),
+                None,
+                None,
+            )
+            .map_err(|error| LambdaFactoryError::Instance(error.to_string()))?,
+        );
+        let managed = heap
+            .allocate(crate::JvmRole::Object)
+            .map_err(LambdaFactoryError::managed)?;
+        heap.strong(managed, crate::JvmEdge::Class, self.class.mirror())
+            .map_err(LambdaFactoryError::graph)?;
+        for capture in function.captures() {
+            heap.strong(managed, crate::JvmEdge::Field, capture.managed())
+                .map_err(LambdaFactoryError::graph)?;
+        }
+        if function.captures().is_empty()
+            && self.identity == StatelessLambdaIdentity::PermittedSingleton
+        {
+            heap.strong(self.managed, crate::JvmEdge::Field, managed)
+                .map_err(LambdaFactoryError::graph)?;
+            self.singleton = Some((function.clone(), managed));
+        }
+        let root = heap.root(managed).map_err(LambdaFactoryError::managed)?;
+        Ok(ManagedLambdaInstance {
+            function,
+            managed,
+            root,
+        })
+    }
+}
+
+/// A rooted managed lease for one lambda object.
+pub struct ManagedLambdaInstance {
+    function: Arc<FunctionInstance<JvmFunctionPolicyBody>>,
+    managed: ManagedHandle,
+    root: RootedHandle,
+}
+
+impl ManagedLambdaInstance {
+    /// Neutral function object carrying the exact capture cells.
+    pub fn function(&self) -> &Arc<FunctionInstance<JvmFunctionPolicyBody>> {
+        &self.function
+    }
+
+    /// Managed JVM object identity.
+    pub const fn managed(&self) -> ManagedHandle {
+        self.managed
+    }
+
+    /// Releases this explicit heap root.
+    pub fn release(self, heap: &mut JvmHeap) -> Result<(), LambdaFactoryError> {
+        heap.release_root(self.root)
+            .map_err(LambdaFactoryError::managed)?;
+        Ok(())
+    }
+}
+
+struct LambdaFactoryEntry {
+    owner: Weak<ClassDefinition>,
+    factory: Arc<std::sync::Mutex<ManagedLambdaFactory>>,
+}
+
+/// Occurrence-keyed factory cache whose managed entries are owner ephemerons.
+#[derive(Default)]
+pub struct LambdaFactoryCache {
+    entries: BTreeMap<SiteKey, LambdaFactoryEntry>,
+}
+
+impl LambdaFactoryCache {
+    /// Returns the existing factory for a live site or installs one.
+    #[allow(clippy::too_many_arguments)]
+    pub fn link(
+        &mut self,
+        heap: &mut JvmHeap,
+        cache: ManagedHandle,
+        owner_handle: ManagedHandle,
+        owner: &Arc<ClassDefinition>,
+        site: SiteKey,
+        class: Arc<GeneratedLambdaClass>,
+        plan: JvmFunctionPlan,
+        class_value: ClassRef,
+        identity: StatelessLambdaIdentity,
+    ) -> Result<Arc<std::sync::Mutex<ManagedLambdaFactory>>, LambdaFactoryError> {
+        self.entries
+            .retain(|_, entry| entry.owner.strong_count() != 0);
+        if !plan.neutral().captures().is_empty()
+            && identity == StatelessLambdaIdentity::PermittedSingleton
+        {
+            return Err(LambdaFactoryError::CapturingSingleton);
+        }
+        if let Some(entry) = self.entries.get(&site) {
+            return Ok(entry.factory.clone());
+        }
+        let managed = heap
+            .allocate(crate::JvmRole::Object)
+            .map_err(LambdaFactoryError::managed)?;
+        heap.strong(managed, crate::JvmEdge::Class, class.mirror())
+            .map_err(LambdaFactoryError::graph)?;
+        heap.ephemeron(cache, crate::JvmEdge::DerivedEntry, owner_handle, managed)
+            .map_err(LambdaFactoryError::graph)?;
+        let factory = Arc::new(std::sync::Mutex::new(ManagedLambdaFactory {
+            class,
+            plan,
+            class_value,
+            managed,
+            identity,
+            singleton: None,
+        }));
+        self.entries.insert(
+            site,
+            LambdaFactoryEntry {
+                owner: Arc::downgrade(owner),
+                factory: factory.clone(),
+            },
+        );
+        Ok(factory)
+    }
+
+    /// Number of entries whose capturing class loader remains live.
+    pub fn live_len(&mut self) -> usize {
+        self.entries
+            .retain(|_, entry| entry.owner.strong_count() != 0);
+        self.entries.len()
+    }
+}
+
+/// Failure to link a factory or allocate a lambda instance.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum LambdaFactoryError {
+    /// Captures did not exactly fill the frozen neutral plan.
+    CaptureArity {
+        /// Frozen capture-slot count.
+        expected: usize,
+        /// Supplied capture-cell count.
+        actual: usize,
+    },
+    /// Singleton reuse is forbidden for capturing lambdas.
+    CapturingSingleton,
+    /// Neutral function construction failed.
+    Instance(String),
+    /// Managed allocation or rooting failed.
+    Managed(String),
+    /// Managed edge construction failed.
+    Graph(String),
+}
+
+impl LambdaFactoryError {
+    fn managed(error: impl std::fmt::Debug) -> Self {
+        Self::Managed(format!("{error:?}"))
+    }
+
+    fn graph(error: impl std::fmt::Debug) -> Self {
+        Self::Graph(format!("{error:?}"))
     }
 }
 
@@ -1490,6 +1743,7 @@ mod tests {
     use super::*;
     use crate::{ClassLoader, JavaClassMetadata, JvmRole, resolution::SymbolicConstant};
     use sim_kernel::{Cx, DefaultFactory, NoopEvalPolicy};
+    use sim_lib_binding::BindingCell;
     use sim_lib_function::{CallMode, CaptureDescriptor, ParameterDescriptor, ParameterKind};
     use sim_lib_gc_tracing::CollectionLimits;
 
@@ -1654,12 +1908,20 @@ mod tests {
             bridges: vec!["(Ljava/lang/CharSequence;)Ljava/lang/Object;".into()],
             serializable: true,
         };
+        let owner = ClassDefinition::test(
+            loader.id(),
+            site.class.binary_name(),
+            site.class.content_key(),
+            JavaClassMetadata::test_identity(&cx, site.class.binary_name(), &[]),
+            BTreeMap::new(),
+        );
         let mut classes = GeneratedLambdaClassSpace::new();
         let first = classes
             .define(
                 &cx,
                 &mut heap,
                 &loader,
+                &owner,
                 &site,
                 "(I)Lexample/Function;",
                 &functional,
@@ -1671,6 +1933,7 @@ mod tests {
                 &cx,
                 &mut heap,
                 &loader,
+                &owner,
                 &site,
                 "(I)Lexample/Function;",
                 &functional,
@@ -1714,6 +1977,206 @@ mod tests {
         assert!(!source.contains(concat!("0xCAFE", "BABE")));
         assert!(!source.contains(concat!("define_", "bytes(")));
         assert!(!source.contains(concat!("Class", "Shell")));
+    }
+
+    #[test]
+    fn factory_cache_is_an_ephemeron_and_capturing_calls_have_distinct_rooted_identity() {
+        let (site, loader) = fixture();
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let owner = ClassDefinition::test(
+            loader.id(),
+            site.class.binary_name(),
+            site.class.content_key(),
+            JavaClassMetadata::test_identity(&cx, site.class.binary_name(), &[]),
+            BTreeMap::new(),
+        );
+        let mut heap = JvmHeap::new(
+            32,
+            CollectionLimits {
+                objects: 32,
+                edges: 64,
+                stack: 32,
+                work: 256,
+                clears: 32,
+                finalizers: 0,
+            },
+        )
+        .unwrap();
+        let loader_node = heap.allocate(JvmRole::Loader).unwrap();
+        let loader_root = heap.root(loader_node).unwrap();
+        let owner_node = heap.allocate(JvmRole::ClassMirror).unwrap();
+        heap.strong(loader_node, crate::JvmEdge::DefinedClass, owner_node)
+            .unwrap();
+        heap.strong(owner_node, crate::JvmEdge::DefiningLoader, loader_node)
+            .unwrap();
+        let cache_node = heap.allocate(JvmRole::Cache).unwrap();
+        let _cache_root = heap.root(cache_node).unwrap();
+        let capture_node = heap.allocate(JvmRole::Object).unwrap();
+        let capture_root = heap.root(capture_node).unwrap();
+
+        let functional = FunctionalInterface {
+            interface: "example.Function".into(),
+            method_name: "apply".into(),
+            method_descriptor: "()Ljava/lang/Object;".into(),
+            lineage: vec!["example.Function".into()],
+        };
+        let bootstrap = LambdaBootstrapPlan {
+            sam_method_type: functional.method_descriptor.clone(),
+            implementation_reference_kind: 6,
+            instantiated_method_type: functional.method_descriptor.clone(),
+            marker_interfaces: vec![],
+            bridges: vec![],
+            serializable: false,
+        };
+        let mut classes = GeneratedLambdaClassSpace::new();
+        let generated = classes
+            .define(
+                &cx,
+                &mut heap,
+                &loader,
+                &owner,
+                &site,
+                "(Ljava/lang/Object;)Lexample/Function;",
+                &functional,
+                &bootstrap,
+            )
+            .unwrap();
+        let class_value = generated.class_value(&cx, 16, 64).unwrap();
+        let plan = JvmFunctionPlan {
+            neutral: neutral_plan(1, 0),
+            body: JvmFunctionPolicyBody {
+                adaptations: Box::new([]),
+            },
+        };
+        let mut factories = LambdaFactoryCache::default();
+        assert!(matches!(
+            factories.link(
+                &mut heap,
+                cache_node,
+                owner_node,
+                &owner,
+                site.clone(),
+                generated.clone(),
+                plan.clone(),
+                class_value.clone(),
+                StatelessLambdaIdentity::PermittedSingleton,
+            ),
+            Err(LambdaFactoryError::CapturingSingleton)
+        ));
+        let first_factory = factories
+            .link(
+                &mut heap,
+                cache_node,
+                owner_node,
+                &owner,
+                site.clone(),
+                generated.clone(),
+                plan.clone(),
+                class_value.clone(),
+                StatelessLambdaIdentity::Fresh,
+            )
+            .unwrap();
+        let repeated_factory = factories
+            .link(
+                &mut heap,
+                cache_node,
+                owner_node,
+                &owner,
+                site.clone(),
+                generated.clone(),
+                plan,
+                class_value,
+                StatelessLambdaIdentity::Fresh,
+            )
+            .unwrap()
+            .clone();
+        assert!(Arc::ptr_eq(&first_factory, &repeated_factory));
+        let factory_node = first_factory.lock().unwrap().managed();
+
+        let captured_value = cx.factory().string("captured".into()).unwrap();
+        let binding = || {
+            CapturedBinding::new(
+                BindingCell::initialized(Symbol::new("c0"), captured_value.clone()),
+                capture_node,
+            )
+        };
+        let first_instance = first_factory
+            .lock()
+            .unwrap()
+            .instantiate(&mut heap, vec![binding()])
+            .unwrap();
+        let second_instance = first_factory
+            .lock()
+            .unwrap()
+            .instantiate(&mut heap, vec![binding()])
+            .unwrap();
+        assert_ne!(first_instance.managed(), second_instance.managed());
+        assert_eq!(
+            first_instance.function().captures()[0]
+                .cell()
+                .get()
+                .unwrap(),
+            captured_value
+        );
+        first_instance.release(&mut heap).unwrap();
+        second_instance.release(&mut heap).unwrap();
+
+        let mut stateless_site = site.clone();
+        stateless_site.constant_pool_index += 1;
+        let stateless = factories
+            .link(
+                &mut heap,
+                cache_node,
+                owner_node,
+                &owner,
+                stateless_site,
+                generated.clone(),
+                JvmFunctionPlan {
+                    neutral: neutral_plan(0, 0),
+                    body: JvmFunctionPolicyBody {
+                        adaptations: Box::new([]),
+                    },
+                },
+                generated.class_value(&cx, 16, 64).unwrap(),
+                StatelessLambdaIdentity::PermittedSingleton,
+            )
+            .unwrap();
+        let stateless_first = stateless
+            .lock()
+            .unwrap()
+            .instantiate(&mut heap, vec![])
+            .unwrap();
+        let stateless_second = stateless
+            .lock()
+            .unwrap()
+            .instantiate(&mut heap, vec![])
+            .unwrap();
+        assert_eq!(stateless_first.managed(), stateless_second.managed());
+        stateless_first.release(&mut heap).unwrap();
+        stateless_second.release(&mut heap).unwrap();
+        heap.release_root(capture_root).unwrap();
+
+        let weak_factory = Arc::downgrade(&first_factory);
+        let weak_class = Arc::downgrade(&generated);
+        drop(repeated_factory);
+        drop(first_factory);
+        drop(stateless);
+        drop(generated);
+        drop(owner);
+        assert_eq!(factories.live_len(), 0);
+        assert_eq!(classes.live_len(), 0);
+        assert!(weak_factory.upgrade().is_none());
+        assert!(weak_class.upgrade().is_none());
+        heap.release_root(loader_root).unwrap();
+        let receipt = heap.collect().unwrap();
+        assert!(receipt.swept.contains(&factory_node.id()));
+        assert_eq!(receipt.cleared_ephemerons.len(), 2);
+        assert!(
+            receipt
+                .cleared_ephemerons
+                .iter()
+                .all(|(owner, _)| *owner == cache_node.id())
+        );
     }
 
     fn fixture() -> (SiteKey, ClassLoader) {
