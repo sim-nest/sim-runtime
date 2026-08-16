@@ -23,8 +23,12 @@ guidance = "Use this checked profile as the end of the add-guest-language route 
 claims_anchors = ["anchor/crate/sim-lib-lang-javascript"]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-lang-javascript/src/lib",
+  "spec-test/sim-runtime/crates/sim-lib-sequence/tests/composition_ownership_guard",
+  "recipe/sim-runtime/crates/sim-lib-lang-javascript/01-basics/json-codec-composition",
+  "recipe/sim-runtime/crates/sim-lib-lang-javascript/01-basics/collection-owner-composition",
 ]
 supports = ["feature/sim-runtime/guest-language-profiles", "feature/sim-runtime/organs", "feature/sim-runtime/gc-tracing"]
+composes = ["crate/sim-codec-json", "crate/sim-lib-sequence"]
 
 [[feature]]
 id = "feature/sim-runtime/typescript-notation-profile"
