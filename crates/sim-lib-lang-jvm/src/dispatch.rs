@@ -40,7 +40,8 @@ mod tests {
 
     #[test]
     fn drive_boundary_cannot_reach_classfile_decode_or_manifest_lookup() {
-        let source = fs::read_to_string(file!()).unwrap();
+        let source =
+            fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/dispatch.rs")).unwrap();
         assert!(!source.contains(concat!("decode_", "instructions(")));
         assert!(!source.contains(concat!(".meta", "data()")));
         assert!(!source.contains(concat!("OP", "CODES")));

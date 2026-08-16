@@ -4146,11 +4146,25 @@ mod tests {
             }
         );
 
-        let legacy = prepared(&[Opcode::Jsr as u8, 0, 3, Opcode::Return as u8], &[]);
+        let decoded = decode_instructions(
+            &[Opcode::Jsr as u8, 0, 3, Opcode::Return as u8],
+            61,
+            &empty_pool(),
+        )
+        .unwrap();
+        let legacy_error = match prepare_code::<GraphPolicy>(
+            &decoded,
+            4,
+            &[],
+            SourceId("Verifier.legacy()V".into()),
+        ) {
+            Ok(_) => panic!("legacy subroutine must be refused during preparation"),
+            Err(error) => error,
+        };
         assert_eq!(
-            build_verification_graph(&legacy).unwrap_err(),
-            VerificationGraphError::LegacySubroutine {
-                instruction: InstructionId(0),
+            legacy_error,
+            PreparationError::UnsupportedOpcode {
+                opcode: Opcode::Jsr,
                 offset: 0
             }
         );
