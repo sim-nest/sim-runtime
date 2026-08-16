@@ -30,6 +30,7 @@ mod specimen;
 mod surface;
 mod text;
 mod value;
+mod verifier;
 
 pub use array::{
     ArrayAllocationError, ArrayComponent, ArrayOperationError, ArrayPrimitive, JavaArray,
@@ -102,6 +103,10 @@ pub use surface::{
 };
 pub use text::{ADMITTED_CORE_MEMBERS, JavaClassMirror, JavaCoreMember, JavaString};
 pub use value::{JvmReference, JvmValue, JvmValueWidth, PrimitiveCategory, ReturnCategory};
+pub use verifier::{
+    FrameError, FrameKind, ReferenceType, VerificationFrame, VerificationType,
+    VerificationTypeWidth,
+};
 
 /// The mechanically checked reuse ledger frozen before guest semantics land.
 pub const REUSE_LEDGER: &str = include_str!("../reuse-ledger.toml");

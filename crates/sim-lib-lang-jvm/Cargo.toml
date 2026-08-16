@@ -12,6 +12,7 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 [dependencies]
 sim-codec-classfile = { version = "0.1.0" }
 sim-kernel = { version = "0.2.0" }
+sim-incremental-core = { version = "0.1.1", path = "../sim-incremental-core" }
 sim-lib-class = { version = "0.1.0", path = "../sim-lib-class" }
 sim-lib-control = { version = "0.1.5", path = "../sim-lib-control" }
 sim-lib-core = { version = "0.1.4", path = "../sim-lib-core" }
