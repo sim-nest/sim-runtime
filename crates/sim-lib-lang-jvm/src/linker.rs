@@ -2271,7 +2271,7 @@ mod tests {
     }
 
     #[test]
-    fn forbidden_narrowing_and_void_to_value_fail_while_the_plan_is_compiled() {
+    fn bad_adaptation_stage_precedes_factory_allocation_and_invocation() {
         assert_eq!(
             compile_jvm_function_plan(
                 neutral_plan(0, 1),
@@ -2443,7 +2443,7 @@ mod tests {
     }
 
     #[test]
-    fn factory_cache_is_an_ephemeron_and_capturing_calls_have_distinct_rooted_identity() {
+    fn loader_collection_stage_collects_a_captured_lambda_enclosing_object_cycle() {
         let (site, loader) = fixture();
         let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
         let owner = ClassDefinition::test(
@@ -2568,6 +2568,12 @@ mod tests {
             .unwrap()
             .instantiate(&mut heap, vec![binding()])
             .unwrap();
+        heap.strong(
+            capture_node,
+            crate::JvmEdge::Field,
+            first_instance.managed(),
+        )
+        .unwrap();
         let second_instance = first_factory
             .lock()
             .unwrap()
@@ -2592,6 +2598,7 @@ mod tests {
         let source = include_str!("linker.rs");
         assert!(!source.contains(concat!("Object", "OutputStream")));
         assert!(!source.contains(concat!("bincode", "::serialize")));
+        let first_instance_node = first_instance.managed();
         first_instance.release(&mut heap).unwrap();
         second_instance.release(&mut heap).unwrap();
 
@@ -2644,6 +2651,8 @@ mod tests {
         heap.release_root(loader_root).unwrap();
         let receipt = heap.collect().unwrap();
         assert!(receipt.swept.contains(&factory_node.id()));
+        assert!(receipt.swept.contains(&capture_node.id()));
+        assert!(receipt.swept.contains(&first_instance_node.id()));
         assert_eq!(receipt.cleared_ephemerons.len(), 2);
         assert!(
             receipt
@@ -2696,7 +2705,7 @@ mod tests {
     }
 
     #[test]
-    fn object_equals_alone_is_not_a_functional_interface() {
+    fn invalid_sam_discovery_stage_rejects_object_method_before_generation() {
         let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
         let classes = BTreeMap::from([(
             "example.EqualsOnly".into(),
@@ -2736,7 +2745,7 @@ mod tests {
     }
 
     #[test]
-    fn inherited_sam_is_located_and_hierarchy_budget_is_enforced() {
+    fn recursive_sam_discovery_work_limit_stage_precedes_generation() {
         let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
         let classes = BTreeMap::from([
             (
@@ -2761,7 +2770,7 @@ mod tests {
     }
 
     #[test]
-    fn invoked_sam_instantiation_implementation_markers_and_bridges_are_validated() {
+    fn inaccessible_handle_and_invalid_sam_stage_precede_generation() {
         let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
         let classes = BTreeMap::from([
             (
@@ -2841,7 +2850,7 @@ mod tests {
     }
 
     #[test]
-    fn refused_alternate_link_leaves_no_generated_class_or_heap_node() {
+    fn malformed_linkage_stage_performs_no_class_or_heap_effect() {
         let (_site, loader) = fixture();
         let classes = GeneratedLambdaClassSpace::new();
         let heap = JvmHeap::new(
@@ -2897,7 +2906,7 @@ mod tests {
     }
 
     #[test]
-    fn revision_bump_relinks_cached_success_and_failure() {
+    fn stale_proof_stage_relinks_after_revision_change() {
         let (key, loader) = fixture();
         let revision = loader.revision();
         loader.simulate_class_space_change();
@@ -2918,6 +2927,46 @@ mod tests {
             Err(stale)
         );
         assert_eq!(*failures.resolve(key, next, || Ok(9)).unwrap(), 9);
+    }
+
+    #[test]
+    fn cached_failure_stage_performs_no_later_link_effect() {
+        let (key, loader) = fixture();
+        let revision = loader.revision();
+        let mut cache = LinkageCache::<u8>::new();
+        let attempts = std::sync::atomic::AtomicUsize::new(0);
+        let failure = LinkageFailure::InvalidConstantPoolEntry(7);
+
+        for _ in 0..2 {
+            assert_eq!(
+                cache.resolve(key.clone(), revision, || {
+                    attempts.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    Err(failure.clone())
+                }),
+                Err(failure.clone())
+            );
+        }
+        assert_eq!(attempts.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert_eq!(cache.state(&key, revision), LinkageState::Failed(failure));
+    }
+
+    #[test]
+    fn allocation_limit_stage_precedes_graph_and_factory_effects() {
+        let mut heap = JvmHeap::new(
+            1,
+            CollectionLimits {
+                objects: 1,
+                edges: 1,
+                stack: 1,
+                work: 1,
+                clears: 1,
+                finalizers: 0,
+            },
+        )
+        .unwrap();
+        heap.allocate(JvmRole::Object).unwrap();
+        assert!(heap.allocate(JvmRole::Object).is_err());
+        assert_eq!(heap.live_len(), 1);
     }
 
     fn direct_fixture(
@@ -2997,6 +3046,143 @@ mod tests {
         assert_eq!(handle.kind(), DirectInvocationKind::Static);
         assert!(handle.initializes_on_invocation());
         assert_eq!(handle.declaring_class().id().loader(), loader.id());
+    }
+
+    #[test]
+    fn interruption_stage_preserves_resume_and_performs_one_pipeline_effect_per_attempt() {
+        struct Pipeline {
+            calls: usize,
+            resumes: Vec<Option<u8>>,
+        }
+
+        impl LambdaMethodPipeline for Pipeline {
+            type Resume = u8;
+            type Exception = sim_lib_control::Raised;
+
+            fn invoke(
+                &mut self,
+                call: LambdaMethodCall<'_, Self::Resume>,
+            ) -> Result<LambdaInvocationOutcome<Self::Resume, Self::Exception>, InvocationError>
+            {
+                self.calls += 1;
+                self.resumes.push(call.resume);
+                Ok(match call.resume {
+                    None => LambdaInvocationOutcome::Interrupted {
+                        resume: 41,
+                        work: 7,
+                    },
+                    Some(41) => LambdaInvocationOutcome::Returned {
+                        value: None,
+                        work: 11,
+                    },
+                    Some(other) => panic!("linker changed resume evidence to {other}"),
+                })
+            }
+        }
+
+        let (loader, owner, mut heap, cache, owner_handle) = direct_fixture(0x0001, 0x0009);
+        let implementation = resolve_direct_handle(
+            &ResolutionCache::new(),
+            &mut heap,
+            cache,
+            owner_handle,
+            &loader,
+            &owner,
+            7,
+            6,
+            DirectReceiver::None,
+        )
+        .unwrap();
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let site = SiteKey {
+            class: owner.id().clone(),
+            method: MethodIdentity {
+                name: "make".into(),
+                descriptor: "()Lexample/Function;".into(),
+            },
+            constant_pool_index: 7,
+            bootstrap: BootstrapMethod {
+                method_handle: 3,
+                arguments: Box::new([]),
+            },
+        };
+        let functional = FunctionalInterface {
+            interface: "example.Function".into(),
+            method_name: "apply".into(),
+            method_descriptor: "()V".into(),
+            lineage: vec!["example.Function".into()],
+        };
+        let bootstrap = LambdaBootstrapPlan {
+            sam_method_type: "()V".into(),
+            implementation_reference_kind: 6,
+            instantiated_method_type: "()V".into(),
+            marker_interfaces: vec![],
+            bridges: vec![],
+            serializable: false,
+        };
+        let class = GeneratedLambdaClassSpace::new()
+            .define(
+                &cx,
+                &mut heap,
+                &loader,
+                &owner,
+                &site,
+                "()Lexample/Function;",
+                &functional,
+                &bootstrap,
+            )
+            .unwrap();
+        let plan = JvmFunctionPlan {
+            neutral: neutral_plan(0, 0),
+            body: JvmFunctionPolicyBody {
+                adaptations: Box::new([]),
+            },
+        };
+        let mut pipeline = Pipeline {
+            calls: 0,
+            resumes: vec![],
+        };
+
+        let interrupted = invoke_lambda_member(
+            &mut pipeline,
+            &class,
+            &plan,
+            &implementation,
+            "apply",
+            "()V",
+            &[],
+            vec![],
+            None,
+        )
+        .unwrap();
+        assert!(matches!(
+            interrupted,
+            LambdaInvocationOutcome::Interrupted {
+                resume: 41,
+                work: 7
+            }
+        ));
+        let resumed = invoke_lambda_member(
+            &mut pipeline,
+            &class,
+            &plan,
+            &implementation,
+            "apply",
+            "()V",
+            &[],
+            vec![],
+            Some(41),
+        )
+        .unwrap();
+        assert!(matches!(
+            resumed,
+            LambdaInvocationOutcome::Returned {
+                value: None,
+                work: 11
+            }
+        ));
+        assert_eq!(pipeline.calls, 2);
+        assert_eq!(pipeline.resumes, [None, Some(41)]);
     }
 
     #[test]

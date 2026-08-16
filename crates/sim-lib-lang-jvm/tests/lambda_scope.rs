@@ -50,7 +50,7 @@ fn verifier_and_executor_admission_are_equal_by_construction() {
 }
 
 #[test]
-fn bootstrap_payload_is_validated_before_linkage() {
+fn malformed_constant_stage_precedes_linkage_and_allocation() {
     let protocol = &executor_admitted_lambda_protocols()[1];
     let valid = [
         ResolvedBootstrapArgument::MethodType("()Ljava/lang/Runnable;".into()),
@@ -104,7 +104,7 @@ fn bootstrap_payload_is_validated_before_linkage() {
 }
 
 #[test]
-fn alternate_metafactory_rejects_duplicates_conflicts_and_unknown_bits_exactly() {
+fn wrong_protocol_payload_stage_rejects_duplicates_conflicts_and_unknown_bits_exactly() {
     let protocol = &executor_admitted_lambda_protocols()[1];
     let fixed = [
         ResolvedBootstrapArgument::MethodType("()Ljava/lang/Object;".into()),
