@@ -31,6 +31,7 @@ mod linker;
 mod managed;
 mod monitor;
 mod numeric;
+mod regions;
 mod resolution;
 mod specimen;
 mod surface;
@@ -126,6 +127,7 @@ pub use linker::{
 pub use managed::{JVM_ROLE_EDGE_TABLE, JvmEdge, JvmGraphError, JvmHeap, JvmRole, JvmRoleEdges};
 pub use monitor::{MonitorError, MonitorLane, MonitorTable};
 pub use numeric::{NumericExecutionError, execute_numeric_instruction};
+pub use regions::{PreparedWorkRegion, PreparedWorkRegions};
 pub use resolution::{
     AccessDecision, ConstantResolution, ConstantResolutionError, ConstantResolutionKind,
     ResolutionCache, RuntimeNest, RuntimePackage,
