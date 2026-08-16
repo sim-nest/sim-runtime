@@ -39,17 +39,17 @@ decision = "reuse bounded decoded-instruction machine storage and receipts"
 product = "CLASSFILE_2"
 crate = "sim-codec-classfile"
 version = "0.1.0"
-anchor = "../sim-codecs/crates/sim-codec-classfile/scope.toml#classfile_version"
-supporting_anchor = "../sim-codecs/crates/sim-codec-classfile/opcode-manifest.tsv"
-decision = "reuse the lossless decoder and its sole opcode manifest"
+anchor = "../sim-codecs/crates/sim-codec-classfile/src/attribute.rs#BootstrapMethod"
+supporting_anchor = "../sim-codecs/crates/sim-codec-classfile/src/constant.rs#MethodHandle"
+decision = "reuse lossless BootstrapMethods, method-handle reference kinds, invokedynamic constants, and method-type constants"
 
 [[organ]]
 product = "JVM_7"
 crate = "sim-lib-lang-jvm"
 version = "0.1.0"
-anchor = "crates/sim-lib-lang-jvm/src/entry.rs#VerifierProvider"
-supporting_anchor = "crates/sim-lib-lang-jvm/src/failure.rs#FailureCondition"
-decision = "reuse the sole verifier-provider seam and extend its disjoint failure boundary as fixture data"
+anchor = "crates/sim-lib-lang-jvm/src/dynamic.rs#DynamicLinkCache"
+supporting_anchor = "crates/sim-lib-lang-jvm/src/verifier.rs#transfer_dynamic_invocation_instruction"
+decision = "reuse the occurrence-keyed linker registry seam and the verifier's sole dynamic-site rule owner"
 
 [[organ]]
 product = "DATAFLOW_2"
@@ -64,6 +64,37 @@ crate = "sim-lib-class"
 version = "0.1.0"
 anchor = "crates/sim-lib-class/src/descriptor.rs#ClassDescriptor"
 decision = "reuse checked class descriptors and inheritance semantics"
+
+[[organ]]
+product = "FUNCTION_2"
+crate = "sim-lib-function"
+version = "0.1.0"
+anchor = "crates/sim-lib-function/src/plan.rs#FunctionPlan"
+supporting_anchor = "crates/sim-lib-function/src/instance.rs#FunctionInstance"
+decision = "reuse neutral parameter, capture, callable, and browsing ownership; JVM policy supplies only its body and adaptation"
+
+[[organ]]
+product = "KERNEL"
+crate = "sim-kernel"
+version = "0.2.0"
+anchor = "../sim-kernel/src/callable.rs#Callable"
+supporting_anchor = "../sim-kernel/src/shape.rs#Shape"
+decision = "reuse the callable and Shape boundaries for explicit cross-guest interoperation"
+
+[[organ]]
+product = "DISPATCH"
+crate = "sim-lib-dispatch"
+version = "0.1.3"
+anchor = "crates/sim-lib-dispatch/src/generic.rs#GenericFunction"
+decision = "explicit non-owner: Java descriptor and bridge selection never use generic dispatch"
+
+[[organ]]
+product = "CODECS"
+crate = "sim-codec-lisp"
+version = "0.2.1"
+anchor = "../sim-codecs/crates/sim-codec-lisp/src/lib.rs"
+supporting_anchor = "crates/sim-lib-core/src/read_eval.rs#ReadEvalBroker"
+decision = "reuse expression codecs and read construction; lambda linkage gains no private serialization escape"
 
 [[organ]]
 product = "EXCEPTIONS_3"

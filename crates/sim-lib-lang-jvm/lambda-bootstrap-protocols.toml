@@ -1,0 +1,29 @@
+schema = "sim.jvm-lambda-bootstrap-protocols/v1"
+owner = "java/lang/invoke/LambdaMetafactory"
+registry_consumer = "crates/sim-lib-lang-jvm/src/dynamic.rs#DynamicLinkCache"
+verifier_consumer = "crates/sim-lib-lang-jvm/src/verifier.rs#transfer_dynamic_invocation_instruction"
+
+[[protocol]]
+name = "metafactory"
+descriptor = "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;"
+fixed_arguments = ["sam_method_type:MethodType", "implementation:MethodHandle", "instantiated_method_type:MethodType"]
+tail = "none"
+
+[[protocol]]
+name = "altMetafactory"
+descriptor = "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;"
+fixed_arguments = ["sam_method_type:MethodType", "implementation:MethodHandle", "instantiated_method_type:MethodType", "flags:int"]
+tail = "flag-governed"
+
+[flags]
+serializable = 1
+markers = 2
+bridges = 4
+admitted_mask = 7
+
+[reference_kinds]
+invoke_virtual = 5
+invoke_static = 6
+invoke_special = 7
+new_invoke_special = 8
+invoke_interface = 9

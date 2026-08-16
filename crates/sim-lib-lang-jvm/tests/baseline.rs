@@ -87,7 +87,7 @@ fn manifests_freeze_the_supported_baseline() {
     }
 
     let ledger: toml::Value = sim_lib_lang_jvm::REUSE_LEDGER.parse().unwrap();
-    assert_eq!(ledger["organ"].as_array().unwrap().len(), 11);
+    assert_eq!(ledger["organ"].as_array().unwrap().len(), 15);
 }
 
 #[test]

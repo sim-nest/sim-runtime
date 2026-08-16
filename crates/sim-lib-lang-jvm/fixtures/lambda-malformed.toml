@@ -1,0 +1,41 @@
+schema = "sim.jvm-lambda-malformed-bootstrap/v1"
+
+[[case]]
+id = "wrong-owner"
+mutation = "bootstrap.owner=java/lang/invoke/StringConcatFactory"
+expected = "unadmitted-bootstrap"
+
+[[case]]
+id = "wrong-name"
+mutation = "bootstrap.name=metafactoryTypo"
+expected = "unadmitted-bootstrap"
+
+[[case]]
+id = "wrong-descriptor"
+mutation = "bootstrap.descriptor=()Ljava/lang/invoke/CallSite;"
+expected = "unadmitted-bootstrap"
+
+[[case]]
+id = "metafactory-short-payload"
+mutation = "arguments=[sam_method_type,implementation]"
+expected = "malformed-bootstrap-payload"
+
+[[case]]
+id = "unknown-alt-flag"
+mutation = "flags=8"
+expected = "malformed-bootstrap-payload"
+
+[[case]]
+id = "markers-missing-count"
+mutation = "flags=2;tail=[]"
+expected = "malformed-bootstrap-payload"
+
+[[case]]
+id = "bridges-truncated"
+mutation = "flags=4;tail=[count:2,bridge:()V]"
+expected = "malformed-bootstrap-payload"
+
+[[case]]
+id = "implementation-field-handle"
+mutation = "implementation.reference_kind=1"
+expected = "unadmitted-reference-kind"

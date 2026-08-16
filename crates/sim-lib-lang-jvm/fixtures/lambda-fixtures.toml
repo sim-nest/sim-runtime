@@ -1,0 +1,47 @@
+schema = "sim.jvm-lambda-fixtures/v1"
+compiler = "javac 21.0.7 --release 8 -g:none"
+source = "LambdaFixtures.java"
+source_sha256 = "1d576fdb3e4944f0263e493e7008275cca3532c3b57e5ed13547fa483b2d37f6"
+classfile = "javac/LambdaFixtures.class"
+classfile_sha256 = "2b141ae1819425abb41c43fca7a198fe1e1878dd7fe0e6758660b32dfb8a258e"
+
+[[site]]
+bootstrap_index = 0
+shape = "non-capturing-lambda"
+reference_kind = 6
+
+[[site]]
+bootstrap_index = 1
+shape = "capturing-lambda"
+reference_kind = 6
+
+[[site]]
+bootstrap_index = 2
+shape = "static-method-reference"
+reference_kind = 6
+
+[[site]]
+bootstrap_index = 3
+shape = "bound-special-method-reference"
+reference_kind = 7
+
+[[site]]
+bootstrap_index = 4
+shape = "unbound-virtual-method-reference"
+reference_kind = 5
+
+[[site]]
+bootstrap_index = 5
+shape = "constructor-reference"
+reference_kind = 8
+
+[[site]]
+bootstrap_index = 6
+shape = "interface-method-reference"
+reference_kind = 9
+
+[[site]]
+bootstrap_index = 7
+shape = "serializable-alt-metafactory"
+reference_kind = 6
+flags = 5
