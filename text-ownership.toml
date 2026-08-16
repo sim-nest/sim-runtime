@@ -1,0 +1,16 @@
+schema = "sim.text-ownership/v1"
+owner = "crate/sim-text"
+remediation = "Store exact UTF-16 text in sim-text::CodeUnitString and use its checked scalar projection; keep raw code-unit work arrays private and context-declared."
+
+# These exceptions are structural contexts, not identifier guesses. Every raw
+# code-unit use outside the shared owner must state what non-owning job it does.
+[[approved_context]]
+path = "crates/sim-lib-lang-javascript/src/regexp.rs"
+class = "numeric-set"
+reason = "A private RegExp character-class set stores numeric code units and is not a text value or public record."
+
+[[approved_context]]
+path = "crates/sim-lib-lang-jvm/src/dynamic.rs"
+class = "codec-work-array"
+reason = "The JVM string-concat adapter builds a local code-unit work array and immediately transfers it into the shared JavaString text projection."
+
