@@ -104,6 +104,53 @@ fn bootstrap_payload_is_validated_before_linkage() {
 }
 
 #[test]
+fn alternate_metafactory_rejects_duplicates_conflicts_and_unknown_bits_exactly() {
+    let protocol = &executor_admitted_lambda_protocols()[1];
+    let fixed = [
+        ResolvedBootstrapArgument::MethodType("()Ljava/lang/Object;".into()),
+        ResolvedBootstrapArgument::MethodHandle { reference_kind: 6 },
+        ResolvedBootstrapArgument::MethodType("()Ljava/lang/String;".into()),
+    ];
+    let decode = |tail: Vec<ResolvedBootstrapArgument>| {
+        let arguments = fixed.iter().cloned().chain(tail).collect::<Vec<_>>();
+        decode_lambda_bootstrap(
+            protocol.owner,
+            protocol.name,
+            protocol.descriptor,
+            &arguments,
+        )
+    };
+
+    assert_eq!(
+        decode(vec![ResolvedBootstrapArgument::Integer(8)]),
+        Err(LambdaBootstrapError::MalformedPayload(
+            "unknown altMetafactory flag bit 3".into()
+        ))
+    );
+    assert_eq!(
+        decode(vec![
+            ResolvedBootstrapArgument::Integer(2),
+            ResolvedBootstrapArgument::Integer(2),
+            ResolvedBootstrapArgument::Class("example/Marker".into()),
+            ResolvedBootstrapArgument::Class("example/Marker".into()),
+        ]),
+        Err(LambdaBootstrapError::MalformedPayload(
+            "duplicate marker interface example/Marker".into()
+        ))
+    );
+    assert_eq!(
+        decode(vec![
+            ResolvedBootstrapArgument::Integer(4),
+            ResolvedBootstrapArgument::Integer(1),
+            ResolvedBootstrapArgument::MethodType("()Ljava/lang/Object;".into()),
+        ]),
+        Err(LambdaBootstrapError::MalformedPayload(
+            "bridge ()Ljava/lang/Object; conflicts with the SAM method".into()
+        ))
+    );
+}
+
+#[test]
 fn frozen_javac_fixture_contains_all_lambda_shapes() {
     assert_eq!(&LAMBDA_CLASS[0..4], &[0xca, 0xfe, 0xba, 0xbe]);
     inspect_classfile(CodecId(139), LAMBDA_CLASS.to_vec(), 65_536).unwrap();

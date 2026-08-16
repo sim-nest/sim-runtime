@@ -1317,6 +1317,8 @@ pub enum FunctionalInterfaceError {
     MissingClass(String),
     /// The call-site return or marker type is not an interface.
     NotInterface(String),
+    /// A marker interface is not accessible to the capturing linkage site.
+    InaccessibleInterface(String),
     /// The bounded interface walk would consult more nodes than allowed.
     HierarchyBudgetExhausted {
         /// Maximum loaded interface nodes the caller admitted.
@@ -1429,6 +1431,7 @@ pub fn discover_functional_interface(
 /// Validates the located SAM and all metafactory type-bearing inputs.
 pub fn validate_functional_interface(
     classes: &BTreeMap<String, Arc<ClassDefinition>>,
+    capturing_class: &str,
     invoked_type: &str,
     plan: &LambdaBootstrapPlan,
     implementation_descriptor: &str,
@@ -1480,6 +1483,14 @@ pub fn validate_functional_interface(
                 marker.metadata().resolution().binary_name().into(),
             ));
         }
+        let marker_name = marker.metadata().resolution().binary_name();
+        if marker.metadata().access_flags() & 0x0001 == 0
+            && binary_package(marker_name) != binary_package(capturing_class)
+        {
+            return Err(FunctionalInterfaceError::InaccessibleInterface(
+                marker_name.into(),
+            ));
+        }
     }
     for bridge in &plan.bridges {
         let (args, result) = split_method_descriptor(bridge)?;
@@ -1494,6 +1505,11 @@ pub fn validate_functional_interface(
         }
     }
     Ok(functional)
+}
+
+fn binary_package(name: &str) -> &str {
+    name.rsplit_once(['.', '/'])
+        .map_or("", |(package, _)| package)
 }
 
 fn object_method(name: &str, descriptor: &str) -> bool {
@@ -1592,15 +1608,20 @@ pub fn decode_lambda_bootstrap(
         LambdaProtocolTail::None => {}
         LambdaProtocolTail::FlagGoverned => {
             let flags = match arguments.get(3) {
-                Some(ResolvedBootstrapArgument::Integer(flags))
-                    if *flags >= 0
-                        && flags & !LAMBDA_BOOTSTRAP_REGISTRY.admitted_flags_mask == 0 =>
-                {
+                Some(ResolvedBootstrapArgument::Integer(flags)) => {
+                    let unknown =
+                        *flags as u32 & !(LAMBDA_BOOTSTRAP_REGISTRY.admitted_flags_mask as u32);
+                    if unknown != 0 {
+                        return Err(LambdaBootstrapError::MalformedPayload(format!(
+                            "unknown altMetafactory flag bit {}",
+                            unknown.trailing_zeros()
+                        )));
+                    }
                     *flags
                 }
-                _ => {
+                None | Some(_) => {
                     return Err(LambdaBootstrapError::MalformedPayload(
-                        "altMetafactory requires admitted flags".into(),
+                        "altMetafactory argument 3 must be integer flags".into(),
                     ));
                 }
             };
@@ -1611,6 +1632,11 @@ pub fn decode_lambda_bootstrap(
                 for _ in 0..count {
                     match arguments.get(cursor) {
                         Some(ResolvedBootstrapArgument::Class(name)) if !name.is_empty() => {
+                            if marker_interfaces.iter().any(|marker| marker == name) {
+                                return Err(LambdaBootstrapError::MalformedPayload(format!(
+                                    "duplicate marker interface {name}"
+                                )));
+                            }
                             marker_interfaces.push(name.clone())
                         }
                         _ => {
@@ -1625,7 +1651,18 @@ pub fn decode_lambda_bootstrap(
             if flags & 4 != 0 {
                 let count = payload_count(arguments, &mut cursor, "bridge")?;
                 for _ in 0..count {
-                    bridges.push(method_type(cursor)?);
+                    let bridge = method_type(cursor)?;
+                    if bridge == sam_method_type {
+                        return Err(LambdaBootstrapError::MalformedPayload(format!(
+                            "bridge {bridge} conflicts with the SAM method"
+                        )));
+                    }
+                    if bridges.iter().any(|existing| existing == &bridge) {
+                        return Err(LambdaBootstrapError::MalformedPayload(format!(
+                            "duplicate bridge {bridge}"
+                        )));
+                    }
+                    bridges.push(bridge);
                     cursor += 1;
                 }
             }
@@ -2470,6 +2507,7 @@ mod tests {
         };
         let found = validate_functional_interface(
             &classes,
+            "example.Capturing",
             "(I)Lexample/Function;",
             &plan,
             "(ILjava/lang/String;)Ljava/lang/String;",
@@ -2480,6 +2518,7 @@ mod tests {
 
         let incompatible = validate_functional_interface(
             &classes,
+            "example.Capturing",
             "(I)Lexample/Function;",
             &plan,
             "(JLjava/lang/String;)Ljava/lang/String;",
@@ -2493,6 +2532,70 @@ mod tests {
                 ..
             }
         ));
+
+        let inaccessible = ClassDefinition::test(
+            ClassLoader::new(32).id(),
+            "other.HiddenMarker",
+            1,
+            JavaClassMetadata::test_class(&cx, "other.HiddenMarker", &[], 0x0600, &[]),
+            BTreeMap::new(),
+        );
+        let mut inaccessible_classes = classes.clone();
+        inaccessible_classes.insert("other.HiddenMarker".into(), inaccessible);
+        let mut inaccessible_plan = plan.clone();
+        inaccessible_plan.marker_interfaces = vec!["other.HiddenMarker".into()];
+        assert_eq!(
+            validate_functional_interface(
+                &inaccessible_classes,
+                "example.Capturing",
+                "(I)Lexample/Function;",
+                &inaccessible_plan,
+                "(ILjava/lang/String;)Ljava/lang/String;",
+                2,
+            ),
+            Err(FunctionalInterfaceError::InaccessibleInterface(
+                "other.HiddenMarker".into()
+            ))
+        );
+    }
+
+    #[test]
+    fn refused_alternate_link_leaves_no_generated_class_or_heap_node() {
+        let (_site, loader) = fixture();
+        let classes = GeneratedLambdaClassSpace::new();
+        let heap = JvmHeap::new(
+            8,
+            CollectionLimits {
+                objects: 8,
+                edges: 8,
+                stack: 8,
+                work: 32,
+                clears: 8,
+                finalizers: 0,
+            },
+        )
+        .unwrap();
+        let protocol = &executor_admitted_lambda_protocols()[1];
+        let refused = decode_lambda_bootstrap(
+            protocol.owner,
+            protocol.name,
+            protocol.descriptor,
+            &[
+                ResolvedBootstrapArgument::MethodType("()V".into()),
+                ResolvedBootstrapArgument::MethodHandle { reference_kind: 6 },
+                ResolvedBootstrapArgument::MethodType("()V".into()),
+                ResolvedBootstrapArgument::Integer(8),
+            ],
+        );
+
+        assert_eq!(
+            refused,
+            Err(LambdaBootstrapError::MalformedPayload(
+                "unknown altMetafactory flag bit 3".into()
+            ))
+        );
+        assert!(classes.browse(loader.id(), 1).is_empty());
+        assert_eq!(heap.live_len(), 0);
     }
 
     #[test]
