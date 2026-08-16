@@ -15,6 +15,7 @@ mod failure;
 mod intrinsic;
 mod limits;
 mod managed;
+mod numeric;
 mod text;
 mod value;
 
@@ -45,6 +46,7 @@ pub use intrinsic::{
 };
 pub use limits::{ExecutionLimits, ResourceLimits};
 pub use managed::{JVM_ROLE_EDGE_TABLE, JvmEdge, JvmGraphError, JvmHeap, JvmRole, JvmRoleEdges};
+pub use numeric::{NumericExecutionError, execute_numeric_instruction};
 pub use text::{ADMITTED_CORE_MEMBERS, JavaClassMirror, JavaCoreMember, JavaString};
 pub use value::{JvmReference, JvmValue, JvmValueWidth, PrimitiveCategory, ReturnCategory};
 
@@ -56,3 +58,6 @@ pub const SUPPORTED_RUNTIME: &str = include_str!("../supported-runtime.toml");
 
 /// The closed intrinsic manifest.
 pub const INTRINSIC_MANIFEST: &str = include_str!("../intrinsics.toml");
+
+/// Auditable ownership decision for every JVM numeric instruction family.
+pub const NUMERIC_OWNERSHIP: &str = include_str!("../numeric-ownership.toml");

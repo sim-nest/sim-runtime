@@ -28,6 +28,12 @@ pub struct JvmWorkReceipt {
 }
 
 impl JvmWorkReceipt {
+    pub(crate) const fn new(instruction: InstructionId) -> Self {
+        Self {
+            instruction,
+            charged: 1,
+        }
+    }
     /// Returns the prepared instruction charged by this receipt.
     pub const fn instruction(self) -> InstructionId {
         self.instruction
@@ -332,8 +338,5 @@ fn one_constant(operands: &[InstructionOperand], opcode: Opcode) -> Result<u16, 
     Ok(*value)
 }
 fn receipt(instruction: &crate::PreparedJvmInstruction) -> JvmWorkReceipt {
-    JvmWorkReceipt {
-        instruction: instruction.id(),
-        charged: 1,
-    }
+    JvmWorkReceipt::new(instruction.id())
 }

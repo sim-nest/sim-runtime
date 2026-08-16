@@ -1,0 +1,25 @@
+# Every numeric family is classified; JVM policy is used where SIM laws differ.
+[[family]]
+operations = "integer add/subtract/multiply/negate"
+owner = "JVM policy"
+reason = "Java requires fixed-width two's-complement wrapping; SIM integers are not that representation contract"
+[[family]]
+operations = "integer divide/remainder"
+owner = "JVM policy + sim-lib-control Raised"
+reason = "Java uniquely preserves MIN/-1 and raises ArithmeticException on zero; Raised supplies the shared envelope"
+[[family]]
+operations = "float arithmetic/negation"
+owner = "Rust IEEE primitives"
+reason = "host IEEE binary32/binary64 operations match Java value-set behavior, including NaN and signed zero"
+[[family]]
+operations = "bitwise and masked shifts"
+owner = "JVM policy"
+reason = "Java masks shift distances to five or six bits; no SIM numeric owner exposes that guest law"
+[[family]]
+operations = "primitive conversions"
+owner = "JVM policy"
+reason = "Java narrowing, truncation, NaN-to-zero, and infinity/out-of-range saturation differ from SIM checked casts"
+[[family]]
+operations = "lcmp/fcmpl/fcmpg/dcmpl/dcmpg"
+owner = "JVM policy"
+reason = "Java compare instructions choose opcode-specific unordered results; general SIM comparison does not"
