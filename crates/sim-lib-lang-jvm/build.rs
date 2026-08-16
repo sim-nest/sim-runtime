@@ -7,6 +7,7 @@ const GENERATED_RULES: &str = "src/verifier_rules_generated.rs";
 fn main() {
     println!("cargo:rerun-if-changed=intrinsics.toml");
     println!("cargo:rerun-if-changed=supported-runtime.toml");
+    println!("cargo:rerun-if-changed=lambda-bootstrap-protocols.toml");
     println!("cargo:rerun-if-changed={GENERATED_RULES}");
     let source = fs::read_to_string("intrinsics.toml").expect("read JVM intrinsic manifest");
     let manifest: Value = source.parse().expect("parse JVM intrinsic manifest");
@@ -44,6 +45,11 @@ fn main() {
     generated.push_str("]\n");
     let output = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR"));
     fs::write(output.join("jvm_intrinsics.rs"), generated).expect("write generated intrinsics");
+    fs::write(
+        output.join("jvm_lambda_protocols.rs"),
+        generate_lambda_protocols(),
+    )
+    .expect("write generated lambda bootstrap protocols");
 
     let rules = generate_verifier_rules();
     if env::var_os("SIM_REGENERATE_JVM_VERIFIER_RULES").is_some() {
@@ -56,6 +62,52 @@ fn main() {
             "generated verifier rules are stale or hand-edited; regenerate with SIM_REGENERATE_JVM_VERIFIER_RULES=1 cargo check -p sim-lib-lang-jvm"
         );
     }
+}
+
+fn generate_lambda_protocols() -> String {
+    let source = fs::read_to_string("lambda-bootstrap-protocols.toml")
+        .expect("read lambda bootstrap protocol manifest");
+    let manifest: Value = source
+        .parse()
+        .expect("parse lambda bootstrap protocol manifest");
+    assert_eq!(
+        manifest["schema"].as_str(),
+        Some("sim.jvm-lambda-bootstrap-protocols/v1")
+    );
+    let owner = manifest["owner"].as_str().expect("lambda bootstrap owner");
+    let protocols = manifest["protocol"]
+        .as_array()
+        .expect("lambda bootstrap protocol array");
+    let admitted_flags = manifest["flags"]["admitted_mask"]
+        .as_integer()
+        .expect("lambda admitted flag mask");
+    let mut reference_kinds = manifest["reference_kinds"]
+        .as_table()
+        .expect("lambda reference kinds")
+        .values()
+        .map(|value| value.as_integer().expect("lambda reference kind"))
+        .collect::<Vec<_>>();
+    reference_kinds.sort_unstable();
+    reference_kinds.dedup();
+    let mut generated = String::from("LambdaBootstrapRegistry { protocols: &[\n");
+    for protocol in protocols {
+        let name = protocol["name"].as_str().expect("lambda protocol name");
+        let descriptor = protocol["descriptor"]
+            .as_str()
+            .expect("lambda protocol descriptor");
+        let tail = match protocol["tail"].as_str().expect("lambda protocol tail") {
+            "none" => "LambdaProtocolTail::None",
+            "flag-governed" => "LambdaProtocolTail::FlagGoverned",
+            other => panic!("unknown lambda protocol tail {other}"),
+        };
+        generated.push_str(&format!(
+            "    LambdaBootstrapProtocol {{ owner: {owner:?}, name: {name:?}, descriptor: {descriptor:?}, tail: {tail} }},\n"
+        ));
+    }
+    generated.push_str(&format!(
+        "], admitted_flags_mask: {admitted_flags}, reference_kinds: &{reference_kinds:?} }}\n"
+    ));
+    generated
 }
 
 fn generate_verifier_rules() -> String {

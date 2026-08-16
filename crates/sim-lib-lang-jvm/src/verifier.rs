@@ -1186,10 +1186,15 @@ pub fn transfer_dynamic_invocation_instruction(
         return Err(fail(VerificationTransferKind::MalformedPreparedInput));
     }
     let bootstrap = invocation.bootstrap;
-    if bootstrap.owner != STRING_CONCAT_BOOTSTRAP_OWNER
-        || bootstrap.name != STRING_CONCAT_BOOTSTRAP_NAME
-        || bootstrap.descriptor != STRING_CONCAT_BOOTSTRAP_DESCRIPTOR
-    {
+    let string_concat = bootstrap.owner == STRING_CONCAT_BOOTSTRAP_OWNER
+        && bootstrap.name == STRING_CONCAT_BOOTSTRAP_NAME
+        && bootstrap.descriptor == STRING_CONCAT_BOOTSTRAP_DESCRIPTOR;
+    let lambda = verifier_admitted_lambda_protocols().iter().any(|protocol| {
+        protocol.owner == bootstrap.owner
+            && protocol.name == bootstrap.name
+            && protocol.descriptor == bootstrap.descriptor
+    });
+    if !string_concat && !lambda {
         return Err(fail(VerificationTransferKind::DynamicBootstrap(
             DynamicLinkError::UnadmittedBootstrap {
                 owner: bootstrap.owner.clone(),
@@ -1201,6 +1206,11 @@ pub fn transfer_dynamic_invocation_instruction(
     let (arguments, result) = method_descriptor(invocation.descriptor)
         .ok_or_else(|| fail(VerificationTransferKind::InvocationType))?;
     transfer_invocation_values(state, &arguments, result, None).map_err(|kind| fail(kind))
+}
+
+/// Returns the verifier's admitted lambda set from the executor-owned registry.
+pub fn verifier_admitted_lambda_protocols() -> &'static [crate::LambdaBootstrapProtocol] {
+    crate::executor_admitted_lambda_protocols()
 }
 
 fn transfer_invocation_values(

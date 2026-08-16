@@ -1,5 +1,9 @@
 use sim_codec_classfile::inspect_classfile;
 use sim_kernel::CodecId;
+use sim_lib_lang_jvm::{
+    LambdaBootstrapError, ResolvedBootstrapArgument, decode_lambda_bootstrap,
+    executor_admitted_lambda_protocols, verifier_admitted_lambda_protocols,
+};
 
 const PROTOCOLS: &str = include_str!("../lambda-bootstrap-protocols.toml");
 const MALFORMED: &str = include_str!("../fixtures/lambda-malformed.toml");
@@ -30,6 +34,73 @@ fn lambda_protocol_scope_is_machine_readable_and_closed() {
         .map(|site| site["reference_kind"].as_integer().unwrap())
         .collect::<std::collections::BTreeSet<_>>();
     assert_eq!(kinds, [5, 6, 7, 8, 9].into_iter().collect());
+}
+
+#[test]
+fn verifier_and_executor_admission_are_equal_by_construction() {
+    assert_eq!(
+        verifier_admitted_lambda_protocols(),
+        executor_admitted_lambda_protocols()
+    );
+    let scope: toml::Value = PROTOCOLS.parse().unwrap();
+    assert_eq!(
+        executor_admitted_lambda_protocols().len(),
+        scope["protocol"].as_array().unwrap().len()
+    );
+}
+
+#[test]
+fn bootstrap_payload_is_validated_before_linkage() {
+    let protocol = &executor_admitted_lambda_protocols()[1];
+    let valid = [
+        ResolvedBootstrapArgument::MethodType("()Ljava/lang/Runnable;".into()),
+        ResolvedBootstrapArgument::MethodHandle { reference_kind: 6 },
+        ResolvedBootstrapArgument::MethodType("()Ljava/lang/Runnable;".into()),
+        ResolvedBootstrapArgument::Integer(7),
+        ResolvedBootstrapArgument::Integer(1),
+        ResolvedBootstrapArgument::Class("java/io/Serializable".into()),
+        ResolvedBootstrapArgument::Integer(1),
+        ResolvedBootstrapArgument::MethodType("()V".into()),
+    ];
+    let plan = decode_lambda_bootstrap(protocol.owner, protocol.name, protocol.descriptor, &valid)
+        .unwrap();
+    assert!(plan.serializable);
+    assert_eq!(plan.marker_interfaces, ["java/io/Serializable"]);
+    assert_eq!(plan.bridges, ["()V"]);
+
+    let mut truncated = valid.to_vec();
+    truncated.pop();
+    assert!(matches!(
+        decode_lambda_bootstrap(
+            protocol.owner,
+            protocol.name,
+            protocol.descriptor,
+            &truncated
+        ),
+        Err(LambdaBootstrapError::MalformedPayload(_))
+    ));
+    let mut field_handle = valid.to_vec();
+    field_handle[1] = ResolvedBootstrapArgument::MethodHandle { reference_kind: 1 };
+    assert_eq!(
+        decode_lambda_bootstrap(
+            protocol.owner,
+            protocol.name,
+            protocol.descriptor,
+            &field_handle
+        ),
+        Err(LambdaBootstrapError::UnadmittedReferenceKind(1))
+    );
+    let mut invalid_method_type = valid.to_vec();
+    invalid_method_type[0] = ResolvedBootstrapArgument::MethodType("()garbage".into());
+    assert!(matches!(
+        decode_lambda_bootstrap(
+            protocol.owner,
+            protocol.name,
+            protocol.descriptor,
+            &invalid_method_type
+        ),
+        Err(LambdaBootstrapError::MalformedPayload(_))
+    ));
 }
 
 #[test]

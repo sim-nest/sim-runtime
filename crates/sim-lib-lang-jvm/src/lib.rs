@@ -97,8 +97,10 @@ pub use invocation::{
 };
 pub use limits::{ExecutionLimits, ResourceLimits};
 pub use linker::{
-    BootstrapArgument, BootstrapMethod, LinkageCache, LinkageFailure, LinkageState, MethodIdentity,
-    SiteKey,
+    BootstrapArgument, BootstrapMethod, LambdaBootstrapError, LambdaBootstrapPlan,
+    LambdaBootstrapProtocol, LambdaProtocolTail, LinkageCache, LinkageFailure, LinkageState,
+    MethodIdentity, ResolvedBootstrapArgument, SiteKey, decode_lambda_bootstrap,
+    executor_admitted_lambda_protocols,
 };
 pub use managed::{JVM_ROLE_EDGE_TABLE, JvmEdge, JvmGraphError, JvmHeap, JvmRole, JvmRoleEdges};
 pub use monitor::{MonitorError, MonitorLane, MonitorTable};
@@ -126,7 +128,8 @@ pub use verifier::{
     VerificationState, VerificationTransferError, VerificationTransferKind, VerificationType,
     VerificationTypeJoin, VerificationTypeWidth, VerifierRule, VerifierRuleFamily,
     build_verification_graph, seal_class_verification, seal_method_verification,
-    transfer_memory_instruction, transfer_storage_instruction, verifier_rule,
+    transfer_memory_instruction, transfer_storage_instruction, verifier_admitted_lambda_protocols,
+    verifier_rule,
 };
 
 /// The mechanically checked reuse ledger frozen before guest semantics land.
