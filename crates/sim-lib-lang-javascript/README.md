@@ -10,6 +10,8 @@ The public fidelity inventory scores syntax, lowering, direct evaluation,
 objects, intrinsics, jobs/modules, boundedness, and expected gaps independently.
 Its regression inventory names the checked descriptor, cycle, completion,
 collection, job, module, RegExp, UTF-16, and capability-refusal specimens.
+ESM, dynamic import, and dynamic source use the shared source policies directly;
+the JavaScript crate adds only named constructors and owns no authority envelope.
 
 ## Standard-core boundary
 

@@ -2,168 +2,34 @@
 
 use std::sync::Arc;
 
-use sim_kernel::{
-    CapabilityName, CapabilitySet, Cx, Dir, ReadPolicy, Result, Shape, Symbol, Value,
-};
-use sim_lib_core::{ReadEvalBroker, ReadEvalRequest, ReadEvalSource, RequestOrigin};
-use sim_lib_namespace::{
-    ModuleIdentity, ModuleInstance, ModuleLoader, ModuleRequest, ModuleResolutionReceipt,
-};
-use sim_shape::AnyShape;
+use sim_kernel::Symbol;
+use sim_lib_core::{DynamicSourcePolicy, RequestOrigin};
+use sim_lib_namespace::{IdentitySpecifierPolicy, SourceModulePolicy};
 
 /// JavaScript policy over the shared parse/link/evaluate module lifecycle.
 ///
 /// The shared loader canonicalizes supplied-root identities, detects cycles,
 /// caches failures, and exposes its default export through a live binding cell.
-pub struct JavascriptModulePolicy {
-    loader: ModuleLoader,
-    codec: Symbol,
+pub fn javascript_module_policy() -> SourceModulePolicy {
+    javascript_module_policy_with_codec(Symbol::qualified("codec", "javascript"))
 }
 
-impl Default for JavascriptModulePolicy {
-    fn default() -> Self {
-        Self::with_codec(Symbol::qualified("codec", "javascript"))
-    }
+/// Builds JavaScript's module entry for an installed compatible source codec.
+pub fn javascript_module_policy_with_codec(codec: Symbol) -> SourceModulePolicy {
+    SourceModulePolicy::new(codec, Arc::new(IdentitySpecifierPolicy))
 }
 
-impl JavascriptModulePolicy {
-    /// Builds module policy for an installed compatible source codec.
-    pub fn with_codec(codec: Symbol) -> Self {
-        Self {
-            loader: ModuleLoader::new(),
-            codec,
-        }
-    }
-
-    /// Parses, links, and evaluates an ESM source from the supplied root.
-    pub fn load(
-        &self,
-        cx: &mut Cx,
-        specifier: impl Into<String>,
-        admission: JavascriptModuleAdmission,
-    ) -> Result<ModuleInstance> {
-        self.load_from(cx, None, specifier, admission)
-    }
-
-    /// Resolves a static import relative to an already linked module.
-    pub fn load_from(
-        &self,
-        cx: &mut Cx,
-        importer: Option<ModuleIdentity>,
-        specifier: impl Into<String>,
-        admission: JavascriptModuleAdmission,
-    ) -> Result<ModuleInstance> {
-        self.loader.load(
-            cx,
-            ModuleRequest {
-                root_id: admission.root_id,
-                root: admission.root,
-                importer,
-                specifier: specifier.into(),
-                codec: self.codec.clone(),
-                read_policy: admission.read_policy,
-                requires: admission.requires,
-                allow: admission.allow,
-            },
-        )
-    }
-
-    /// Dynamic import uses the same lifecycle and supplied-root envelope.
-    pub fn dynamic_import(
-        &self,
-        cx: &mut Cx,
-        importer: Option<ModuleIdentity>,
-        specifier: impl Into<String>,
-        admission: JavascriptModuleAdmission,
-    ) -> Result<ModuleInstance> {
-        self.load_from(cx, importer, specifier, admission)
-    }
-
-    /// Ordered link, cache-hit, cycle, and failure evidence.
-    pub fn receipts(&self) -> Result<Vec<ModuleResolutionReceipt>> {
-        self.loader.receipts()
-    }
+/// Builds JavaScript's dynamic-source entry over the shared source policy.
+pub fn dynamic_javascript_policy() -> DynamicSourcePolicy {
+    dynamic_javascript_policy_with_codec(Symbol::qualified("codec", "javascript"))
 }
 
 /// Host-authored root and authority supplied for one ESM resolution.
-pub struct JavascriptModuleAdmission {
-    /// Stable identity for the supplied module root.
-    pub root_id: Symbol,
-    /// The only directory visible to module resolution.
-    pub root: Arc<dyn Dir>,
-    /// Trusted policy used by diminished read-eval.
-    pub read_policy: ReadPolicy,
-    /// Powers the importing caller must already hold.
-    pub requires: Vec<CapabilityName>,
-    /// Diminished powers visible during source evaluation.
-    pub allow: CapabilitySet,
-}
-
-/// Capability-gated JavaScript `eval`/`Function` source entry.
-pub struct DynamicJavascript {
-    broker: ReadEvalBroker,
-    codec: Symbol,
-}
-
-impl Default for DynamicJavascript {
-    fn default() -> Self {
-        Self::with_codec(Symbol::qualified("codec", "javascript"))
-    }
-}
-
-impl DynamicJavascript {
-    /// Builds dynamic source policy for an installed compatible codec.
-    pub fn with_codec(codec: Symbol) -> Self {
-        Self {
-            broker: ReadEvalBroker::new(),
-            codec,
-        }
-    }
-
-    /// Evaluates dynamic text only through diminished read-eval.
-    pub fn evaluate(
-        &self,
-        cx: &mut Cx,
-        source: impl Into<String>,
-        admission: JavascriptDynamicAdmission,
-    ) -> Result<Value> {
-        self.broker.admit(
-            cx,
-            ReadEvalRequest {
-                origin: RequestOrigin::new(Symbol::qualified("javascript", "dynamic-source")),
-                codec: self.codec.clone(),
-                source: ReadEvalSource::Text(source.into()),
-                read_policy: admission.read_policy,
-                requires: admission.requires,
-                allow: admission.allow,
-                expected_shape: admission.expected_shape,
-            },
-        )
-    }
-}
-
-/// Host-authored authority envelope for dynamic JavaScript source.
-pub struct JavascriptDynamicAdmission {
-    /// Trusted read policy; source cannot construct it.
-    pub read_policy: ReadPolicy,
-    /// Powers the caller must already hold.
-    pub requires: Vec<CapabilityName>,
-    /// Diminished powers visible during evaluation.
-    pub allow: CapabilitySet,
-    /// Required result shape.
-    pub expected_shape: Arc<dyn Shape>,
-}
-
-impl JavascriptDynamicAdmission {
-    /// Builds an envelope with no ambient capabilities and an unconstrained result.
-    pub fn new(read_policy: ReadPolicy) -> Self {
-        Self {
-            read_policy,
-            requires: Vec::new(),
-            allow: CapabilitySet::new(),
-            expected_shape: Arc::new(AnyShape),
-        }
-    }
+pub fn dynamic_javascript_policy_with_codec(codec: Symbol) -> DynamicSourcePolicy {
+    DynamicSourcePolicy::new(
+        codec,
+        RequestOrigin::new(Symbol::qualified("javascript", "dynamic-source")),
+    )
 }
 
 #[cfg(test)]
@@ -172,11 +38,13 @@ mod tests {
 
     use sim_codec_lisp::LispCodecLib;
     use sim_kernel::{
-        ClassId, ClassRef, CodecId, DefaultFactory, EagerPolicy, Error, Expr, Object, ObjectCompat,
-        Table, TrustLevel, read_eval_capability,
+        CapabilitySet, ClassId, ClassRef, CodecId, Cx, DefaultFactory, Dir, EagerPolicy, Error,
+        Expr, Object, ObjectCompat, ReadPolicy, Result, Table, TrustLevel, Value,
+        read_eval_capability,
     };
+    use sim_lib_core::SourceAuthority;
     use sim_lib_namespace::{ModuleResolutionOutcome, module_load_capability};
-    use sim_shape::ExactExprShape;
+    use sim_shape::{AnyShape, ExactExprShape};
 
     use super::*;
 
@@ -287,14 +155,8 @@ mod tests {
         }
     }
 
-    fn admission(root: Arc<MemoryDir>) -> JavascriptModuleAdmission {
-        JavascriptModuleAdmission {
-            root_id: Symbol::new("modules"),
-            root,
-            read_policy: trusted(),
-            requires: vec![module_load_capability()],
-            allow: CapabilitySet::new(),
-        }
+    fn authority(requires: Vec<sim_kernel::CapabilityName>) -> SourceAuthority {
+        SourceAuthority::new(trusted(), requires, CapabilitySet::new()).unwrap()
     }
 
     #[test]
@@ -305,12 +167,25 @@ mod tests {
         let root = Arc::new(MemoryDir::default());
         root.source(&mut cx, "answer.mjs", "42");
         root.source(&mut cx, "broken.mjs", "(");
-        let modules = JavascriptModulePolicy::with_codec(Symbol::qualified("codec", "lisp"));
+        let modules = javascript_module_policy_with_codec(Symbol::qualified("codec", "lisp"));
         let first = modules
-            .load(&mut cx, "answer.mjs", admission(root.clone()))
+            .load(
+                &mut cx,
+                Symbol::new("modules"),
+                root.clone(),
+                "answer.mjs",
+                authority(vec![module_load_capability()]),
+            )
             .unwrap();
         let imported = modules
-            .dynamic_import(&mut cx, None, "answer.mjs", admission(root.clone()))
+            .dynamic_import(
+                &mut cx,
+                Symbol::new("modules"),
+                root.clone(),
+                Some(first.identity().clone()),
+                "./answer.mjs",
+                authority(vec![module_load_capability()]),
+            )
             .unwrap();
         assert_eq!(first.identity(), imported.identity());
         assert_eq!(
@@ -325,13 +200,25 @@ mod tests {
         );
         assert!(
             modules
-                .load(&mut cx, "broken.mjs", admission(root.clone()))
+                .load(
+                    &mut cx,
+                    Symbol::new("modules"),
+                    root.clone(),
+                    "broken.mjs",
+                    authority(Vec::new())
+                )
                 .is_err()
         );
         root.source(&mut cx, "broken.mjs", "41");
         assert!(
             modules
-                .load(&mut cx, "broken.mjs", admission(root))
+                .load(
+                    &mut cx,
+                    Symbol::new("modules"),
+                    root,
+                    "broken.mjs",
+                    authority(Vec::new())
+                )
                 .is_err()
         );
         assert_eq!(
@@ -344,8 +231,8 @@ mod tests {
             vec![
                 ModuleResolutionOutcome::Linked,
                 ModuleResolutionOutcome::CacheHit,
-                ModuleResolutionOutcome::Failed,
-                ModuleResolutionOutcome::Failed,
+                ModuleResolutionOutcome::DecodeFailed,
+                ModuleResolutionOutcome::DecodeFailed,
             ]
         );
     }
@@ -353,17 +240,16 @@ mod tests {
     #[test]
     fn dynamic_source_rejects_ambient_authority() {
         let (mut cx, seat) = context();
-        let dynamic = DynamicJavascript::with_codec(Symbol::qualified("codec", "lisp"));
-        let denied = dynamic
-            .evaluate(
-                &mut cx,
-                "42",
-                JavascriptDynamicAdmission::new(ReadPolicy {
-                    trust: TrustLevel::Untrusted,
-                    capabilities: CapabilitySet::new(),
-                }),
-            )
-            .unwrap_err();
+        let dynamic = dynamic_javascript_policy_with_codec(Symbol::qualified("codec", "lisp"));
+        let denied = SourceAuthority::new(
+            ReadPolicy {
+                trust: TrustLevel::Untrusted,
+                capabilities: CapabilitySet::new(),
+            },
+            Vec::new(),
+            CapabilitySet::new(),
+        )
+        .unwrap_err();
         assert!(matches!(
             denied,
             Error::TrustDenied { .. } | Error::CapabilityDenied { .. }
@@ -371,17 +257,17 @@ mod tests {
 
         seat.grant(&mut cx, read_eval_capability()).unwrap();
         let denied = dynamic
-            .evaluate(
+            .evaluate_text(
                 &mut cx,
                 "42",
-                JavascriptDynamicAdmission {
-                    read_policy: trusted(),
-                    requires: Vec::new(),
-                    allow: CapabilitySet::new(),
-                    expected_shape: Arc::new(ExactExprShape::new(Expr::String("not-42".into()))),
-                },
+                authority(Vec::new()),
+                Arc::new(ExactExprShape::new(Expr::String("not-42".into()))),
             )
             .unwrap_err();
         assert!(matches!(denied, Error::WrongShape { .. }));
+        let value = dynamic
+            .evaluate_text(&mut cx, "42", authority(Vec::new()), Arc::new(AnyShape))
+            .unwrap();
+        assert_eq!(value.object().display(&mut cx).unwrap(), "42");
     }
 }

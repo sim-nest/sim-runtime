@@ -43,8 +43,8 @@ pub use managed::{
 };
 pub use matrix_row::{javascript_core_matrix_row, javascript_core_source_cases};
 pub use modules::{
-    DynamicJavascript, JavascriptDynamicAdmission, JavascriptModuleAdmission,
-    JavascriptModulePolicy,
+    dynamic_javascript_policy, dynamic_javascript_policy_with_codec, javascript_module_policy,
+    javascript_module_policy_with_codec,
 };
 pub use objects::{
     JavascriptCallError, JavascriptFunction, JavascriptFunctionKind, JavascriptFunctionPolicy,
