@@ -10,6 +10,7 @@ mod class_metadata;
 mod class_space;
 mod code;
 mod entry;
+mod execution;
 mod failure;
 mod intrinsic;
 mod limits;
@@ -31,6 +32,9 @@ pub use code::{
 pub use entry::{
     ClassfilePermit, EntryRefusal, EntryTarget, ExecutionPermit, NoVerifier, PreparedEntry,
     ResolvedEntry, StaticAdmission, VerificationFidelity, VerifierProvider, drive,
+};
+pub use execution::{
+    ExecutionError, JvmConstantResolver, JvmWorkReceipt, execute_storage_instruction,
 };
 pub use failure::{
     AdmissionFailure, FailureCondition, FailureHome, JavaThrowable, ResourceFailure,
