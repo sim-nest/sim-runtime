@@ -34,6 +34,7 @@ mod numeric;
 mod regions;
 mod resolution;
 mod specimen;
+mod superinstructions;
 mod surface;
 mod text;
 mod value;
@@ -134,6 +135,7 @@ pub use resolution::{
     ResolutionCache, RuntimeNest, RuntimePackage,
 };
 pub use specimen::{JvmProductSpecimen, run_product_specimen};
+pub use superinstructions::{FusedHandler, PreparedFusion, prepare_fusions};
 pub use surface::{
     JVM_DECLARED_ABSENCES, JvmBrowse, JvmLanguageLib, JvmSurface, install_jvm_language_lib,
     jvm_browse_capability, jvm_invoke_capability, jvm_language_profile,

@@ -1,0 +1,12 @@
+schema = "sim.jvm-superinstructions/v1"
+profile = "bytecode-speed-4.02/frozen-corpus"
+
+[[superinstruction]]
+name = "LoadPairAdd"
+opcodes = ["iload_0", "iload_1", "iadd"]
+profile_count = 2
+
+[[superinstruction]]
+name = "ConstMultiply"
+opcodes = ["iconst_2", "imul"]
+profile_count = 1
