@@ -1,7 +1,10 @@
 //! ECMAScript collection policy composed over shared sequence semantics.
 
 use crate::JavascriptValue;
+use sim_lib_sequence::SparseSequence;
 use std::collections::BTreeMap;
+
+const MAX_ARRAY_LENGTH: usize = u32::MAX as usize;
 
 /// A unique ECMAScript Symbol identity.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -64,22 +67,35 @@ pub enum JavascriptCollectionError {
 }
 
 /// ECMAScript array with explicit holes distinct from `undefined`.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct JavascriptArray {
-    elements: Vec<Option<JavascriptValue>>,
+    elements: SparseSequence<JavascriptValue>,
+}
+impl Default for JavascriptArray {
+    fn default() -> Self {
+        Self::sparse(0)
+    }
 }
 impl JavascriptArray {
     /// Construct a dense array.
     pub fn dense(values: Vec<JavascriptValue>) -> Self {
-        Self {
-            elements: values.into_iter().map(Some).collect(),
+        let mut elements = SparseSequence::new(MAX_ARRAY_LENGTH);
+        for (index, value) in values.into_iter().enumerate() {
+            elements
+                .set(index, value)
+                .expect("a materialized vector has a valid JavaScript array length");
         }
+        Self { elements }
     }
     /// Construct with an explicit length and holes.
     pub fn sparse(length: usize) -> Self {
-        Self {
-            elements: vec![None; length],
-        }
+        assert!(
+            length <= MAX_ARRAY_LENGTH,
+            "invalid JavaScript array length"
+        );
+        let mut elements = SparseSequence::new(MAX_ARRAY_LENGTH);
+        elements.set_len(length).expect("length was checked");
+        Self { elements }
     }
     /// ECMAScript length.
     pub fn len(&self) -> usize {
@@ -91,32 +107,59 @@ impl JavascriptArray {
     }
     /// Read an own indexed element; holes remain distinguishable.
     pub fn get(&self, index: usize) -> Option<&JavascriptValue> {
-        self.elements.get(index).and_then(Option::as_ref)
+        self.elements.get(index)
     }
     /// Set an index, growing through holes as JavaScript arrays do.
     pub fn set(&mut self, index: usize, value: JavascriptValue) {
-        if index >= self.len() {
-            self.elements.resize(index + 1, None);
-        }
-        self.elements[index] = Some(value);
+        self.elements
+            .set(index, value)
+            .expect("invalid JavaScript array index");
+    }
+    /// Set the ECMAScript length, creating holes or deleting truncated values.
+    pub fn set_len(&mut self, length: usize) -> Result<(), JavascriptCollectionError> {
+        self.elements
+            .set_len(length)
+            .map_err(|_| JavascriptCollectionError::Index)
     }
     /// Append and return the new length.
     pub fn push(&mut self, value: JavascriptValue) -> usize {
-        self.elements.push(Some(value));
+        self.set(self.len(), value);
         self.len()
     }
     /// Remove and return the last element (`undefined` and a hole both return `None` at this policy seam).
     pub fn pop(&mut self) -> Option<JavascriptValue> {
-        self.elements.pop().flatten()
+        let index = self.len().checked_sub(1)?;
+        let value = self.elements.remove(index);
+        self.elements
+            .set_len(index)
+            .expect("shrinking an array length is valid");
+        value
     }
     /// JavaScript array iterator: holes are observed as `undefined`.
     pub fn values(&self) -> JavascriptIterator {
         JavascriptIterator::new(
-            self.elements
-                .iter()
-                .map(|v| v.clone().unwrap_or(JavascriptValue::Undefined))
+            (0..self.len())
+                .map(|index| {
+                    self.get(index)
+                        .cloned()
+                        .unwrap_or(JavascriptValue::Undefined)
+                })
                 .collect(),
         )
+    }
+    /// Bounded `forEach`; callbacks skip holes.
+    pub fn for_each(
+        &self,
+        max_visits: usize,
+        mut f: impl FnMut(&JavascriptValue, usize),
+    ) -> Result<(), JavascriptCollectionError> {
+        for (visit, (index, value)) in self.elements.occupied_in(..).enumerate() {
+            if visit >= max_visits {
+                return Err(JavascriptCollectionError::Limit);
+            }
+            f(value, index);
+        }
+        Ok(())
     }
     /// Bounded `map`; callbacks skip holes and holes are retained.
     pub fn map(
@@ -124,18 +167,15 @@ impl JavascriptArray {
         max_visits: usize,
         mut f: impl FnMut(&JavascriptValue, usize) -> JavascriptValue,
     ) -> Result<Self, JavascriptCollectionError> {
-        let visits = self.elements.iter().filter(|v| v.is_some()).count();
+        let visits = self.elements.occupied_len();
         if visits > max_visits {
             return Err(JavascriptCollectionError::Limit);
         }
-        Ok(Self {
-            elements: self
-                .elements
-                .iter()
-                .enumerate()
-                .map(|(i, v)| v.as_ref().map(|v| f(v, i)))
-                .collect(),
-        })
+        let mut out = Self::sparse(self.len());
+        for (index, value) in self.elements.occupied_in(..) {
+            out.set(index, f(value, index));
+        }
+        Ok(out)
     }
     /// Bounded `filter`; callbacks skip holes and the result is dense.
     pub fn filter(
@@ -143,20 +183,18 @@ impl JavascriptArray {
         max_visits: usize,
         mut f: impl FnMut(&JavascriptValue, usize) -> bool,
     ) -> Result<Self, JavascriptCollectionError> {
-        let mut out = Vec::new();
+        let mut out = Self::default();
         let mut visits = 0;
-        for (i, value) in self.elements.iter().enumerate() {
-            if let Some(value) = value {
-                visits += 1;
-                if visits > max_visits {
-                    return Err(JavascriptCollectionError::Limit);
-                }
-                if f(value, i) {
-                    out.push(Some(value.clone()));
-                }
+        for (i, value) in self.elements.occupied_in(..) {
+            visits += 1;
+            if visits > max_visits {
+                return Err(JavascriptCollectionError::Limit);
+            }
+            if f(value, i) {
+                out.push(value.clone());
             }
         }
-        Ok(Self { elements: out })
+        Ok(out)
     }
 }
 
@@ -307,6 +345,23 @@ mod tests {
         assert_eq!(it.next_result().value, Some(JavascriptValue::Undefined));
         assert!(!it.next_result().done);
         assert!(it.next_result().done);
+    }
+    #[test]
+    fn array_callbacks_skip_holes_and_length_truncation_deletes_values() {
+        let mut array = JavascriptArray::sparse(4);
+        array.set(1, JavascriptValue::Number(1.));
+        array.set(3, JavascriptValue::Number(3.));
+        let mut visited = Vec::new();
+        array.for_each(2, |_, index| visited.push(index)).unwrap();
+        assert_eq!(visited, vec![1, 3]);
+        assert_eq!(array.get(0), None);
+
+        array.set_len(2).unwrap();
+        assert_eq!(array.len(), 2);
+        assert_eq!(array.get(1), Some(&JavascriptValue::Number(1.)));
+        assert_eq!(array.get(3), None);
+        array.set_len(4).unwrap();
+        assert_eq!(array.get(3), None);
     }
     #[test]
     fn map_set_use_same_value_zero_and_insertion_order() {

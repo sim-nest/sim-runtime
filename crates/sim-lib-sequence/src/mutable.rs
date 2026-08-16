@@ -338,6 +338,16 @@ pub struct SparseSequence<T> {
     revision: u64,
 }
 
+impl<T: PartialEq> PartialEq for SparseSequence<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.len == other.len
+            && self.occupied == other.occupied
+            && self.occupied_in(..).eq(other.occupied_in(..))
+    }
+}
+
+impl<T: Eq> Eq for SparseSequence<T> {}
+
 impl<T> SparseSequence<T> {
     /// Construct an empty store whose logical length may not exceed `max_len`.
     pub fn new(max_len: usize) -> Self {
