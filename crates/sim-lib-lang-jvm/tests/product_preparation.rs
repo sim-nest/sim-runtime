@@ -2,7 +2,10 @@
 
 #[test]
 fn optimized_preparation_has_one_representation_one_drive_and_no_mode_switch() {
-    let code = include_str!("../src/code.rs");
+    let code = concat!(
+        include_str!("../src/code/model.rs"),
+        include_str!("../src/code/prepare.rs"),
+    );
     let entry = include_str!("../src/entry.rs");
     let machine_driver = include_str!("../../sim-lib-machine/src/driver.rs");
 

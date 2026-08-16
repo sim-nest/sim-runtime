@@ -1,6 +1,6 @@
 {
   "generator": "xtask crate-catalog v1",
-  "package_count": 29,
+  "package_count": 33,
   "packages": [
     {
       "description": "Dependency-light incremental query graph with memo cutoff and bounded snapshots.",
@@ -11,7 +11,8 @@
       "readme": "crates/sim-incremental-core/README.md",
       "root": "crates/sim-incremental-core",
       "target_kinds": [
-        "lib"
+        "lib",
+        "test"
       ]
     },
     {
@@ -28,6 +29,19 @@
       ]
     },
     {
+      "description": "Checked class descriptors and inheritance semantics for SIM.",
+      "generated_readme": false,
+      "manifest": "crates/sim-lib-class/Cargo.toml",
+      "name": "sim-lib-class",
+      "publish": "true",
+      "readme": "crates/sim-lib-class/README.md",
+      "root": "crates/sim-lib-class",
+      "target_kinds": [
+        "lib",
+        "test"
+      ]
+    },
+    {
       "description": "Control-flow organs for SIM async, branching, and policy-aware execution.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-control/Cargo.toml",
@@ -37,7 +51,8 @@
       "root": "crates/sim-lib-control",
       "target_kinds": [
         "custom-build",
-        "lib"
+        "lib",
+        "test"
       ]
     },
     {
@@ -77,6 +92,19 @@
       "target_kinds": [
         "custom-build",
         "lib"
+      ]
+    },
+    {
+      "description": "Language-neutral function plans and managed function instances for SIM.",
+      "generated_readme": false,
+      "manifest": "crates/sim-lib-function/Cargo.toml",
+      "name": "sim-lib-function",
+      "publish": "true",
+      "readme": "crates/sim-lib-function/README.md",
+      "root": "crates/sim-lib-function",
+      "target_kinds": [
+        "lib",
+        "test"
       ]
     },
     {
@@ -166,7 +194,8 @@
       "root": "crates/sim-lib-lang-javascript",
       "target_kinds": [
         "custom-build",
-        "lib"
+        "lib",
+        "test"
       ]
     },
     {
@@ -180,6 +209,21 @@
       "target_kinds": [
         "custom-build",
         "lib"
+      ]
+    },
+    {
+      "description": "Manifest-frozen JVM runtime profile for SIM.",
+      "generated_readme": false,
+      "manifest": "crates/sim-lib-lang-jvm/Cargo.toml",
+      "name": "sim-lib-lang-jvm",
+      "publish": "true",
+      "readme": "crates/sim-lib-lang-jvm/README.md",
+      "root": "crates/sim-lib-lang-jvm",
+      "target_kinds": [
+        "custom-build",
+        "example",
+        "lib",
+        "test"
       ]
     },
     {
@@ -299,6 +343,19 @@
       ]
     },
     {
+      "description": "Neutral policy contracts for bounded decoded-instruction machines.",
+      "generated_readme": false,
+      "manifest": "crates/sim-lib-machine/Cargo.toml",
+      "name": "sim-lib-machine",
+      "publish": "true",
+      "readme": "crates/sim-lib-machine/README.md",
+      "root": "crates/sim-lib-machine",
+      "target_kinds": [
+        "lib",
+        "test"
+      ]
+    },
+    {
       "description": "Tracked mutation containers and bounded managed-object storage for SIM runtimes.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-mutation/Cargo.toml",
@@ -334,7 +391,8 @@
       "root": "crates/sim-lib-pattern",
       "target_kinds": [
         "custom-build",
-        "lib"
+        "lib",
+        "test"
       ]
     },
     {
@@ -347,7 +405,8 @@
       "root": "crates/sim-lib-sequence",
       "target_kinds": [
         "custom-build",
-        "lib"
+        "lib",
+        "test"
       ]
     },
     {

@@ -1,3 +1,5 @@
+// conformance: published JVM performance evidence remains complete and traceable.
+
 use std::{fs, path::Path};
 
 #[test]

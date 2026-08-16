@@ -97,4 +97,4 @@ java_class = "java/lang/VerifyError"
 [integration]
 provider_trait = "VerifierProvider"
 definition_anchor = "src/entry.rs#VerifierProvider"
-invocation_anchor = "src/entry.rs#StaticAdmission::verify"
+invocation_anchor = "src/entry.rs#StaticEntryPermit::verify"

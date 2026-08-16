@@ -108,7 +108,7 @@ pub const fn candidate_inventory() -> &'static [SemanticCandidate] {
             disposition: CandidateDisposition::Exclude,
             domain: SemanticDomain::PropertyLookup,
             declared_parent: ParentMeaning::PrototypeDelegate,
-            source_anchor: "sim-runtime/crates/sim-lib-lang-javascript/src/objects.rs",
+            source_anchor: "sim-runtime/crates/sim-lib-lang-javascript/src/objects/space.rs",
         },
         SemanticCandidate {
             model: CandidateModel::LuaMetatable,

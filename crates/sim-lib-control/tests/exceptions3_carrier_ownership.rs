@@ -220,7 +220,7 @@ fn source_fact_guard_rejects_forked_carriers_and_admits_declared_guest_objects()
 
     assert!(
         violations(
-            "crates/sim-lib-lang-javascript/src/objects.rs",
+            "crates/sim-lib-lang-javascript/src/objects/function.rs",
             "pub struct JavascriptCallError {\n pub origin: String,\n pub message: String,\n}",
         )
         .is_empty()

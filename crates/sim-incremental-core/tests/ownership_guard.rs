@@ -1,3 +1,5 @@
+// conformance: the incremental core retains the generic dataflow worklist boundary.
+
 //! Structural ownership guard for the generic dataflow worklist.
 
 use std::{env, fs, path::PathBuf};

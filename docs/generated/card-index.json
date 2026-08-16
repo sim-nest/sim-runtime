@@ -1,5 +1,5 @@
 {
-  "card_count": 28,
+  "card_count": 31,
   "cards": [
     {
       "id": "browse/catalog",
@@ -125,7 +125,7 @@
       "id": "cookbook/organ/incremental",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-incremental",
-      "summary": "Memoized expression queries with invalidation, missing observations, cutoff, snapshots, and metrics."
+      "summary": "Memoized expression queries plus immutable, proof-backed dataflow analysis projections."
     },
     {
       "id": "cookbook/organ/mutation",
@@ -158,10 +158,28 @@
       "summary": "Permission-gated host process runs with time and output limits."
     },
     {
+      "id": "cookbook/sim-lib-class",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-class",
+      "summary": "Language-neutral class lineage, browsing, read construction, and managed caches."
+    },
+    {
+      "id": "cookbook/sim-lib-function",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-function",
+      "summary": "Language-neutral typed functions, managed captures, and optional dispatch."
+    },
+    {
+      "id": "cookbook/sim-lib-lang-jvm",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-lang-jvm",
+      "summary": ""
+    },
+    {
       "id": "cookbook/standard/core",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-standard-core",
-      "summary": "Language profiles, fidelity badges, and conformance helpers."
+      "summary": "Language profiles, fidelity badges, conformance helpers, and strict migration characterization."
     },
     {
       "id": "registry/catalog",

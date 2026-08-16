@@ -1,3 +1,5 @@
+// conformance: generic dispatch preserves its public selection contract.
+
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},

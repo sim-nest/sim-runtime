@@ -19,7 +19,7 @@ title = "Embedded capability-scoped ECMAScript profile"
 summary = "Run embedded, capability-scoped ECMAScript over SIM values with ordinary objects, exact UTF-16 strings, explicit drain-to-empty jobs, and JavaScript-named constructors for shared source-module and dynamic-source policies, with no private authority envelopes, Node, DOM, timers, ambient host IO, or implicit event loop."
 owner = "crate/sim-lib-lang-javascript"
 audiences = ["code", "framework"]
-guidance = "Use this checked profile as the end of the add-guest-language route for embedded, capability-scoped ECMAScript over SIM values, never as a Node replacement. Enter through codec/javascript and compose shared function plans and exact capture cells, binding, descriptor dispatch, managed identity, sequence, pattern, JSON codec, tracing, resumable-frame, typed-job, diminished read-eval, and source-module mechanics. Keep ordinary-versus-arrow receiver selection, constructor legality, positional default/rest binding, async and generator state, realm identity, and error origins in JavaScript policy; prototype chains and private brands remain exclusively in the property/object subsystem. Carry every thrown JavaScript value through the shared Raised envelope using its realm class identity; Error cause and AggregateError errors remain ordinary descriptor-backed JavaScript properties. JavaScript allocations are ManagedNode values with only an open JavascriptManagedKind role label; allocate them through the generic ManagedHeap and use its checked strong, weak, and ephemeron operations rather than introducing guest graph storage or policy. Generators and async functions exchange shared ResumePacket values; promises, async continuations, and dynamic imports enter the JavaScript language-microtask FIFO and run only at an explicit drain-to-empty checkpoint. Collector finalization has a distinct queue class and checkpoint. ESM resolution is confined to supplied Dir roots and inherits canonical identities, live binding cells, cycle/failure receipts, and installed-codec evaluation from sim-lib-namespace; dynamic source likewise enters only through ReadEvalBroker with host-authored diminished authority. The generated intrinsic manifest covers sparse arrays, iterators, Map, Set, Symbol, exact UTF-16 code units, and JSON reviver/toJSON/replacer/property-order/cycle policy. Ownership audit: keep symbol allocation and the Symbol.for/keyFor registry as the small JavaScript policy anchored at crates/sim-lib-lang-javascript/src/collections.rs::JavascriptSymbolRegistry; sim-kernel/src/id.rs::Symbol is a textual namespace/name value and cannot express fresh identity, description-independent equality, or a realm-local string-keyed registry. Compose iterator storage and insertion-order traversal from crates/sim-lib-sequence/src/mutable.rs::OrderedTableIter and crates/sim-lib-sequence/src/mutable.rs::OrderedSetIter, with only the ECMAScript next-result adapter anchored at crates/sim-lib-lang-javascript/src/collections.rs::JavascriptIterator::next_result; the shared sequence owner already expresses live ordered traversal, while JavaScript policy supplies array-hole materialization and the { value, done } result shape. RegExp syntax and flags remain guest policy, but admitted syntax lowers into the bounded pattern organ; unsupported clauses fail closed. The pattern-ownership.toml Index enforcement policy rejects a guest-owned NFA, backtracking driver, or roadmap-family diagnostic while explicitly classifying syntax parsers and policy adapters. Node, CommonJS, npm, DOM, fetch, timers, filesystem, processes, network, ambient host IO, and an implicit event loop are deliberately absent. Callable browse Shapes remain neutral, and Proxy and exotic-object invariants are explicit gaps; do not add an engine, VM, Realm, scheduler, event loop, matcher, private managed substrate, private module cache, TypeScript policy, or foreign runtime."
+guidance = "Use this checked profile as the end of the add-guest-language route for embedded, capability-scoped ECMAScript over SIM values, never as a Node replacement. Enter through codec/javascript and compose shared function plans and exact capture cells, binding, descriptor dispatch, managed identity, sequence, pattern, JSON codec, tracing, resumable-frame, typed-job, diminished read-eval, and source-module mechanics. Keep ordinary-versus-arrow receiver selection, constructor legality, positional default/rest binding, async and generator state, realm identity, and error origins in JavaScript policy; prototype chains and private brands remain exclusively in the property/object subsystem. Carry every thrown JavaScript value through the shared Raised envelope using its realm class identity; Error cause and AggregateError errors remain ordinary descriptor-backed JavaScript properties. JavaScript allocations are ManagedNode values with only an open JavascriptManagedKind role label; allocate them through the generic ManagedHeap and use its checked strong, weak, and ephemeron operations rather than introducing guest graph storage or policy. Generators and async functions exchange shared ResumePacket values; promises, async continuations, and dynamic imports enter the JavaScript language-microtask FIFO and run only at an explicit drain-to-empty checkpoint. Collector finalization has a distinct queue class and checkpoint. ESM resolution is confined to supplied Dir roots and inherits canonical identities, live binding cells, cycle/failure receipts, and installed-codec evaluation from sim-lib-namespace; dynamic source likewise enters only through ReadEvalBroker with host-authored diminished authority. The generated intrinsic manifest covers sparse arrays, iterators, Map, Set, Symbol, exact UTF-16 code units, and JSON reviver/toJSON/replacer/property-order/cycle policy. Ownership audit: keep symbol allocation and the Symbol.for/keyFor registry as the small JavaScript policy anchored at crates/sim-lib-lang-javascript/src/collections.rs::JavascriptSymbolRegistry; sim-kernel/src/id.rs::Symbol is a textual namespace/name value and cannot express fresh identity, description-independent equality, or a realm-local string-keyed registry. Compose iterator storage and insertion-order traversal from crates/sim-lib-sequence/src/mutable/ordered_table.rs::OrderedTableIter and crates/sim-lib-sequence/src/mutable/ordered_set.rs::OrderedSetIter, with only the ECMAScript next-result adapter anchored at crates/sim-lib-lang-javascript/src/collections.rs::JavascriptIterator::next_result; the shared sequence owner already expresses live ordered traversal, while JavaScript policy supplies array-hole materialization and the { value, done } result shape. RegExp syntax and flags remain guest policy, but admitted syntax lowers into the bounded pattern organ; unsupported clauses fail closed. The pattern-ownership.toml Index enforcement policy rejects a guest-owned NFA, backtracking driver, or roadmap-family diagnostic while explicitly classifying syntax parsers and policy adapters. Node, CommonJS, npm, DOM, fetch, timers, filesystem, processes, network, ambient host IO, and an implicit event loop are deliberately absent. Callable browse Shapes remain neutral, and Proxy and exotic-object invariants are explicit gaps; do not add an engine, VM, Realm, scheduler, event loop, matcher, private managed substrate, private module cache, TypeScript policy, or foreign runtime."
 claims_anchors = ["anchor/crate/sim-lib-lang-javascript"]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-lang-javascript/src/lib",
@@ -111,6 +111,8 @@ guidance = "Use this row when a framework needs memoized expression calculation 
 claims_anchors = [
   "anchor/crate/sim-lib-incremental",
   "anchor/runtime-lib/sim-lib-incremental/incremental-lib",
+  "anchor/export/sim-lib-incremental/model/analysis_view.rs",
+  "anchor/export/sim-lib-incremental/model/session.rs",
   "anchor/card/cookbook/organ/incremental",
 ]
 claims_specimens = [
@@ -145,17 +147,12 @@ owner = "crate/sim-lib-binding"
 audiences = ["code", "framework"]
 guidance = "Use this row when composing reusable runtime behavior from small organ crates and loadable libraries. sim-lib-binding owns the language-neutral call-signature binder and shared binding-cell lifecycle used by guest profiles. sim-lib-function owns immutable function plans and typed managed instances whose capture edges remain visible to the shared collector. Every guest raises sim-lib-control Raised, obtains its class identity from a declared class descriptor, selects handlers with the bounded class matcher, and stores cause, context, group, and suppression relations as stable ManagedException edges. Guest profiles own the meaning of those edge roles, but exception-ownership.toml rejects another class-and-payload carrier or recursive Box/Vec relation chain outside the control organ and explicitly admits named guest object fields by their declared owner. sim-lib-control also owns budgeted resumable frames, cleanup-safe generic unwind, and explicitly driven typed FIFO job queues. Microtasks and finalization remain distinct queue classes, and selected-class checkpoints drain reentrant work to empty under caller-declared bounds. sim-lib-pattern is the one matcher organ: guests may own declared syntax parsers and result-policy adapters, but pattern-ownership.toml rejects guest NFA state, backtracking drivers, and roadmap-family public diagnostics and keeps every pattern overlap classified."
 claims_anchors = [
-  "anchor/crate/sim-lib-control",
-  "anchor/crate/sim-lib-function",
-  "anchor/crate/sim-lib-logic",
-  "anchor/crate/sim-lib-pattern",
   "anchor/crate/sim-lib-sequence",
   "anchor/runtime-lib/sim-lib-logic/logic-lib",
   "anchor/runtime-lib/sim-lib-pattern/pattern-lib",
   "anchor/runtime-lib/sim-lib-sequence/sequence-lib",
 ]
 claims_specimens = [
-  "spec-test/sim-runtime/crates/sim-lib-logic/src/tests/organ_proof",
   "spec-test/sim-runtime/crates/sim-lib-pattern/tests/ownership_guard",
 ]
 
@@ -379,7 +376,8 @@ owner = "crate/sim-lib-dispatch"
 audiences = ["code", "framework"]
 guidance = "Use PropertyStore for descriptor storage and execution over caller-owned object identities. Supply the owner order explicitly: language profiles retain responsibility for inheritance linearization, prototype traversal, and descriptor precedence. AccessContext bounds traversal and rejects recursive interception."
 claims_anchors = [
-  "anchor/crate/sim-lib-dispatch",
+  "anchor/rustdoc/sim-lib-dispatch/property-store",
+  "anchor/rustdoc/sim-lib-dispatch/descriptor",
 ]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-dispatch/src/property_tests",
@@ -431,18 +429,12 @@ owner = "crate/sim-lib-standard-core"
 audiences = ["code", "framework"]
 guidance = "Use this row when a framework depends on standard libraries or language-profile loading."
 claims_anchors = [
-  "anchor/crate/sim-lib-lang-cl",
   "anchor/crate/sim-lib-lang-clojure",
   "anchor/crate/sim-lib-lang-genconf",
-  "anchor/crate/sim-lib-lang-islisp",
-  "anchor/crate/sim-lib-lang-julia",
   "anchor/crate/sim-lib-lang-lua",
   "anchor/crate/sim-lib-lang-matrix",
-  "anchor/crate/sim-lib-lang-prolog",
   "anchor/crate/sim-lib-lang-ruby",
   "anchor/crate/sim-lib-lang-scheme",
-  "anchor/crate/sim-lib-lang-typed-lazy",
-  "anchor/crate/sim-lib-standard-core",
   "anchor/runtime-lib/sim-lib-lang-cl/cl-lite-reader-codec-lib",
   "anchor/runtime-lib/sim-lib-lang-clojure/clojure-edn-codec-lib",
   "anchor/runtime-lib/sim-lib-lang-prolog/prolog-lib",
@@ -462,6 +454,8 @@ owner = "crate/sim-lib-standard-core"
 audiences = ["code", "framework"]
 guidance = "Start from the checked LanguageProfile and GuestProfileEvidence thin-profile contract, follow Lua's codec and profile as the no-compiler reference, register the crate in guest-profiles.toml, reuse organs, and finish by adding the profile to the shared language matrix. Lua closures demonstrate the required function boundary: FunctionPlan owns declaration metadata, FunctionInstance owns callable identity and managed capture edges, BindingCell preserves one shared upvalue, and LuaBodyPolicy alone retains varargs, multiple returns, evaluation, and coroutine semantics. Lua protected calls carry failures only through sim-lib-control Raised: LuaExceptionProfile supplies the canonical raised-value class, retains the exact payload Value identity, and declares Lua's exact-class match policy; pcall and xpcall unwrap the payload at their existing guest-visible boundary. Lua __index remains table-or-callable metatable dispatch through MetaObjectProtocol and is explicitly not class lineage. A guest may own instruction or opcode data and language-specific instruction semantics. It may not own generic slots, operand or frame stacks, a frame driver, or a recursive interpreter loop; compose the neutral machine contract for those mechanics."
 claims_anchors = [
+  "anchor/export/sim-lib-lang-matrix/shape/guest-args",
+  "anchor/export/sim-lib-lang-matrix/shape/guest-result",
   "anchor/rustdoc/sim-lib-lang-lua/lua_reader_symbol",
   "anchor/rustdoc/sim-lib-lang-lua/lua_core_profile",
   "anchor/rustdoc/sim-lib-lang-matrix/language_matrix",
@@ -751,7 +745,10 @@ summary = "Decode caller-authorized classfile bytes and execute bounded JVM call
 owner = "crate/sim-lib-lang-jvm"
 audiences = ["user", "code", "framework"]
 guidance = "Load JvmLanguageLib through the standard bootloader or enable the SDK standard-jvm feature. Supply bytes explicitly under jvm.class.load and invoke only under jvm.invoke. Project linked Java lambdas through JavaLambdaCallable; admit a SIM FUNCTION_2 Callable as a managed Java SAM only under jvm.functional-adapter, after Shape and descriptor validation and before generated-class construction. Both directions preserve shared roots, JVM continuation ownership, and Java-facing failures. Select static-checked fidelity with NoVerifier, or install ClassVerifierProvider for verified fidelity: it refuses preparation unless one complete proof exactly matches class content, loader revision, verifier policy, structural input, and the selected method. Inspect only bounded immutable ClassVerificationView, MethodVerificationView, VerificationFrameView, and VerificationExplanation projections; none can mint verification state. Both tiers use the same PreparedEntry, ExecutionPermit, and drive path. Reuse JVM activation storage through JvmFramePool: it pools the shared machine SlotFile and UnitStack organs, sanitizes references only after explicit completion, bounds retained shapes and count, and keeps interrupted leases exclusively live until resume. Prepare work batching through PreparedWorkRegions: it aggregates only straight-line regions between safepoints, control transfers, and handler boundaries, and its execution window falls back to exact stepping whenever remaining work cannot admit the whole region or interruption is pending. Individual JvmWorkReceipt records remain the observable evidence. Use JvmBenchmarkCounters only as the counter-only adapter for neutral BENCH_2 workloads; it owns no clock, statistics, sampling, or report. Inspect `docs/jvm-bytecode-performance.md` and the performance-evidence recipe for prepared-code, micro-op, fusion, fidelity, and raw-sample provenance; the canonical BENCH_2 artifacts remain with sim-tooling. The generated VERIFIER_COVERAGE and opcode rule table consume sim-codec-classfile's complete manifest table, and the intrinsic table is generated directly from intrinsics.toml. The jvm-ownership.toml Index enforcement policy rejects raw decode in the drive loop, duplicate opcode or fusion tables, unchecked specialization, strong global caches, private statistics, alternate interpreters, unmapped fused operations, verifier byte parsers, private worklists or control-flow graphs, boolean verified flags, classfile parsers, opcode lists, private stacks or frames, raw Vec<u16> strings, shadow managed graphs, ambient classpaths, string-based class matching, unwind payload records, and alternate method-entry or drive paths. Never construct a second Cx or a JVM-owned copy of shared machine, managed, control, source-authority, classfile-decoder, class, namespace, text, or statistics policy."
-claims_anchors = ["anchor/crate/sim-lib-lang-jvm"]
+claims_anchors = [
+  "anchor/crate/sim-lib-lang-jvm",
+  "anchor/runtime-lib/sim-lib-lang-jvm/jvm-language-lib",
+]
 claims_specimens = [
   "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/authorized-static-call",
   "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/java-lambda",
@@ -764,7 +761,7 @@ claims_specimens = [
   "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/performance-evidence",
 ]
 supports = ["feature/sim-runtime/guest-language-profiles", "feature/sim-runtime/organs"]
-composes = ["crate/sim-codec-classfile", "crate/sim-lib-machine", "crate/sim-lib-mutation", "crate/sim-lib-gc-tracing", "crate/sim-lib-control", "crate/sim-lib-core", "crate/sim-lib-class", "crate/sim-lib-namespace", "crate/sim-text"]
+composes = ["crate/sim-codec-classfile", "crate/sim-lib-machine", "crate/sim-lib-mutation", "crate/sim-lib-gc-tracing", "crate/sim-lib-control", "crate/sim-lib-core", "crate/sim-lib-class", "crate/sim-text"]
 
 [[route]]
 id = "route/inspect-jvm-performance-evidence"

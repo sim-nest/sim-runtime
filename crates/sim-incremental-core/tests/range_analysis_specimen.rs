@@ -1,3 +1,5 @@
+// conformance: bounded range analysis requires explicit widening.
+
 //! Backward range analysis whose ascending loop requires explicit widening.
 
 use sim_incremental_core::{

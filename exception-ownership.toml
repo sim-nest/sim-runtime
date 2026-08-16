@@ -22,7 +22,7 @@ fields = ["class", "traceback_origin", "message"]
 reason = "This is a call-binding diagnostic projected into Python policy, not a raised carrier or exception relation store."
 
 [[guest_object]]
-path = "crates/sim-lib-lang-javascript/src/objects.rs"
+path = "crates/sim-lib-lang-javascript/src/objects/function.rs"
 record = "JavascriptCallError"
 fields = ["origin", "message"]
 reason = "This is a host call-binding diagnostic, not a thrown-value carrier; JavaScript Error objects remain ordinary managed guest objects."

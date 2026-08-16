@@ -18,7 +18,7 @@ decision = "reuse Index discovery and record its current coverage gap for the ne
 product = "MANAGED_2"
 crate = "sim-lib-mutation"
 version = "0.1.4"
-anchor = "crates/sim-lib-mutation/src/managed.rs#ManagedNode"
+anchor = "crates/sim-lib-mutation/src/managed/object.rs#ManagedNode"
 decision = "reuse managed graph ownership for every future JVM heap object"
 
 [[organ]]
@@ -48,7 +48,7 @@ product = "JVM_7"
 crate = "sim-lib-lang-jvm"
 version = "0.1.0"
 anchor = "crates/sim-lib-lang-jvm/src/dynamic.rs#DynamicLinkCache"
-supporting_anchor = "crates/sim-lib-lang-jvm/src/verifier.rs#transfer_dynamic_invocation_instruction"
+supporting_anchor = "crates/sim-lib-lang-jvm/src/verifier/invocation.rs#transfer_dynamic_invocation_instruction"
 decision = "reuse the occurrence-keyed linker registry seam and the verifier's sole dynamic-site rule owner"
 
 [[organ]]
@@ -102,16 +102,6 @@ crate = "sim-lib-control"
 version = "0.1.5"
 anchor = "crates/sim-lib-control/src/model.rs#Raised"
 decision = "reuse the common raised envelope; do not add a JVM unwind carrier"
-
-[[organ]]
-product = "MODULES_2"
-crate = "sim-lib-namespace"
-version = "0.1.3"
-anchor = "crates/sim-lib-namespace/src/module.rs#SourceModulePolicy"
-supporting_anchor = "crates/sim-lib-core/src/read_eval.rs#SourceAuthority"
-supporting_crate = "sim-lib-core"
-supporting_version = "0.1.4"
-decision = "reuse caller-authorized source resolution; no ambient classpath"
 
 [[finding]]
 surface = "SIM Index"

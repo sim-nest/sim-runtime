@@ -1,5 +1,7 @@
 //! Structural guard for guest JSON and collection composition.
 
+// conformance: guest collections reuse the shared ordered sequence substrate.
+
 use std::{
     fs,
     path::{Path, PathBuf},

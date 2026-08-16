@@ -1,3 +1,5 @@
+// conformance: the function organ supports a complete neutral language specimen.
+
 //! A checked function-organ specimen for a language that does not exist yet.
 
 use std::sync::Arc;

@@ -1,3 +1,5 @@
+// conformance: JVM policy retains the declared shared-organ ownership boundary.
+
 //! Policy-driven source-fact guard for JVM organ ownership.
 
 use std::{fs, path::Path};

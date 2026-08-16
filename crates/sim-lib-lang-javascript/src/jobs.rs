@@ -339,11 +339,7 @@ mod tests {
     use std::{cell::RefCell, rc::Rc};
 
     use super::*;
-    use sim_kernel::{ClassId, CodecId, DefaultFactory, NoopEvalPolicy, SourceId, Span};
-
-    fn cx() -> Cx {
-        Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory))
-    }
+    use sim_kernel::{ClassId, CodecId, SourceId, Span};
 
     fn class(cx: &Cx, id: u32, name: &str) -> ClassRef {
         cx.factory()
@@ -382,7 +378,7 @@ mod tests {
     }
 
     fn exception_characterization() -> Vec<String> {
-        let cx = cx();
+        let cx = sim_kernel::testing::bare_cx();
         let realm = realm(&cx);
         let errors = [
             JavascriptValue::Number(3.0),
@@ -419,7 +415,7 @@ mod tests {
 
     #[test]
     fn generator_exception_and_async_settlement_use_shared_packets() {
-        let cx = cx();
+        let cx = sim_kernel::testing::bare_cx();
         let realm = realm(&cx);
         let mut generator =
             JavascriptGenerator::new(FrameLimits { depth: 2, work: 4 }, |packet, budget| {
@@ -489,7 +485,7 @@ mod tests {
 
     #[test]
     fn arbitrary_throws_keep_values_and_realm_class_identity() {
-        let cx = cx();
+        let cx = sim_kernel::testing::bare_cx();
         let mut realm = realm(&cx);
         let mut heap = crate::JavascriptHeap::retaining(2).unwrap();
         let plain = heap

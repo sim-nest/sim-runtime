@@ -1,7 +1,7 @@
 schema = "sim.jvm-lambda-bootstrap-protocols/v1"
 owner = "java/lang/invoke/LambdaMetafactory"
 registry_consumer = "crates/sim-lib-lang-jvm/src/dynamic.rs#DynamicLinkCache"
-verifier_consumer = "crates/sim-lib-lang-jvm/src/verifier.rs#transfer_dynamic_invocation_instruction"
+verifier_consumer = "crates/sim-lib-lang-jvm/src/verifier/invocation.rs#transfer_dynamic_invocation_instruction"
 
 [[protocol]]
 name = "metafactory"

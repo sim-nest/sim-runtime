@@ -1,7 +1,10 @@
 //! JVM-owned method selection and descriptor-driven machine transfers.
 
-use std::{collections::BTreeSet, sync::Arc};
+use std::{cell::RefCell, sync::Arc};
 
+use sim_lib_class::{
+    DeclaredOrderPolicy, LineageBudget, LineageError, LineageGraph, LineagePolicy,
+};
 use sim_lib_machine::{CallTransfer, ReturnTransfer, TransferError};
 
 use crate::{
@@ -56,6 +59,22 @@ pub enum InvocationError {
     AbstractMethod,
     /// Unrelated maximally-specific interface defaults remain.
     DefaultMethodConflict(Vec<ClassDefinitionId>),
+    /// The declared class graph contains a cycle.
+    HierarchyCycle(Vec<String>),
+    /// Class selection exceeded its admitted node count.
+    HierarchyNodeBudgetExhausted {
+        /// Admitted number of distinct classes.
+        limit: usize,
+        /// First class count that could not be admitted.
+        required: usize,
+    },
+    /// Class selection exceeded its admitted traversal work.
+    HierarchyWorkBudgetExhausted {
+        /// Admitted traversal work.
+        limit: usize,
+        /// Work already performed when selection was refused.
+        performed: usize,
+    },
     /// The method descriptor is malformed or uses an unsupported category.
     InvalidDescriptor,
     /// Supplied arguments do not match descriptor computational categories.
@@ -75,6 +94,7 @@ pub fn select_invocation(
     resolved: &ConstantResolution,
     kind: InvocationKind,
     receiver_class: Option<&str>,
+    lineage_budget: LineageBudget,
 ) -> Result<SelectedMethod, InvocationError> {
     if !matches!(
         resolved.kind,
@@ -118,17 +138,13 @@ pub fn select_invocation(
                 loader,
                 receiver_class.ok_or(InvocationError::MissingReceiver)?,
             )?;
-            if let Some(target) = first_class_declaration(
-                loader,
-                receiver.clone(),
-                name,
-                descriptor,
-                &mut BTreeSet::new(),
-            )? && !target.1.is_abstract()
+            if let Some(target) =
+                first_class_declaration(loader, receiver.clone(), name, descriptor, lineage_budget)?
+                && !target.1.is_abstract()
             {
                 return selected(target.0, target.1);
             }
-            select_default(loader, receiver, name, descriptor)
+            select_default(loader, receiver, name, descriptor, lineage_budget)
         }
     }
 }
@@ -155,22 +171,16 @@ fn first_class_declaration(
     class: Arc<ClassDefinition>,
     name: &str,
     descriptor: &str,
-    visited: &mut BTreeSet<ClassDefinitionId>,
+    lineage_budget: LineageBudget,
 ) -> Result<Option<(Arc<ClassDefinition>, JavaMember)>, InvocationError> {
-    if !visited.insert(class.id().clone()) {
-        return Ok(None);
-    }
-    if class.metadata().access_flags() & 0x0200 == 0 {
+    for class in declared_lineage(loader, class.id().binary_name(), lineage_budget)? {
+        if class.metadata().access_flags() & 0x0200 != 0 {
+            continue;
+        }
         if let Some(method) = class.metadata().select_method(name, descriptor)
             && !method.is_static()
         {
             return Ok(Some((class.clone(), method.clone())));
-        }
-        if let Some(parent) = class.metadata().resolution().direct_parents().first() {
-            let parent = load(loader, parent)?;
-            if parent.metadata().access_flags() & 0x0200 == 0 {
-                return first_class_declaration(loader, parent, name, descriptor, visited);
-            }
         }
     }
     Ok(None)
@@ -181,10 +191,14 @@ fn select_default(
     receiver: Arc<ClassDefinition>,
     name: &str,
     descriptor: &str,
+    lineage_budget: LineageBudget,
 ) -> Result<SelectedMethod, InvocationError> {
-    let mut interfaces = Vec::new();
-    collect_interfaces(loader, receiver, &mut BTreeSet::new(), &mut interfaces)?;
-    let mut candidates = interfaces
+    let interfaces = declared_lineage(loader, receiver.id().binary_name(), lineage_budget)?
+        .into_iter()
+        .skip(1)
+        .filter(|class| class.metadata().access_flags() & 0x0200 != 0)
+        .collect::<Vec<_>>();
+    let candidates = interfaces
         .iter()
         .filter_map(|class| {
             class
@@ -196,27 +210,30 @@ fn select_default(
                 })
         })
         .collect::<Vec<_>>();
-    candidates.retain(|(candidate, _)| {
-        !interfaces.iter().any(|other| {
-            other.id() != candidate.id()
-                && is_subinterface(
-                    loader,
-                    other,
-                    candidate.id().binary_name(),
-                    &mut BTreeSet::new(),
-                )
-                .unwrap_or(false)
+    let mut maximally_specific = Vec::new();
+    for (candidate, method) in candidates {
+        let mut shadowed = false;
+        for other in &interfaces {
+            if other.id() != candidate.id()
                 && other.metadata().select_method(name, descriptor).is_some()
-        })
-    });
-    match candidates.len() {
+                && is_subinterface(loader, other, candidate.id().binary_name(), lineage_budget)?
+            {
+                shadowed = true;
+                break;
+            }
+        }
+        if !shadowed {
+            maximally_specific.push((candidate, method));
+        }
+    }
+    match maximally_specific.len() {
         0 => Err(InvocationError::AbstractMethod),
         1 => {
-            let (class, method) = candidates.pop().expect("one candidate");
+            let (class, method) = maximally_specific.pop().expect("one candidate");
             selected(class, method)
         }
         _ => Err(InvocationError::DefaultMethodConflict(
-            candidates
+            maximally_specific
                 .into_iter()
                 .map(|(class, _)| class.id().clone())
                 .collect(),
@@ -224,40 +241,72 @@ fn select_default(
     }
 }
 
-fn collect_interfaces(
-    loader: &ClassLoader,
-    class: Arc<ClassDefinition>,
-    visited: &mut BTreeSet<ClassDefinitionId>,
-    output: &mut Vec<Arc<ClassDefinition>>,
-) -> Result<(), InvocationError> {
-    if !visited.insert(class.id().clone()) {
-        return Ok(());
-    }
-    for parent_name in class.metadata().resolution().direct_parents() {
-        let parent = load(loader, parent_name)?;
-        if parent.metadata().access_flags() & 0x0200 != 0 {
-            output.push(parent.clone());
-        }
-        collect_interfaces(loader, parent, visited, output)?;
-    }
-    Ok(())
-}
-
 fn is_subinterface(
     loader: &ClassLoader,
     class: &Arc<ClassDefinition>,
     target: &str,
-    visited: &mut BTreeSet<ClassDefinitionId>,
+    lineage_budget: LineageBudget,
 ) -> Result<bool, InvocationError> {
-    if !visited.insert(class.id().clone()) {
-        return Ok(false);
-    }
-    for parent in class.metadata().resolution().direct_parents() {
-        if parent == target || is_subinterface(loader, &load(loader, parent)?, target, visited)? {
-            return Ok(true);
+    Ok(
+        declared_lineage(loader, class.id().binary_name(), lineage_budget)?
+            .iter()
+            .skip(1)
+            .any(|parent| parent.id().binary_name() == target),
+    )
+}
+
+struct JvmLineageGraph<'a> {
+    loader: &'a ClassLoader,
+    failure: RefCell<Option<InvocationError>>,
+}
+
+impl LineageGraph for JvmLineageGraph<'_> {
+    type Node = String;
+
+    fn declared_parents(&self, node: &Self::Node) -> Vec<Self::Node> {
+        match load(self.loader, node) {
+            Ok(class) => class.metadata().resolution().direct_parents().to_vec(),
+            Err(error) => {
+                if self.failure.borrow().is_none() {
+                    self.failure.replace(Some(error));
+                }
+                Vec::new()
+            }
         }
     }
-    Ok(false)
+}
+
+fn declared_lineage(
+    loader: &ClassLoader,
+    root: &str,
+    budget: LineageBudget,
+) -> Result<Vec<Arc<ClassDefinition>>, InvocationError> {
+    let graph = JvmLineageGraph {
+        loader,
+        failure: RefCell::new(None),
+    };
+    let names = DeclaredOrderPolicy
+        .linearize(&graph, &root.to_owned(), budget)
+        .map_err(lineage_error)?;
+    if let Some(error) = graph.failure.into_inner() {
+        return Err(error);
+    }
+    names.into_iter().map(|name| load(loader, &name)).collect()
+}
+
+fn lineage_error(error: LineageError<String>) -> InvocationError {
+    match error {
+        LineageError::Cycle { path } => InvocationError::HierarchyCycle(path),
+        LineageError::NodeBudgetExhausted { limit, required } => {
+            InvocationError::HierarchyNodeBudgetExhausted { limit, required }
+        }
+        LineageError::WorkBudgetExhausted { limit, performed } => {
+            InvocationError::HierarchyWorkBudgetExhausted { limit, performed }
+        }
+        LineageError::ConflictingPrecedence { .. } => {
+            unreachable!("declared-order lineage cannot report C3 precedence conflicts")
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -414,6 +463,13 @@ mod tests {
         }
     }
 
+    fn selection_budget() -> LineageBudget {
+        LineageBudget {
+            nodes: 16,
+            work: 128,
+        }
+    }
+
     #[test]
     fn maximally_specific_default_wins_over_inherited_abstract() {
         let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
@@ -450,6 +506,7 @@ mod tests {
             &resolved,
             InvocationKind::Interface,
             Some("p.Receiver"),
+            selection_budget(),
         )
         .unwrap();
         assert_eq!(selected.declaring_class().id().binary_name(), "p.Specific");
@@ -491,6 +548,7 @@ mod tests {
             &resolved,
             InvocationKind::Interface,
             Some("p.Receiver"),
+            selection_budget(),
         )
         .unwrap_err();
         let InvocationError::DefaultMethodConflict(classes) = error else {
@@ -522,6 +580,7 @@ mod tests {
             &resolution(&class, ConstantResolutionKind::Method),
             InvocationKind::Virtual,
             Some("p.Bridge"),
+            selection_budget(),
         )
         .unwrap();
         assert!(selected.method().is_bridge());
@@ -570,6 +629,38 @@ mod tests {
             .widths,
             [1]
         );
+    }
+
+    #[test]
+    fn invocation_refuses_a_hierarchy_outside_its_lineage_budget() {
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let loader = ClassLoader::new(1024);
+        let base = insert(
+            &cx,
+            &loader,
+            "p.Base",
+            &[],
+            0x0001,
+            &[("run", "()V", 0x0001)],
+        );
+        insert(&cx, &loader, "p.Middle", &["p.Base"], 0x0001, &[]);
+        insert(&cx, &loader, "p.Leaf", &["p.Middle"], 0x0001, &[]);
+        let mut resolved = resolution(&base, ConstantResolutionKind::Method);
+        resolved.descriptor = Some("()V".into());
+
+        assert!(matches!(
+            select_invocation(
+                &loader,
+                &resolved,
+                InvocationKind::Virtual,
+                Some("p.Leaf"),
+                LineageBudget { nodes: 2, work: 8 },
+            ),
+            Err(InvocationError::HierarchyNodeBudgetExhausted {
+                limit: 2,
+                required: 3,
+            })
+        ));
     }
 
     #[test]

@@ -1,3 +1,5 @@
+// conformance: source authority remains owned by the shared runtime core.
+
 //! Structural source-fact guard for the shared source-authority boundary.
 
 use std::{

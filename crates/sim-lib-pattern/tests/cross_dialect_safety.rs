@@ -1,3 +1,5 @@
+// conformance: one bounded matcher safely serves every admitted pattern dialect.
+
 use sim_lib_pattern::{
     ByteDomain, ByteOffset, CaptureId, CodeUnitDomain, CodeUnitOffset, DomainExecutionOutcome,
     EnginePolicy, ExecutionLimit, GlobPatternDialect, IrNode, LuaPatternDialect, PatternIr,

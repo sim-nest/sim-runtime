@@ -1,10 +1,12 @@
+// conformance: neutral class descriptors support complete language-independent specimens.
+
 //! End-to-end class specimens for a language that does not exist.
 
 use std::{collections::BTreeMap, sync::Arc};
 
 use sim_kernel::{
-    Class, ClassId, Cx, DefaultFactory, Expr, MatchScore, NoopEvalPolicy, Object, ObjectCompat,
-    ReadConstructor, Result, Shape, ShapeDoc, ShapeMatch, Symbol, Value,
+    Class, ClassId, Cx, Expr, MatchScore, Object, ObjectCompat, ReadConstructor, Result, Shape,
+    ShapeDoc, ShapeMatch, Symbol, Value,
 };
 use sim_lib_class::{
     C3Policy, CacheAccessKind, ClassCache, ClassDescriptor, ClassDescriptorInput, ClassIdentity,
@@ -79,10 +81,6 @@ impl ReadConstructor for PairReadConstructor {
     fn construct_read(&self, cx: &mut Cx, args: Vec<Value>) -> Result<Value> {
         cx.factory().list(args)
     }
-}
-
-fn cx() -> Cx {
-    Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory))
 }
 
 fn shape(cx: &Cx, name: &'static str) -> Value {
@@ -176,7 +174,7 @@ fn managed_cache_reclamation_observes_the_clearing_receipt() {
 
 #[test]
 fn member_shapes_are_browseable_and_read_construction_round_trips() {
-    let mut cx = cx();
+    let mut cx = sim_kernel::testing::bare_cx();
     let any = shape(&cx, "specimen:any");
     let coordinate = shape(&cx, "specimen:coordinate");
     let read_constructor = cx

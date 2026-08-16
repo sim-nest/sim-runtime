@@ -1,3 +1,5 @@
+// conformance: matcher implementation remains owned by the shared pattern organ.
+
 //! Source-fact ownership guard for the single shared matcher organ.
 
 use std::{

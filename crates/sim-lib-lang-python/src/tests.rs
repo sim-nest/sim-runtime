@@ -1,10 +1,6 @@
 use crate::{DescriptorHook, PYTHON_OBJECT_CONTROL_GAPS, PythonObjectSpace, PythonObjectValue};
-use sim_kernel::{ClassId, ClassRef, Cx, DefaultFactory, NoopEvalPolicy, Symbol};
-use std::sync::Arc;
+use sim_kernel::{ClassId, ClassRef, Cx, Symbol};
 
-fn cx() -> Cx {
-    Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory))
-}
 fn class(cx: &Cx, id: u32, name: &str) -> ClassRef {
     cx.factory()
         .class_stub(ClassId(id), Symbol::qualified("python", name))
@@ -14,7 +10,7 @@ fn class(cx: &Cx, id: u32, name: &str) -> ClassRef {
 #[test]
 fn public_object_control_contract_is_reachable_and_fail_closed() {
     let mut objects = PythonObjectSpace::default();
-    let cx = cx();
+    let cx = sim_kernel::testing::bare_cx();
     let object = class(&cx, 1, "object");
     let checked = class(&cx, 2, "Checked");
     objects.define_class(&cx, object.clone(), vec![]).unwrap();

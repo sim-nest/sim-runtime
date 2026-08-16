@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-gc-tracing"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "MPL-2.0"
 description = "Bounded deterministic tracing garbage collection for SIM managed arenas."
@@ -10,8 +10,8 @@ repository = "https://github.com/sim-nest/sim-runtime"
 homepage = "https://github.com/sim-nest/sim-runtime"
 
 [dependencies]
-sim-lib-mutation = { version = "0.1.4", path = "../sim-lib-mutation" }
-sim-lib-control = { version = "0.1.5", path = "../sim-lib-control" }
+sim-lib-mutation = { version = "0.1.5", path = "../sim-lib-mutation" }
+sim-lib-control = { version = "0.1.6", path = "../sim-lib-control" }
 
 [lints]
 workspace = true

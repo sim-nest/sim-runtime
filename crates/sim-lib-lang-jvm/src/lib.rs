@@ -73,8 +73,8 @@ pub use dynamic::{
 };
 pub use entry::{
     ClassVerifierProvider, ClassfilePermit, EntryRefusal, EntryTarget, ExecutionPermit, NoVerifier,
-    PreparedEntry, ResolvedEntry, StaticAdmission, VerificationFidelity, VerificationProofFailure,
-    VerifierProvider, drive,
+    PreparedEntry, ResolvedEntry, StaticEntryPermit, VerificationFidelity,
+    VerificationProofFailure, VerifierProvider, drive,
 };
 pub use exception::{
     JavaHandlerEntry, JavaThrowError, JavaThrowSite, JavaThrowableHeap, JavaThrowableMutationError,
@@ -134,6 +134,7 @@ pub use resolution::{
     AccessDecision, ConstantResolution, ConstantResolutionError, ConstantResolutionKind,
     ResolutionCache, RuntimeNest, RuntimePackage,
 };
+pub use sim_lib_class::LineageBudget;
 pub use specimen::{JvmProductSpecimen, run_product_specimen};
 pub use superinstructions::{FusedHandler, PreparedFusion, prepare_fusions};
 pub use surface::{
@@ -144,17 +145,22 @@ pub use text::{ADMITTED_CORE_MEMBERS, JavaClassMirror, JavaCoreMember, JavaStrin
 pub use value::{JvmReference, JvmValue, JvmValueWidth, PrimitiveCategory, ReturnCategory};
 pub use verifier::{
     ClassMethodProofIdentity, ClassVerificationCache, ClassVerificationError,
-    ClassVerificationProof, ExpandedStackMapFrame, FrameError, FrameKind, MethodVerificationError,
-    MethodVerificationProof, ReferenceType, StackMapConstraintError, ThrowCapability,
-    UnreachableHandlerPolicy, VERIFIER_COVERAGE, VERIFIER_RULES, VerificationAssignability,
-    VerificationClass, VerificationConstantResolver, VerificationDependency, VerificationEdgeClass,
-    VerificationEdgeId, VerificationEnvironment, VerificationField, VerificationFrame,
-    VerificationGraph, VerificationGraphError, VerificationJoinRule, VerificationNodeLocation,
-    VerificationQuery, VerificationQueryError, VerificationQueryEvidence, VerificationQueryFailure,
-    VerificationState, VerificationTransferError, VerificationTransferKind, VerificationType,
-    VerificationTypeJoin, VerificationTypeWidth, VerifierRule, VerifierRuleFamily,
-    build_verification_graph, seal_class_verification, seal_method_verification,
-    transfer_memory_instruction, transfer_storage_instruction, verifier_admitted_lambda_protocols,
+    ClassVerificationProof, ExpandedStackMapFrame, FrameError, FrameKind, InitialFrameInput,
+    MethodVerificationError, MethodVerificationProof, ReferenceType, StackMapConstraintError,
+    StackMapExpansionError, ThrowCapability, UnreachableHandlerPolicy, VERIFIER_COVERAGE,
+    VERIFIER_RULES, VerificationAssignability, VerificationClass, VerificationConstantResolver,
+    VerificationConstructor, VerificationDependency, VerificationDynamicInvocation,
+    VerificationEdgeClass, VerificationEdgeId, VerificationEnvironment, VerificationField,
+    VerificationFrame, VerificationGraph, VerificationGraphError, VerificationInvocation,
+    VerificationJoinRule, VerificationNodeLocation, VerificationQuery, VerificationQueryError,
+    VerificationQueryEvidence, VerificationQueryFailure, VerificationReturnType, VerificationState,
+    VerificationTransferError, VerificationTransferKind, VerificationType, VerificationTypeJoin,
+    VerificationTypeWidth, VerifierRule, VerifierRuleFamily, build_verification_graph,
+    derive_initial_locals, expand_stack_map_table, handler_entry_state, join_initialization_states,
+    seal_class_verification, seal_method_verification, transfer_constructor_instruction,
+    transfer_control_instruction, transfer_dynamic_invocation_instruction,
+    transfer_invocation_instruction, transfer_memory_instruction, transfer_new_instruction,
+    transfer_numeric_instruction, transfer_storage_instruction, verifier_admitted_lambda_protocols,
     verifier_rule,
 };
 

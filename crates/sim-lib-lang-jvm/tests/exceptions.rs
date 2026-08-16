@@ -2,9 +2,8 @@ use std::sync::{Arc, Mutex};
 
 use sim_codec_classfile::{ByteReader, CodeException, ConstantPool, Opcode, decode_instructions};
 use sim_kernel::{
-    Args, Callable, Class, ClassId, ClassRef, CodecId, Cx, DefaultFactory, Error, NoopEvalPolicy,
-    Object, ObjectCompat, Origin, ReadConstructorRef, Result, ShapeRef, SourceId, Span, Symbol,
-    TableRef, Value,
+    Args, Callable, Class, ClassId, ClassRef, CodecId, Cx, Error, Object, ObjectCompat, Origin,
+    ReadConstructorRef, Result, ShapeRef, SourceId, Span, Symbol, TableRef, Value,
 };
 use sim_lib_control::{
     BoundedSubclassOutcome, ClassMatchBudget, ClassMatchEvidence, CleanupStack, Raised,
@@ -77,10 +76,6 @@ impl Class for TestClass {
     }
 }
 
-fn cx() -> Cx {
-    Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory))
-}
-
 fn collection_limits() -> CollectionLimits {
     CollectionLimits {
         objects: 64,
@@ -140,7 +135,7 @@ fn prepared() -> sim_lib_lang_jvm::PreparedJvmInstruction {
 
 #[test]
 fn nested_try_cleanup_rethrow_uses_ordered_handlers_and_exact_entry_stack() {
-    let mut cx = cx();
+    let mut cx = sim_kernel::testing::bare_cx();
     let thrown = raised(&mut cx, 20, "Leaf");
     let candidate = cx
         .factory()
@@ -196,7 +191,7 @@ fn nested_try_cleanup_rethrow_uses_ordered_handlers_and_exact_entry_stack() {
 
 #[test]
 fn java_relations_refuse_self_suppression_preserve_order_and_collect_cause_cycles() {
-    let mut cx = cx();
+    let mut cx = sim_kernel::testing::bare_cx();
     let mut heap = JavaThrowableHeap::new(8, collection_limits()).unwrap();
     let a = heap.allocate(raised(&mut cx, 1, "A")).unwrap();
     let b = heap.allocate(raised(&mut cx, 2, "B")).unwrap();
@@ -225,7 +220,7 @@ fn java_relations_refuse_self_suppression_preserve_order_and_collect_cause_cycle
 
 #[test]
 fn athrow_null_is_distinct_from_host_failure() {
-    let mut cx = cx();
+    let mut cx = sim_kernel::testing::bare_cx();
     let thrown = raised(&mut cx, 20, "Leaf");
     let mut stack = UnitStack::<JvmValueWidth>::new(WorkLimit(1));
     stack

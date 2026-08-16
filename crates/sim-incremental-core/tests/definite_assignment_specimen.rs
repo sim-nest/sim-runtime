@@ -1,3 +1,5 @@
+// conformance: definite assignment runs through the neutral incremental surface.
+
 //! Definite assignment over the neutral, located register-machine surface.
 
 use std::collections::BTreeSet;

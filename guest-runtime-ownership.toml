@@ -20,12 +20,12 @@ cells = [
 [[language]]
 name = "javascript"
 cells = [
-  { concern = "callable", decision = "migrate", anchor = "crates/sim-lib-lang-javascript/src/objects.rs::JavascriptFunction", reason = "FunctionPlan owns neutral metadata and captures; kind, receiver, constructability, private names, and body remain JavaScript policy." },
-  { concern = "class", decision = "language-owned", anchor = "crates/sim-lib-lang-javascript/src/objects.rs::JavascriptObjectSpace::set_prototype", reason = "Mutable per-object prototypes are property delegation, not declared lineage." },
-  { concern = "bindings", decision = "compose", anchor = "crates/sim-lib-lang-javascript/src/objects.rs::JavascriptFunction::environment", reason = "Compose binding cells while lexical environment and module semantics stay JavaScript-owned." },
-  { concern = "property", decision = "language-owned", anchor = "crates/sim-lib-lang-javascript/src/objects.rs::JavascriptObjectSpace::get", reason = "Descriptors, receiver-sensitive accessors, and mutable prototype lookup are JavaScript semantics." },
+  { concern = "callable", decision = "migrate", anchor = "crates/sim-lib-lang-javascript/src/objects/function.rs::JavascriptFunction", reason = "FunctionPlan owns neutral metadata and captures; kind, receiver, constructability, private names, and body remain JavaScript policy." },
+  { concern = "class", decision = "language-owned", anchor = "crates/sim-lib-lang-javascript/src/objects/space.rs::JavascriptObjectSpace::set_prototype", reason = "Mutable per-object prototypes are property delegation, not declared lineage." },
+  { concern = "bindings", decision = "compose", anchor = "crates/sim-lib-lang-javascript/src/objects/function.rs::JavascriptFunction::environment", reason = "Compose binding cells while lexical environment and module semantics stay JavaScript-owned." },
+  { concern = "property", decision = "language-owned", anchor = "crates/sim-lib-lang-javascript/src/objects/space.rs::JavascriptObjectSpace::get", reason = "Descriptors, receiver-sensitive accessors, and mutable prototype lookup are JavaScript semantics." },
   { concern = "sequence", decision = "language-owned", anchor = "crates/sim-lib-lang-javascript/src/collections.rs", reason = "Array and collection semantics remain with the JavaScript guest." },
-  { concern = "dispatch", decision = "compose", anchor = "crates/sim-lib-lang-javascript/src/objects.rs::JavascriptObjectSpace::call", reason = "Ordinary call mechanics compose sim-lib-function; receiver and constructor modes remain guest policy." },
+  { concern = "dispatch", decision = "compose", anchor = "crates/sim-lib-lang-javascript/src/objects/space.rs::JavascriptObjectSpace::call", reason = "Ordinary call mechanics compose sim-lib-function; receiver and constructor modes remain guest policy." },
   { concern = "managed", decision = "migrate", anchor = "crates/sim-lib-lang-javascript/src/managed.rs", reason = "Function, environment, prototype, accessor, and array cycles use MANAGED_2 edges without a shadow graph." },
   { concern = "codec", decision = "compose", anchor = "crates/sim-lib-lang-javascript/src/fidelity.rs", reason = "JavaScript source fidelity composes shared codec and read-construction contracts." },
   { concern = "browse", decision = "reuse", anchor = "crates/sim-lib-function/src/instance.rs::FunctionInstance::browse_args_shape", reason = "Neutral function browsing is reused; JavaScript-only callable traits remain metadata policy." },

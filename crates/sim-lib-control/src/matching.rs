@@ -160,16 +160,11 @@ mod tests {
     use std::sync::Arc;
 
     use sim_kernel::{
-        Args, Callable, Class, CodecId, DefaultFactory, Error, NoopEvalPolicy, Object,
-        ObjectCompat, Origin, ReadConstructorRef, ShapeRef, SourceId, Span, Symbol, TableRef,
-        Value,
+        Args, Callable, Class, CodecId, Error, Object, ObjectCompat, Origin, ReadConstructorRef,
+        ShapeRef, SourceId, Span, Symbol, TableRef, Value,
     };
 
     use super::*;
-
-    fn cx() -> Cx {
-        Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory))
-    }
 
     struct TestClass {
         id: ClassId,
@@ -255,7 +250,7 @@ mod tests {
 
     #[test]
     fn three_deep_hierarchy_matches_at_each_level_from_bounded_evidence() {
-        let mut cx = cx();
+        let mut cx = sim_kernel::testing::bare_cx();
         let classes = [
             class(&mut cx, 9100, "Root"),
             class(&mut cx, 9101, "Middle"),
@@ -281,7 +276,7 @@ mod tests {
 
     #[test]
     fn invalid_graph_and_exhaustion_remain_distinct_from_negative() {
-        let mut cx = cx();
+        let mut cx = sim_kernel::testing::bare_cx();
         let class = class(&mut cx, 9110, "Cycle");
         let raised = raised(&mut cx, class.clone(), "profile");
         let invalid = match_raised_class(
@@ -318,7 +313,7 @@ mod tests {
 
     #[test]
     fn negative_evidence_cannot_be_widened_by_display_or_profile_policy() {
-        let mut cx = cx();
+        let mut cx = sim_kernel::testing::bare_cx();
         let raised_class = class(&mut cx, 9120, "Same");
         let candidate = class(&mut cx, 9121, "Same");
         let raised_id = raised_class.object().as_class().unwrap().id();

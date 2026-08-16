@@ -59,7 +59,7 @@ The characterization surface fixes the following behavior:
 - dynamic JavaScript and Python result-Shape denial.
 
 The shared lifecycle cases live in
-`crates/sim-lib-namespace/src/module/tests.rs`. Language entry-point cases live
+`crates/sim-lib-namespace/src/module/tests/characterization.rs`. Language entry-point cases live
 in `crates/sim-lib-lang-javascript/src/modules.rs` and
 `crates/sim-lib-lang-python/src/library_core.rs`. This division confirms that
 the mechanisms exist and are reused, but the authority request and combined

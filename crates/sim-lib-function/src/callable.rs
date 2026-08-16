@@ -1,3 +1,5 @@
+// conformance: function instances compose with ordinary callable dispatch.
+
 //! Optional composition between ordinary function instances and dispatch.
 
 use std::sync::Arc;
@@ -36,9 +38,12 @@ mod tests {
     use super::*;
     use crate::{ArgumentInput, ArgumentOrigin, BoundCall, FunctionPlan};
 
+    type RecordedArguments = Vec<(ArgumentOrigin, Value)>;
+    type RecordedCalls = Arc<Mutex<Vec<RecordedArguments>>>;
+
     #[derive(Clone)]
     struct RecordingBody {
-        calls: Arc<Mutex<Vec<Vec<(ArgumentOrigin, Value)>>>>,
+        calls: RecordedCalls,
     }
 
     impl FunctionBodyPolicy for RecordingBody {
@@ -82,10 +87,7 @@ mod tests {
         }
     }
 
-    fn instance(
-        cx: &mut Cx,
-        calls: Arc<Mutex<Vec<Vec<(ArgumentOrigin, Value)>>>>,
-    ) -> FunctionInstance<RecordingBody> {
+    fn instance(cx: &mut Cx, calls: RecordedCalls) -> FunctionInstance<RecordingBody> {
         let class: ClassRef = cx.factory().symbol(Symbol::new("guest-function")).unwrap();
         FunctionInstance::new(
             FunctionPlan::new(Symbol::new("guest:record"), vec![], vec![], None).unwrap(),

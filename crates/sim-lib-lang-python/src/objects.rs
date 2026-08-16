@@ -459,10 +459,7 @@ fn class_id(class: &ClassRef) -> Result<u64, AttributeError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sim_kernel::{DefaultFactory, NoopEvalPolicy, Symbol};
-    fn cx() -> Cx {
-        Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory))
-    }
+    use sim_kernel::Symbol;
     fn class(cx: &Cx, id: u32, name: &str) -> ClassRef {
         cx.factory()
             .class_stub(ClassId(id), Symbol::qualified("python", name))
@@ -474,7 +471,7 @@ mod tests {
     #[test]
     fn c3_descriptors_binding_and_super_share_property_mechanics() {
         let mut space = PythonObjectSpace::default();
-        let cx = cx();
+        let cx = sim_kernel::testing::bare_cx();
         let object = class(&cx, 1, "object");
         let left = class(&cx, 2, "Left");
         let right = class(&cx, 3, "Right");
@@ -530,7 +527,7 @@ mod tests {
     #[test]
     fn inconsistent_c3_fails_explicitly() {
         let mut space = PythonObjectSpace::default();
-        let cx = cx();
+        let cx = sim_kernel::testing::bare_cx();
         let object = class(&cx, 1, "object");
         let a = class(&cx, 2, "A");
         let b = class(&cx, 3, "B");
@@ -559,7 +556,7 @@ mod tests {
 
     #[test]
     fn unreachable_python_class_reclaims_ephemeron_owned_mro() {
-        let cx = cx();
+        let cx = sim_kernel::testing::bare_cx();
         let mut space = PythonObjectSpace::default();
         let class = class(&cx, 20, "Temporary");
         space.define_class(&cx, class, vec![]).unwrap();

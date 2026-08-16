@@ -256,9 +256,7 @@ impl Error for ClassDescriptorError {}
 mod tests {
     use std::sync::Arc;
 
-    use sim_kernel::{
-        Cx, DefaultFactory, Expr, MatchScore, NoopEvalPolicy, Shape, ShapeDoc, ShapeMatch,
-    };
+    use sim_kernel::{Cx, Expr, MatchScore, Shape, ShapeDoc, ShapeMatch};
 
     use super::*;
 
@@ -273,10 +271,6 @@ mod tests {
         fn describe(&self, _cx: &mut Cx) -> sim_kernel::Result<ShapeDoc> {
             Ok(ShapeDoc::new("any"))
         }
-    }
-
-    fn cx() -> Cx {
-        Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory))
     }
 
     fn shape(cx: &Cx) -> ShapeRef {
@@ -301,7 +295,7 @@ mod tests {
 
     #[test]
     fn unresolved_parent_is_preserved_as_unresolved_typed_input() {
-        let cx = cx();
+        let cx = sim_kernel::testing::bare_cx();
         let unresolved = Ref::Symbol(Symbol::qualified("loader", "Parent"));
         let mut raw = input(&cx);
         raw.parents.push(DeclaredParent::unresolved(
@@ -320,7 +314,7 @@ mod tests {
 
     #[test]
     fn duplicate_member_reports_the_offending_name() {
-        let cx = cx();
+        let cx = sim_kernel::testing::bare_cx();
         let mut raw = input(&cx);
         let name = Symbol::new("answer");
         raw.members.push(MemberShape {
@@ -339,7 +333,7 @@ mod tests {
 
     #[test]
     fn malformed_member_shape_reports_the_offending_name() {
-        let cx = cx();
+        let cx = sim_kernel::testing::bare_cx();
         let mut raw = input(&cx);
         let name = Symbol::new("broken");
         raw.members.push(MemberShape {
@@ -354,7 +348,7 @@ mod tests {
 
     #[test]
     fn self_parent_reports_the_declared_parent_name() {
-        let cx = cx();
+        let cx = sim_kernel::testing::bare_cx();
         let mut raw = input(&cx);
         let own_identity = raw.identity.clone();
         let name = own_identity.symbol().clone();

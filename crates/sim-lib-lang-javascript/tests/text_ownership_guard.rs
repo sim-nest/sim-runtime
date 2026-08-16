@@ -18,6 +18,14 @@ pub struct AudioSamples {
     samples: Vec<u16>,
 }
 "#;
+const SHARED_TEXT_WRAPPER: &str = r#"
+pub struct JavascriptCodeUnitString(CodeUnitString);
+impl JavascriptCodeUnitString {
+    pub fn from_code_units(units: Vec<u16>) -> Self {
+        Self(CodeUnitString::from_code_units(units))
+    }
+}
+"#;
 
 #[derive(Debug)]
 struct Context {
@@ -113,7 +121,13 @@ fn structs(source: &str) -> Vec<String> {
         if current.is_none()
             && (trimmed.starts_with("struct ") || trimmed.starts_with("pub struct "))
         {
-            current = Some((format!("{line}\n"), brace_delta(line)));
+            let text = format!("{line}\n");
+            let depth = brace_delta(line);
+            if depth <= 0 {
+                result.push(text);
+            } else {
+                current = Some((text, depth));
+            }
             continue;
         }
         if let Some((text, depth)) = &mut current {
@@ -179,6 +193,11 @@ fn fixtures_distinguish_owned_text_from_numeric_buffers() {
     assert!(
         policy
             .findings(Path::new("crates/example/src/audio.rs"), AUDIO_BUFFER)
+            .is_empty()
+    );
+    assert!(
+        policy
+            .findings(Path::new("crates/example/src/text.rs"), SHARED_TEXT_WRAPPER)
             .is_empty()
     );
 }

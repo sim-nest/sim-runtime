@@ -62,6 +62,8 @@ struct Entry<V, E> {
     _managed_value: ManagedHandle,
 }
 
+type EntryMap<K, V, E> = BTreeMap<(GuardedCacheKind, K), Vec<Entry<V, E>>>;
+
 /// One bounded polymorphic cache shared by resolution, linkage, and preparation.
 ///
 /// A site may observe several defining loaders, but never more than `ways`. Entries
@@ -69,7 +71,7 @@ struct Entry<V, E> {
 /// host side, so neither representation keeps a loader namespace alive.
 pub struct GuardedOutcomeCache<K, V, E> {
     ways: usize,
-    entries: Mutex<BTreeMap<(GuardedCacheKind, K), Vec<Entry<V, E>>>>,
+    entries: Mutex<EntryMap<K, V, E>>,
 }
 
 impl<K: Clone + Ord, V: Clone, E: Clone> GuardedOutcomeCache<K, V, E> {
@@ -139,14 +141,14 @@ impl<K: Clone + Ord, V: Clone, E: Clone> GuardedOutcomeCache<K, V, E> {
         entries.get(&(kind, site.clone())).map_or(0, Vec::len)
     }
 
-    fn purge(entries: &mut BTreeMap<(GuardedCacheKind, K), Vec<Entry<V, E>>>) {
+    fn purge(entries: &mut EntryMap<K, V, E>) {
         entries.retain(|_, ways| {
             ways.retain(|entry| entry.owner.strong_count() != 0);
             !ways.is_empty()
         });
     }
 
-    fn entries(&self) -> MutexGuard<'_, BTreeMap<(GuardedCacheKind, K), Vec<Entry<V, E>>>> {
+    fn entries(&self) -> MutexGuard<'_, EntryMap<K, V, E>> {
         self.entries
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)

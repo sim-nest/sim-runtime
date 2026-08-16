@@ -1,3 +1,5 @@
+// conformance: function contracts retain the shared Shape boundary.
+
 use std::{fs, path::PathBuf};
 
 fn crate_root() -> PathBuf {

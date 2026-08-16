@@ -8,7 +8,7 @@ Control-flow organs for SIM async, branching, and policy-aware execution.
 
 - Manifest: `crates/sim-lib-control/Cargo.toml`
 - Publish: `true`
-- Targets: `custom-build, lib`
+- Targets: `custom-build, lib, test`
 
 ## Crate Documentation
 

@@ -1,3 +1,5 @@
+// conformance: JVM verification stays bounded to immutable admitted evidence.
+
 use std::{collections::BTreeSet, fs, path::Path};
 
 use toml::Value;

@@ -1,3 +1,5 @@
+// conformance: declared-class semantics remain inside their documented boundary.
+
 //! Structural source-fact guard for the declared-class semantic boundary.
 
 use std::{
@@ -89,7 +91,7 @@ impl Policy {
         {
             return Vec::new();
         }
-        let lower = source.to_ascii_lowercase();
+        let lower = structural_source(source).to_ascii_lowercase();
         let mut findings = Vec::new();
         for item in public_structs(&lower) {
             let count = field_names(&item)
@@ -118,8 +120,11 @@ impl Policy {
             let loops = body.contains("while ") || body.contains("loop {") || body.contains("for ");
             let bounded = self.bound_terms.iter().any(|term| body.contains(term));
             if walks_lineage && loops && !bounded {
+                let signature = body
+                    .split_once('{')
+                    .map_or("unknown function", |(signature, _)| signature.trim());
                 findings.push(format!(
-                    "{} contains an unbounded lineage walk; {}",
+                    "{} contains an unbounded lineage walk in `{signature}`; {}",
                     path.display(),
                     self.remediation
                 ));
@@ -196,9 +201,117 @@ fn public_structs(source: &str) -> Vec<String> {
     braced_items(source, "pub struct ")
 }
 fn function_bodies(source: &str) -> Vec<String> {
-    let mut bodies = braced_items(source, "fn ");
-    bodies.extend(braced_items(source, "pub fn "));
-    bodies
+    braced_items(source, "fn ")
+}
+
+fn structural_source(source: &str) -> String {
+    let bytes = source.as_bytes();
+    let mut masked = bytes.to_vec();
+    let mut cursor = 0;
+    while cursor < bytes.len() {
+        if bytes[cursor..].starts_with(b"//") {
+            let end = bytes[cursor..]
+                .iter()
+                .position(|byte| *byte == b'\n')
+                .map_or(bytes.len(), |offset| cursor + offset);
+            mask_non_newlines(&mut masked[cursor..end]);
+            cursor = end;
+        } else if bytes[cursor..].starts_with(b"/*") {
+            let mut end = cursor + 2;
+            let mut depth = 1_usize;
+            while end < bytes.len() && depth != 0 {
+                if bytes[end..].starts_with(b"/*") {
+                    depth += 1;
+                    end += 2;
+                } else if bytes[end..].starts_with(b"*/") {
+                    depth -= 1;
+                    end += 2;
+                } else {
+                    end += 1;
+                }
+            }
+            mask_non_newlines(&mut masked[cursor..end]);
+            cursor = end;
+        } else if let Some((quote, hashes)) = raw_string_open(bytes, cursor) {
+            let mut end = quote + 1;
+            while end < bytes.len() {
+                if bytes[end] == b'"'
+                    && bytes.get(end + 1..end + 1 + hashes) == Some(&vec![b'#'; hashes][..])
+                {
+                    end += 1 + hashes;
+                    break;
+                }
+                end += 1;
+            }
+            mask_non_newlines(&mut masked[quote..end]);
+            cursor = end;
+        } else if bytes[cursor] == b'"' {
+            let end = quoted_end(bytes, cursor, b'"');
+            mask_non_newlines(&mut masked[cursor..end]);
+            cursor = end;
+        } else if bytes[cursor] == b'\'' {
+            if let Some(end) = char_literal_end(source, cursor) {
+                mask_non_newlines(&mut masked[cursor..end]);
+                cursor = end;
+            } else {
+                cursor += 1;
+            }
+        } else {
+            cursor += 1;
+        }
+    }
+    String::from_utf8(masked).expect("masking preserves UTF-8 source structure")
+}
+
+fn raw_string_open(bytes: &[u8], cursor: usize) -> Option<(usize, usize)> {
+    if cursor != 0 && (bytes[cursor - 1].is_ascii_alphanumeric() || bytes[cursor - 1] == b'_') {
+        return None;
+    }
+    let mut next = match bytes.get(cursor..cursor + 2) {
+        Some([b'b' | b'c', b'r']) => cursor + 2,
+        _ if bytes.get(cursor) == Some(&b'r') => cursor + 1,
+        _ => return None,
+    };
+    let hashes_start = next;
+    while bytes.get(next) == Some(&b'#') {
+        next += 1;
+    }
+    (bytes.get(next) == Some(&b'"')).then_some((next, next - hashes_start))
+}
+
+fn quoted_end(bytes: &[u8], start: usize, quote: u8) -> usize {
+    let mut cursor = start + 1;
+    let mut escaped = false;
+    while cursor < bytes.len() {
+        if escaped {
+            escaped = false;
+        } else if bytes[cursor] == b'\\' {
+            escaped = true;
+        } else if bytes[cursor] == quote {
+            return cursor + 1;
+        }
+        cursor += 1;
+    }
+    bytes.len()
+}
+
+fn char_literal_end(source: &str, start: usize) -> Option<usize> {
+    let tail = source.get(start + 1..)?;
+    if tail.starts_with('\\') {
+        let end = quoted_end(source.as_bytes(), start, b'\'');
+        return (end < source.len()).then_some(end);
+    }
+    let width = tail.chars().next()?.len_utf8();
+    let end = start + 1 + width;
+    (source.as_bytes().get(end) == Some(&b'\'')).then_some(end + 1)
+}
+
+fn mask_non_newlines(bytes: &mut [u8]) {
+    for byte in bytes {
+        if *byte != b'\n' {
+            *byte = b' ';
+        }
+    }
 }
 fn braced_items(source: &str, marker: &str) -> Vec<String> {
     let mut out = Vec::new();

@@ -1,3 +1,5 @@
+// conformance: the bounded JVM baseline exercises every shared ownership seam.
+
 use sim_codec_classfile::{ClassfileCodec, OPCODES, inspect_classfile};
 use sim_kernel::CodecId;
 use sim_lib_class::ClassDescriptor;
@@ -87,7 +89,31 @@ fn manifests_freeze_the_supported_baseline() {
     }
 
     let ledger: toml::Value = sim_lib_lang_jvm::REUSE_LEDGER.parse().unwrap();
-    assert_eq!(ledger["organ"].as_array().unwrap().len(), 15);
+    let products = ledger["organ"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|row| row["product"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        products,
+        [
+            "CHARACTERIZE_1",
+            "INDEX_9",
+            "MANAGED_2",
+            "UTF16_2",
+            "MACHINE_2",
+            "CLASSFILE_2",
+            "JVM_7",
+            "DATAFLOW_2",
+            "CLASS_2",
+            "FUNCTION_2",
+            "KERNEL",
+            "DISPATCH",
+            "CODECS",
+            "EXCEPTIONS_3",
+        ]
+    );
 }
 
 #[test]

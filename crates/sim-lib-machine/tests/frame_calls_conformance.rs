@@ -1,3 +1,5 @@
+// conformance: neutral machine frames preserve bounded call and resume behavior.
+
 use sim_kernel::{CodecId, Origin, SourceId, Span};
 use sim_lib_control::{AdmissionLimit, WorkLimit};
 use sim_lib_machine::{

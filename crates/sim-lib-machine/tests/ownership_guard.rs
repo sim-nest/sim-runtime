@@ -1,3 +1,5 @@
+// conformance: guest instruction semantics remain outside the shared machine organ.
+
 //! Source-fact ownership guard for guest instruction semantics.
 
 use std::{fs, path::Path};

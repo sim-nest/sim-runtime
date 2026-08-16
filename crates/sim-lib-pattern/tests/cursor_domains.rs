@@ -1,3 +1,5 @@
+// conformance: pattern cursors retain their byte, scalar, and code-unit domains.
+
 use sim_lib_pattern::{
     CodeUnitDomain, CodeUnitOffset, DomainExecutionOutcome, EnginePolicy, IrNode, PatternIr,
     ScalarDomain, ScalarOffset, TextLimits, compile, execute_code_units, execute_scalars,

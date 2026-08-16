@@ -24,11 +24,14 @@
 | `cookbook/logic` | `cookbook-recipe` | `sim-lib-logic` | Logic database, assertion, and query surfaces. |
 | `cookbook/organ/binding` | `cookbook-recipe` | `sim-lib-binding` | Binding surface concepts shared by language profiles. |
 | `cookbook/organ/dispatch` | `cookbook-recipe` | `sim-lib-dispatch` | Generic function and multimethod concepts. |
-| `cookbook/organ/incremental` | `cookbook-recipe` | `sim-lib-incremental` | Memoized expression queries with invalidation, missing observations, cutoff, snapshots, and metrics. |
+| `cookbook/organ/incremental` | `cookbook-recipe` | `sim-lib-incremental` | Memoized expression queries plus immutable, proof-backed dataflow analysis projections. |
 | `cookbook/organ/mutation` | `cookbook-recipe` | `sim-lib-mutation` | Cells, boxes, mutable tables, and mutable vectors. |
 | `cookbook/organ/namespace` | `cookbook-recipe` | `sim-lib-namespace` | Package, module, import, export, and shadowing surfaces. |
 | `cookbook/organ/pattern` | `cookbook-recipe` | `sim-lib-pattern` | Pattern matching and algebraic data type declarations. |
 | `cookbook/organ/sequence` | `cookbook-recipe` | `sim-lib-sequence` | Sequence operations shared by language profiles. |
 | `cookbook/runtime/exec` | `cookbook-recipe` | `sim-lib-exec` | Permission-gated host process runs with time and output limits. |
-| `cookbook/standard/core` | `cookbook-recipe` | `sim-lib-standard-core` | Language profiles, fidelity badges, and conformance helpers. |
+| `cookbook/sim-lib-class` | `cookbook-recipe` | `sim-lib-class` | Language-neutral class lineage, browsing, read construction, and managed caches. |
+| `cookbook/sim-lib-function` | `cookbook-recipe` | `sim-lib-function` | Language-neutral typed functions, managed captures, and optional dispatch. |
+| `cookbook/sim-lib-lang-jvm` | `cookbook-recipe` | `sim-lib-lang-jvm` |  |
+| `cookbook/standard/core` | `cookbook-recipe` | `sim-lib-standard-core` | Language profiles, fidelity badges, conformance helpers, and strict migration characterization. |
 | `registry/catalog` | `browse-registry` | `workspace` | registry catalog browse card |

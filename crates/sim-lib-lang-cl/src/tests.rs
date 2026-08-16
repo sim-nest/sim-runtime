@@ -1,3 +1,5 @@
+// conformance: the Common Lisp profile composes the shared runtime organs.
+
 use std::sync::Arc;
 
 use sim_codec::{Input, decode_tree_with_codec};

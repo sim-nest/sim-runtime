@@ -1,3 +1,7 @@
+// This conformance module intentionally exercises the public by-value `Raised`
+// carrier; boxing it would replace the guest-runtime boundary under test.
+#![allow(clippy::result_large_err)]
+
 use std::{
     any::Any,
     sync::{Arc, Mutex},

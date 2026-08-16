@@ -1,3 +1,5 @@
+// conformance: managed function instances preserve captures and callable identity.
+
 use std::{any::Any, error::Error, fmt};
 
 use sim_kernel::{

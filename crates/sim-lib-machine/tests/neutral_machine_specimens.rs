@@ -1,3 +1,5 @@
+// conformance: shared machine organs support stack and register specimens.
+
 //! Neutral end-to-end specimens: one operand-stack machine and one register machine.
 
 use sim_kernel::{CodecId, Origin, SourceId, Span};

@@ -1,3 +1,5 @@
+// conformance: neutral declarations and captures retain their function-organ ownership.
+
 //! Source-fact ownership guard for neutral function declarations and captures.
 
 use std::{

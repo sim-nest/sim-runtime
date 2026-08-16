@@ -1,3 +1,5 @@
+// conformance: ECMAScript regular expressions lower into the shared pattern organ.
+
 //! Faithful, deliberately narrow ECMAScript RegExp compiler.
 
 use sim_lib_pattern::{

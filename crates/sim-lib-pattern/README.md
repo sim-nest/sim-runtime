@@ -8,7 +8,7 @@ Shape-based pattern matching and destructuring for SIM runtime values.
 
 - Manifest: `crates/sim-lib-pattern/Cargo.toml`
 - Publish: `true`
-- Targets: `custom-build, lib`
+- Targets: `custom-build, lib, test`
 
 ## Crate Documentation
 

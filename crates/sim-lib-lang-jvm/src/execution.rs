@@ -183,7 +183,7 @@ pub fn execute_storage_instruction<R: JvmConstantResolver>(
         let crate::PreparedJvmOperands::Shuffle(choices) = prepared else {
             return Err(ExecutionError::MalformedPreparedInput { opcode });
         };
-        execute_shuffle(opcode, *choices, operands)?;
+        execute_shuffle(opcode, choices, operands)?;
         return Ok(receipt(instruction));
     }
     Err(ExecutionError::MalformedPreparedInput { opcode })

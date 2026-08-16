@@ -1,3 +1,5 @@
+// conformance: Python resumable control composes the shared control organ.
+
 //! Python exception and resumable-control policy over the shared control organ.
 
 use std::{fmt, sync::Arc};
@@ -490,11 +492,8 @@ impl fmt::Display for PythonExceptionError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sim_kernel::{CodecId, DefaultFactory, NoopEvalPolicy, SourceId, Span};
+    use sim_kernel::{CodecId, SourceId, Span};
 
-    fn cx() -> Cx {
-        Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory))
-    }
     fn class(cx: &Cx, id: u32, name: &str) -> ClassRef {
         cx.factory()
             .class_stub(ClassId(id), Symbol::qualified("python", name))
@@ -514,7 +513,7 @@ mod tests {
 
     #[test]
     fn managed_chains_groups_matching_and_diagnostics_preserve_python_policy() {
-        let mut cx = cx();
+        let mut cx = sim_kernel::testing::bare_cx();
         let mut exceptions = PythonExceptions::new(32).unwrap();
         let base = class(&cx, 1, "Exception");
         let key = class(&cx, 2, "KeyError");
@@ -578,7 +577,7 @@ mod tests {
 
     #[test]
     fn generator_throws_only_shared_raised_envelopes() {
-        let cx = cx();
+        let cx = sim_kernel::testing::bare_cx();
         let mut exceptions = PythonExceptions::new(4).unwrap();
         let base = class(&cx, 1, "Exception");
         exceptions.define_class(&cx, base.clone(), vec![]).unwrap();

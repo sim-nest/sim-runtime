@@ -1,3 +1,5 @@
+// conformance: the JVM product specimen runs through the loadable public surface.
+
 use std::sync::Arc;
 
 use sim_kernel::{Cx, DefaultFactory, NoopEvalPolicy};

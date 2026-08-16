@@ -308,14 +308,14 @@ pub struct ResolvedEntry<'a> {
     permit: ClassfilePermit<'a>,
     target: EntryTarget,
 }
-/// Statically admitted target bound to machine content.
-pub struct StaticAdmission<'a> {
+/// Static entry permit bound to exact machine content.
+pub struct StaticEntryPermit<'a> {
     resolved: ResolvedEntry<'a>,
     machine_content: ContentId,
 }
 /// Optional verifier result, retaining the explicit fidelity tier.
 pub struct Verification<'a, P> {
-    admission: StaticAdmission<'a>,
+    admission: StaticEntryPermit<'a>,
     proof: Option<P>,
     fidelity: VerificationFidelity,
 }
@@ -367,15 +367,15 @@ impl<'a> ClassfilePermit<'a> {
 
 impl<'a> ResolvedEntry<'a> {
     /// Composes the machine's pure static admission proof.
-    pub fn admit(self, machine: &MachinePermit) -> StaticAdmission<'a> {
-        StaticAdmission {
+    pub fn admit(self, machine: &MachinePermit) -> StaticEntryPermit<'a> {
+        StaticEntryPermit {
             resolved: self,
             machine_content: machine.content_id().clone(),
         }
     }
 }
 
-impl<'a> StaticAdmission<'a> {
+impl<'a> StaticEntryPermit<'a> {
     /// Invokes the optional pure verifier seam and advances to preparation.
     pub fn verify<V: VerifierProvider>(
         self,

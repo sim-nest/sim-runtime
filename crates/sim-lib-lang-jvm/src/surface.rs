@@ -10,7 +10,7 @@ use sim_kernel::{
 use sim_lib_standard_core::{FidelityBadge, LanguageProfile, OrganUse};
 use sim_shape::AnyShape;
 
-use crate::{ClassDefinition, ClassLoader, InvocationKind, select_invocation};
+use crate::{ClassDefinition, ClassLoader, InvocationKind, LineageBudget, select_invocation};
 
 /// The profile's declared absences, ordered before all positive fidelity claims.
 pub const JVM_DECLARED_ABSENCES: [&str; 3] =
@@ -64,11 +64,23 @@ pub struct JvmBrowse {
 pub struct JvmSurface {
     loader: ClassLoader,
     frames: crate::JvmFramePool,
+    lineage_budget: LineageBudget,
 }
 
 impl JvmSurface {
     /// Creates an isolated surface with a hard classfile byte allowance.
     pub fn new(max_classfile_bytes: usize) -> Self {
+        Self::with_lineage_budget(
+            max_classfile_bytes,
+            LineageBudget {
+                nodes: 256,
+                work: 4_096,
+            },
+        )
+    }
+
+    /// Creates an isolated surface with explicit classfile and lineage bounds.
+    pub fn with_lineage_budget(max_classfile_bytes: usize, lineage_budget: LineageBudget) -> Self {
         Self {
             loader: ClassLoader::new(max_classfile_bytes),
             frames: crate::JvmFramePool::new(crate::JvmFramePoolPolicy {
@@ -76,6 +88,7 @@ impl JvmSurface {
                 slots: 4_096,
                 operands: 4_096,
             }),
+            lineage_budget,
         }
     }
 
@@ -136,6 +149,7 @@ impl JvmSurface {
             &resolved,
             InvocationKind::Virtual,
             Some(receiver),
+            self.lineage_budget,
         )
         .map_err(|error| Error::Eval(format!("JVM invocation failed: {error:?}")))?;
         execute_i32(
