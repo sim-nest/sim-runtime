@@ -63,6 +63,7 @@ pub struct JvmBrowse {
 /// Shared state behind the loadable JVM callables.
 pub struct JvmSurface {
     loader: ClassLoader,
+    frames: crate::JvmFramePool,
 }
 
 impl JvmSurface {
@@ -70,6 +71,11 @@ impl JvmSurface {
     pub fn new(max_classfile_bytes: usize) -> Self {
         Self {
             loader: ClassLoader::new(max_classfile_bytes),
+            frames: crate::JvmFramePool::new(crate::JvmFramePoolPolicy {
+                frames: 64,
+                slots: 4_096,
+                operands: 4_096,
+            }),
         }
     }
 
@@ -101,7 +107,7 @@ impl JvmSurface {
                 "instance method passed to jvm/invoke-static".into(),
             ));
         }
-        execute_i32(&definition, name, descriptor, args, 0)
+        execute_i32(&self.frames, &definition, name, descriptor, args, 0)
     }
 
     /// Invokes a bounded integer-only instance method after JVM virtual selection.
@@ -132,7 +138,14 @@ impl JvmSurface {
             Some(receiver),
         )
         .map_err(|error| Error::Eval(format!("JVM invocation failed: {error:?}")))?;
-        execute_i32(selected.declaring_class(), name, descriptor, args, 1)
+        execute_i32(
+            &self.frames,
+            selected.declaring_class(),
+            name,
+            descriptor,
+            args,
+            1,
+        )
     }
 
     /// Browses classes, methods, code sizes, and the opaque heap count under one bound.
@@ -209,6 +222,7 @@ fn code_attribute(
 }
 
 fn execute_i32(
+    frames: &crate::JvmFramePool,
     class: &ClassDefinition,
     name: &str,
     descriptor: &str,
@@ -235,12 +249,17 @@ fn execute_i32(
         &class.shell().constant_pool,
     )
     .map_err(|e| Error::Eval(e.to_string()))?;
-    let mut stack = Vec::<i32>::new();
-    let mut locals = vec![0; usize::from(code.max_locals)];
+    let mut lease = frames.acquire(usize::from(code.max_locals), usize::from(code.max_stack));
     for (slot, value) in args.iter().copied().enumerate() {
         let slot = slot + local_offset;
-        if let Some(local) = locals.get_mut(slot) {
-            *local = value;
+        if slot < lease.frame().locals().limit() {
+            lease
+                .frame_mut()
+                .locals_mut()
+                .store(slot, crate::JvmValue::Int(value))
+                .map_err(|error| {
+                    Error::Eval(format!("JVM local initialization failed: {error:?}"))
+                })?;
         }
     }
     for instruction in decoded.instructions {
@@ -248,20 +267,29 @@ fn execute_i32(
         match opcode {
             Opcode::Iload0 | Opcode::Iload1 | Opcode::Iload2 | Opcode::Iload3 => {
                 let slot = usize::from(opcode as u8 - Opcode::Iload0 as u8);
-                stack.push(
-                    *locals
-                        .get(slot)
-                        .ok_or_else(|| Error::Eval("JVM integer local missing".into()))?,
-                );
+                let crate::JvmValue::Int(value) = lease
+                    .frame()
+                    .locals()
+                    .load(slot)
+                    .map_err(|_| Error::Eval("JVM integer local missing".into()))?
+                else {
+                    return Err(Error::Eval("JVM integer local has wrong category".into()));
+                };
+                let value = *value;
+                lease
+                    .frame_mut()
+                    .operands_mut()
+                    .push(crate::JvmValue::Int(value))
+                    .map_err(|error| Error::Eval(format!("JVM operand push failed: {error:?}")))?;
             }
             Opcode::Istore0 | Opcode::Istore1 | Opcode::Istore2 | Opcode::Istore3 => {
                 let slot = usize::from(opcode as u8 - Opcode::Istore0 as u8);
-                let value = stack
-                    .pop()
-                    .ok_or_else(|| Error::Eval("JVM operand underflow".into()))?;
-                *locals
-                    .get_mut(slot)
-                    .ok_or_else(|| Error::Eval("JVM integer local missing".into()))? = value;
+                let value = pop_i32(&mut lease)?;
+                lease
+                    .frame_mut()
+                    .locals_mut()
+                    .store(slot, crate::JvmValue::Int(value))
+                    .map_err(|_| Error::Eval("JVM integer local missing".into()))?;
             }
             Opcode::IconstM1
             | Opcode::Iconst0
@@ -269,24 +297,30 @@ fn execute_i32(
             | Opcode::Iconst2
             | Opcode::Iconst3
             | Opcode::Iconst4
-            | Opcode::Iconst5 => stack.push(opcode as i32 - Opcode::Iconst0 as i32),
+            | Opcode::Iconst5 => lease
+                .frame_mut()
+                .operands_mut()
+                .push(crate::JvmValue::Int(opcode as i32 - Opcode::Iconst0 as i32))
+                .map_err(|error| Error::Eval(format!("JVM operand push failed: {error:?}")))?,
             Opcode::Iadd | Opcode::Isub | Opcode::Imul => {
-                let right = stack
-                    .pop()
-                    .ok_or_else(|| Error::Eval("JVM operand underflow".into()))?;
-                let left = stack
-                    .pop()
-                    .ok_or_else(|| Error::Eval("JVM operand underflow".into()))?;
-                stack.push(match opcode {
+                let right = pop_i32(&mut lease)?;
+                let left = pop_i32(&mut lease)?;
+                let value = match opcode {
                     Opcode::Iadd => left.wrapping_add(right),
                     Opcode::Isub => left.wrapping_sub(right),
                     _ => left.wrapping_mul(right),
-                });
+                };
+                lease
+                    .frame_mut()
+                    .operands_mut()
+                    .push(crate::JvmValue::Int(value))
+                    .map_err(|error| Error::Eval(format!("JVM operand push failed: {error:?}")))?;
             }
             Opcode::Ireturn => {
-                return stack
-                    .pop()
-                    .ok_or_else(|| Error::Eval("JVM return operand missing".into()));
+                let value = pop_i32(&mut lease)
+                    .map_err(|_| Error::Eval("JVM return operand missing".into()))?;
+                lease.complete();
+                return Ok(value);
             }
             other => {
                 return Err(Error::Eval(format!(
@@ -296,6 +330,18 @@ fn execute_i32(
         }
     }
     Err(Error::Eval("JVM method completed without ireturn".into()))
+}
+
+fn pop_i32(lease: &mut crate::JvmFrameLease) -> Result<i32> {
+    match lease
+        .frame_mut()
+        .operands_mut()
+        .pop()
+        .map_err(|_| Error::Eval("JVM operand underflow".into()))?
+    {
+        crate::JvmValue::Int(value) => Ok(value),
+        _ => Err(Error::Eval("JVM integer operand has wrong category".into())),
+    }
 }
 
 /// Loadable JVM language library.

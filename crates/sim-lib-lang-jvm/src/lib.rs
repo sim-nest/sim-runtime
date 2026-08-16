@@ -20,6 +20,7 @@ mod exception;
 mod execution;
 mod failure;
 mod field;
+mod frame_pool;
 mod initialization;
 mod inspection;
 mod intrinsic;
@@ -83,6 +84,9 @@ pub use failure::{
 pub use field::{
     FieldAccess, FieldError, FieldId, FieldLayout, FieldStorage, InitializationState, JavaObject,
     WriteContext,
+};
+pub use frame_pool::{
+    InterruptedJvmFrame, JvmFrameLease, JvmFramePool, JvmFramePoolPolicy, JvmFrameRecord,
 };
 pub use initialization::{
     ClassInitialization, ClassInitializationState, InitializationAction, InitializationError,
