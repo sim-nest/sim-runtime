@@ -1,12 +1,283 @@
 //! JVM verification types and lawful dataflow frames.
 
-use sim_incremental_core::dataflow::{JoinSemilattice, StateSize};
+use sim_codec_classfile::{InstructionId, Opcode};
+use sim_incremental_core::dataflow::{
+    Boundary, DataflowGraph, EdgeClass, EdgeSpec, GraphBuildError, GraphDirection, JoinSemilattice,
+    LocatedGraphAdapter, NodeSpec, StateSize,
+};
+use sim_lib_machine::{LocatedCode, SourceLocation};
 use std::{cell::RefCell, mem::size_of, sync::Arc};
 
 use crate::{
     ClassDefinition, ClassDefinitionId, ClassLoader, ClassLoaderId, ClassSpaceRevision,
-    JavaClassMetadata, JavaMember, JavaMemberKind,
+    JavaClassMetadata, JavaMember, JavaMemberKind, PreparedJvmPolicy,
 };
+
+/// Whether a prepared instruction can complete with a guest throwable.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum ThrowCapability {
+    /// The instruction has no JVM exceptional-completion path.
+    Never,
+    /// The instruction may complete with a guest throwable.
+    MayThrow,
+}
+
+/// Located metadata retained by each verifier dataflow node.
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct VerificationNodeLocation {
+    /// Inclusive classfile byte offset.
+    pub offset: usize,
+    /// Exclusive classfile byte offset.
+    pub end: usize,
+    /// Exceptional-completion capability used to construct handler edges.
+    pub throw_capability: ThrowCapability,
+}
+
+/// JVM control transfer represented by the shared dataflow graph.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum VerificationEdgeClass {
+    /// Sequential execution of the following instruction.
+    Fallthrough,
+    /// An explicit branch or switch target.
+    Branch,
+    /// Ordered transfer to one classfile exception handler.
+    Exceptional {
+        /// Original exception-table row, preserving handler search order.
+        row: usize,
+        /// Constant-pool catch class, or zero for a catch-all handler.
+        catch_type: u16,
+    },
+}
+
+/// Stable identity of a verifier graph edge.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct VerificationEdgeId {
+    source: u32,
+    ordinal: usize,
+}
+
+impl VerificationEdgeId {
+    /// Returns the shared instruction identity at which this edge originates.
+    pub const fn source(self) -> InstructionId {
+        InstructionId(self.source)
+    }
+
+    /// Returns the edge's stable declaration ordinal within its source projection.
+    pub const fn ordinal(self) -> usize {
+        self.ordinal
+    }
+}
+
+/// The shared dataflow graph specialized with JVM verifier identities and metadata.
+pub type VerificationGraph =
+    DataflowGraph<u32, VerificationEdgeId, VerificationNodeLocation, VerificationEdgeClass>;
+
+/// Located refusal while adapting JVM code to the verifier graph.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum VerificationGraphError {
+    /// A non-terminating instruction would fall through the end of the method.
+    IllegalFallthrough {
+        /// Shared instruction identity at the illegal terminal point.
+        instruction: InstructionId,
+        /// Exact classfile byte offset of the instruction.
+        offset: usize,
+    },
+    /// Legacy `jsr`/`ret` subroutines are outside the verifier policy.
+    LegacySubroutine {
+        /// Shared instruction identity carrying the legacy opcode.
+        instruction: InstructionId,
+        /// Exact classfile byte offset of the instruction.
+        offset: usize,
+    },
+    /// The shared graph constructor rejected the projection.
+    Graph(GraphBuildError<u32, VerificationEdgeId>),
+}
+
+/// Borrowing adapter from shared machine locations to the one shared dataflow graph.
+struct JvmVerificationAdapter<'a> {
+    code: &'a LocatedCode<PreparedJvmPolicy>,
+}
+
+impl LocatedGraphAdapter for JvmVerificationAdapter<'_> {
+    type NodeId = u32;
+    type EdgeId = VerificationEdgeId;
+    type Location = VerificationNodeLocation;
+    type Class = VerificationEdgeClass;
+
+    fn nodes(&self) -> Vec<NodeSpec<Self::NodeId, Self::Location>> {
+        cursors(self.code)
+            .map(|cursor| {
+                let located = self.code.instruction(cursor);
+                let (offset, end) = byte_range(located.location());
+                NodeSpec {
+                    id: located.id().0,
+                    location: VerificationNodeLocation {
+                        offset,
+                        end,
+                        throw_capability: throw_capability(located.instruction().opcode()),
+                    },
+                    boundary: Boundary::Internal,
+                }
+            })
+            .collect()
+    }
+
+    fn edges(&self) -> Vec<EdgeSpec<Self::EdgeId, Self::NodeId, Self::Class>> {
+        graph_edges(self.code).expect("adapter is validated before shared graph construction")
+    }
+}
+
+/// Adapts prepared JVM code and its ordered exception table to `DATAFLOW_2`.
+pub fn build_verification_graph(
+    code: &LocatedCode<PreparedJvmPolicy>,
+) -> Result<VerificationGraph, VerificationGraphError> {
+    validate_graph_policy(code)?;
+    JvmVerificationAdapter { code }
+        .build_graph()
+        .map_err(VerificationGraphError::Graph)
+}
+
+fn validate_graph_policy(
+    code: &LocatedCode<PreparedJvmPolicy>,
+) -> Result<(), VerificationGraphError> {
+    for cursor in cursors(code) {
+        let located = code.instruction(cursor);
+        let opcode = located.instruction().opcode();
+        let (offset, _) = byte_range(located.location());
+        if matches!(opcode, Opcode::Jsr | Opcode::JsrW | Opcode::Ret) {
+            return Err(VerificationGraphError::LegacySubroutine {
+                instruction: *located.id(),
+                offset,
+            });
+        }
+        let control = opcode.metadata().control;
+        if code.next(cursor).is_none()
+            && matches!(control, "fallthrough" | "conditional-branch" | "invoke")
+        {
+            return Err(VerificationGraphError::IllegalFallthrough {
+                instruction: *located.id(),
+                offset,
+            });
+        }
+    }
+    Ok(())
+}
+
+fn graph_edges(
+    code: &LocatedCode<PreparedJvmPolicy>,
+) -> Result<Vec<EdgeSpec<VerificationEdgeId, u32, VerificationEdgeClass>>, VerificationGraphError> {
+    let mut edges = Vec::new();
+    for cursor in cursors(code) {
+        let located = code.instruction(cursor);
+        let instruction = *located.id();
+        let source = instruction.0;
+        let control = located.instruction().opcode().metadata().control;
+        let mut ordinal = 0;
+        let mut push = |target, class| {
+            edges.push(EdgeSpec {
+                id: VerificationEdgeId { source, ordinal },
+                source,
+                target,
+                class: EdgeClass::Custom(class),
+                direction: GraphDirection::Forward,
+            });
+            ordinal += 1;
+        };
+        for target in code.branch_targets(instruction) {
+            push(
+                code.instruction(*target).id().0,
+                VerificationEdgeClass::Branch,
+            );
+        }
+        if matches!(control, "fallthrough" | "conditional-branch" | "invoke") {
+            let next = code.next(cursor).ok_or_else(|| {
+                let (offset, _) = byte_range(located.location());
+                VerificationGraphError::IllegalFallthrough {
+                    instruction,
+                    offset,
+                }
+            })?;
+            push(
+                code.instruction(next).id().0,
+                VerificationEdgeClass::Fallthrough,
+            );
+        }
+        if throw_capability(located.instruction().opcode()) == ThrowCapability::MayThrow {
+            for handler in located.instruction().handler_membership() {
+                push(
+                    handler.handler.0,
+                    VerificationEdgeClass::Exceptional {
+                        row: handler.row,
+                        catch_type: handler.catch_type,
+                    },
+                );
+            }
+        }
+    }
+    Ok(edges)
+}
+
+fn cursors(
+    code: &LocatedCode<PreparedJvmPolicy>,
+) -> impl Iterator<Item = sim_lib_machine::CodeCursor> + '_ {
+    std::iter::successors(Some(code.entry()), |cursor| code.next(*cursor))
+}
+
+fn byte_range(location: &SourceLocation) -> (usize, usize) {
+    match location {
+        SourceLocation::Bytes(origin) => (origin.span.start, origin.span.end),
+        SourceLocation::Tokens { origin, .. } => (origin.span.start, origin.span.end),
+    }
+}
+
+fn throw_capability(opcode: Opcode) -> ThrowCapability {
+    use Opcode::*;
+    if matches!(
+        opcode,
+        Iaload
+            | Laload
+            | Faload
+            | Daload
+            | Aaload
+            | Baload
+            | Caload
+            | Saload
+            | Iastore
+            | Lastore
+            | Fastore
+            | Dastore
+            | Aastore
+            | Bastore
+            | Castore
+            | Sastore
+            | Idiv
+            | Ldiv
+            | Irem
+            | Lrem
+            | Getstatic
+            | Putstatic
+            | Getfield
+            | Putfield
+            | Invokevirtual
+            | Invokespecial
+            | Invokestatic
+            | Invokeinterface
+            | Invokedynamic
+            | New
+            | Newarray
+            | Anewarray
+            | Arraylength
+            | Athrow
+            | Checkcast
+            | Monitorenter
+            | Monitorexit
+            | Multianewarray
+    ) {
+        ThrowCapability::MayThrow
+    } else {
+        ThrowCapability::Never
+    }
+}
 
 /// One loaded class whose metadata was consulted by verification.
 #[derive(Clone, Debug)]
@@ -670,7 +941,139 @@ fn normalize_category2(frame: &mut VerificationFrame) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sim_incremental_core::dataflow::LawSuite;
+    use crate::{
+        JvmInstructionPolicy, JvmInstructionSemantics, JvmSlotKind, PreparationError, prepare_code,
+    };
+    use sim_codec_classfile::{
+        ByteReader, CodeException, ConstantPool, InstructionErrorKind, Opcode, decode_instructions,
+    };
+    use sim_incremental_core::dataflow::{EdgeClass, LawSuite};
+    use sim_kernel::SourceId;
+
+    const NONE: &[JvmSlotKind] = &[];
+    const INT: &[JvmSlotKind] = &[JvmSlotKind::CategoryOne];
+
+    struct GraphPolicy;
+
+    impl JvmInstructionPolicy for GraphPolicy {
+        fn semantics(opcode: Opcode) -> Option<JvmInstructionSemantics> {
+            let (pops, pushes) = match opcode {
+                Opcode::Iconst0 => (NONE, INT),
+                Opcode::Idiv => (
+                    &[JvmSlotKind::CategoryOne, JvmSlotKind::CategoryOne][..],
+                    INT,
+                ),
+                Opcode::Ireturn => (INT, NONE),
+                Opcode::Return | Opcode::Goto | Opcode::Jsr | Opcode::Ret => (NONE, NONE),
+                _ => return None,
+            };
+            Some(JvmInstructionSemantics {
+                pops,
+                pushes,
+                safepoint: false,
+            })
+        }
+    }
+
+    fn empty_pool() -> ConstantPool {
+        ConstantPool::decode(&mut ByteReader::new(&[0, 1], 1), 61).unwrap()
+    }
+
+    fn prepared(bytes: &[u8], handlers: &[CodeException]) -> LocatedCode<PreparedJvmPolicy> {
+        let decoded = decode_instructions(bytes, 61, &empty_pool()).unwrap();
+        prepare_code::<GraphPolicy>(
+            &decoded,
+            bytes.len(),
+            handlers,
+            SourceId("Verifier.graph()V".into()),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn graph_reuses_locations_and_only_throwing_instructions_reach_handlers() {
+        let bytes = [
+            Opcode::Iconst0 as u8,
+            Opcode::Iconst0 as u8,
+            Opcode::Idiv as u8,
+            Opcode::Ireturn as u8,
+        ];
+        let handlers = [CodeException {
+            start_pc: 0,
+            end_pc: 3,
+            handler_pc: 3,
+            catch_type: 7,
+        }];
+        let code = prepared(&bytes, &handlers);
+        let graph = build_verification_graph(&code).unwrap();
+
+        assert_eq!(graph.nodes().len(), code.len());
+        assert_eq!(
+            graph.node(&0).unwrap().location().throw_capability,
+            ThrowCapability::Never
+        );
+        assert_eq!(
+            graph.node(&2).unwrap().location().throw_capability,
+            ThrowCapability::MayThrow
+        );
+        let exceptional_sources = graph
+            .edges()
+            .filter_map(|edge| match edge.class() {
+                EdgeClass::Custom(VerificationEdgeClass::Exceptional {
+                    row: 0,
+                    catch_type: 7,
+                }) => Some(*edge.source()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(exceptional_sources, [2]);
+    }
+
+    #[test]
+    fn mid_instruction_handler_is_rejected_with_its_byte_offset() {
+        let bytes = [Opcode::Goto as u8, 0, 3, Opcode::Return as u8];
+        let decoded = decode_instructions(&bytes, 61, &empty_pool()).unwrap();
+        let error = match prepare_code::<GraphPolicy>(
+            &decoded,
+            bytes.len(),
+            &[CodeException {
+                start_pc: 1,
+                end_pc: 3,
+                handler_pc: 3,
+                catch_type: 0,
+            }],
+            SourceId("Verifier.badHandler()V".into()),
+        ) {
+            Ok(_) => panic!("mid-instruction handler must be rejected"),
+            Err(error) => error,
+        };
+        let PreparationError::Classfile(error) = error else {
+            panic!("handler validation must retain its classfile refusal")
+        };
+        assert_eq!(error.kind, InstructionErrorKind::InvalidHandler);
+        assert_eq!(error.offset, 1);
+    }
+
+    #[test]
+    fn illegal_fallthrough_and_legacy_subroutines_are_located() {
+        let fallthrough = prepared(&[Opcode::Iconst0 as u8], &[]);
+        assert_eq!(
+            build_verification_graph(&fallthrough).unwrap_err(),
+            VerificationGraphError::IllegalFallthrough {
+                instruction: InstructionId(0),
+                offset: 0
+            }
+        );
+
+        let legacy = prepared(&[Opcode::Jsr as u8, 0, 3, Opcode::Return as u8], &[]);
+        assert_eq!(
+            build_verification_graph(&legacy).unwrap_err(),
+            VerificationGraphError::LegacySubroutine {
+                instruction: InstructionId(0),
+                offset: 0
+            }
+        );
+    }
 
     fn types() -> Vec<VerificationType> {
         vec![
