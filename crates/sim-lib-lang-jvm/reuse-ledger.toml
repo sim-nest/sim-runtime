@@ -39,8 +39,24 @@ decision = "reuse bounded decoded-instruction machine storage and receipts"
 product = "CLASSFILE_2"
 crate = "sim-codec-classfile"
 version = "0.1.0"
-anchor = "../sim-codecs/crates/sim-codec-classfile/src/runtime.rs#ClassfileCodec"
+anchor = "../sim-codecs/crates/sim-codec-classfile/scope.toml#classfile_version"
+supporting_anchor = "../sim-codecs/crates/sim-codec-classfile/opcode-manifest.tsv"
 decision = "reuse the lossless decoder and its sole opcode manifest"
+
+[[organ]]
+product = "JVM_7"
+crate = "sim-lib-lang-jvm"
+version = "0.1.0"
+anchor = "crates/sim-lib-lang-jvm/src/entry.rs#VerifierProvider"
+supporting_anchor = "crates/sim-lib-lang-jvm/src/failure.rs#FailureCondition"
+decision = "reuse the sole verifier-provider seam and extend its disjoint failure boundary as fixture data"
+
+[[organ]]
+product = "DATAFLOW_2"
+crate = "sim-incremental-core"
+version = "0.1.1"
+anchor = "crates/sim-incremental-core/src/dataflow/engine.rs#DataflowCompletionProof"
+decision = "reuse graph propagation, bounded continuation, and content-bound completion proof"
 
 [[organ]]
 product = "CLASS_2"
