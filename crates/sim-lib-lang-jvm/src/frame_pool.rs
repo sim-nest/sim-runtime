@@ -24,6 +24,10 @@ pub struct JvmFrameRecord {
     locals: SlotFile<JvmValueWidth>,
     operands: UnitStack<JvmValueWidth>,
     operand_limit: usize,
+    prepared_roots: Vec<ManagedId>,
+    dirty_locals: Vec<bool>,
+    operands_dirty: bool,
+    root_map_certain: bool,
 }
 
 impl JvmFrameRecord {
@@ -32,6 +36,10 @@ impl JvmFrameRecord {
             locals: SlotFile::new(AdmissionLimit(slots)),
             operands: UnitStack::new(WorkLimit(operands)),
             operand_limit: operands,
+            prepared_roots: Vec::new(),
+            dirty_locals: vec![true; slots],
+            operands_dirty: true,
+            root_map_certain: false,
         }
     }
 
@@ -40,6 +48,10 @@ impl JvmFrameRecord {
             let _ = self.locals.release(slot);
         }
         self.operands.clear();
+        self.prepared_roots.clear();
+        self.dirty_locals.fill(false);
+        self.operands_dirty = false;
+        self.root_map_certain = true;
     }
 
     /// Returns the frame's bounded local-slot file.
@@ -49,6 +61,10 @@ impl JvmFrameRecord {
 
     /// Returns the mutable bounded local-slot file.
     pub fn locals_mut(&mut self) -> &mut SlotFile<JvmValueWidth> {
+        // SlotFile deliberately exposes whole-span replacement. Until its mutation is
+        // observed at a narrower boundary, every local is conservatively suspect.
+        self.dirty_locals.fill(true);
+        self.root_map_certain = false;
         &mut self.locals
     }
 
@@ -59,12 +75,59 @@ impl JvmFrameRecord {
 
     /// Returns the mutable bounded operand stack.
     pub fn operands_mut(&mut self) -> &mut UnitStack<JvmValueWidth> {
+        self.operands_dirty = true;
+        self.root_map_certain = false;
         &mut self.operands
     }
 
     /// Returns the admitted operand depth for this record.
     pub const fn operand_limit(&self) -> usize {
         self.operand_limit
+    }
+
+    /// Returns the root set for a test or collection safepoint.
+    ///
+    /// A clean prepared map avoids walking frame storage. Any dirty or uncertain
+    /// mutation ledger is repaired from the complete enumerator before the map is
+    /// trusted. The complete enumerator remains the authority in all cases.
+    pub fn safepoint_roots(&mut self) -> &[ManagedId] {
+        if !self.root_map_certain
+            || self.operands_dirty
+            || self.dirty_locals.iter().any(|dirty| *dirty)
+        {
+            self.rebuild_prepared_roots();
+        }
+
+        #[cfg(test)]
+        self.assert_safepoint_equivalence();
+
+        &self.prepared_roots
+    }
+
+    fn rebuild_prepared_roots(&mut self) {
+        let mut roots = Vec::new();
+        let complete = self.visit_managed_roots(&mut |root| {
+            roots.push(root);
+            true
+        });
+        debug_assert!(complete, "unbounded root collection cannot be refused");
+        self.prepared_roots = roots;
+        self.dirty_locals.fill(false);
+        self.operands_dirty = false;
+        self.root_map_certain = true;
+    }
+
+    #[cfg(test)]
+    fn assert_safepoint_equivalence(&self) {
+        let mut full = Vec::new();
+        assert!(self.visit_managed_roots(&mut |root| {
+            full.push(root);
+            true
+        }));
+        assert_eq!(
+            self.prepared_roots, full,
+            "prepared JVM root map diverged from the complete enumerator"
+        );
     }
 }
 
@@ -222,5 +285,76 @@ impl InterruptedJvmFrame {
 impl ManagedRootSource for InterruptedJvmFrame {
     fn visit_managed_roots(&self, visit: &mut dyn FnMut(ManagedId) -> bool) -> bool {
         self.lease.visit_managed_roots(visit)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sim_lib_mutation::{HardCappedRetainPolicy, ManagedArena, ManagedNode};
+
+    use super::*;
+    use crate::{JvmReference, JvmValue};
+
+    fn handles(count: usize) -> Vec<sim_lib_mutation::ManagedHandle> {
+        let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(count).unwrap());
+        (0..count)
+            .map(|_| arena.allocate(ManagedNode::new(())).unwrap())
+            .collect()
+    }
+
+    #[test]
+    fn every_test_safepoint_checks_prepared_roots_against_the_full_enumerator() {
+        let handles = handles(2);
+        let mut frame = JvmFrameRecord::new(2, 2);
+        frame
+            .locals_mut()
+            .store(0, JvmValue::Reference(JvmReference::managed(handles[0])))
+            .unwrap();
+        frame
+            .operands_mut()
+            .push(JvmValue::Reference(JvmReference::managed(handles[1])))
+            .unwrap();
+
+        assert_eq!(frame.safepoint_roots(), &[handles[0].id(), handles[1].id()]);
+        assert_eq!(
+            frame.safepoint_roots(),
+            &[handles[0].id(), handles[1].id()],
+            "a clean safepoint reuses the checked prepared map"
+        );
+    }
+
+    #[test]
+    fn stale_dirty_ledger_falls_back_to_the_complete_conservative_set() {
+        let handles = handles(2);
+        let mut frame = JvmFrameRecord::new(2, 0);
+        frame
+            .locals_mut()
+            .store(0, JvmValue::Reference(JvmReference::managed(handles[0])))
+            .unwrap();
+        assert_eq!(frame.safepoint_roots(), &[handles[0].id()]);
+
+        // Simulate a stale bitmap while retaining the uncertainty signal set by
+        // mutable access. Uncertainty, rather than the bitmap alone, controls trust.
+        frame
+            .locals_mut()
+            .store(1, JvmValue::Reference(JvmReference::managed(handles[1])))
+            .unwrap();
+        frame.dirty_locals.fill(false);
+
+        assert_eq!(frame.safepoint_roots(), &[handles[0].id(), handles[1].id()]);
+    }
+
+    #[test]
+    #[should_panic(expected = "prepared JVM root map diverged")]
+    fn test_safepoints_hard_fail_if_a_trusted_map_diverges() {
+        let handles = handles(1);
+        let mut frame = JvmFrameRecord::new(1, 0);
+        frame
+            .locals_mut()
+            .store(0, JvmValue::Reference(JvmReference::managed(handles[0])))
+            .unwrap();
+        let _ = frame.safepoint_roots();
+        frame.prepared_roots.clear();
+        let _ = frame.safepoint_roots();
     }
 }
