@@ -15,6 +15,7 @@ mod conditional;
 mod coroutine;
 mod generator;
 mod jobs;
+mod matching;
 mod model;
 mod nonlocal;
 mod ops;
@@ -41,6 +42,8 @@ pub use jobs::{
     AdmissionLimit, CheckpointError, CheckpointReceipt, DrainReceipt, JobId, JobQueues, JobReceipt,
     JobStatus, RuntimeJobClass, WorkLimit,
 };
+pub use matching::BoundedSubclassOutcome;
+pub use matching::{ClassMatchBudget, ClassMatchEvidence, ClassMatchOutcome, match_raised_class};
 pub use model::{
     ContinuationValue, ControlResultValue, RAISED_SYMBOL, Raised, RaisedBrowseBudget,
     RaisedBrowseProjection, RaisedShape,
