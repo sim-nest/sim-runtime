@@ -492,6 +492,20 @@ mod tests {
             )
             .unwrap();
         assert_eq!(value.object().display(&mut cx).unwrap(), "42");
+
+        let denied = dynamic
+            .eval(
+                &mut cx,
+                "42",
+                DynamicAdmission {
+                    read_policy: trusted(),
+                    requires: Vec::new(),
+                    allow: CapabilitySet::new(),
+                    expected_shape: Arc::new(ExactExprShape::new(Expr::String("not-42".into()))),
+                },
+            )
+            .unwrap_err();
+        assert!(matches!(denied, Error::WrongShape { .. }));
     }
 
     #[derive(Default)]

@@ -172,10 +172,11 @@ mod tests {
 
     use sim_codec_lisp::LispCodecLib;
     use sim_kernel::{
-        ClassId, ClassRef, CodecId, DefaultFactory, EagerPolicy, Error, Object, ObjectCompat,
+        ClassId, ClassRef, CodecId, DefaultFactory, EagerPolicy, Error, Expr, Object, ObjectCompat,
         Table, TrustLevel, read_eval_capability,
     };
     use sim_lib_namespace::{ModuleResolutionOutcome, module_load_capability};
+    use sim_shape::ExactExprShape;
 
     use super::*;
 
@@ -351,7 +352,7 @@ mod tests {
 
     #[test]
     fn dynamic_source_rejects_ambient_authority() {
-        let (mut cx, _seat) = context();
+        let (mut cx, seat) = context();
         let dynamic = DynamicJavascript::with_codec(Symbol::qualified("codec", "lisp"));
         let denied = dynamic
             .evaluate(
@@ -367,5 +368,20 @@ mod tests {
             denied,
             Error::TrustDenied { .. } | Error::CapabilityDenied { .. }
         ));
+
+        seat.grant(&mut cx, read_eval_capability()).unwrap();
+        let denied = dynamic
+            .evaluate(
+                &mut cx,
+                "42",
+                JavascriptDynamicAdmission {
+                    read_policy: trusted(),
+                    requires: Vec::new(),
+                    allow: CapabilitySet::new(),
+                    expected_shape: Arc::new(ExactExprShape::new(Expr::String("not-42".into()))),
+                },
+            )
+            .unwrap_err();
+        assert!(matches!(denied, Error::WrongShape { .. }));
     }
 }
