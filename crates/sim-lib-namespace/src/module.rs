@@ -9,7 +9,8 @@ use std::{
 use sim_kernel::{CapabilityName, Cx, Dir, Error, Expr, Result, Symbol};
 use sim_lib_binding::BindingCell;
 use sim_lib_core::{
-    ReadEvalBroker, ReadEvalRequest, ReadEvalSource, RequestOrigin, SourceAuthority,
+    ReadEvalBroker, ReadEvalDecision, ReadEvalRequest, ReadEvalSource, RequestOrigin,
+    SourceAuthority,
 };
 use sim_shape::AnyShape;
 
@@ -293,6 +294,11 @@ impl ModuleLoader {
         Ok(self.lock_state()?.receipts.clone())
     }
 
+    /// Snapshot of the diminished read-eval decisions linked to module loads.
+    pub fn decisions(&self, cx: &Cx) -> Result<Vec<ReadEvalDecision>> {
+        self.broker.decisions(cx)
+    }
+
     fn finish_load(
         &self,
         cx: &mut Cx,
@@ -366,6 +372,107 @@ impl ModuleLoader {
         self.state
             .lock()
             .map_err(|_| Error::PoisonedLock("module loader"))
+    }
+}
+
+/// Codec-bound source-module policy shared by guest-language adapters.
+///
+/// The policy owns exactly one loader, and therefore one cache and ordered
+/// evidence stream. Roots and authority remain request inputs: this shared
+/// type deliberately supplies neither an ambient root nor guest defaults.
+pub struct SourceModulePolicy {
+    loader: ModuleLoader,
+    codec: Symbol,
+}
+
+impl SourceModulePolicy {
+    /// Creates a policy for an installed codec and explicit specifier policy.
+    pub fn new(codec: Symbol, specifier_policy: Arc<dyn ModuleSpecifierPolicy>) -> Self {
+        Self {
+            loader: ModuleLoader::with_specifier_policy(specifier_policy),
+            codec,
+        }
+    }
+
+    /// Loads a root-relative module through the caller-supplied root and authority.
+    pub fn load(
+        &self,
+        cx: &mut Cx,
+        root_id: Symbol,
+        root: Arc<dyn Dir>,
+        specifier: impl Into<String>,
+        authority: SourceAuthority,
+    ) -> Result<ModuleInstance> {
+        self.load_from(cx, root_id, root, None, specifier, authority)
+    }
+
+    /// Loads a module, optionally resolving it relative to an importer.
+    pub fn load_from(
+        &self,
+        cx: &mut Cx,
+        root_id: Symbol,
+        root: Arc<dyn Dir>,
+        importer: Option<ModuleIdentity>,
+        specifier: impl Into<String>,
+        authority: SourceAuthority,
+    ) -> Result<ModuleInstance> {
+        self.loader.load(
+            cx,
+            ModuleRequest::new(
+                root_id,
+                root,
+                importer,
+                specifier.into(),
+                self.codec.clone(),
+                authority,
+            ),
+        )
+    }
+
+    /// Dynamically imports through the same cache and authority boundary as static loads.
+    pub fn dynamic_import(
+        &self,
+        cx: &mut Cx,
+        root_id: Symbol,
+        root: Arc<dyn Dir>,
+        importer: Option<ModuleIdentity>,
+        specifier: impl Into<String>,
+        authority: SourceAuthority,
+    ) -> Result<ModuleInstance> {
+        self.load_from(cx, root_id, root, importer, specifier, authority)
+    }
+
+    /// Re-evaluates a module while preserving its existing live binding edge.
+    pub fn reload(
+        &self,
+        cx: &mut Cx,
+        root_id: Symbol,
+        root: Arc<dyn Dir>,
+        importer: Option<ModuleIdentity>,
+        specifier: impl Into<String>,
+        authority: SourceAuthority,
+    ) -> Result<ModuleInstance> {
+        self.loader.reload(
+            cx,
+            ModuleRequest::new(
+                root_id,
+                root,
+                importer,
+                specifier.into(),
+                self.codec.clone(),
+                authority,
+            ),
+        )
+    }
+
+    /// Snapshot of ordered module lifecycle receipts.
+    pub fn receipts(&self) -> Result<Vec<ModuleResolutionReceipt>> {
+        self.loader.receipts()
+    }
+
+    /// Snapshot of the linked diminished read-eval decisions.
+    pub fn decisions(&self, cx: &Cx) -> Result<Vec<ReadEvalDecision>> {
+        self.loader.decisions(cx)
     }
 }
 

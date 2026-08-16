@@ -382,6 +382,58 @@ fn cache_hit_reuses_one_linked_generation() {
 }
 
 #[test]
+fn shared_policies_keep_codec_cache_and_authority_evidence_isolated() {
+    let mut cx = context();
+    let root = Arc::new(MemoryDir::default());
+    root.source(&mut cx, "shared.sim", "\"shared\"");
+    let first = SourceModulePolicy::new(
+        Symbol::qualified("codec", "lisp"),
+        Arc::new(IdentitySpecifierPolicy),
+    );
+    let second = SourceModulePolicy::new(
+        Symbol::qualified("codec", "missing"),
+        Arc::new(IdentitySpecifierPolicy),
+    );
+
+    let loaded = first
+        .load(
+            &mut cx,
+            Symbol::new("fixture"),
+            root.clone(),
+            "shared.sim",
+            request(root.clone(), "unused.sim", None).authority,
+        )
+        .unwrap();
+    first
+        .dynamic_import(
+            &mut cx,
+            Symbol::new("fixture"),
+            root.clone(),
+            None,
+            "shared.sim",
+            request(root.clone(), "unused.sim", None).authority,
+        )
+        .unwrap();
+    assert_eq!(loaded.generation(), 1);
+    assert_eq!(first.receipts().unwrap().len(), 2);
+    assert_eq!(first.decisions(&cx).unwrap().len(), 1);
+
+    second
+        .load(
+            &mut cx,
+            Symbol::new("fixture"),
+            root.clone(),
+            "shared.sim",
+            request(root, "unused.sim", None).authority,
+        )
+        .unwrap_err();
+    assert_eq!(second.receipts().unwrap().len(), 1);
+    assert_eq!(second.decisions(&cx).unwrap().len(), 1);
+    assert_eq!(first.receipts().unwrap().len(), 2);
+    assert_eq!(first.decisions(&cx).unwrap().len(), 1);
+}
+
+#[test]
 fn concurrent_requests_share_one_initialization() {
     let mut seed_cx = context();
     let root = Arc::new(MemoryDir::default());

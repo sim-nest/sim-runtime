@@ -19,7 +19,7 @@ pub use claims::{
 };
 pub use module::{
     ModuleIdentity, ModuleInstance, ModuleLoader, ModuleRequest, ModuleResolutionOutcome,
-    ModuleResolutionReceipt, module_load_capability,
+    ModuleResolutionReceipt, SourceModulePolicy, module_load_capability,
 };
 pub use namespace::{
     ImportOptions, Namespace, NamespaceBindingSource, NamespaceEntry, NamespaceKind,
