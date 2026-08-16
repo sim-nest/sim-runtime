@@ -26,7 +26,10 @@ pub use lazy::{
     LazySequence, SequenceProducer, force_sequence_bounded, lazy_sequence_value,
     sequence_from_list_value,
 };
-pub use mutable::{SparseSequence, SparseSequenceError};
+pub use mutable::{
+    CompactionResult, KeyEquivalence, OrderedSet, OrderedSetIter, OrderedTable, OrderedTableIter,
+    SparseSequence, SparseSequenceError,
+};
 pub use persistent::{
     PersistentSet, PersistentVector, persistent_list, persistent_list_push, persistent_map,
     persistent_map_assoc, persistent_set, persistent_set_insert, persistent_vector,

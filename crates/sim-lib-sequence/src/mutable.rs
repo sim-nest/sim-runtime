@@ -1,10 +1,289 @@
-//! Neutral mutable storage for sparse indexed sequences.
+//! Neutral mutable storage for sparse indexed sequences and ordered keyed collections.
 
+use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
 use std::fmt;
 use std::ops::{Bound, RangeBounds};
+use std::rc::Rc;
 
 const CHUNK_LEN: usize = 64;
+
+/// Policy used to decide whether two table or set keys are equivalent.
+pub trait KeyEquivalence<K> {
+    /// Return whether `left` and `right` identify the same logical key.
+    fn equivalent(&self, left: &K, right: &K) -> bool;
+}
+
+impl<K, F> KeyEquivalence<K> for F
+where
+    F: Fn(&K, &K) -> bool,
+{
+    fn equivalent(&self, left: &K, right: &K) -> bool {
+        self(left, right)
+    }
+}
+
+#[derive(Clone, Debug)]
+struct OrderedEntry<K, V> {
+    key: K,
+    value: Option<V>,
+}
+
+#[derive(Debug)]
+struct OrderedState<K, V> {
+    entries: Vec<OrderedEntry<K, V>>,
+    live_len: usize,
+    active_iterators: Cell<usize>,
+}
+
+/// Result of an explicit ordered-storage compaction request.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CompactionResult {
+    /// Live entries were compacted and this many tombstones were removed.
+    Compacted(usize),
+    /// There were no tombstones to remove.
+    NotNeeded,
+    /// An active iterator requires entry positions to remain stable.
+    ActiveIterator,
+    /// The caller's work budget is smaller than the current slot count.
+    BudgetExceeded {
+        /// Number of slots that compaction would inspect at most once.
+        required: usize,
+    },
+}
+
+/// Mutable insertion-ordered table with caller-defined key equivalence.
+///
+/// Replacement retains an entry's logical position. Deletion leaves a
+/// tombstone, and reinserting an equivalent key appends a new entry. Iterators
+/// are live rather than snapshots: they skip entries deleted before visitation
+/// and observe entries appended before iteration ends.
+#[derive(Debug)]
+pub struct OrderedTable<K, V, E> {
+    state: Rc<RefCell<OrderedState<K, V>>>,
+    equivalence: E,
+}
+
+impl<K, V, E> OrderedTable<K, V, E>
+where
+    E: KeyEquivalence<K>,
+{
+    /// Construct an empty table using `equivalence` for all key lookup.
+    pub fn new(equivalence: E) -> Self {
+        Self {
+            state: Rc::new(RefCell::new(OrderedState {
+                entries: Vec::new(),
+                live_len: 0,
+                active_iterators: Cell::new(0),
+            })),
+            equivalence,
+        }
+    }
+
+    /// Return the number of live entries.
+    pub fn len(&self) -> usize {
+        self.state.borrow().live_len
+    }
+
+    /// Return whether the table contains no live entries.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Return a clone of the value for the equivalent key, if present.
+    pub fn get(&self, key: &K) -> Option<V>
+    where
+        V: Clone,
+    {
+        let state = self.state.borrow();
+        state
+            .entries
+            .iter()
+            .find(|entry| entry.value.is_some() && self.equivalence.equivalent(&entry.key, key))
+            .and_then(|entry| entry.value.clone())
+    }
+
+    /// Insert a key/value pair, returning the replaced value when present.
+    ///
+    /// An equivalent live key is replaced in place. A key equivalent only to a
+    /// tombstone is a new insertion and therefore appears at the end.
+    pub fn insert(&self, key: K, value: V) -> Option<V> {
+        let mut state = self.state.borrow_mut();
+        if let Some(entry) = state
+            .entries
+            .iter_mut()
+            .find(|entry| entry.value.is_some() && self.equivalence.equivalent(&entry.key, &key))
+        {
+            return entry.value.replace(value);
+        }
+        state.entries.push(OrderedEntry {
+            key,
+            value: Some(value),
+        });
+        state.live_len += 1;
+        None
+    }
+
+    /// Delete an equivalent key, returning its value when present.
+    pub fn remove(&self, key: &K) -> Option<V> {
+        let mut state = self.state.borrow_mut();
+        let removed = state
+            .entries
+            .iter_mut()
+            .find(|entry| entry.value.is_some() && self.equivalence.equivalent(&entry.key, key))?
+            .value
+            .take();
+        state.live_len -= 1;
+        removed
+    }
+
+    /// Create a live insertion-order iterator.
+    pub fn iter(&self) -> OrderedTableIter<K, V> {
+        let state = self.state.borrow();
+        state
+            .active_iterators
+            .set(state.active_iterators.get().saturating_add(1));
+        drop(state);
+        OrderedTableIter {
+            state: Rc::clone(&self.state),
+            next_slot: 0,
+        }
+    }
+
+    /// Compact tombstones when doing so is position-safe and within `max_work`.
+    ///
+    /// Work is bounded by the current slot count. The operation is all-or-none:
+    /// it does not begin unless that count fits the supplied budget, and it
+    /// never runs while an iterator holds a position in this table.
+    pub fn compact(&self, max_work: usize) -> CompactionResult {
+        let mut state = self.state.borrow_mut();
+        if state.active_iterators.get() != 0 {
+            return CompactionResult::ActiveIterator;
+        }
+        let required = state.entries.len();
+        if required == state.live_len {
+            return CompactionResult::NotNeeded;
+        }
+        if required > max_work {
+            return CompactionResult::BudgetExceeded { required };
+        }
+        let removed = required - state.live_len;
+        state.entries.retain(|entry| entry.value.is_some());
+        CompactionResult::Compacted(removed)
+    }
+
+    #[cfg(test)]
+    fn slot_len(&self) -> usize {
+        self.state.borrow().entries.len()
+    }
+}
+
+/// Live iterator over cloned insertion-ordered table entries.
+pub struct OrderedTableIter<K, V> {
+    state: Rc<RefCell<OrderedState<K, V>>>,
+    next_slot: usize,
+}
+
+impl<K, V> Iterator for OrderedTableIter<K, V>
+where
+    K: Clone,
+    V: Clone,
+{
+    type Item = (K, V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let state = self.state.borrow();
+        while self.next_slot < state.entries.len() {
+            let slot = self.next_slot;
+            self.next_slot += 1;
+            let entry = &state.entries[slot];
+            if let Some(value) = &entry.value {
+                return Some((entry.key.clone(), value.clone()));
+            }
+        }
+        None
+    }
+}
+
+impl<K, V> Drop for OrderedTableIter<K, V> {
+    fn drop(&mut self) {
+        let state = self.state.borrow();
+        state
+            .active_iterators
+            .set(state.active_iterators.get().saturating_sub(1));
+    }
+}
+
+/// Mutable insertion-ordered set with caller-defined key equivalence.
+#[derive(Debug)]
+pub struct OrderedSet<K, E> {
+    table: OrderedTable<K, (), E>,
+}
+
+impl<K, E> OrderedSet<K, E>
+where
+    E: KeyEquivalence<K>,
+{
+    /// Construct an empty set using `equivalence` for membership.
+    pub fn new(equivalence: E) -> Self {
+        Self {
+            table: OrderedTable::new(equivalence),
+        }
+    }
+
+    /// Return the number of members.
+    pub fn len(&self) -> usize {
+        self.table.len()
+    }
+
+    /// Return whether the set contains no members.
+    pub fn is_empty(&self) -> bool {
+        self.table.is_empty()
+    }
+
+    /// Return whether an equivalent member is present.
+    pub fn contains(&self, key: &K) -> bool {
+        self.table.get(key).is_some()
+    }
+
+    /// Insert `key`, returning whether it was newly added.
+    pub fn insert(&self, key: K) -> bool {
+        self.table.insert(key, ()).is_none()
+    }
+
+    /// Remove an equivalent member, returning whether it was present.
+    pub fn remove(&self, key: &K) -> bool {
+        self.table.remove(key).is_some()
+    }
+
+    /// Create a live insertion-order iterator.
+    pub fn iter(&self) -> OrderedSetIter<K> {
+        OrderedSetIter {
+            inner: self.table.iter(),
+        }
+    }
+
+    /// Compact tombstones under the table's position and work rules.
+    pub fn compact(&self, max_work: usize) -> CompactionResult {
+        self.table.compact(max_work)
+    }
+}
+
+/// Live iterator over cloned insertion-ordered set members.
+pub struct OrderedSetIter<K> {
+    inner: OrderedTableIter<K, ()>,
+}
+
+impl<K> Iterator for OrderedSetIter<K>
+where
+    K: Clone,
+{
+    type Item = K;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|(key, ())| key)
+    }
+}
 
 /// A failed sparse-sequence growth or length mutation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -251,7 +530,73 @@ fn split_index(index: usize) -> (usize, usize) {
 
 #[cfg(test)]
 mod tests {
-    use super::{SparseSequence, SparseSequenceError};
+    use super::{CompactionResult, OrderedSet, OrderedTable, SparseSequence, SparseSequenceError};
+
+    fn exact(left: &&str, right: &&str) -> bool {
+        left == right
+    }
+
+    #[test]
+    fn delete_and_reinsert_moves_key_to_end() {
+        let table = OrderedTable::new(exact);
+        table.insert("first", 1);
+        table.insert("second", 2);
+        assert_eq!(table.insert("first", 3), Some(1));
+        assert_eq!(table.remove(&"first"), Some(3));
+        table.insert("first", 4);
+
+        assert_eq!(
+            table.iter().collect::<Vec<_>>(),
+            vec![("second", 2), ("first", 4)]
+        );
+    }
+
+    #[test]
+    fn iterator_observes_delete_and_append_without_losing_position() {
+        let table = OrderedTable::new(exact);
+        table.insert("first", 1);
+        table.insert("deleted", 2);
+        table.insert("third", 3);
+        let mut iterator = table.iter();
+
+        assert_eq!(iterator.next(), Some(("first", 1)));
+        table.remove(&"deleted");
+        table.insert("appended", 4);
+        assert_eq!(
+            iterator.collect::<Vec<_>>(),
+            vec![("third", 3), ("appended", 4)]
+        );
+    }
+
+    #[test]
+    fn compaction_is_bounded_and_blocked_by_active_iterator() {
+        let table = OrderedTable::new(exact);
+        table.insert("first", 1);
+        table.insert("deleted", 2);
+        table.insert("third", 3);
+        table.remove(&"deleted");
+        let iterator = table.iter();
+
+        assert_eq!(table.compact(usize::MAX), CompactionResult::ActiveIterator);
+        assert_eq!(table.slot_len(), 3);
+        drop(iterator);
+        assert_eq!(
+            table.compact(2),
+            CompactionResult::BudgetExceeded { required: 3 }
+        );
+        assert_eq!(table.slot_len(), 3);
+        assert_eq!(table.compact(3), CompactionResult::Compacted(1));
+        assert_eq!(table.slot_len(), 2);
+    }
+
+    #[test]
+    fn set_uses_the_supplied_equivalence_policy() {
+        let set = OrderedSet::new(|left: &String, right: &String| left.eq_ignore_ascii_case(right));
+        assert!(set.insert("Alpha".to_owned()));
+        assert!(!set.insert("alpha".to_owned()));
+        assert!(set.contains(&"ALPHA".to_owned()));
+        assert_eq!(set.iter().collect::<Vec<_>>(), vec!["Alpha".to_owned()]);
+    }
 
     #[test]
     fn distant_write_allocates_only_occupied_storage() {
