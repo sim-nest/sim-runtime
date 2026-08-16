@@ -44,7 +44,8 @@ pub use objects::{
 };
 pub use profile::{install_python_core_profile, python_core_profile, python_profile_symbol};
 pub use resumable::{
-    ContextManager, PythonException, PythonExceptionGroup, PythonGenerator, PythonGeneratorError,
+    ContextManager, PythonExceptionData, PythonExceptionError, PythonExceptionRef,
+    PythonExceptionRelation, PythonExceptions, PythonGenerator, PythonGeneratorError,
     PythonGeneratorStep, PythonIterator, run_with_context,
 };
 pub use runtime::{Annotation, PythonEvalPolicy, PythonValue};

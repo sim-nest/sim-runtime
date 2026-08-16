@@ -152,6 +152,38 @@ impl Shape for PythonAnyShape {
 }
 
 impl PythonObjectSpace {
+    pub(crate) fn is_subclass(&self, class: ClassId, candidate: ClassId) -> bool {
+        self.classes.get(&class).is_some_and(|declared| {
+            declared.mro.iter().any(|entry| {
+                entry
+                    .object()
+                    .as_class()
+                    .is_some_and(|entry| entry.id() == candidate)
+            })
+        })
+    }
+
+    pub(crate) fn subclass_work(&self, class: ClassId, candidate: ClassId, limit: usize) -> usize {
+        let Some(declared) = self.classes.get(&class) else {
+            return 0;
+        };
+        let required = declared
+            .mro
+            .iter()
+            .position(|entry| {
+                entry
+                    .object()
+                    .as_class()
+                    .is_some_and(|entry| entry.id() == candidate)
+            })
+            .map_or(declared.mro.len(), |at| at + 1);
+        if required > limit {
+            limit.saturating_add(1)
+        } else {
+            required
+        }
+    }
+
     /// Declare a class and compute its C3 MRO.
     pub fn define_class(
         &mut self,
