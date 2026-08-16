@@ -10,6 +10,7 @@ mod array;
 mod class_metadata;
 mod class_space;
 mod code;
+mod constructor;
 mod control;
 mod entry;
 mod execution;
@@ -38,6 +39,9 @@ pub use class_space::{
 pub use code::{
     JvmInstructionPolicy, JvmInstructionSemantics, JvmSlotKind, PreparationError,
     PreparedExceptionHandler, PreparedJvmInstruction, PreparedJvmPolicy, RootEffect, prepare_code,
+};
+pub use constructor::{
+    ConstructorState, ConstructorStateError, UninitializedUse, VerifiedConstructorState,
 };
 pub use control::{
     JvmControlError, JvmControlErrorKind, JvmControlOutcome, execute_control_instruction,
