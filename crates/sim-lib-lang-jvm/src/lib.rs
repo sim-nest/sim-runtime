@@ -2,9 +2,19 @@
 #![deny(missing_docs)]
 //! Manifest-frozen JVM profile boundary.
 //!
-//! This initial crate deliberately contains no guest semantics. Its checked
-//! manifests, fixtures, and dependency test freeze the substrate that later
-//! phases will compose.
+//! Its checked manifests and fixtures freeze the supported substrate. JVM-owned
+//! policy is then layered over shared machine storage, limits, managed handles,
+//! kernel values, and the language-neutral raised envelope.
+
+mod failure;
+mod limits;
+mod value;
+
+pub use failure::{
+    AdmissionFailure, FailureCondition, FailureHome, JavaThrowable, ResourceFailure,
+};
+pub use limits::{ExecutionLimits, ResourceLimits};
+pub use value::{JvmReference, JvmValue, JvmValueWidth, PrimitiveCategory, ReturnCategory};
 
 /// The mechanically checked reuse ledger frozen before guest semantics land.
 pub const REUSE_LEDGER: &str = include_str!("../reuse-ledger.toml");
