@@ -7,6 +7,7 @@
 //! kernel values, and the language-neutral raised envelope.
 
 mod array;
+mod benchmark;
 mod class_metadata;
 mod class_space;
 mod code;
@@ -38,6 +39,7 @@ pub use array::{
     ArrayAllocationError, ArrayComponent, ArrayOperationError, ArrayPrimitive, JavaArray,
     JavaArrayTree, MAX_ARRAY_DIMENSIONS,
 };
+pub use benchmark::{JvmBenchmarkCounters, JvmBenchmarkPhase};
 pub use class_metadata::{
     JavaClassMetadata, JavaHierarchyCheck, JavaMember, JavaMemberKind, JavaResolutionEvidence,
 };
