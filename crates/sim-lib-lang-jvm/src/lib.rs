@@ -104,8 +104,9 @@ pub use surface::{
 pub use text::{ADMITTED_CORE_MEMBERS, JavaClassMirror, JavaCoreMember, JavaString};
 pub use value::{JvmReference, JvmValue, JvmValueWidth, PrimitiveCategory, ReturnCategory};
 pub use verifier::{
-    FrameError, FrameKind, ReferenceType, VerificationFrame, VerificationType,
-    VerificationTypeWidth,
+    FrameError, FrameKind, ReferenceType, VerificationAssignability, VerificationClass,
+    VerificationDependency, VerificationEnvironment, VerificationFrame, VerificationQueryError,
+    VerificationType, VerificationTypeWidth,
 };
 
 /// The mechanically checked reuse ledger frozen before guest semantics land.

@@ -1,7 +1,226 @@
 //! JVM verification types and lawful dataflow frames.
 
 use sim_incremental_core::dataflow::{JoinSemilattice, StateSize};
-use std::mem::size_of;
+use std::{cell::RefCell, mem::size_of, sync::Arc};
+
+use crate::{
+    ClassDefinition, ClassDefinitionId, ClassLoader, ClassLoaderId, ClassSpaceRevision,
+    JavaClassMetadata, JavaMember, JavaMemberKind,
+};
+
+/// One loaded class whose metadata was consulted by verification.
+#[derive(Clone, Debug)]
+pub struct VerificationDependency {
+    class: Arc<ClassDefinition>,
+    revision: ClassSpaceRevision,
+}
+
+impl VerificationDependency {
+    /// Exact loaded definition observed by the query.
+    pub fn class(&self) -> &ClassDefinitionId {
+        self.class.id()
+    }
+
+    /// Class-space state in which the definition was observed.
+    pub const fn revision(&self) -> ClassSpaceRevision {
+        self.revision
+    }
+}
+
+/// Failure to answer a bounded, read-only class-space query.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum VerificationQueryError {
+    /// The named class was not already loaded; verification never loads it.
+    NotLoaded(String),
+    /// The class-space changed while an observation was being recorded.
+    ConcurrentRevision {
+        /// Revision before the metadata lookup.
+        before: ClassSpaceRevision,
+        /// Revision after the metadata lookup.
+        after: ClassSpaceRevision,
+    },
+    /// The caller's lineage-node allowance was exhausted.
+    LineageLimit {
+        /// Caller-supplied maximum consulted classes.
+        limit: usize,
+    },
+    /// The environment's preallocated proof-dependency allowance was exhausted.
+    DependencyLimit {
+        /// Capacity fixed when the environment was created.
+        limit: usize,
+    },
+}
+
+/// Immutable verification-facing projection of one loaded class.
+#[derive(Clone, Debug)]
+pub struct VerificationClass {
+    definition: Arc<ClassDefinition>,
+}
+
+impl VerificationClass {
+    /// Content- and loader-bound class identity.
+    pub fn id(&self) -> &ClassDefinitionId {
+        self.definition.id()
+    }
+
+    /// Defining loader namespace.
+    pub fn loader(&self) -> ClassLoaderId {
+        self.definition.id().loader()
+    }
+
+    /// Neutral and JVM-specific class metadata.
+    pub fn metadata(&self) -> &JavaClassMetadata {
+        self.definition.metadata()
+    }
+
+    /// Declared interfaces, in classfile order.
+    pub fn interfaces(&self) -> impl Iterator<Item = &str> {
+        let skip_superclass = usize::from(!self.is_interface());
+        self.metadata()
+            .resolution()
+            .direct_parents()
+            .iter()
+            .skip(skip_superclass)
+            .map(String::as_str)
+    }
+
+    /// Whether this class carries `ACC_INTERFACE`.
+    pub fn is_interface(&self) -> bool {
+        self.metadata().access_flags() & 0x0200 != 0
+    }
+
+    /// Declared methods and constructors, in classfile order.
+    pub fn methods(&self) -> impl Iterator<Item = &JavaMember> {
+        self.metadata()
+            .members()
+            .iter()
+            .filter(|member| member.kind() == JavaMemberKind::Method)
+    }
+
+    /// Declared fields, in classfile order.
+    pub fn fields(&self) -> impl Iterator<Item = &JavaMember> {
+        self.metadata()
+            .members()
+            .iter()
+            .filter(|member| member.kind() == JavaMemberKind::Field)
+    }
+}
+
+/// Result of a bounded verification assignability query.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum VerificationAssignability {
+    /// The loaded declared lineage reaches the expected class identity.
+    Assignable,
+    /// The complete loaded declared lineage does not reach the expected class.
+    NotAssignable,
+}
+
+/// Read-only, non-resolving view of a JVM class-loader namespace.
+///
+/// Dependency capacity is allocated once by [`Self::new`]. Queries only inspect
+/// already-loaded definitions, append within that capacity, and never enter
+/// class initialization, execution, native dispatch, source access, or ordinary
+/// symbolic resolution.
+pub struct VerificationEnvironment<'a> {
+    loader: &'a ClassLoader,
+    dependencies: RefCell<Vec<VerificationDependency>>,
+    dependency_limit: usize,
+}
+
+impl<'a> VerificationEnvironment<'a> {
+    /// Creates a view with a fixed proof-dependency allowance.
+    pub fn new(loader: &'a ClassLoader, dependency_limit: usize) -> Self {
+        Self {
+            loader,
+            dependencies: RefCell::new(Vec::with_capacity(dependency_limit)),
+            dependency_limit,
+        }
+    }
+
+    /// Defining loader namespace observed by this environment.
+    pub fn loader(&self) -> ClassLoaderId {
+        self.loader.id()
+    }
+
+    /// Exact, deduplicated dependencies accumulated by successful queries.
+    pub fn dependencies(&self) -> impl std::ops::Deref<Target = [VerificationDependency]> + '_ {
+        std::cell::Ref::map(self.dependencies.borrow(), Vec::as_slice)
+    }
+
+    /// Observes one already-loaded class without resolving or initializing it.
+    pub fn class(&self, binary_name: &str) -> Result<VerificationClass, VerificationQueryError> {
+        self.observe(binary_name)
+    }
+
+    /// Checks assignability through already-loaded declared superclass and
+    /// interface metadata, charging at most `node_limit` consulted classes.
+    pub fn is_assignable(
+        &self,
+        actual: &str,
+        expected: &str,
+        node_limit: usize,
+    ) -> Result<VerificationAssignability, VerificationQueryError> {
+        let mut remaining = node_limit;
+        if self.lineage_reaches(actual, expected, node_limit, &mut remaining)? {
+            Ok(VerificationAssignability::Assignable)
+        } else {
+            Ok(VerificationAssignability::NotAssignable)
+        }
+    }
+
+    fn lineage_reaches(
+        &self,
+        binary_name: &str,
+        expected: &str,
+        limit: usize,
+        remaining: &mut usize,
+    ) -> Result<bool, VerificationQueryError> {
+        if *remaining == 0 {
+            return Err(VerificationQueryError::LineageLimit { limit });
+        }
+        *remaining -= 1;
+        let class = self.observe(binary_name)?;
+        if class.id().binary_name() == expected {
+            return Ok(true);
+        }
+        for parent in class.metadata().resolution().direct_parents() {
+            if self.lineage_reaches(parent, expected, limit, remaining)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    fn observe(&self, binary_name: &str) -> Result<VerificationClass, VerificationQueryError> {
+        let before = self.loader.revision();
+        let definition = self
+            .loader
+            .loaded(binary_name)
+            .map_err(|_| VerificationQueryError::NotLoaded(binary_name.to_owned()))?
+            .ok_or_else(|| VerificationQueryError::NotLoaded(binary_name.to_owned()))?;
+        let after = self.loader.revision();
+        if before != after {
+            return Err(VerificationQueryError::ConcurrentRevision { before, after });
+        }
+        let mut dependencies = self.dependencies.borrow_mut();
+        if !dependencies
+            .iter()
+            .any(|dependency| dependency.class.id() == definition.id())
+        {
+            if dependencies.len() == self.dependency_limit {
+                return Err(VerificationQueryError::DependencyLimit {
+                    limit: self.dependency_limit,
+                });
+            }
+            dependencies.push(VerificationDependency {
+                class: definition.clone(),
+                revision: after,
+            });
+        }
+        drop(dependencies);
+        Ok(VerificationClass { definition })
+    }
+}
 
 /// The width a verification value occupies in a local or operand frame.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -271,6 +490,119 @@ fn invalidate_value_at(slots: &mut [Slot], index: usize) {
         slots[index + 1] = Slot::Unusable;
     }
     slots[index] = Slot::Unusable;
+}
+
+#[cfg(test)]
+mod environment_tests {
+    use super::*;
+    use crate::{ClassDefinition, ClassInitializationState, ClassLoader};
+    use sim_kernel::{Cx, DefaultFactory, NoopEvalPolicy};
+    use std::{
+        collections::BTreeMap,
+        sync::atomic::{AtomicUsize, Ordering},
+    };
+
+    fn insert(
+        cx: &Cx,
+        loader: &ClassLoader,
+        name: &str,
+        parents: &[&str],
+        methods: &[(&str, &str, u16)],
+    ) {
+        let metadata = JavaClassMetadata::test_class(cx, name, parents, 0, methods);
+        loader.test_insert(ClassDefinition::test(
+            loader.id(),
+            name,
+            name.len() as u64,
+            metadata,
+            BTreeMap::new(),
+        ));
+    }
+
+    #[test]
+    fn verification_environment_is_read_only_and_records_exact_lineage() {
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let loader = ClassLoader::new(4096);
+        insert(
+            &cx,
+            &loader,
+            "SideEffectBase",
+            &[],
+            &[("<clinit>", "()V", 0x0008)],
+        );
+        insert(
+            &cx,
+            &loader,
+            "VerifiedChild",
+            &["SideEffectBase"],
+            &[("run", "()V", 0)],
+        );
+        insert(&cx, &loader, "Unrelated", &[], &[]);
+
+        // These counters stand at the effect boundaries a verifier must never
+        // enter. The only operation below is metadata observation; no callback
+        // capable of initialization, allocation, execution, native work, or a
+        // source read is supplied to the environment.
+        let initializer_runs = AtomicUsize::new(0);
+        let allocations = AtomicUsize::new(0);
+        let executions = AtomicUsize::new(0);
+        let native_calls = AtomicUsize::new(0);
+        let source_reads = AtomicUsize::new(0);
+        let initialization = ClassInitializationState::Uninitialized;
+
+        let environment = VerificationEnvironment::new(&loader, 3);
+        let dependency_capacity = environment.dependencies.borrow().capacity();
+        assert_eq!(
+            environment.is_assignable("VerifiedChild", "SideEffectBase", 2),
+            Ok(VerificationAssignability::Assignable)
+        );
+        let child = environment.class("VerifiedChild").unwrap();
+        assert_eq!(
+            child.methods().map(JavaMember::name).collect::<Vec<_>>(),
+            ["run"]
+        );
+        assert_eq!(
+            environment.dependencies.borrow().capacity(),
+            dependency_capacity
+        );
+        let dependencies = environment.dependencies();
+        assert_eq!(
+            dependencies
+                .iter()
+                .map(|dependency| dependency.class().binary_name())
+                .collect::<Vec<_>>(),
+            ["VerifiedChild", "SideEffectBase"]
+        );
+        assert!(
+            dependencies
+                .iter()
+                .all(|dependency| dependency.revision() == loader.revision())
+        );
+        assert_eq!(initialization, ClassInitializationState::Uninitialized);
+        assert_eq!(initializer_runs.load(Ordering::Relaxed), 0);
+        assert_eq!(allocations.load(Ordering::Relaxed), 0);
+        assert_eq!(executions.load(Ordering::Relaxed), 0);
+        assert_eq!(native_calls.load(Ordering::Relaxed), 0);
+        assert_eq!(source_reads.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn verification_environment_refuses_loading_and_bounds_every_walk() {
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let loader = ClassLoader::new(4096);
+        insert(&cx, &loader, "Child", &["Parent"], &[]);
+        insert(&cx, &loader, "Parent", &[], &[]);
+        let environment = VerificationEnvironment::new(&loader, 2);
+
+        assert_eq!(
+            environment.is_assignable("Child", "Parent", 1),
+            Err(VerificationQueryError::LineageLimit { limit: 1 })
+        );
+        assert!(matches!(
+            environment.class("Missing"),
+            Err(VerificationQueryError::NotLoaded(name)) if name == "Missing"
+        ));
+    }
 }
 
 impl StateSize for VerificationFrame {
