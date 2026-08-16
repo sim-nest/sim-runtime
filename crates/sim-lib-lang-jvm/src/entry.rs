@@ -5,7 +5,12 @@ use std::{error::Error, fmt, sync::Arc};
 use sim_kernel::ContentId;
 use sim_lib_machine::MachinePermit;
 
-use crate::{ClassDefinition, ClassDefinitionId, ClassLoader, ClassSpaceRevision};
+use sim_incremental_core::ValueFingerprint;
+
+use crate::{
+    ClassDefinition, ClassDefinitionId, ClassLoader, ClassSpaceRevision, ClassVerificationProof,
+    JavaMemberKind,
+};
 
 /// The three target families which must share method-entry admission.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -62,6 +67,7 @@ pub trait VerifierProvider {
         class: &ClassDefinition,
         target: &EntryTarget,
         machine_content: &ContentId,
+        revision: ClassSpaceRevision,
     ) -> Result<Option<Self::Proof>, EntryRefusal>;
 }
 
@@ -77,8 +83,113 @@ impl VerifierProvider for NoVerifier {
         _class: &ClassDefinition,
         _target: &EntryTarget,
         _machine_content: &ContentId,
+        _revision: ClassSpaceRevision,
     ) -> Result<Option<Self::Proof>, EntryRefusal> {
         Ok(None)
+    }
+}
+
+/// Failure retained by the verified-tier provider before method preparation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VerificationProofFailure {
+    /// Verification did not complete for every declared method.
+    Incomplete,
+    /// Verification exhausted its admitted work or dependency budget.
+    BudgetExhausted,
+}
+
+/// Provider for the `verified` fidelity tier over the existing entry pipeline.
+pub struct ClassVerifierProvider {
+    proof: Result<Arc<ClassVerificationProof>, VerificationProofFailure>,
+    policy: ValueFingerprint,
+    structural: ValueFingerprint,
+}
+
+impl ClassVerifierProvider {
+    /// Requires this exact completed proof, verifier policy, and structural input.
+    pub fn exact(
+        proof: Arc<ClassVerificationProof>,
+        policy: ValueFingerprint,
+        structural: ValueFingerprint,
+    ) -> Self {
+        Self {
+            proof: Ok(proof),
+            policy,
+            structural,
+        }
+    }
+
+    /// Retains a verifier failure so entry refuses before preparation.
+    pub fn failed(
+        failure: VerificationProofFailure,
+        policy: ValueFingerprint,
+        structural: ValueFingerprint,
+    ) -> Self {
+        Self {
+            proof: Err(failure),
+            policy,
+            structural,
+        }
+    }
+}
+
+impl VerifierProvider for ClassVerifierProvider {
+    type Proof = Arc<ClassVerificationProof>;
+
+    fn verify(
+        &self,
+        class: &ClassDefinition,
+        target: &EntryTarget,
+        _machine_content: &ContentId,
+        revision: ClassSpaceRevision,
+    ) -> Result<Option<Self::Proof>, EntryRefusal> {
+        let proof = self
+            .proof
+            .as_ref()
+            .map_err(|failure| EntryRefusal::VerificationFailed {
+                class: class.id().clone(),
+                failure: *failure,
+            })?;
+        let exact_owner = proof.owner() == class.id();
+        let exact_revision = proof.owner_revision() == revision;
+        let exact_policy = proof.policy_fingerprint() == self.policy;
+        let exact_structure = proof.structural_fingerprint() == self.structural;
+        if !(exact_owner && exact_revision && exact_policy && exact_structure) {
+            return Err(EntryRefusal::MismatchedVerificationProof {
+                class: class.id().clone(),
+            });
+        }
+        let (name, descriptor) = target.member();
+        let target_identity = format!("{name}{descriptor}");
+        if !proof
+            .methods()
+            .iter()
+            .any(|method| method.method() == target_identity)
+        {
+            return Err(EntryRefusal::WrongMethodVerificationProof {
+                class: class.id().clone(),
+                name: name.into(),
+                descriptor: descriptor.into(),
+            });
+        }
+        let declared = class
+            .metadata()
+            .members()
+            .iter()
+            .filter(|member| member.kind() == JavaMemberKind::Method && !member.is_abstract());
+        if declared.clone().any(|member| {
+            let identity = format!("{}{}", member.name(), member.descriptor());
+            !proof
+                .methods()
+                .iter()
+                .any(|method| method.method() == identity)
+        }) {
+            return Err(EntryRefusal::VerificationFailed {
+                class: class.id().clone(),
+                failure: VerificationProofFailure::Incomplete,
+            });
+        }
+        Ok(Some(Arc::clone(proof)))
     }
 }
 
@@ -107,6 +218,27 @@ pub enum EntryRefusal {
         admitted: ClassSpaceRevision,
         /// Live class-space identity found before execution.
         current: ClassSpaceRevision,
+    },
+    /// A class proof was bound to different content, loader, revision, policy, or structure.
+    MismatchedVerificationProof {
+        /// Definition for which exact proof identity was required.
+        class: ClassDefinitionId,
+    },
+    /// A whole-class proof did not contain the selected concrete method.
+    WrongMethodVerificationProof {
+        /// Definition whose whole-class proof was inspected.
+        class: ClassDefinitionId,
+        /// Selected method name.
+        name: String,
+        /// Selected method descriptor.
+        descriptor: String,
+    },
+    /// Verification did not produce a complete proof within its admitted resources.
+    VerificationFailed {
+        /// Definition whose verification did not complete.
+        class: ClassDefinitionId,
+        /// Located verifier failure.
+        failure: VerificationProofFailure,
     },
 }
 
@@ -137,6 +269,27 @@ impl fmt::Display for EntryRefusal {
                 class.binary_name(),
                 admitted.number(),
                 current.number()
+            ),
+            Self::MismatchedVerificationProof { class } => write!(
+                f,
+                "verification proof does not exactly match {}",
+                class.binary_name()
+            ),
+            Self::WrongMethodVerificationProof {
+                class,
+                name,
+                descriptor,
+            } => write!(
+                f,
+                "verification proof does not cover {}.{}{}",
+                class.binary_name(),
+                name,
+                descriptor
+            ),
+            Self::VerificationFailed { class, failure } => write!(
+                f,
+                "verification of {} failed: {failure:?}",
+                class.binary_name()
             ),
         }
     }
@@ -232,6 +385,7 @@ impl<'a> StaticAdmission<'a> {
             &self.resolved.permit.class,
             &self.resolved.target,
             &self.machine_content,
+            self.resolved.permit.revision,
         )?;
         let fidelity = if proof.is_some() {
             VerificationFidelity::Verified

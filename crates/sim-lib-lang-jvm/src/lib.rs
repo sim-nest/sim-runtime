@@ -59,8 +59,9 @@ pub use dynamic::{
     STRING_CONCAT_BOOTSTRAP_OWNER,
 };
 pub use entry::{
-    ClassfilePermit, EntryRefusal, EntryTarget, ExecutionPermit, NoVerifier, PreparedEntry,
-    ResolvedEntry, StaticAdmission, VerificationFidelity, VerifierProvider, drive,
+    ClassVerifierProvider, ClassfilePermit, EntryRefusal, EntryTarget, ExecutionPermit, NoVerifier,
+    PreparedEntry, ResolvedEntry, StaticAdmission, VerificationFidelity, VerificationProofFailure,
+    VerifierProvider, drive,
 };
 pub use exception::{
     JavaHandlerEntry, JavaThrowError, JavaThrowSite, JavaThrowableHeap, JavaThrowableMutationError,

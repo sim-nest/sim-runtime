@@ -2038,6 +2038,8 @@ impl ClassMethodProofIdentity {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ClassVerificationProof {
     owner: ClassDefinitionId,
+    owner_revision: ClassSpaceRevision,
+    policy: ValueFingerprint,
     structural: ValueFingerprint,
     methods: Box<[ClassMethodProofIdentity]>,
     dependencies: Box<[Observation<ClassDefinitionId>]>,
@@ -2045,9 +2047,46 @@ pub struct ClassVerificationProof {
 }
 
 impl ClassVerificationProof {
+    #[cfg(test)]
+    pub(crate) fn test(
+        owner: ClassDefinitionId,
+        owner_revision: ClassSpaceRevision,
+        policy: ValueFingerprint,
+        structural: ValueFingerprint,
+        methods: &[&str],
+    ) -> Self {
+        let methods = methods
+            .iter()
+            .enumerate()
+            .map(|(index, method)| {
+                ClassMethodProofIdentity::new(*method, ValueFingerprint::new(index as u64 + 1))
+            })
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+        Self {
+            owner,
+            owner_revision,
+            policy,
+            structural,
+            methods,
+            dependencies: Box::new([]),
+            identity: ValueFingerprint::new(99),
+        }
+    }
+
     /// Exact class definition proved.
     pub fn owner(&self) -> &ClassDefinitionId {
         &self.owner
+    }
+
+    /// Exact class-space revision observed while sealing this proof.
+    pub const fn owner_revision(&self) -> ClassSpaceRevision {
+        self.owner_revision
+    }
+
+    /// Exact verifier policy and schema used to produce this proof.
+    pub const fn policy_fingerprint(&self) -> ValueFingerprint {
+        self.policy
     }
 
     /// Fingerprint of class-level constraints (header, members, and attributes).
@@ -2082,6 +2121,7 @@ pub enum ClassVerificationError {
 pub fn seal_class_verification(
     owner: &ClassDefinitionId,
     owner_revision: ClassSpaceRevision,
+    policy: ValueFingerprint,
     structural: ValueFingerprint,
     methods: impl IntoIterator<Item = (String, MethodVerificationProof)>,
 ) -> Result<ClassVerificationProof, ClassVerificationError> {
@@ -2111,6 +2151,7 @@ pub fn seal_class_verification(
     let dependencies = dependencies.into_values().collect::<Vec<_>>();
     let identity = (
         owner,
+        policy,
         structural,
         &identities,
         dependencies
@@ -2121,6 +2162,8 @@ pub fn seal_class_verification(
         .incremental_fingerprint();
     Ok(ClassVerificationProof {
         owner: owner.clone(),
+        owner_revision,
+        policy,
         structural,
         methods: identities.into_boxed_slice(),
         dependencies: dependencies.into_boxed_slice(),
@@ -3267,9 +3310,22 @@ mod environment_tests {
             ]
         };
         let structural = ValueFingerprint::new(20);
-        let clean = seal_class_verification(owner.id(), revision, structural, methods()).unwrap();
-        let incremental =
-            seal_class_verification(owner.id(), revision, structural, methods()).unwrap();
+        let clean = seal_class_verification(
+            owner.id(),
+            revision,
+            ValueFingerprint::new(7),
+            structural,
+            methods(),
+        )
+        .unwrap();
+        let incremental = seal_class_verification(
+            owner.id(),
+            revision,
+            ValueFingerprint::new(7),
+            structural,
+            methods(),
+        )
+        .unwrap();
         assert_eq!(incremental.identity(), clean.identity());
         assert_eq!(clean.dependencies().len(), 2);
 
@@ -3296,6 +3352,7 @@ mod environment_tests {
         let other_proof = seal_class_verification(
             other.id(),
             revision,
+            ValueFingerprint::new(7),
             other_structural,
             [(
                 "stable()V".into(),

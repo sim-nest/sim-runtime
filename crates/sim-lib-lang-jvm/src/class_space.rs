@@ -950,4 +950,100 @@ mod tests {
             "stale refusal precedes the effect"
         );
     }
+
+    #[test]
+    fn verified_entry_requires_one_exact_complete_class_proof_before_effects() {
+        use sim_incremental_core::ValueFingerprint;
+
+        let mut cx = context(true);
+        let loader = ClassLoader::new(4096);
+        let class = loader
+            .request(
+                Symbol::new("classes"),
+                Arc::new(FixtureDir::new()),
+                "Minimal",
+                authority(),
+            )
+            .unwrap()
+            .resolve(&mut cx)
+            .unwrap();
+        let policy = ValueFingerprint::new(41);
+        let structural = ValueFingerprint::new(42);
+        let proof = Arc::new(crate::ClassVerificationProof::test(
+            class.id().clone(),
+            loader.revision(),
+            policy,
+            structural,
+            &["value()I"],
+        ));
+        let wrong_method = Arc::new(crate::ClassVerificationProof::test(
+            class.id().clone(),
+            loader.revision(),
+            policy,
+            structural,
+            &["other()I"],
+        ));
+        let foreign_loader = ClassLoader::new(4096);
+        let foreign_class = foreign_loader
+            .request(
+                Symbol::new("classes"),
+                Arc::new(FixtureDir::new()),
+                "Minimal",
+                authority(),
+            )
+            .unwrap()
+            .resolve(&mut cx)
+            .unwrap();
+        let foreign = Arc::new(crate::ClassVerificationProof::test(
+            foreign_class.id().clone(),
+            foreign_loader.revision(),
+            policy,
+            structural,
+            &["value()I"],
+        ));
+        let effects = AtomicUsize::new(0);
+        let enter = |provider: &crate::ClassVerifierProvider| {
+            crate::ClassfilePermit::new(&loader, class.clone())
+                .unwrap()
+                .resolve(crate::EntryTarget::Method {
+                    name: "value".into(),
+                    descriptor: "()I".into(),
+                })
+                .unwrap()
+                .admit(&machine_permit())
+                .verify(provider)
+        };
+
+        for provider in [
+            crate::ClassVerifierProvider::exact(
+                Arc::clone(&proof),
+                ValueFingerprint::new(99),
+                structural,
+            ),
+            crate::ClassVerifierProvider::failed(
+                crate::VerificationProofFailure::Incomplete,
+                policy,
+                structural,
+            ),
+            crate::ClassVerifierProvider::failed(
+                crate::VerificationProofFailure::BudgetExhausted,
+                policy,
+                structural,
+            ),
+            crate::ClassVerifierProvider::exact(wrong_method, policy, structural),
+            crate::ClassVerifierProvider::exact(foreign, policy, structural),
+        ] {
+            assert!(enter(&provider).is_err());
+        }
+        assert_eq!(effects.load(Ordering::SeqCst), 0);
+
+        let prepared = enter(&crate::ClassVerifierProvider::exact(
+            proof, policy, structural,
+        ))
+        .unwrap();
+        let permit = prepared.permit();
+        assert_eq!(permit.fidelity(), crate::VerificationFidelity::Verified);
+        crate::drive(permit, || effects.fetch_add(1, Ordering::SeqCst)).unwrap();
+        assert_eq!(effects.load(Ordering::SeqCst), 1);
+    }
 }
