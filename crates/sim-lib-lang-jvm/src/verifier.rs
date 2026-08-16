@@ -1035,6 +1035,84 @@ pub struct VerificationTransferError {
     pub kind: VerificationTransferKind,
 }
 
+/// Applies one numeric arithmetic, bitwise, shift, comparison, or conversion rule atomically.
+pub(crate) fn transfer_numeric_instruction(
+    instruction: &crate::PreparedJvmInstruction,
+    offset: usize,
+    state: &VerificationState,
+) -> Result<VerificationState, VerificationTransferError> {
+    let opcode = instruction.opcode();
+    let fail = |kind| VerificationTransferError {
+        instruction: instruction.id(),
+        offset,
+        opcode,
+        kind,
+    };
+    if opcode == Opcode::Iinc {
+        return transfer_storage_instruction(instruction, offset, state, &|_| None);
+    }
+    if !instruction.instruction().operands.is_empty() {
+        return Err(fail(VerificationTransferKind::MalformedPreparedInput));
+    }
+    let (inputs, output): (&[VerificationType], VerificationType) = numeric_signature(opcode)
+        .ok_or_else(|| fail(VerificationTransferKind::MalformedPreparedInput))?;
+    let mut values = stack_values(&state.stack);
+    if values.len() < inputs.len() {
+        return Err(fail(VerificationTransferKind::StackBounds));
+    }
+    let split = values.len() - inputs.len();
+    if values[split..] != *inputs {
+        return Err(fail(VerificationTransferKind::Category));
+    }
+    values.truncate(split);
+    values.push(output);
+    let mut next = state.clone();
+    next.stack = stack_from_values(state.stack.capacity(), values)
+        .map_err(|_| fail(VerificationTransferKind::StackBounds))?;
+    Ok(next)
+}
+
+fn numeric_signature(opcode: Opcode) -> Option<(&'static [VerificationType], VerificationType)> {
+    use Opcode::*;
+    use VerificationType::{Double, Float, Int, Long};
+    const II: &[VerificationType] = &[Int, Int];
+    const LL: &[VerificationType] = &[Long, Long];
+    const FF: &[VerificationType] = &[Float, Float];
+    const DD: &[VerificationType] = &[Double, Double];
+    const LI: &[VerificationType] = &[Long, Int];
+    const I: &[VerificationType] = &[Int];
+    const L: &[VerificationType] = &[Long];
+    const F: &[VerificationType] = &[Float];
+    const D: &[VerificationType] = &[Double];
+    Some(match opcode {
+        Iadd | Isub | Imul | Idiv | Irem | Iand | Ior | Ixor | Ishl | Ishr | Iushr => (II, Int),
+        Ladd | Lsub | Lmul | Ldiv | Lrem | Land | Lor | Lxor => (LL, Long),
+        Lshl | Lshr | Lushr => (LI, Long),
+        Fadd | Fsub | Fmul | Fdiv | Frem => (FF, Float),
+        Dadd | Dsub | Dmul | Ddiv | Drem => (DD, Double),
+        Ineg | I2b | I2c | I2s => (I, Int),
+        Lneg => (L, Long),
+        Fneg => (F, Float),
+        Dneg => (D, Double),
+        I2l => (I, Long),
+        I2f => (I, Float),
+        I2d => (I, Double),
+        L2i => (L, Int),
+        L2f => (L, Float),
+        L2d => (L, Double),
+        F2i => (F, Int),
+        F2l => (F, Long),
+        F2d => (F, Double),
+        D2i => (D, Int),
+        D2l => (D, Long),
+        D2f => (D, Float),
+        Lcmp => (LL, Int),
+        Fcmpl | Fcmpg => (FF, Int),
+        Dcmpl | Dcmpg => (DD, Int),
+        _ => return None,
+    })
+}
+
 /// Method facts needed to derive the verifier's implicit entry frame.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InitialFrameInput<'a> {
@@ -2150,6 +2228,9 @@ mod tests {
                 _ if verifier_rule(opcode).family == VerifierRuleFamily::ConstantsLocalsStack => {
                     (NONE, NONE)
                 }
+                _ if verifier_rule(opcode).family == VerifierRuleFamily::NumericConversion => {
+                    (NONE, NONE)
+                }
                 _ => return None,
             };
             Some(JvmInstructionSemantics {
@@ -2400,6 +2481,120 @@ mod tests {
             .unwrap();
             assert_eq!(stack_values(&state.stack), *expected);
         }
+    }
+
+    fn numeric_transfer(
+        opcode: Opcode,
+        input: &[VerificationType],
+    ) -> Result<VerificationState, VerificationTransferError> {
+        let decoded = decode_instructions(&[opcode as u8], 61, &empty_pool()).unwrap();
+        let code =
+            prepare_code::<GraphPolicy>(&decoded, 1, &[], SourceId("Verifier.numeric()V".into()))
+                .unwrap();
+        let mut stack = VerificationFrame::new(FrameKind::OperandStack, 8);
+        stack.push(VerificationType::Float).unwrap();
+        for value in input {
+            stack.push(value.clone()).unwrap();
+        }
+        transfer_numeric_instruction(
+            code.instruction(code.entry()).instruction(),
+            0,
+            &VerificationState {
+                locals: VerificationFrame::new(FrameKind::Locals, 0),
+                stack,
+            },
+        )
+    }
+
+    #[test]
+    fn every_numeric_opcode_has_exact_passing_and_failing_frames() {
+        use VerificationType::{Double, Float, Int, Long};
+        let mut covered = Vec::new();
+        for rule in VERIFIER_RULES
+            .iter()
+            .filter(|rule| rule.family == VerifierRuleFamily::NumericConversion)
+        {
+            if rule.opcode == Opcode::Iinc {
+                continue;
+            }
+            let (input, output) = numeric_signature(rule.opcode)
+                .unwrap_or_else(|| panic!("missing numeric signature for {:?}", rule.opcode));
+            let passed = numeric_transfer(rule.opcode, input).unwrap();
+            assert_eq!(stack_values(&passed.stack), [Float, output.clone()]);
+
+            let mut wrong = input.to_vec();
+            let last = wrong
+                .last_mut()
+                .expect("every numeric rule consumes a value");
+            *last = match last {
+                Int => Long,
+                Long | Float | Double => Int,
+                other => panic!("unexpected numeric input {other:?}"),
+            };
+            let error = numeric_transfer(rule.opcode, &wrong).unwrap_err();
+            assert_eq!(error.opcode, rule.opcode);
+            assert_eq!(error.kind, VerificationTransferKind::Category);
+            covered.push(rule.opcode);
+        }
+        assert_eq!(covered.len(), 56);
+
+        let mut locals = VerificationFrame::new(FrameKind::Locals, 1);
+        locals.set_local(0, Int).unwrap();
+        let decoded = decode_instructions(&[Opcode::Iinc as u8, 0, 1], 61, &empty_pool()).unwrap();
+        let code =
+            prepare_code::<GraphPolicy>(&decoded, 3, &[], SourceId("Verifier.iinc()V".into()))
+                .unwrap();
+        let instruction = code.instruction(code.entry()).instruction();
+        let state = VerificationState {
+            locals: locals.clone(),
+            stack: VerificationFrame::new(FrameKind::OperandStack, 0),
+        };
+        assert_eq!(
+            transfer_numeric_instruction(instruction, 0, &state).unwrap(),
+            state
+        );
+        locals.set_local(0, Float).unwrap();
+        let error = transfer_numeric_instruction(
+            instruction,
+            0,
+            &VerificationState {
+                locals,
+                stack: state.stack,
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.kind, VerificationTransferKind::Category);
+    }
+
+    #[test]
+    fn long_shift_requires_an_int_count_and_preserves_category_two_layout() {
+        let shifted = numeric_transfer(
+            Opcode::Lshl,
+            &[VerificationType::Long, VerificationType::Int],
+        )
+        .unwrap();
+        assert_eq!(
+            shifted.stack.normalized_slots().unwrap(),
+            &[
+                Slot::Value(VerificationType::Float),
+                Slot::Value(VerificationType::Long),
+                Slot::Category2Tail,
+                Slot::Unusable,
+                Slot::Unusable,
+                Slot::Unusable,
+                Slot::Unusable,
+                Slot::Unusable,
+            ]
+        );
+        assert_eq!(
+            numeric_transfer(
+                Opcode::Lshl,
+                &[VerificationType::Long, VerificationType::Long]
+            )
+            .unwrap_err()
+            .kind,
+            VerificationTransferKind::Category
+        );
     }
 
     #[test]
