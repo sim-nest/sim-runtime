@@ -16,6 +16,7 @@ mod entry;
 mod execution;
 mod failure;
 mod field;
+mod initialization;
 mod intrinsic;
 mod invocation;
 mod limits;
@@ -59,6 +60,10 @@ pub use failure::{
 pub use field::{
     FieldAccess, FieldError, FieldId, FieldLayout, FieldStorage, InitializationState, JavaObject,
     WriteContext,
+};
+pub use initialization::{
+    ClassInitialization, ClassInitializationState, InitializationAction, InitializationError,
+    InitializationLane, InitializationPlan, InitializationResume, InitializationSnapshot,
 };
 pub use intrinsic::{
     BoxValue, INTRINSIC_TABLE, IntrinsicError, IntrinsicMember, IntrinsicSupport, PrimitiveBox,
