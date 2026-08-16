@@ -23,6 +23,7 @@ mod inspection;
 mod intrinsic;
 mod invocation;
 mod limits;
+mod linker;
 mod managed;
 mod monitor;
 mod numeric;
@@ -95,6 +96,10 @@ pub use invocation::{
     select_invocation,
 };
 pub use limits::{ExecutionLimits, ResourceLimits};
+pub use linker::{
+    BootstrapArgument, BootstrapMethod, LinkageCache, LinkageFailure, LinkageState, MethodIdentity,
+    SiteKey,
+};
 pub use managed::{JVM_ROLE_EDGE_TABLE, JvmEdge, JvmGraphError, JvmHeap, JvmRole, JvmRoleEdges};
 pub use monitor::{MonitorError, MonitorLane, MonitorTable};
 pub use numeric::{NumericExecutionError, execute_numeric_instruction};
