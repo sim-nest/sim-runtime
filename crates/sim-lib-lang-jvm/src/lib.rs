@@ -12,6 +12,7 @@ mod class_space;
 mod code;
 mod constructor;
 mod control;
+mod dynamic;
 mod entry;
 mod exception;
 mod execution;
@@ -48,6 +49,11 @@ pub use constructor::{
 };
 pub use control::{
     JvmControlError, JvmControlErrorKind, JvmControlOutcome, execute_control_instruction,
+};
+pub use dynamic::{
+    ConcatConstant, DynamicBootstrap, DynamicLinkCache, DynamicLinkError, LinkedStringConcat,
+    STRING_CONCAT_BOOTSTRAP_DESCRIPTOR, STRING_CONCAT_BOOTSTRAP_NAME,
+    STRING_CONCAT_BOOTSTRAP_OWNER,
 };
 pub use entry::{
     ClassfilePermit, EntryRefusal, EntryTarget, ExecutionPermit, NoVerifier, PreparedEntry,
