@@ -260,6 +260,9 @@ pub fn prepare_code<P: JvmInstructionPolicy>(
             handler_membership: membership.into_boxed_slice(),
             handler_entries: entries.into_boxed_slice(),
         };
+        let has_backward_edge = located.instruction.operands.iter().any(
+            |operand| matches!(operand, InstructionOperand::Branch(displacement) if *displacement < 0),
+        );
         instructions.push(LocatedInstruction::new(
             prepared,
             located.id,
@@ -272,7 +275,7 @@ pub fn prepare_code<P: JvmInstructionPolicy>(
                 },
                 trivia: Vec::new(),
             }),
-            semantics.safepoint,
+            semantics.safepoint || has_backward_edge,
             None,
         ));
         for operand in &located.instruction.operands {

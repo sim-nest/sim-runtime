@@ -9,6 +9,7 @@
 mod class_metadata;
 mod class_space;
 mod code;
+mod control;
 mod entry;
 mod execution;
 mod failure;
@@ -29,6 +30,9 @@ pub use class_space::{
 pub use code::{
     JvmInstructionPolicy, JvmInstructionSemantics, JvmSlotKind, PreparationError,
     PreparedExceptionHandler, PreparedJvmInstruction, PreparedJvmPolicy, RootEffect, prepare_code,
+};
+pub use control::{
+    JvmControlError, JvmControlErrorKind, JvmControlOutcome, execute_control_instruction,
 };
 pub use entry::{
     ClassfilePermit, EntryRefusal, EntryTarget, ExecutionPermit, NoVerifier, PreparedEntry,
