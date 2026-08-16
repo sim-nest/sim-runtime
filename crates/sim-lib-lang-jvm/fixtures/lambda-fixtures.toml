@@ -4,6 +4,10 @@ source = "LambdaFixtures.java"
 source_sha256 = "1d576fdb3e4944f0263e493e7008275cca3532c3b57e5ed13547fa483b2d37f6"
 classfile = "javac/LambdaFixtures.class"
 classfile_sha256 = "2b141ae1819425abb41c43fca7a198fe1e1878dd7fe0e6758660b32dfb8a258e"
+nested_classfiles = [
+  { path = "javac/LambdaFixtures$Counter.class", sha256 = "5199d94bd66b5239fb5d7867043397b28bfbb6ff48ec5fa8e4056745acd4a15b" },
+  { path = "javac/LambdaFixtures$Named.class", sha256 = "59350ff3bd2e20e08228b3a6bffd24257dd60c181420da725c562159d0d9ec79" },
+]
 
 [[site]]
 bootstrap_index = 0

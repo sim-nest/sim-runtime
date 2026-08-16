@@ -19,6 +19,11 @@ forbidden_type_suffixes = [
   "VerificationWorklist",
   "VerificationControlFlowGraph",
   "VerifierOpcodeSwitch",
+  "LambdaClassfileGenerator",
+  "HostLambdaClosure",
+  "ShapeRankedJavaBridge",
+  "JvmFunctionOrgan",
+  "GlobalLambdaCache",
 ]
 forbidden_function_names = [
   "parse_classfile",
@@ -29,6 +34,7 @@ forbidden_function_names = [
   "execute_method",
   "parse_verification_bytes",
   "verify_opcode",
+  "link_lambda_at_method_entry",
 ]
 forbidden_field_types = ["Vec<u16>", "verified: bool"]
 forbidden_source_patterns = [

@@ -155,6 +155,17 @@ fn frozen_javac_fixture_contains_all_lambda_shapes() {
     assert_eq!(&LAMBDA_CLASS[0..4], &[0xca, 0xfe, 0xba, 0xbe]);
     inspect_classfile(CodecId(139), LAMBDA_CLASS.to_vec(), 65_536).unwrap();
     assert!(LAMBDA_CLASS.iter().filter(|byte| **byte == 0xba).count() >= 8);
+
+    let fixtures: toml::Value = FIXTURES.parse().unwrap();
+    assert_eq!(
+        fixtures["source_sha256"].as_str(),
+        Some("1d576fdb3e4944f0263e493e7008275cca3532c3b57e5ed13547fa483b2d37f6")
+    );
+    assert_eq!(
+        fixtures["classfile_sha256"].as_str(),
+        Some("2b141ae1819425abb41c43fca7a198fe1e1878dd7fe0e6758660b32dfb8a258e")
+    );
+    assert_eq!(fixtures["nested_classfiles"].as_array().unwrap().len(), 2);
 }
 
 #[test]

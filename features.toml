@@ -754,6 +754,8 @@ guidance = "Load JvmLanguageLib through the standard bootloader or enable the SD
 claims_anchors = ["anchor/crate/sim-lib-lang-jvm"]
 claims_specimens = [
   "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/authorized-static-call",
+  "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/java-lambda",
+  "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/method-reference",
   "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/sim-functional-interface",
   "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/product_specimen",
   "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/ownership_guard",
@@ -761,6 +763,20 @@ claims_specimens = [
 ]
 supports = ["feature/sim-runtime/guest-language-profiles", "feature/sim-runtime/organs"]
 composes = ["crate/sim-codec-classfile", "crate/sim-lib-machine", "crate/sim-lib-mutation", "crate/sim-lib-gc-tracing", "crate/sim-lib-control", "crate/sim-lib-core", "crate/sim-lib-class", "crate/sim-lib-namespace", "crate/sim-text"]
+
+[[route]]
+id = "route/link-jvm-lambda"
+task = "Link and invoke a JVM lambda or method reference"
+audiences = ["user", "code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/jvm-loadable-profile", why = "The JVM profile owns bootstrap admission, direct-handle resolution, loader-local generated metadata, and Java descriptor adaptation." },
+  { feature = "feature/sim-runtime/function-organ", why = "The shared function organ owns the neutral Callable projection and collector-visible captures used at the SIM boundary." },
+  { feature = "feature/sim-runtime/class-semantics", why = "The shared class organ owns language-neutral class structure; defining-loader identity remains JVM policy." },
+  { feature = "feature/sim-runtime/mutation-organ", why = "The managed graph owns lambda instances, captures, weak identities, and collection rather than a JVM-private graph or global cache." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/verifier_scope", why = "The verifier consumes the executor-owned admitted bootstrap registry and seals exact whole-class proof before preparation." },
+  { specimen = "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/java-lambda", why = "The published Java-to-SIM recipe links compiler-produced bytes and invokes the result through ordinary Callable." },
+  { specimen = "recipe/sim-sdk/jvm/lambda-interop", why = "The SDK recipe reaches both interop directions through public facade exports only." },
+]
 
 [[route]]
 id = "route/run-authorized-jvm"

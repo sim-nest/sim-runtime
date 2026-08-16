@@ -1,0 +1,6 @@
+; `LAMBDA_FIXTURES_CLASS_BYTES` is the frozen javac fixture supplied by the
+; checked recipe harness. The returned IntSupplier is projected as Callable.
+(jvm/define "LambdaFixtures" LAMBDA_FIXTURES_CLASS_BYTES)
+(define supplier (jvm/invoke-static "LambdaFixtures" "nonCapturingLambda" "()Ljava/util/function/IntSupplier;"))
+(supplier)
+; => 7

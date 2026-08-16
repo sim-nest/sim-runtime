@@ -43,6 +43,21 @@ const VIOLATIONS: &[(&str, &str)] = &[
         "verifier opcode inventory",
         "pub struct VerifierOpcodeSwitch;",
     ),
+    (
+        "method-entry lambda linking",
+        "pub fn link_lambda_at_method_entry() {}",
+    ),
+    (
+        "synthetic classfile generation",
+        "pub struct LambdaClassfileGenerator;",
+    ),
+    ("host lambda closure", "pub struct HostLambdaClosure;"),
+    (
+        "Shape-ranked Java bridge",
+        "pub struct ShapeRankedJavaBridge;",
+    ),
+    ("duplicate function organ", "pub struct JvmFunctionOrgan;"),
+    ("strong global cache", "pub struct GlobalLambdaCache;"),
 ];
 
 #[derive(Debug)]

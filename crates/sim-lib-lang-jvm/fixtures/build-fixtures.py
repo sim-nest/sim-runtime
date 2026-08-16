@@ -9,7 +9,16 @@ ROOT = pathlib.Path(__file__).resolve().parent
 (ROOT / "javac").mkdir(exist_ok=True)
 (ROOT / "hand-built").mkdir(exist_ok=True)
 subprocess.run(
-    ["javac", "--release", "8", "-g:none", "-d", str(ROOT / "javac"), str(ROOT / "StaticInt.java")],
+    [
+        "javac",
+        "--release",
+        "8",
+        "-g:none",
+        "-d",
+        str(ROOT / "javac"),
+        str(ROOT / "StaticInt.java"),
+        str(ROOT / "LambdaFixtures.java"),
+    ],
     check=True,
 )
 
