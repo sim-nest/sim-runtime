@@ -2,7 +2,188 @@
 
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::{ClassDefinitionId, ClassSpaceRevision};
+use sim_lib_mutation::ManagedHandle;
+
+use crate::{
+    ClassDefinition, ClassDefinitionId, ClassLoader, ClassSpaceRevision, ConstantResolutionError,
+    ConstantResolutionKind, JavaMember, JvmGraphError, JvmHeap, ResolutionCache,
+};
+
+/// Receiver placement retained by a resolved direct implementation handle.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DirectReceiver {
+    /// A static implementation or constructor has no pre-existing receiver.
+    None,
+    /// The receiver is captured when the lambda instance is created.
+    Bound,
+    /// The receiver is supplied as the first SAM invocation argument.
+    Unbound,
+}
+
+/// Exact invocation semantics of an admitted `CONSTANT_MethodHandle` kind.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DirectInvocationKind {
+    /// `REF_invokeStatic` (6).
+    Static,
+    /// `REF_newInvokeSpecial` (8).
+    Constructor,
+    /// `REF_invokeSpecial` (7).
+    Special,
+    /// `REF_invokeVirtual` (5).
+    Virtual,
+    /// `REF_invokeInterface` (9).
+    Interface,
+}
+
+/// Access-checked, loader-bound implementation target retained by lambda linkage.
+#[derive(Clone, Debug)]
+pub struct ResolvedDirectHandle {
+    kind: DirectInvocationKind,
+    declaring_class: Arc<ClassDefinition>,
+    method: JavaMember,
+    receiver: DirectReceiver,
+}
+
+impl ResolvedDirectHandle {
+    /// Exact admitted reference-kind semantics.
+    pub const fn kind(&self) -> DirectInvocationKind {
+        self.kind
+    }
+    /// Content- and loader-bound declaration owner.
+    pub fn declaring_class(&self) -> &Arc<ClassDefinition> {
+        &self.declaring_class
+    }
+    /// Exact declaration selected by symbolic method resolution.
+    pub fn method(&self) -> &JavaMember {
+        &self.method
+    }
+    /// Whether the receiver is absent, captured, or supplied at invocation.
+    pub const fn receiver(&self) -> DirectReceiver {
+        self.receiver
+    }
+    /// Whether invocation is an active use that must trigger class initialization.
+    pub const fn initializes_on_invocation(&self) -> bool {
+        matches!(
+            self.kind,
+            DirectInvocationKind::Static | DirectInvocationKind::Constructor
+        )
+    }
+}
+
+/// Stable failure stage for resolving a direct lambda implementation handle.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum DirectHandleError {
+    /// The reference kind is not one of the five invocable direct kinds.
+    UnsupportedReferenceKind(u8),
+    /// Normative symbolic resolution, including access checking, failed.
+    Resolution(ConstantResolutionError),
+    /// Managed resolution-cache bookkeeping failed.
+    Managed(String),
+    /// The resolved constant or declaration contradicts the reference kind.
+    KindMismatch,
+    /// An instance handle omitted an explicit bound/unbound receiver rule.
+    MissingReceiverRule,
+    /// A static handle incorrectly carried a receiver.
+    UnexpectedReceiver,
+}
+
+/// Resolves one implementation handle through the JVM's access-checked method resolver.
+///
+/// This performs no class initialization. The returned product records whether
+/// invocation is an active use, leaving the initialization trigger in the
+/// invocation pipeline where JVMS 5.5 requires it.
+#[allow(clippy::too_many_arguments)]
+pub fn resolve_direct_handle(
+    resolution_cache: &ResolutionCache,
+    heap: &mut JvmHeap,
+    cache_handle: ManagedHandle,
+    owner_handle: ManagedHandle,
+    loader: &ClassLoader,
+    owner: &Arc<ClassDefinition>,
+    constant_pool_index: u16,
+    reference_kind: u8,
+    receiver: DirectReceiver,
+) -> Result<ResolvedDirectHandle, DirectHandleError> {
+    let kind = match reference_kind {
+        5 => DirectInvocationKind::Virtual,
+        6 => DirectInvocationKind::Static,
+        7 => DirectInvocationKind::Special,
+        8 => DirectInvocationKind::Constructor,
+        9 => DirectInvocationKind::Interface,
+        other => return Err(DirectHandleError::UnsupportedReferenceKind(other)),
+    };
+    let resolved = resolution_cache
+        .resolve(
+            heap,
+            cache_handle,
+            owner_handle,
+            loader,
+            owner,
+            constant_pool_index,
+        )
+        .map_err(|error: JvmGraphError| DirectHandleError::Managed(format!("{error:?}")))?
+        .map_err(DirectHandleError::Resolution)?;
+    let expected_constant_kind = if kind == DirectInvocationKind::Interface {
+        ConstantResolutionKind::InterfaceMethod
+    } else {
+        ConstantResolutionKind::Method
+    };
+    if resolved.kind != expected_constant_kind {
+        return Err(DirectHandleError::KindMismatch);
+    }
+    let declaring_class = loader
+        .loaded(resolved.class.binary_name())
+        .map_err(|error| DirectHandleError::Managed(error.to_string()))?
+        .filter(|class| class.id() == &resolved.class)
+        .ok_or(DirectHandleError::KindMismatch)?;
+    let name = resolved
+        .name
+        .as_deref()
+        .ok_or(DirectHandleError::KindMismatch)?;
+    let descriptor = resolved
+        .descriptor
+        .as_deref()
+        .ok_or(DirectHandleError::KindMismatch)?;
+    let method = declaring_class
+        .metadata()
+        .select_method(name, descriptor)
+        .cloned()
+        .ok_or(DirectHandleError::KindMismatch)?;
+    match kind {
+        DirectInvocationKind::Static if receiver != DirectReceiver::None => {
+            return Err(DirectHandleError::UnexpectedReceiver);
+        }
+        DirectInvocationKind::Static if !method.is_static() => {
+            return Err(DirectHandleError::KindMismatch);
+        }
+        DirectInvocationKind::Constructor
+            if name != "<init>" || method.is_static() || receiver != DirectReceiver::None =>
+        {
+            return Err(DirectHandleError::KindMismatch);
+        }
+        DirectInvocationKind::Special
+        | DirectInvocationKind::Virtual
+        | DirectInvocationKind::Interface
+            if method.is_static() =>
+        {
+            return Err(DirectHandleError::KindMismatch);
+        }
+        DirectInvocationKind::Special
+        | DirectInvocationKind::Virtual
+        | DirectInvocationKind::Interface
+            if receiver == DirectReceiver::None =>
+        {
+            return Err(DirectHandleError::MissingReceiverRule);
+        }
+        _ => {}
+    }
+    Ok(ResolvedDirectHandle {
+        kind,
+        declaring_class,
+        method,
+        receiver,
+    })
+}
 
 /// Shape of the variable portion of an admitted lambda bootstrap payload.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -430,8 +611,9 @@ impl<T> LinkageCache<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ClassLoader, JavaClassMetadata};
+    use crate::{ClassLoader, JavaClassMetadata, JvmRole, resolution::SymbolicConstant};
     use sim_kernel::{Cx, DefaultFactory, NoopEvalPolicy};
+    use sim_lib_gc_tracing::CollectionLimits;
 
     fn fixture() -> (SiteKey, ClassLoader) {
         let loader = ClassLoader::new(4096);
@@ -499,5 +681,139 @@ mod tests {
             Err(stale)
         );
         assert_eq!(*failures.resolve(key, next, || Ok(9)).unwrap(), 9);
+    }
+
+    fn direct_fixture(
+        target_flags: u16,
+        method_flags: u16,
+    ) -> (
+        ClassLoader,
+        Arc<ClassDefinition>,
+        JvmHeap,
+        ManagedHandle,
+        ManagedHandle,
+    ) {
+        let loader = ClassLoader::new(4096);
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let target = ClassDefinition::test(
+            loader.id(),
+            "target.Target",
+            2,
+            JavaClassMetadata::test_class(
+                &cx,
+                "target.Target",
+                &[],
+                target_flags,
+                &[("run", "()V", method_flags)],
+            ),
+            BTreeMap::new(),
+        );
+        let owner = ClassDefinition::test(
+            loader.id(),
+            "caller.Owner",
+            1,
+            JavaClassMetadata::test_class(&cx, "caller.Owner", &[], 0x0001, &[]),
+            BTreeMap::from([(
+                7,
+                SymbolicConstant::Member {
+                    kind: ConstantResolutionKind::Method,
+                    binary_name: "target.Target".into(),
+                    name: "run".into(),
+                    descriptor: "()V".into(),
+                },
+            )]),
+        );
+        loader.test_insert(target);
+        loader.test_insert(owner.clone());
+        let mut heap = JvmHeap::new(
+            8,
+            CollectionLimits {
+                objects: 8,
+                edges: 8,
+                stack: 8,
+                work: 32,
+                clears: 8,
+                finalizers: 0,
+            },
+        )
+        .unwrap();
+        let cache = heap.allocate(JvmRole::Cache).unwrap();
+        let owner_handle = heap.allocate(JvmRole::ClassMirror).unwrap();
+        (loader, owner, heap, cache, owner_handle)
+    }
+
+    #[test]
+    fn static_direct_handle_defers_initialization_until_invocation() {
+        let (loader, owner, mut heap, cache, owner_handle) = direct_fixture(0x0001, 0x0009);
+        let handle = resolve_direct_handle(
+            &ResolutionCache::new(),
+            &mut heap,
+            cache,
+            owner_handle,
+            &loader,
+            &owner,
+            7,
+            6,
+            DirectReceiver::None,
+        )
+        .unwrap();
+        assert_eq!(handle.kind(), DirectInvocationKind::Static);
+        assert!(handle.initializes_on_invocation());
+        assert_eq!(handle.declaring_class().id().loader(), loader.id());
+    }
+
+    #[test]
+    fn inaccessible_direct_target_fails_during_normative_resolution() {
+        let (loader, owner, mut heap, cache, owner_handle) = direct_fixture(0, 0x0009);
+        assert_eq!(
+            resolve_direct_handle(
+                &ResolutionCache::new(),
+                &mut heap,
+                cache,
+                owner_handle,
+                &loader,
+                &owner,
+                7,
+                6,
+                DirectReceiver::None,
+            )
+            .unwrap_err(),
+            DirectHandleError::Resolution(ConstantResolutionError::IllegalAccess {
+                binary_name: "target.Target".into(),
+            })
+        );
+    }
+
+    #[test]
+    fn receiver_rules_and_unsupported_kinds_fail_closed() {
+        let (loader, owner, mut heap, cache, owner_handle) = direct_fixture(0x0001, 0x0001);
+        assert!(matches!(
+            resolve_direct_handle(
+                &ResolutionCache::new(),
+                &mut heap,
+                cache,
+                owner_handle,
+                &loader,
+                &owner,
+                7,
+                5,
+                DirectReceiver::None,
+            ),
+            Err(DirectHandleError::MissingReceiverRule)
+        ));
+        assert!(matches!(
+            resolve_direct_handle(
+                &ResolutionCache::new(),
+                &mut heap,
+                cache,
+                owner_handle,
+                &loader,
+                &owner,
+                7,
+                1,
+                DirectReceiver::None,
+            ),
+            Err(DirectHandleError::UnsupportedReferenceKind(1))
+        ));
     }
 }

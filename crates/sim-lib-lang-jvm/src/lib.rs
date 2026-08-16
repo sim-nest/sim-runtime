@@ -97,10 +97,11 @@ pub use invocation::{
 };
 pub use limits::{ExecutionLimits, ResourceLimits};
 pub use linker::{
-    BootstrapArgument, BootstrapMethod, LambdaBootstrapError, LambdaBootstrapPlan,
-    LambdaBootstrapProtocol, LambdaProtocolTail, LinkageCache, LinkageFailure, LinkageState,
-    MethodIdentity, ResolvedBootstrapArgument, SiteKey, decode_lambda_bootstrap,
-    executor_admitted_lambda_protocols,
+    BootstrapArgument, BootstrapMethod, DirectHandleError, DirectInvocationKind, DirectReceiver,
+    LambdaBootstrapError, LambdaBootstrapPlan, LambdaBootstrapProtocol, LambdaProtocolTail,
+    LinkageCache, LinkageFailure, LinkageState, MethodIdentity, ResolvedBootstrapArgument,
+    ResolvedDirectHandle, SiteKey, decode_lambda_bootstrap, executor_admitted_lambda_protocols,
+    resolve_direct_handle,
 };
 pub use managed::{JVM_ROLE_EDGE_TABLE, JvmEdge, JvmGraphError, JvmHeap, JvmRole, JvmRoleEdges};
 pub use monitor::{MonitorError, MonitorLane, MonitorTable};
