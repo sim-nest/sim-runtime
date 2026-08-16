@@ -1,6 +1,9 @@
 //! Exact, revision-bound identity and state for JVM bootstrap linkage sites.
 
-use std::{collections::BTreeMap, sync::Arc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
 
 use sim_lib_mutation::ManagedHandle;
 
@@ -263,6 +266,246 @@ pub enum LambdaBootstrapError {
     MalformedPayload(String),
     /// Implementation handle is not an invocable method handle.
     UnadmittedReferenceKind(u8),
+}
+
+/// Located evidence that a loaded interface has one Java single abstract method.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FunctionalInterface {
+    /// Interface named by the invokedynamic call-site return type.
+    pub interface: String,
+    /// Exact erased method name.
+    pub method_name: String,
+    /// Exact erased SAM descriptor.
+    pub method_descriptor: String,
+    /// Loaded interfaces consulted, in deterministic traversal order.
+    pub lineage: Vec<String>,
+}
+
+/// Fail-closed functional-interface and metafactory type validation error.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum FunctionalInterfaceError {
+    /// A required class is absent from the caller's already-loaded view.
+    MissingClass(String),
+    /// The call-site return or marker type is not an interface.
+    NotInterface(String),
+    /// The bounded interface walk would consult more nodes than allowed.
+    HierarchyBudgetExhausted {
+        /// Maximum loaded interface nodes the caller admitted.
+        limit: usize,
+    },
+    /// No abstract method remains after Java `Object` exclusions.
+    NoAbstractMethod {
+        /// Interface whose inherited declarations were inspected.
+        interface: String,
+    },
+    /// More than one unrelated abstract method signature remains.
+    MultipleAbstractMethods {
+        /// Deterministically ordered incompatible method identities.
+        methods: Vec<String>,
+    },
+    /// A method descriptor or the invoked type is structurally invalid.
+    InvalidDescriptor(String),
+    /// Bootstrap and discovered SAM types disagree.
+    SamTypeMismatch {
+        /// Descriptor discovered from the interface hierarchy.
+        discovered: String,
+        /// Descriptor supplied by the bootstrap payload.
+        supplied: String,
+    },
+    /// The instantiated or implementation method cannot implement the SAM.
+    IncompatibleMethodType {
+        /// Type-bearing bootstrap input that failed adaptation.
+        role: &'static str,
+        /// Descriptor rejected for that role.
+        descriptor: String,
+    },
+}
+
+/// Discovers the Java single abstract method through loaded interface inheritance.
+///
+/// The walk is deliberately loader-local and bounded. Static, private, default,
+/// and public `java.lang.Object` methods do not contribute a SAM candidate.
+pub fn discover_functional_interface(
+    classes: &BTreeMap<String, Arc<ClassDefinition>>,
+    interface: &str,
+    node_limit: usize,
+) -> Result<FunctionalInterface, FunctionalInterfaceError> {
+    let mut pending = vec![interface.to_owned()];
+    let mut visited = BTreeSet::new();
+    let mut lineage = Vec::new();
+    let mut methods: BTreeMap<(String, String), String> = BTreeMap::new();
+    while let Some(name) = pending.pop() {
+        if visited.contains(&name) {
+            continue;
+        }
+        if visited.len() == node_limit {
+            return Err(FunctionalInterfaceError::HierarchyBudgetExhausted { limit: node_limit });
+        }
+        let class = classes
+            .get(&name)
+            .ok_or_else(|| FunctionalInterfaceError::MissingClass(name.clone()))?;
+        if class.metadata().access_flags() & 0x0200 == 0 {
+            return Err(FunctionalInterfaceError::NotInterface(name));
+        }
+        visited.insert(name.clone());
+        lineage.push(name);
+        for method in class.metadata().members() {
+            if method.kind() != crate::JavaMemberKind::Method
+                || method.is_static()
+                || !method.is_abstract()
+                || method.access_flags() & 0x0002 != 0
+                || object_method(method.name(), method.descriptor())
+            {
+                continue;
+            }
+            let close = method.descriptor().find(')').ok_or_else(|| {
+                FunctionalInterfaceError::InvalidDescriptor(method.descriptor().into())
+            })?;
+            let key = (
+                method.name().to_owned(),
+                method.descriptor()[..=close].to_owned(),
+            );
+            methods
+                .entry(key)
+                .or_insert_with(|| method.descriptor().to_owned());
+        }
+        for parent in class.metadata().resolution().direct_parents().iter().rev() {
+            if parent != "java.lang.Object" {
+                pending.push(parent.clone());
+            }
+        }
+    }
+    if methods.is_empty() {
+        return Err(FunctionalInterfaceError::NoAbstractMethod {
+            interface: interface.into(),
+        });
+    }
+    if methods.len() != 1 {
+        return Err(FunctionalInterfaceError::MultipleAbstractMethods {
+            methods: methods
+                .into_iter()
+                .map(|((name, _), descriptor)| format!("{name}{descriptor}"))
+                .collect(),
+        });
+    }
+    let ((method_name, _), method_descriptor) = methods.into_iter().next().unwrap();
+    Ok(FunctionalInterface {
+        interface: interface.into(),
+        method_name,
+        method_descriptor,
+        lineage,
+    })
+}
+
+/// Validates the located SAM and all metafactory type-bearing inputs.
+pub fn validate_functional_interface(
+    classes: &BTreeMap<String, Arc<ClassDefinition>>,
+    invoked_type: &str,
+    plan: &LambdaBootstrapPlan,
+    implementation_descriptor: &str,
+    node_limit: usize,
+) -> Result<FunctionalInterface, FunctionalInterfaceError> {
+    let (captures, invoked_return) = split_method_descriptor(invoked_type)?;
+    let interface = invoked_return
+        .strip_prefix('L')
+        .and_then(|v| v.strip_suffix(';'))
+        .ok_or_else(|| FunctionalInterfaceError::InvalidDescriptor(invoked_type.into()))?
+        .replace('/', ".");
+    let functional = discover_functional_interface(classes, &interface, node_limit)?;
+    if functional.method_descriptor != plan.sam_method_type {
+        return Err(FunctionalInterfaceError::SamTypeMismatch {
+            discovered: functional.method_descriptor.clone(),
+            supplied: plan.sam_method_type.clone(),
+        });
+    }
+    let (sam_args, sam_return) = split_method_descriptor(&plan.sam_method_type)?;
+    let (instantiated_args, instantiated_return) =
+        split_method_descriptor(&plan.instantiated_method_type)?;
+    if sam_args.len() != instantiated_args.len()
+        || !types_adapt(&instantiated_args, &sam_args)
+        || !return_adapts(&instantiated_return, &sam_return)
+    {
+        return Err(FunctionalInterfaceError::IncompatibleMethodType {
+            role: "instantiated",
+            descriptor: plan.instantiated_method_type.clone(),
+        });
+    }
+    let (implementation_args, implementation_return) =
+        split_method_descriptor(implementation_descriptor)?;
+    let mut supplied = captures;
+    supplied.extend(instantiated_args.iter().cloned());
+    if !types_adapt(&supplied, &implementation_args)
+        || !return_adapts(&implementation_return, &instantiated_return)
+    {
+        return Err(FunctionalInterfaceError::IncompatibleMethodType {
+            role: "implementation",
+            descriptor: implementation_descriptor.into(),
+        });
+    }
+    for marker in &plan.marker_interfaces {
+        let marker = classes
+            .get(marker)
+            .ok_or_else(|| FunctionalInterfaceError::MissingClass(marker.clone()))?;
+        if marker.metadata().access_flags() & 0x0200 == 0 {
+            return Err(FunctionalInterfaceError::NotInterface(
+                marker.metadata().resolution().binary_name().into(),
+            ));
+        }
+    }
+    for bridge in &plan.bridges {
+        let (args, result) = split_method_descriptor(bridge)?;
+        if args.len() != sam_args.len()
+            || !types_adapt(&instantiated_args, &args)
+            || !return_adapts(&instantiated_return, &result)
+        {
+            return Err(FunctionalInterfaceError::IncompatibleMethodType {
+                role: "bridge",
+                descriptor: bridge.clone(),
+            });
+        }
+    }
+    Ok(functional)
+}
+
+fn object_method(name: &str, descriptor: &str) -> bool {
+    matches!(
+        (name, descriptor),
+        ("equals", "(Ljava/lang/Object;)Z")
+            | ("hashCode", "()I")
+            | ("toString", "()Ljava/lang/String;")
+    )
+}
+
+fn split_method_descriptor(value: &str) -> Result<(Vec<String>, String), FunctionalInterfaceError> {
+    if !valid_method_descriptor(value) {
+        return Err(FunctionalInterfaceError::InvalidDescriptor(value.into()));
+    }
+    let bytes = value.as_bytes();
+    let mut cursor = 1;
+    let mut args = Vec::new();
+    while bytes[cursor] != b')' {
+        let start = cursor;
+        let _ = parse_descriptor_type(bytes, &mut cursor, false);
+        args.push(value[start..cursor].to_owned());
+    }
+    cursor += 1;
+    Ok((args, value[cursor..].to_owned()))
+}
+
+fn types_adapt(actual: &[String], expected: &[String]) -> bool {
+    actual.len() == expected.len()
+        && actual
+            .iter()
+            .zip(expected)
+            .all(|(a, e)| a == e || (is_reference(a) && is_reference(e)))
+}
+
+fn return_adapts(actual: &str, expected: &str) -> bool {
+    expected == "V" || actual == expected || (is_reference(actual) && is_reference(expected))
+}
+
+fn is_reference(value: &str) -> bool {
+    value.starts_with('L') || value.starts_with('[')
 }
 
 /// Decodes and validates a lambda bootstrap before any generated class or instance is allocated.
@@ -640,6 +883,139 @@ mod tests {
             },
             loader,
         )
+    }
+
+    fn interface(
+        cx: &Cx,
+        name: &str,
+        parents: &[&str],
+        methods: &[(&str, &str, u16)],
+    ) -> Arc<ClassDefinition> {
+        ClassDefinition::test(
+            ClassLoader::new(32).id(),
+            name,
+            1,
+            JavaClassMetadata::test_class(cx, name, parents, 0x0601, methods),
+            BTreeMap::new(),
+        )
+    }
+
+    #[test]
+    fn object_equals_alone_is_not_a_functional_interface() {
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let classes = BTreeMap::from([(
+            "example.EqualsOnly".into(),
+            interface(
+                &cx,
+                "example.EqualsOnly",
+                &[],
+                &[("equals", "(Ljava/lang/Object;)Z", 0x0401)],
+            ),
+        )]);
+        assert_eq!(
+            discover_functional_interface(&classes, "example.EqualsOnly", 1),
+            Err(FunctionalInterfaceError::NoAbstractMethod {
+                interface: "example.EqualsOnly".into()
+            })
+        );
+    }
+
+    #[test]
+    fn unrelated_abstract_methods_are_both_named() {
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let classes = BTreeMap::from([(
+            "example.Pair".into(),
+            interface(
+                &cx,
+                "example.Pair",
+                &[],
+                &[("left", "()V", 0x0401), ("right", "(I)V", 0x0401)],
+            ),
+        )]);
+        assert_eq!(
+            discover_functional_interface(&classes, "example.Pair", 1),
+            Err(FunctionalInterfaceError::MultipleAbstractMethods {
+                methods: vec!["left()V".into(), "right(I)V".into()]
+            })
+        );
+    }
+
+    #[test]
+    fn inherited_sam_is_located_and_hierarchy_budget_is_enforced() {
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let classes = BTreeMap::from([
+            (
+                "example.Child".into(),
+                interface(&cx, "example.Child", &["example.Parent"], &[]),
+            ),
+            (
+                "example.Parent".into(),
+                interface(&cx, "example.Parent", &[], &[("apply", "(I)I", 0x0401)]),
+            ),
+        ]);
+        assert_eq!(
+            discover_functional_interface(&classes, "example.Child", 1),
+            Err(FunctionalInterfaceError::HierarchyBudgetExhausted { limit: 1 })
+        );
+        let found = discover_functional_interface(&classes, "example.Child", 2).unwrap();
+        assert_eq!(
+            (found.method_name.as_str(), found.method_descriptor.as_str()),
+            ("apply", "(I)I")
+        );
+        assert_eq!(found.lineage, ["example.Child", "example.Parent"]);
+    }
+
+    #[test]
+    fn invoked_sam_instantiation_implementation_markers_and_bridges_are_validated() {
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let classes = BTreeMap::from([
+            (
+                "example.Function".into(),
+                interface(
+                    &cx,
+                    "example.Function",
+                    &[],
+                    &[("apply", "(Ljava/lang/Object;)Ljava/lang/Object;", 0x0401)],
+                ),
+            ),
+            (
+                "example.Marker".into(),
+                interface(&cx, "example.Marker", &[], &[]),
+            ),
+        ]);
+        let plan = LambdaBootstrapPlan {
+            sam_method_type: "(Ljava/lang/Object;)Ljava/lang/Object;".into(),
+            implementation_reference_kind: 6,
+            instantiated_method_type: "(Ljava/lang/String;)Ljava/lang/String;".into(),
+            marker_interfaces: vec!["example.Marker".into()],
+            bridges: vec!["(Ljava/lang/CharSequence;)Ljava/lang/Object;".into()],
+            serializable: false,
+        };
+        let found = validate_functional_interface(
+            &classes,
+            "(I)Lexample/Function;",
+            &plan,
+            "(ILjava/lang/String;)Ljava/lang/String;",
+            2,
+        )
+        .unwrap();
+        assert_eq!(found.method_name, "apply");
+
+        let incompatible = validate_functional_interface(
+            &classes,
+            "(I)Lexample/Function;",
+            &plan,
+            "(JLjava/lang/String;)Ljava/lang/String;",
+            2,
+        )
+        .unwrap_err();
+        assert!(matches!(
+            incompatible,
+            FunctionalInterfaceError::IncompatibleMethodType {
+                role: "implementation",
+                ..
+            }
+        ));
     }
 
     #[test]
