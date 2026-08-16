@@ -18,7 +18,8 @@ use sim_shape::AnyShape;
 
 use crate::{
     ClassDefinition, ClassDefinitionId, ClassLoader, ClassSpaceRevision, ConstantResolutionError,
-    ConstantResolutionKind, JavaMember, JvmGraphError, JvmHeap, ResolutionCache,
+    ConstantResolutionKind, InvocationError, JavaMember, JvmGraphError, JvmHeap, JvmValue,
+    ResolutionCache,
 };
 
 /// Receiver placement retained by a resolved direct implementation handle.
@@ -150,6 +151,92 @@ impl JvmFunctionPlan {
     pub const fn body(&self) -> &JvmFunctionPolicyBody {
         &self.body
     }
+}
+
+/// Exact generated member selected for one lambda invocation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SelectedLambdaMember {
+    name: String,
+    descriptor: String,
+    role: GeneratedLambdaMemberRole,
+}
+
+impl SelectedLambdaMember {
+    /// JVM member name used for selection.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// JVM descriptor used for selection and bridge erasure.
+    pub fn descriptor(&self) -> &str {
+        &self.descriptor
+    }
+
+    /// Whether this is the SAM declaration or an ordinary bridge declaration.
+    pub const fn role(&self) -> GeneratedLambdaMemberRole {
+        self.role
+    }
+}
+
+/// Immutable input handed to the ordinary JVM method pipeline.
+pub struct LambdaMethodCall<'a, R> {
+    /// Generated SAM or bridge selected by exact JVM name and descriptor.
+    pub member: SelectedLambdaMember,
+    /// Access-checked implementation method-handle target.
+    pub implementation: &'a ResolvedDirectHandle,
+    /// Frozen, execution-ordered conversion program.
+    pub adaptations: &'a [LocatedJvmAdaptation],
+    /// Captured values in factory descriptor order.
+    pub captures: &'a [JvmValue],
+    /// Invocation values in the selected member descriptor order.
+    pub arguments: Vec<JvmValue>,
+    /// Pipeline-owned continuation supplied when resuming an interrupted call.
+    pub resume: Option<R>,
+}
+
+/// Completion channels preserved from the ordinary JVM method pipeline.
+#[derive(Clone, Debug)]
+pub enum LambdaInvocationOutcome<R, E> {
+    /// The implementation returned normally, with its exact accumulated work charge.
+    Returned {
+        /// Value produced by the implementation descriptor, if any.
+        value: Option<JvmValue>,
+        /// Exact cumulative instruction charge.
+        work: usize,
+    },
+    /// The implementation threw through the shared raised envelope.
+    Threw {
+        /// Unmodified shared exception envelope.
+        exception: E,
+        /// Exact cumulative instruction charge.
+        work: usize,
+    },
+    /// The implementation stopped at a safepoint with an exact resumable continuation.
+    Interrupted {
+        /// Pipeline-owned continuation evidence.
+        resume: R,
+        /// Exact cumulative instruction charge before the safepoint stop.
+        work: usize,
+    },
+}
+
+/// The existing JVM method executor consumed by lambda linkage.
+///
+/// Implementations apply `call.adaptations`, construct the same machine call
+/// transfer used by ordinary Java invocation, and retain their native exception,
+/// work, safepoint, and continuation contracts. The linker never drives a second
+/// bytecode loop.
+pub trait LambdaMethodPipeline {
+    /// Pipeline-owned continuation evidence.
+    type Resume;
+    /// Shared exception-envelope type.
+    type Exception;
+
+    /// Invokes or resumes one already-resolved implementation method.
+    fn invoke(
+        &mut self,
+        call: LambdaMethodCall<'_, Self::Resume>,
+    ) -> Result<LambdaInvocationOutcome<Self::Resume, Self::Exception>, InvocationError>;
 }
 
 /// Failure stage for compiling JVM descriptor adaptation.
@@ -702,6 +789,29 @@ impl GeneratedLambdaClass {
         &self.members
     }
 
+    /// Selects a callable lambda member by the JVM's exact name-and-descriptor key.
+    ///
+    /// Factory constructors are not callable through a lambda instance. Bridges
+    /// otherwise receive no special ranking or fallback treatment.
+    pub fn select_invocation_member(
+        &self,
+        name: &str,
+        descriptor: &str,
+    ) -> Option<SelectedLambdaMember> {
+        self.members
+            .iter()
+            .find(|member| {
+                member.role != GeneratedLambdaMemberRole::FactoryConstructor
+                    && member.name == name
+                    && member.descriptor == descriptor
+            })
+            .map(|member| SelectedLambdaMember {
+                name: member.name.clone(),
+                descriptor: member.descriptor.clone(),
+                role: member.role,
+            })
+    }
+
     /// Projects this generated definition as an ordinary Shape-bearing class.
     pub fn class_value(
         &self,
@@ -720,6 +830,38 @@ impl GeneratedLambdaClass {
             lineage_work,
         )))
     }
+}
+
+/// Selects a generated SAM/bridge and invokes its resolved implementation through
+/// the caller's one JVM method pipeline.
+///
+/// A resumed call repeats selection against the immutable generated class and
+/// passes the continuation through unchanged. Consequently lambda linkage cannot
+/// reorder Java handlers, lose work evidence, or invent a distinct safepoint
+/// contract.
+#[allow(clippy::too_many_arguments)]
+pub fn invoke_lambda_member<P: LambdaMethodPipeline>(
+    pipeline: &mut P,
+    class: &GeneratedLambdaClass,
+    plan: &JvmFunctionPlan,
+    implementation: &ResolvedDirectHandle,
+    name: &str,
+    descriptor: &str,
+    captures: &[JvmValue],
+    arguments: Vec<JvmValue>,
+    resume: Option<P::Resume>,
+) -> Result<LambdaInvocationOutcome<P::Resume, P::Exception>, InvocationError> {
+    let member = class
+        .select_invocation_member(name, descriptor)
+        .ok_or(InvocationError::AbstractMethod)?;
+    pipeline.invoke(LambdaMethodCall {
+        member,
+        implementation,
+        adaptations: plan.body().adaptations(),
+        captures,
+        arguments,
+        resume,
+    })
 }
 
 /// Loader-local class space for byte-free lambda definitions.
@@ -1945,6 +2087,20 @@ mod tests {
         assert_eq!(classes.browse(loader.id(), 8).len(), 1);
         assert_eq!(first.members().len(), 3);
         assert_eq!(first.members()[2].role(), GeneratedLambdaMemberRole::Bridge);
+        let sam = first
+            .select_invocation_member("apply", "(Ljava/lang/String;)Ljava/lang/String;")
+            .unwrap();
+        let bridge = first
+            .select_invocation_member("apply", "(Ljava/lang/CharSequence;)Ljava/lang/Object;")
+            .unwrap();
+        assert_eq!(sam.role(), GeneratedLambdaMemberRole::Sam);
+        assert_eq!(bridge.role(), GeneratedLambdaMemberRole::Bridge);
+        assert!(
+            first
+                .select_invocation_member("apply", "(Ljava/lang/Object;)Ljava/lang/Object;")
+                .is_none(),
+            "selection must not fall back across erasures"
+        );
         assert_eq!(
             first
                 .descriptor()
