@@ -38,6 +38,7 @@ mod symbols;
 mod table;
 mod value;
 
+pub use call::LuaExceptionProfile;
 pub use conformance::{
     REUSE_LEDGER, ReuseLedgerEntry, run_lua_core_conformance_case, run_lua_core_matrix_row,
 };

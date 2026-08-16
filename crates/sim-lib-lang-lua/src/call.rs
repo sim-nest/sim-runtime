@@ -1,5 +1,10 @@
-use sim_kernel::{Args, Cx, Result, Value};
-use sim_lib_control::{ProtectedOutcome, protected_call};
+use sim_kernel::{
+    Args, ClassId, ClassRef, CodecId, Cx, Origin, Result, SourceId, Span, Symbol, Value,
+};
+use sim_lib_control::{
+    BoundedSubclassOutcome, ClassMatchBudget, ClassMatchEvidence, ClassMatchOutcome,
+    ProtectedOutcome, Raised, match_raised_class, protected_call_with,
+};
 
 use crate::{
     LuaEvalPolicy,
@@ -81,7 +86,8 @@ pub(crate) fn protected_lua_call(
     policy: &LuaEvalPolicy,
     function: Value,
     args: Vec<Value>,
-) -> Result<ProtectedOutcome> {
+) -> Result<ProtectedOutcome<Raised>> {
+    let exceptions = LuaExceptionProfile::new(cx)?;
     if function.object().downcast_ref::<LuaClosure>().is_some()
         || function.object().downcast_ref::<LuaLoadedChunk>().is_some()
         || function
@@ -133,13 +139,126 @@ pub(crate) fn protected_lua_call(
     {
         return match call_lua_value(cx, policy, function, args) {
             Ok(values) => Ok(ProtectedOutcome::Returned(values)),
-            Err(error) => Ok(ProtectedOutcome::Raised(error_value(cx, error)?)),
+            Err(error) => Ok(ProtectedOutcome::Raised(
+                exceptions.raise(error_value(cx, error)?, lua_error_origin())?,
+            )),
         };
     }
 
-    protected_call(cx, function, Args::new(args), error_value)
+    protected_call_with(cx, function, Args::new(args), |cx, error| {
+        exceptions.raise(error_value(cx, error)?, lua_error_origin())
+    })
+}
+
+/// Lua's one adapter onto the shared exceptional-completion envelope.
+pub struct LuaExceptionProfile {
+    raised_value_class: ClassRef,
+}
+
+impl LuaExceptionProfile {
+    /// Builds the profile with Lua's canonical class for arbitrary raised values.
+    pub fn new(cx: &Cx) -> Result<Self> {
+        Ok(Self {
+            raised_value_class: cx.factory().class_stub(
+                ClassId(0x4c55_4101),
+                Symbol::qualified("lua", "RaisedValue"),
+            )?,
+        })
+    }
+
+    /// Wraps a Lua value without copying or replacing its managed identity.
+    pub fn raise(&self, value: Value, origin: Origin) -> Result<Raised> {
+        Raised::new(
+            self.raised_value_class.clone(),
+            value,
+            origin,
+            Symbol::qualified("lua", "raised-value"),
+        )
+    }
+
+    /// Lua matches only the canonical raised-value class; it adds no widening predicate.
+    pub fn matches(
+        &self,
+        cx: &mut Cx,
+        raised: &Raised,
+        candidate: ClassRef,
+        budget: ClassMatchBudget,
+    ) -> ClassMatchOutcome {
+        match_raised_class(
+            cx,
+            raised,
+            candidate,
+            budget,
+            |_, actual, expected, _| {
+                let raised = actual
+                    .object()
+                    .as_class()
+                    .expect("matcher validated class")
+                    .id();
+                let candidate = expected
+                    .object()
+                    .as_class()
+                    .expect("matcher validated class")
+                    .id();
+                let evidence = ClassMatchEvidence {
+                    raised,
+                    candidate,
+                    performed_work: 1,
+                };
+                if raised == candidate {
+                    BoundedSubclassOutcome::Subclass(evidence)
+                } else {
+                    BoundedSubclassOutcome::NotSubclass(evidence)
+                }
+            },
+            |_, _, _| Ok(true),
+        )
+    }
+}
+
+fn lua_error_origin() -> Origin {
+    Origin {
+        codec: CodecId(0),
+        source: SourceId("lua-protected-call".into()),
+        span: Span { start: 0, end: 0 },
+        trivia: Vec::new(),
+    }
 }
 
 pub(crate) fn error_value(cx: &mut Cx, error: sim_kernel::Error) -> Result<Value> {
     cx.factory().string(error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use sim_kernel::{CodecId, Origin, SourceId, Span, testing::bare_cx};
+    use sim_lib_control::{ClassMatchBudget, ClassMatchOutcome};
+
+    use super::LuaExceptionProfile;
+    use crate::lua_table_from_values;
+
+    #[test]
+    fn raised_table_keeps_identity_and_uses_explicit_lua_match_policy() {
+        let mut cx = bare_cx();
+        let profile = LuaExceptionProfile::new(&cx).unwrap();
+        let table = lua_table_from_values(&mut cx, Vec::new()).unwrap();
+        let origin = Origin {
+            codec: CodecId(7),
+            source: SourceId("frozen-lua-capture".into()),
+            span: Span { start: 4, end: 9 },
+            trivia: Vec::new(),
+        };
+        let raised = profile.raise(table.clone(), origin).unwrap();
+
+        assert_eq!(raised.payload(), &table);
+        assert!(matches!(
+            profile.matches(
+                &mut cx,
+                &raised,
+                raised.class_ref().clone(),
+                ClassMatchBudget { work: 1 },
+            ),
+            ClassMatchOutcome::Matched(_)
+        ));
+    }
 }

@@ -223,7 +223,7 @@ fn lua_pcall(cx: &mut Cx, policy: &LuaEvalPolicy, mut args: Vec<Value>) -> Resul
             Ok(out)
         }
         sim_lib_control::ProtectedOutcome::Raised(value) => {
-            Ok(vec![cx.factory().bool(false)?, value])
+            Ok(vec![cx.factory().bool(false)?, value.payload().clone()])
         }
     }
 }
@@ -238,7 +238,7 @@ fn lua_xpcall(cx: &mut Cx, policy: &LuaEvalPolicy, mut args: Vec<Value>) -> Resu
             Ok(out)
         }
         sim_lib_control::ProtectedOutcome::Raised(value) => {
-            let handled = call_lua_value(cx, policy, handler, vec![value])?;
+            let handled = call_lua_value(cx, policy, handler, vec![value.payload().clone()])?;
             let mut out = vec![cx.factory().bool(false)?];
             out.extend(handled);
             Ok(out)
