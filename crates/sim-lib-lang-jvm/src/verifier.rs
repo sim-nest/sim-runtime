@@ -16,6 +16,38 @@ use crate::{
     JavaClassMetadata, JavaMember, JavaMemberKind, PreparedJvmPolicy,
 };
 
+/// The single generated verifier owner for an opcode identity.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum VerifierRuleFamily {
+    /// Constants, local access, array access, and operand-stack manipulation.
+    ConstantsLocalsStack,
+    /// Numeric arithmetic, comparison, and conversion.
+    NumericConversion,
+    /// Branches, switches, and method exits.
+    ControlReturn,
+    /// Fields, objects, arrays, invocation, and monitors.
+    ObjectArrayField,
+    /// An opcode deliberately outside the admitted verifier policy.
+    ExplicitRefusal,
+}
+
+/// Generated dispatch record binding one shared opcode identity to one owner.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct VerifierRule {
+    /// Identity from the sole classfile opcode manifest.
+    pub opcode: Opcode,
+    /// Rule family responsible for verification or explicit refusal.
+    pub family: VerifierRuleFamily,
+}
+
+include!("verifier_rules_generated.rs");
+
+/// Returns the generated verifier dispatch record for `opcode`.
+#[must_use]
+pub const fn verifier_rule(opcode: Opcode) -> &'static VerifierRule {
+    &VERIFIER_RULES[opcode as usize]
+}
+
 /// Whether a prepared instruction can complete with a guest throwable.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ThrowCapability {
@@ -1731,6 +1763,34 @@ fn normalize_category2(frame: &mut VerificationFrame) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn generated_verifier_rules_cover_every_shared_opcode_once() {
+        assert_eq!(VERIFIER_RULES.len(), sim_codec_classfile::OPCODES.len());
+        for (byte, (rule, metadata)) in VERIFIER_RULES
+            .iter()
+            .zip(sim_codec_classfile::OPCODES.iter())
+            .enumerate()
+        {
+            assert_eq!(rule.opcode, metadata.opcode, "opcode byte {byte:#04x}");
+            assert_eq!(verifier_rule(metadata.opcode), rule);
+        }
+        for opcode in [
+            Opcode::Jsr,
+            Opcode::Ret,
+            Opcode::JsrW,
+            Opcode::Breakpoint,
+            Opcode::ReservedCB,
+            Opcode::Impdep1,
+            Opcode::Impdep2,
+        ] {
+            assert_eq!(
+                verifier_rule(opcode).family,
+                VerifierRuleFamily::ExplicitRefusal,
+                "{opcode:?} must be refused explicitly"
+            );
+        }
+    }
     use crate::{
         JvmInstructionPolicy, JvmInstructionSemantics, JvmSlotKind, PreparationError, prepare_code,
     };

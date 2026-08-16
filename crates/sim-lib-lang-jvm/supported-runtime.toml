@@ -10,6 +10,29 @@ admission = "all non-reserved, version-admitted rows"
 source = "sim-codec-classfile 0.1.0 opcode-manifest.tsv"
 parallel_inventory_forbidden = true
 
+# These disjoint selectors extend the shared opcode manifest without copying its
+# identities or mnemonics. The build generator projects them through OPCODES and
+# rejects gaps and overlaps across the complete byte space.
+[[verifier_rule]]
+family = "constants-locals-stack"
+ranges = ["00-5f", "84-84", "c4-c4"]
+
+[[verifier_rule]]
+family = "numeric-conversion"
+ranges = ["60-83", "85-98"]
+
+[[verifier_rule]]
+family = "control-return"
+ranges = ["99-a7", "aa-b1", "c6-c8"]
+
+[[verifier_rule]]
+family = "object-array-field"
+ranges = ["b2-c3", "c5-c5"]
+
+[[verifier_rule]]
+family = "explicit-refusal"
+ranges = ["a8-a9", "c9-ff"]
+
 [[unsupported]]
 id = "native-methods"
 boundary = "method admission"

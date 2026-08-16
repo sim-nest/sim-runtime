@@ -29,6 +29,7 @@ sim-kernel = { version = "0.2.0", features = ["test-support"] }
 toml = "0.8"
 
 [build-dependencies]
+sim-codec-classfile = { version = "0.1.0" }
 toml = "0.8"
 
 [lints]
