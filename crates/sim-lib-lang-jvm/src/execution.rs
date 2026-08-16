@@ -1,6 +1,6 @@
 //! Execution of the JVM constant, local, and operand-stack instruction family.
 
-use sim_codec_classfile::{InstructionId, InstructionOperand, Opcode};
+use sim_codec_classfile::{InstructionId, Opcode};
 use sim_lib_machine::{ShuffleError, ShufflePlan, SlotError, SlotFile, StackError, UnitStack};
 
 use crate::{JvmReference, JvmValue, JvmValueWidth};
@@ -28,10 +28,10 @@ pub struct JvmWorkReceipt {
 }
 
 impl JvmWorkReceipt {
-    pub(crate) const fn new(instruction: InstructionId) -> Self {
+    pub(crate) const fn new(instruction: InstructionId, charged: usize) -> Self {
         Self {
             instruction,
-            charged: 1,
+            charged,
         }
     }
     /// Returns the prepared instruction charged by this receipt.
@@ -82,7 +82,7 @@ pub fn execute_storage_instruction<R: JvmConstantResolver>(
     constants: &mut R,
 ) -> Result<JvmWorkReceipt, ExecutionError> {
     let opcode = instruction.opcode();
-    let decoded = instruction.instruction();
+    let prepared = instruction.prepared_operands();
     let value = match opcode {
         Opcode::AconstNull => Some(JvmValue::Reference(JvmReference::NULL)),
         Opcode::IconstM1 => Some(JvmValue::Int(-1)),
@@ -101,12 +101,15 @@ pub fn execute_storage_instruction<R: JvmConstantResolver>(
         Opcode::Dconst0 | Opcode::Dconst1 => Some(JvmValue::Double(
             f64::from(opcode as u8 - Opcode::Dconst0 as u8).to_bits(),
         )),
-        Opcode::Bipush | Opcode::Sipush => Some(JvmValue::Int(one_immediate(
-            decoded.operands.as_slice(),
-            opcode,
-        )?)),
+        Opcode::Bipush | Opcode::Sipush => Some(JvmValue::Int(match prepared {
+            crate::PreparedJvmOperands::Immediate(value) => *value,
+            _ => return Err(ExecutionError::MalformedPreparedInput { opcode }),
+        })),
         Opcode::Ldc | Opcode::LdcW | Opcode::Ldc2W => {
-            let index = one_constant(decoded.operands.as_slice(), opcode)?;
+            let crate::PreparedJvmOperands::ConstantSite(index) = prepared else {
+                return Err(ExecutionError::MalformedPreparedInput { opcode });
+            };
+            let index = *index;
             let value = constants
                 .resolve(index)
                 .map_err(|_| ExecutionError::Constant { index })?;
@@ -123,7 +126,7 @@ pub fn execute_storage_instruction<R: JvmConstantResolver>(
         return Ok(receipt(instruction));
     }
 
-    if let Some((slot, expected)) = local_access(opcode, decoded.operands.as_slice(), true)? {
+    if let Some((slot, expected)) = local_access(opcode, prepared, true)? {
         let value = locals.load(slot).map_err(ExecutionError::Local)?;
         require_category(opcode, value, expected)?;
         operands
@@ -131,7 +134,7 @@ pub fn execute_storage_instruction<R: JvmConstantResolver>(
             .map_err(ExecutionError::Stack)?;
         return Ok(receipt(instruction));
     }
-    if let Some((slot, expected)) = local_access(opcode, decoded.operands.as_slice(), false)? {
+    if let Some((slot, expected)) = local_access(opcode, prepared, false)? {
         let value = operands.top().map_err(ExecutionError::Stack)?;
         require_category(opcode, value, expected)?;
         if slot
@@ -149,22 +152,19 @@ pub fn execute_storage_instruction<R: JvmConstantResolver>(
         return Ok(receipt(instruction));
     }
     if opcode == Opcode::Iinc {
-        let [
-            InstructionOperand::Local(slot),
-            InstructionOperand::Immediate(increment),
-        ] = decoded.operands.as_slice()
+        let crate::PreparedJvmOperands::Increment {
+            slot,
+            amount: increment,
+        } = prepared
         else {
             return Err(ExecutionError::MalformedPreparedInput { opcode });
         };
-        let JvmValue::Int(value) = locals
-            .load(usize::from(*slot))
-            .map_err(ExecutionError::Local)?
-        else {
+        let JvmValue::Int(value) = locals.load(*slot).map_err(ExecutionError::Local)? else {
             return Err(ExecutionError::Category { opcode });
         };
         let value = value.wrapping_add(*increment);
         locals
-            .store(usize::from(*slot), JvmValue::Int(value))
+            .store(*slot, JvmValue::Int(value))
             .map_err(ExecutionError::Local)?;
         return Ok(receipt(instruction));
     }
@@ -180,10 +180,10 @@ pub fn execute_storage_instruction<R: JvmConstantResolver>(
             | Opcode::Dup2X2
             | Opcode::Swap
     ) {
-        if !decoded.operands.is_empty() {
+        let crate::PreparedJvmOperands::Shuffle(choices) = prepared else {
             return Err(ExecutionError::MalformedPreparedInput { opcode });
-        }
-        execute_shuffle(opcode, operands)?;
+        };
+        execute_shuffle(opcode, *choices, operands)?;
         return Ok(receipt(instruction));
     }
     Err(ExecutionError::MalformedPreparedInput { opcode })
@@ -218,7 +218,7 @@ fn require_category(
 
 fn local_access(
     opcode: Opcode,
-    operands: &[InstructionOperand],
+    operands: &crate::PreparedJvmOperands,
     load: bool,
 ) -> Result<Option<(usize, Expected)>, ExecutionError> {
     use Opcode::*;
@@ -239,15 +239,15 @@ fn local_access(
         },
     };
     let slot = if let Some(slot) = fixed {
-        if !operands.is_empty() {
+        if !matches!(operands, crate::PreparedJvmOperands::None) {
             return Err(ExecutionError::MalformedPreparedInput { opcode });
         }
         slot
     } else {
-        let [InstructionOperand::Local(slot)] = operands else {
+        let crate::PreparedJvmOperands::Local(slot) = operands else {
             return Err(ExecutionError::MalformedPreparedInput { opcode });
         };
-        usize::from(*slot)
+        *slot
     };
     Ok(Some((slot, base)))
 }
@@ -280,12 +280,11 @@ fn implicit_local(opcode: Opcode, load: bool) -> Option<(Expected, Option<usize>
 
 fn execute_shuffle(
     opcode: Opcode,
+    choices: &'static [(&'static [usize], &'static [usize])],
     stack: &mut UnitStack<JvmValueWidth>,
 ) -> Result<(), ExecutionError> {
     let mut widths = Vec::new();
     stack.visit_values(|value| widths.push(value.logical_width()));
-    let choices =
-        shuffle_descriptor(opcode).ok_or(ExecutionError::MalformedPreparedInput { opcode })?;
     let Some((input, output)) = choices.iter().find(|(input, _)| widths.ends_with(input)) else {
         return Err(ExecutionError::MalformedPreparedInput { opcode });
     };
@@ -333,18 +332,6 @@ pub(crate) fn shuffle_descriptor(
     })
 }
 
-fn one_immediate(operands: &[InstructionOperand], opcode: Opcode) -> Result<i32, ExecutionError> {
-    let [InstructionOperand::Immediate(value)] = operands else {
-        return Err(ExecutionError::MalformedPreparedInput { opcode });
-    };
-    Ok(*value)
-}
-fn one_constant(operands: &[InstructionOperand], opcode: Opcode) -> Result<u16, ExecutionError> {
-    let [InstructionOperand::Constant(value)] = operands else {
-        return Err(ExecutionError::MalformedPreparedInput { opcode });
-    };
-    Ok(*value)
-}
 fn receipt(instruction: &crate::PreparedJvmInstruction) -> JvmWorkReceipt {
-    JvmWorkReceipt::new(instruction.id())
+    JvmWorkReceipt::new(instruction.id(), instruction.work_charge())
 }

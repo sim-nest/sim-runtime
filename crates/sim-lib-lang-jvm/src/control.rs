@@ -1,6 +1,6 @@
 //! Exact, resumable execution of JVM control-flow instructions.
 
-use sim_codec_classfile::{InstructionId, InstructionOperand, Opcode};
+use sim_codec_classfile::{InstructionId, Opcode};
 use sim_lib_machine::{CodeCursor, LocatedCode, SourceLocation, StackError, UnitStack};
 
 use crate::{JvmReference, JvmValue, JvmValueWidth, PreparedJvmPolicy};
@@ -83,18 +83,14 @@ pub fn execute_control_instruction(
     };
     let complete = |cursor| JvmControlOutcome::Continue {
         cursor,
-        receipt: crate::JvmWorkReceipt::new(id),
+        receipt: crate::JvmWorkReceipt::new(id, instruction.work_charge()),
     };
 
     use Opcode::*;
     let selected = match opcode {
         Goto | GotoW => Some(only_target(targets).ok_or_else(malformed)?),
         Ifeq | Ifne | Iflt | Ifge | Ifgt | Ifle => {
-            require_one_branch(
-                instruction.instruction().operands.as_slice(),
-                targets,
-                &malformed,
-            )?;
+            let target = direct_target(code, instruction).ok_or_else(malformed)?;
             let next = fallthrough()?;
             let value = peek_int(operands, located)?;
             let take = match opcode {
@@ -107,14 +103,10 @@ pub fn execute_control_instruction(
                 _ => unreachable!(),
             };
             operands.pop().expect("validated conditional operand");
-            Some(if take { targets[0] } else { next })
+            Some(if take { target } else { next })
         }
         IfIcmpeq | IfIcmpne | IfIcmplt | IfIcmpge | IfIcmpgt | IfIcmple => {
-            require_one_branch(
-                instruction.instruction().operands.as_slice(),
-                targets,
-                &malformed,
-            )?;
+            let target = direct_target(code, instruction).ok_or_else(malformed)?;
             let next = fallthrough()?;
             let (left, right) = two_ints(operands, located)?;
             operands.pop().expect("validated top operand");
@@ -128,55 +120,51 @@ pub fn execute_control_instruction(
                 IfIcmple => left <= right,
                 _ => unreachable!(),
             };
-            Some(if take { targets[0] } else { next })
+            Some(if take { target } else { next })
         }
         IfAcmpeq | IfAcmpne => {
-            require_one_branch(
-                instruction.instruction().operands.as_slice(),
-                targets,
-                &malformed,
-            )?;
+            let target = direct_target(code, instruction).ok_or_else(malformed)?;
             let next = fallthrough()?;
             let (left, right) = two_references(operands, located)?;
             operands.pop().expect("validated top operand");
             operands.pop().expect("validated lower operand");
             Some(if (opcode == IfAcmpeq) == (left == right) {
-                targets[0]
+                target
             } else {
                 next
             })
         }
         Ifnull | Ifnonnull => {
-            require_one_branch(
-                instruction.instruction().operands.as_slice(),
-                targets,
-                &malformed,
-            )?;
+            let target = direct_target(code, instruction).ok_or_else(malformed)?;
             let next = fallthrough()?;
             let value = peek_reference(operands, located)?;
             operands.pop().expect("validated conditional operand");
             Some(if (opcode == Ifnull) == (value == JvmReference::NULL) {
-                targets[0]
+                target
             } else {
                 next
             })
         }
         Tableswitch => {
             let key = peek_int(operands, located)?;
-            let target = table_target(instruction.instruction().operands.as_slice(), targets, key)
-                .ok_or_else(malformed)?;
+            let target =
+                table_target(code, instruction.prepared_operands(), key).ok_or_else(malformed)?;
             operands.pop().expect("validated switch operand");
             Some(target)
         }
         Lookupswitch => {
             let key = peek_int(operands, located)?;
-            let target = lookup_target(instruction.instruction().operands.as_slice(), targets, key)
-                .ok_or_else(malformed)?;
+            let target =
+                lookup_target(code, instruction.prepared_operands(), key).ok_or_else(malformed)?;
             operands.pop().expect("validated switch operand");
             Some(target)
         }
         Ireturn | Lreturn | Freturn | Dreturn | Areturn => {
-            if !instruction.instruction().operands.is_empty() || !targets.is_empty() {
+            if !matches!(
+                instruction.prepared_operands(),
+                crate::PreparedJvmOperands::None
+            ) || !targets.is_empty()
+            {
                 return Err(malformed());
             }
             let value = operands
@@ -196,16 +184,20 @@ pub fn execute_control_instruction(
             let value = operands.pop().expect("validated return operand");
             return Ok(JvmControlOutcome::Return {
                 value: Some(value),
-                receipt: crate::JvmWorkReceipt::new(id),
+                receipt: crate::JvmWorkReceipt::new(id, instruction.work_charge()),
             });
         }
         Return => {
-            if !instruction.instruction().operands.is_empty() || !targets.is_empty() {
+            if !matches!(
+                instruction.prepared_operands(),
+                crate::PreparedJvmOperands::None
+            ) || !targets.is_empty()
+            {
                 return Err(malformed());
             }
             return Ok(JvmControlOutcome::Return {
                 value: None,
-                receipt: crate::JvmWorkReceipt::new(id),
+                receipt: crate::JvmWorkReceipt::new(id, instruction.work_charge()),
             });
         }
         _ => return Err(malformed()),
@@ -232,15 +224,14 @@ fn only_target(targets: &[CodeCursor]) -> Option<CodeCursor> {
     Some(*target)
 }
 
-fn require_one_branch(
-    operands: &[InstructionOperand],
-    targets: &[CodeCursor],
-    malformed: &impl Fn() -> JvmControlError,
-) -> Result<(), JvmControlError> {
-    if !matches!(operands, [InstructionOperand::Branch(_)]) || targets.len() != 1 {
-        return Err(malformed());
-    }
-    Ok(())
+fn direct_target(
+    code: &LocatedCode<PreparedJvmPolicy>,
+    instruction: &crate::PreparedJvmInstruction,
+) -> Option<CodeCursor> {
+    let crate::PreparedJvmOperands::Direct(target) = instruction.prepared_operands() else {
+        return None;
+    };
+    code.cursor(*target)
 }
 
 fn peek_int(
@@ -310,59 +301,37 @@ fn two_references(
 }
 
 fn table_target(
-    operands: &[InstructionOperand],
-    targets: &[CodeCursor],
+    code: &LocatedCode<PreparedJvmPolicy>,
+    operands: &crate::PreparedJvmOperands,
     key: i32,
 ) -> Option<CodeCursor> {
-    let [
-        InstructionOperand::Branch(_),
-        InstructionOperand::TableLow(low),
-        InstructionOperand::TableHigh(high),
-        rest @ ..,
-    ] = operands
+    let crate::PreparedJvmOperands::Table {
+        low,
+        default,
+        targets,
+    } = operands
     else {
         return None;
     };
-    let count = i64::from(*high) - i64::from(*low) + 1;
-    if count < 0
-        || usize::try_from(count).ok()? != rest.len()
-        || targets.len() != rest.len() + 1
-        || !rest
-            .iter()
-            .all(|v| matches!(v, InstructionOperand::Branch(_)))
-    {
-        return None;
-    }
+    let count = i64::try_from(targets.len()).ok()?;
     let index = i64::from(key) - i64::from(*low);
-    Some(if index >= 0 && index < count {
-        targets[usize::try_from(index).ok()? + 1]
+    code.cursor(if index >= 0 && index < count {
+        targets[usize::try_from(index).ok()?]
     } else {
-        targets[0]
+        *default
     })
 }
 
 fn lookup_target(
-    operands: &[InstructionOperand],
-    targets: &[CodeCursor],
+    code: &LocatedCode<PreparedJvmPolicy>,
+    operands: &crate::PreparedJvmOperands,
     key: i32,
 ) -> Option<CodeCursor> {
-    let (InstructionOperand::Branch(_), pairs) = operands.split_first()? else {
+    let crate::PreparedJvmOperands::Lookup { default, pairs } = operands else {
         return None;
     };
-    if pairs.len() % 2 != 0 || targets.len() != pairs.len() / 2 + 1 {
-        return None;
-    }
-    for (index, pair) in pairs.chunks_exact(2).enumerate() {
-        let [
-            InstructionOperand::LookupKey(candidate),
-            InstructionOperand::Branch(_),
-        ] = pair
-        else {
-            return None;
-        };
-        if *candidate == key {
-            return Some(targets[index + 1]);
-        }
-    }
-    Some(targets[0])
+    let target = pairs
+        .binary_search_by_key(&key, |(candidate, _)| *candidate)
+        .map_or(*default, |index| pairs[index].1);
+    code.cursor(target)
 }

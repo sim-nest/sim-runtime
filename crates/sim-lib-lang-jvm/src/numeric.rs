@@ -67,7 +67,10 @@ where
     operands
         .push(result)
         .map_err(NumericExecutionError::Stack)?;
-    Ok(JvmWorkReceipt::new(instruction.id()))
+    Ok(JvmWorkReceipt::new(
+        instruction.id(),
+        instruction.work_charge(),
+    ))
 }
 
 fn binary<F>(
