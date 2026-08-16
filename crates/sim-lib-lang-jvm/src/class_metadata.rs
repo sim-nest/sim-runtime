@@ -23,6 +23,16 @@ pub struct JavaMember {
 }
 
 impl JavaMember {
+    #[cfg(test)]
+    pub(crate) fn test_field(name: &str, descriptor: &str, access_flags: u16) -> Self {
+        Self {
+            name: name.into(),
+            descriptor: descriptor.into(),
+            access_flags,
+            kind: JavaMemberKind::Field,
+        }
+    }
+
     /// JVM source name.
     pub fn name(&self) -> &str {
         &self.name
@@ -38,6 +48,16 @@ impl JavaMember {
     /// Declaration kind.
     pub fn kind(&self) -> JavaMemberKind {
         self.kind
+    }
+
+    /// Whether this declaration carries the JVM `ACC_STATIC` flag.
+    pub const fn is_static(&self) -> bool {
+        self.access_flags & 0x0008 != 0
+    }
+
+    /// Whether this declaration carries the JVM `ACC_FINAL` flag.
+    pub const fn is_final(&self) -> bool {
+        self.access_flags & 0x0010 != 0
     }
 }
 

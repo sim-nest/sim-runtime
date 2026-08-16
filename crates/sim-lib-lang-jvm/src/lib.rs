@@ -14,6 +14,7 @@ mod control;
 mod entry;
 mod execution;
 mod failure;
+mod field;
 mod intrinsic;
 mod limits;
 mod managed;
@@ -48,6 +49,10 @@ pub use execution::{
 };
 pub use failure::{
     AdmissionFailure, FailureCondition, FailureHome, JavaThrowable, ResourceFailure,
+};
+pub use field::{
+    FieldAccess, FieldError, FieldId, FieldLayout, FieldStorage, InitializationState, JavaObject,
+    WriteContext,
 };
 pub use intrinsic::{
     BoxValue, INTRINSIC_TABLE, IntrinsicError, IntrinsicMember, IntrinsicSupport, PrimitiveBox,
