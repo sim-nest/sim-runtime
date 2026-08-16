@@ -5,6 +5,7 @@ use std::{
     sync::Arc,
 };
 
+use sim_lib_function::FunctionPlan;
 use sim_lib_mutation::ManagedHandle;
 
 use crate::{
@@ -36,6 +37,352 @@ pub enum DirectInvocationKind {
     Virtual,
     /// `REF_invokeInterface` (9).
     Interface,
+}
+
+/// The part of a lambda call at which a descriptor adaptation is performed.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AdaptationPoint {
+    /// A value captured while the lambda object is created.
+    Capture(usize),
+    /// The bound or unbound implementation receiver.
+    Receiver,
+    /// A SAM argument supplied when the lambda is invoked.
+    Parameter(usize),
+    /// The implementation result returned to the SAM caller.
+    Return,
+}
+
+/// One immutable JVM conversion selected while linking a lambda.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum JvmAdaptation {
+    /// No representation or type change is required.
+    Identity,
+    /// A checked reference conversion is required at invocation.
+    ReferenceCast {
+        /// Runtime source descriptor.
+        from: String,
+        /// Required target descriptor.
+        to: String,
+    },
+    /// A Java widening primitive conversion.
+    PrimitiveWiden {
+        /// Source primitive descriptor.
+        from: char,
+        /// Wider target primitive descriptor.
+        to: char,
+    },
+    /// Box a primitive, optionally followed by a reference cast.
+    Box {
+        /// Primitive descriptor to box.
+        primitive: char,
+        /// Wrapper or widened reference descriptor.
+        reference: String,
+    },
+    /// Unbox a wrapper, optionally followed by primitive widening.
+    Unbox {
+        /// Wrapper reference descriptor.
+        reference: String,
+        /// Required primitive descriptor after optional widening.
+        primitive: char,
+    },
+    /// Discard an implementation value for a void SAM result.
+    DropValue,
+}
+
+/// One located conversion in an immutable JVM function policy body.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LocatedJvmAdaptation {
+    /// Stable position at which the conversion will execute.
+    pub point: AdaptationPoint,
+    /// Conversion compiled for that position.
+    pub adaptation: JvmAdaptation,
+}
+
+/// JVM-owned policy composed with the language-neutral function organ.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct JvmFunctionPolicyBody {
+    adaptations: Box<[LocatedJvmAdaptation]>,
+}
+
+impl JvmFunctionPolicyBody {
+    /// Returns the complete, execution-order adaptation program.
+    pub fn adaptations(&self) -> &[LocatedJvmAdaptation] {
+        &self.adaptations
+    }
+}
+
+/// A neutral declaration paired with its immutable JVM linkage policy.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct JvmFunctionPlan {
+    neutral: FunctionPlan,
+    body: JvmFunctionPolicyBody,
+}
+
+impl JvmFunctionPlan {
+    /// Returns the language-neutral declaration metadata unchanged.
+    pub const fn neutral(&self) -> &FunctionPlan {
+        &self.neutral
+    }
+
+    /// Returns the JVM-owned body policy.
+    pub const fn body(&self) -> &JvmFunctionPolicyBody {
+        &self.body
+    }
+}
+
+/// Failure stage for compiling JVM descriptor adaptation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum JvmAdaptationError {
+    /// One of the supplied method descriptors is malformed.
+    InvalidDescriptor {
+        /// Descriptor's linkage role.
+        role: &'static str,
+        /// Refused descriptor text.
+        descriptor: String,
+    },
+    /// Neutral capture or parameter declarations disagree with JVM arity.
+    NeutralArity {
+        /// Neutral declaration role that disagreed.
+        role: &'static str,
+        /// Number declared by the neutral plan.
+        neutral: usize,
+        /// Number encoded by the JVM descriptor.
+        descriptor: usize,
+    },
+    /// Captures, receiver, and invocation arguments do not fill the target method.
+    ImplementationArity {
+        /// Values available after receiver placement.
+        supplied: usize,
+        /// Implementation descriptor arity.
+        required: usize,
+    },
+    /// Receiver placement and the supplied receiver descriptor disagree.
+    ReceiverDescriptor {
+        /// Selected receiver placement.
+        receiver: DirectReceiver,
+        /// Whether a receiver target descriptor was supplied.
+        supplied: bool,
+    },
+    /// Java's lambda conversion rules reject the located conversion.
+    UnsupportedConversion {
+        /// Exact conversion location.
+        point: AdaptationPoint,
+        /// Source descriptor.
+        from: String,
+        /// Target descriptor.
+        to: String,
+    },
+    /// A void implementation cannot produce a value required by the SAM.
+    VoidToValue {
+        /// Exact result conversion location.
+        point: AdaptationPoint,
+        /// Value descriptor required by the SAM.
+        required: String,
+    },
+}
+
+/// Compiles all lambda placement and conversion decisions before allocation or invocation.
+pub fn compile_jvm_function_plan(
+    neutral: FunctionPlan,
+    factory_descriptor: &str,
+    invocation_descriptor: &str,
+    implementation_descriptor: &str,
+    receiver: DirectReceiver,
+    receiver_descriptor: Option<&str>,
+) -> Result<JvmFunctionPlan, JvmAdaptationError> {
+    let (captures, factory_result) = adaptation_descriptor("factory", factory_descriptor)?;
+    let (parameters, invocation_result) =
+        adaptation_descriptor("invocation", invocation_descriptor)?;
+    let (implementation, implementation_result) =
+        adaptation_descriptor("implementation", implementation_descriptor)?;
+    if neutral.captures().len() != captures.len() {
+        return Err(JvmAdaptationError::NeutralArity {
+            role: "capture",
+            neutral: neutral.captures().len(),
+            descriptor: captures.len(),
+        });
+    }
+    if neutral.parameters().len() != parameters.len() {
+        return Err(JvmAdaptationError::NeutralArity {
+            role: "parameter",
+            neutral: neutral.parameters().len(),
+            descriptor: parameters.len(),
+        });
+    }
+    if !is_reference(&factory_result) {
+        return Err(JvmAdaptationError::UnsupportedConversion {
+            point: AdaptationPoint::Return,
+            from: factory_result,
+            to: "lambda reference".into(),
+        });
+    }
+
+    let receiver_source = match receiver {
+        DirectReceiver::None => None,
+        DirectReceiver::Bound => captures.first().cloned(),
+        DirectReceiver::Unbound => parameters.first().cloned(),
+    };
+    if receiver_source.is_some() != receiver_descriptor.is_some() {
+        return Err(JvmAdaptationError::ReceiverDescriptor {
+            receiver,
+            supplied: receiver_descriptor.is_some(),
+        });
+    }
+    let capture_start = usize::from(receiver == DirectReceiver::Bound);
+    let parameter_start = usize::from(receiver == DirectReceiver::Unbound);
+    let supplied = captures.len().saturating_sub(capture_start)
+        + parameters.len().saturating_sub(parameter_start);
+    if supplied != implementation.len() {
+        return Err(JvmAdaptationError::ImplementationArity {
+            supplied,
+            required: implementation.len(),
+        });
+    }
+
+    let mut sources = Vec::with_capacity(supplied);
+    sources.extend(
+        captures[capture_start..]
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(index, ty)| (AdaptationPoint::Capture(index + capture_start), ty)),
+    );
+    sources.extend(
+        parameters[parameter_start..]
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(index, ty)| (AdaptationPoint::Parameter(index + parameter_start), ty)),
+    );
+    let mut adaptations = sources
+        .into_iter()
+        .zip(implementation)
+        .map(|((point, from), to)| {
+            compile_conversion(point, &from, &to)
+                .map(|adaptation| LocatedJvmAdaptation { point, adaptation })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if let (Some(from), Some(to)) = (receiver_source, receiver_descriptor) {
+        adaptations.insert(
+            0,
+            LocatedJvmAdaptation {
+                point: AdaptationPoint::Receiver,
+                adaptation: compile_conversion(AdaptationPoint::Receiver, &from, to)?,
+            },
+        );
+    }
+    let result_adaptation = if invocation_result == "V" {
+        (implementation_result != "V").then_some(JvmAdaptation::DropValue)
+    } else if implementation_result == "V" {
+        return Err(JvmAdaptationError::VoidToValue {
+            point: AdaptationPoint::Return,
+            required: invocation_result,
+        });
+    } else {
+        Some(compile_conversion(
+            AdaptationPoint::Return,
+            &implementation_result,
+            &invocation_result,
+        )?)
+    };
+    if let Some(adaptation) = result_adaptation {
+        adaptations.push(LocatedJvmAdaptation {
+            point: AdaptationPoint::Return,
+            adaptation,
+        });
+    }
+    Ok(JvmFunctionPlan {
+        neutral,
+        body: JvmFunctionPolicyBody {
+            adaptations: adaptations.into_boxed_slice(),
+        },
+    })
+}
+
+fn adaptation_descriptor(
+    role: &'static str,
+    descriptor: &str,
+) -> Result<(Vec<String>, String), JvmAdaptationError> {
+    split_method_descriptor(descriptor).map_err(|_| JvmAdaptationError::InvalidDescriptor {
+        role,
+        descriptor: descriptor.into(),
+    })
+}
+
+fn compile_conversion(
+    point: AdaptationPoint,
+    from: &str,
+    to: &str,
+) -> Result<JvmAdaptation, JvmAdaptationError> {
+    if from == to {
+        return Ok(JvmAdaptation::Identity);
+    }
+    if is_reference(from) && is_reference(to) {
+        return Ok(JvmAdaptation::ReferenceCast {
+            from: from.into(),
+            to: to.into(),
+        });
+    }
+    if let (Some(from), Some(to)) = (primitive(from), primitive(to)) {
+        if primitive_widens(from, to) {
+            return Ok(JvmAdaptation::PrimitiveWiden { from, to });
+        }
+    }
+    if let (Some(primitive), true) = (primitive(from), is_reference(to)) {
+        if wrapper_primitive(to).is_some_and(|wrapped| wrapped == primitive)
+            || to == "Ljava/lang/Object;"
+        {
+            return Ok(JvmAdaptation::Box {
+                primitive,
+                reference: to.into(),
+            });
+        }
+    }
+    if is_reference(from)
+        && let (Some(unboxed), Some(target)) = (wrapper_primitive(from), primitive(to))
+        && (unboxed == target || primitive_widens(unboxed, target))
+    {
+        return Ok(JvmAdaptation::Unbox {
+            reference: from.into(),
+            primitive: target,
+        });
+    }
+    Err(JvmAdaptationError::UnsupportedConversion {
+        point,
+        from: from.into(),
+        to: to.into(),
+    })
+}
+
+fn primitive(descriptor: &str) -> Option<char> {
+    (descriptor.len() == 1)
+        .then(|| descriptor.chars().next().unwrap())
+        .filter(|value| matches!(value, 'B' | 'C' | 'D' | 'F' | 'I' | 'J' | 'S' | 'Z'))
+}
+
+fn primitive_widens(from: char, to: char) -> bool {
+    matches!(
+        (from, to),
+        ('B', 'S' | 'I' | 'J' | 'F' | 'D')
+            | ('S' | 'C', 'I' | 'J' | 'F' | 'D')
+            | ('I', 'J' | 'F' | 'D')
+            | ('J', 'F' | 'D')
+            | ('F', 'D')
+    )
+}
+
+fn wrapper_primitive(descriptor: &str) -> Option<char> {
+    Some(match descriptor {
+        "Ljava/lang/Boolean;" => 'Z',
+        "Ljava/lang/Byte;" => 'B',
+        "Ljava/lang/Character;" => 'C',
+        "Ljava/lang/Short;" => 'S',
+        "Ljava/lang/Integer;" => 'I',
+        "Ljava/lang/Long;" => 'J',
+        "Ljava/lang/Float;" => 'F',
+        "Ljava/lang/Double;" => 'D',
+        _ => return None,
+    })
 }
 
 /// Access-checked, loader-bound implementation target retained by lambda linkage.
@@ -856,7 +1203,139 @@ mod tests {
     use super::*;
     use crate::{ClassLoader, JavaClassMetadata, JvmRole, resolution::SymbolicConstant};
     use sim_kernel::{Cx, DefaultFactory, NoopEvalPolicy};
+    use sim_lib_function::{CallMode, CaptureDescriptor, ParameterDescriptor, ParameterKind};
     use sim_lib_gc_tracing::CollectionLimits;
+
+    fn neutral_plan(captures: usize, parameters: usize) -> FunctionPlan {
+        FunctionPlan::new(
+            sim_kernel::Symbol::new("jvm:test"),
+            (0..parameters)
+                .map(|index| {
+                    ParameterDescriptor::new(
+                        sim_kernel::Symbol::new(format!("p{index}")),
+                        ParameterKind::Required,
+                        CallMode::POSITIONAL,
+                        None,
+                    )
+                })
+                .collect(),
+            (0..captures)
+                .map(|index| {
+                    CaptureDescriptor::new(sim_kernel::Symbol::new(format!("c{index}")), None)
+                })
+                .collect(),
+            None,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn compiles_capture_receiver_parameter_and_return_policy_over_neutral_plan() {
+        let compiled = compile_jvm_function_plan(
+            neutral_plan(2, 2),
+            "(Ljava/lang/String;I)Lexample/Fn;",
+            "(Ljava/lang/Integer;I)Ljava/lang/Integer;",
+            "(JILjava/lang/Object;)I",
+            DirectReceiver::Bound,
+            Some("Ljava/lang/Object;"),
+        )
+        .unwrap();
+        assert_eq!(compiled.neutral().captures().len(), 2);
+        assert_eq!(
+            compiled.body().adaptations(),
+            [
+                LocatedJvmAdaptation {
+                    point: AdaptationPoint::Receiver,
+                    adaptation: JvmAdaptation::ReferenceCast {
+                        from: "Ljava/lang/String;".into(),
+                        to: "Ljava/lang/Object;".into(),
+                    },
+                },
+                LocatedJvmAdaptation {
+                    point: AdaptationPoint::Capture(1),
+                    adaptation: JvmAdaptation::PrimitiveWiden { from: 'I', to: 'J' },
+                },
+                LocatedJvmAdaptation {
+                    point: AdaptationPoint::Parameter(0),
+                    adaptation: JvmAdaptation::Unbox {
+                        reference: "Ljava/lang/Integer;".into(),
+                        primitive: 'I',
+                    },
+                },
+                LocatedJvmAdaptation {
+                    point: AdaptationPoint::Parameter(1),
+                    adaptation: JvmAdaptation::Box {
+                        primitive: 'I',
+                        reference: "Ljava/lang/Object;".into(),
+                    },
+                },
+                LocatedJvmAdaptation {
+                    point: AdaptationPoint::Return,
+                    adaptation: JvmAdaptation::Box {
+                        primitive: 'I',
+                        reference: "Ljava/lang/Integer;".into(),
+                    },
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn forbidden_narrowing_and_void_to_value_fail_while_the_plan_is_compiled() {
+        assert_eq!(
+            compile_jvm_function_plan(
+                neutral_plan(0, 1),
+                "()Lexample/Fn;",
+                "(J)I",
+                "(I)I",
+                DirectReceiver::None,
+                None,
+            ),
+            Err(JvmAdaptationError::UnsupportedConversion {
+                point: AdaptationPoint::Parameter(0),
+                from: "J".into(),
+                to: "I".into(),
+            })
+        );
+        assert_eq!(
+            compile_jvm_function_plan(
+                neutral_plan(0, 0),
+                "()Lexample/Fn;",
+                "()I",
+                "()V",
+                DirectReceiver::None,
+                None,
+            ),
+            Err(JvmAdaptationError::VoidToValue {
+                point: AdaptationPoint::Return,
+                required: "I".into(),
+            })
+        );
+    }
+
+    #[test]
+    fn neutral_function_sources_contain_no_java_descriptor_vocabulary() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../sim-lib-function/src");
+        let forbidden = [
+            "java/lang",
+            "LambdaMetafactory",
+            "MethodType",
+            "invokedynamic",
+        ];
+        for entry in std::fs::read_dir(root).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().is_some_and(|extension| extension == "rs") {
+                let source = std::fs::read_to_string(&path).unwrap();
+                for vocabulary in forbidden {
+                    assert!(
+                        !source.contains(vocabulary),
+                        "neutral source {} contains JVM vocabulary {vocabulary}",
+                        path.display()
+                    );
+                }
+            }
+        }
+    }
 
     fn fixture() -> (SiteKey, ClassLoader) {
         let loader = ClassLoader::new(4096);
