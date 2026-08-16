@@ -5,7 +5,10 @@ use std::{
     sync::{Arc, Weak},
 };
 
-use sim_kernel::{ClassId, ClassRef, Cx, Error, Ref, ShapeRef, Symbol, Value};
+use sim_kernel::{
+    Args, Callable, CapabilityName, ClassId, ClassRef, Cx, Error, Object, ObjectCompat, Ref,
+    ShapeRef, Symbol, Value,
+};
 use sim_lib_class::{
     ClassDescriptor, ClassDescriptorInput, ClassIdentity, DeclaredParent, DescriptorClass,
     MemberShape, OpenMetadataEntry,
@@ -21,6 +24,178 @@ use crate::{
     ConstantResolutionKind, InvocationError, JavaMember, JvmGraphError, JvmHeap, JvmValue,
     ResolutionCache,
 };
+
+/// Capability required to project a SIM callable as a Java functional interface.
+///
+/// Calling an already linked Java lambda from SIM uses [`crate::jvm_invoke_capability`].
+/// Manufacturing a new loader-owned Java class is a distinct authority boundary.
+pub fn jvm_functional_adapter_capability() -> CapabilityName {
+    CapabilityName::new("jvm.functional-adapter")
+}
+
+/// Java-facing completion from a linked lambda invoked through ordinary SIM `Callable`.
+#[derive(Clone, Debug)]
+pub enum JavaLambdaCallOutcome {
+    /// The SAM returned one value.
+    Returned(JvmValue),
+    /// The JVM stopped at a safepoint. The continuation remains owned by the JVM caller.
+    Interrupted,
+    /// Java raised a throwable; its stable Java-facing diagnostic is preserved.
+    Threw(String),
+}
+
+/// A linked Java lambda projected through the kernel `FUNCTION_2` callable boundary.
+pub struct JavaLambdaCallable {
+    argument_shapes: Vec<ShapeRef>,
+    result_shape: Option<ShapeRef>,
+    invoke: Arc<dyn Fn(&mut Cx, Vec<JvmValue>) -> JavaLambdaCallOutcome + Send + Sync>,
+}
+
+impl JavaLambdaCallable {
+    /// Creates a projection over an already linked, rooted Java lambda target.
+    pub fn new(
+        argument_shapes: Vec<ShapeRef>,
+        result_shape: Option<ShapeRef>,
+        invoke: impl Fn(&mut Cx, Vec<JvmValue>) -> JavaLambdaCallOutcome + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            argument_shapes,
+            result_shape,
+            invoke: Arc::new(invoke),
+        }
+    }
+}
+
+impl Object for JavaLambdaCallable {
+    fn display(&self, _cx: &mut Cx) -> sim_kernel::Result<String> {
+        Ok("#<jvm-lambda>".into())
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl ObjectCompat for JavaLambdaCallable {
+    fn as_callable(&self) -> Option<&dyn Callable> {
+        Some(self)
+    }
+}
+
+impl Callable for JavaLambdaCallable {
+    fn call(&self, cx: &mut Cx, args: Args) -> sim_kernel::Result<Value> {
+        cx.require(&crate::jvm_invoke_capability())?;
+        let arguments = args.into_vec();
+        if arguments.len() != self.argument_shapes.len() {
+            return Err(Error::Eval(format!(
+                "JVM lambda Shape arity mismatch: expected {}, got {}",
+                self.argument_shapes.len(),
+                arguments.len()
+            )));
+        }
+        for (index, (shape, value)) in self
+            .argument_shapes
+            .iter()
+            .zip(arguments.iter())
+            .enumerate()
+        {
+            let Some(checker) = shape.object().as_shape() else {
+                return Err(Error::Eval(format!(
+                    "JVM lambda argument {index} Shape is not a Shape"
+                )));
+            };
+            if !checker.check_value(cx, value.clone())?.accepted {
+                return Err(Error::Eval(format!(
+                    "JVM lambda argument {index} failed its Shape"
+                )));
+            }
+        }
+        let values = arguments.into_iter().map(JvmValue::Kernel).collect();
+        match (self.invoke)(cx, values) {
+            JavaLambdaCallOutcome::Returned(JvmValue::Kernel(value)) => {
+                if let Some(shape) = &self.result_shape {
+                    let Some(checker) = shape.object().as_shape() else {
+                        return Err(Error::Eval("JVM lambda result Shape is not a Shape".into()));
+                    };
+                    if !checker.check_value(cx, value.clone())?.accepted {
+                        return Err(Error::Eval("JVM lambda result failed its Shape".into()));
+                    }
+                }
+                Ok(value)
+            }
+            JavaLambdaCallOutcome::Returned(_) => Err(Error::Eval(
+                "JVM lambda returned a non-SIM value without descriptor conversion".into(),
+            )),
+            JavaLambdaCallOutcome::Interrupted => Err(Error::Eval(
+                "JVM lambda interrupted; resume it through the JVM continuation".into(),
+            )),
+            JavaLambdaCallOutcome::Threw(error) => {
+                Err(Error::Eval(format!("Java lambda threw: {error}")))
+            }
+        }
+    }
+
+    fn browse_args_shape(&self, _cx: &mut Cx) -> sim_kernel::Result<Option<ShapeRef>> {
+        Ok((self.argument_shapes.len() == 1).then(|| self.argument_shapes[0].clone()))
+    }
+
+    fn browse_result_shape(&self, _cx: &mut Cx) -> sim_kernel::Result<Option<ShapeRef>> {
+        Ok(self.result_shape.clone())
+    }
+}
+
+/// An admitted SIM callable paired with its managed generated Java class.
+pub struct SimFunctionalAdapter {
+    callable: Value,
+    class: Arc<GeneratedLambdaClass>,
+}
+
+impl SimFunctionalAdapter {
+    /// Loader-owned generated class implementing the admitted SAM.
+    pub fn generated_class(&self) -> &Arc<GeneratedLambdaClass> {
+        &self.class
+    }
+
+    /// Invokes the SIM function from Java after descriptor conversion to kernel values.
+    pub fn invoke(&self, cx: &mut Cx, arguments: Vec<JvmValue>) -> JavaLambdaCallOutcome {
+        let mut converted = Vec::with_capacity(arguments.len());
+        for argument in arguments {
+            let JvmValue::Kernel(value) = argument else {
+                return JavaLambdaCallOutcome::Threw(
+                    "functional-interface argument lacks admitted descriptor conversion".into(),
+                );
+            };
+            converted.push(value);
+        }
+        let Some(callable) = self.callable.object().as_callable() else {
+            return JavaLambdaCallOutcome::Threw("adapted SIM value is no longer Callable".into());
+        };
+        match callable.call(cx, Args::new(converted)) {
+            Ok(value) => JavaLambdaCallOutcome::Returned(JvmValue::Kernel(value)),
+            Err(error) => JavaLambdaCallOutcome::Threw(error.to_string()),
+        }
+    }
+}
+
+/// Admits a SIM callable as a Java SAM, generating its managed class only after authority checks.
+///
+/// `generate` must perform functional-interface discovery, descriptor validation, and
+/// loader-local class construction. It is deliberately not called on any refusal path.
+pub fn adapt_sim_callable_as_functional_interface(
+    cx: &mut Cx,
+    callable: Value,
+    generate: impl FnOnce() -> Result<Arc<GeneratedLambdaClass>, FunctionalInterfaceError>,
+) -> Result<SimFunctionalAdapter, FunctionalInterfaceError> {
+    cx.require(&jvm_functional_adapter_capability())
+        .map_err(|error| FunctionalInterfaceError::InteropRefused(error.to_string()))?;
+    if callable.object().as_callable().is_none() {
+        return Err(FunctionalInterfaceError::InteropRefused(
+            "SIM value does not project FUNCTION_2 Callable".into(),
+        ));
+    }
+    let class = generate()?;
+    Ok(SimFunctionalAdapter { callable, class })
+}
 
 /// Receiver placement retained by a resolved direct implementation handle.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1376,6 +1551,8 @@ pub struct FunctionalInterface {
 /// Fail-closed functional-interface and metafactory type validation error.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FunctionalInterfaceError {
+    /// SIM-to-Java interop was refused before generated class construction.
+    InteropRefused(String),
     /// A required class is absent from the caller's already-loaded view.
     MissingClass(String),
     /// The call-site return or marker type is not an interface.
@@ -2010,6 +2187,36 @@ mod tests {
             None,
         )
         .unwrap()
+    }
+
+    #[test]
+    fn java_lambda_is_an_ordinary_callable_and_sim_adapter_refuses_before_generation() {
+        let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        cx.grant(crate::jvm_invoke_capability());
+        let shape = cx.factory().opaque(Arc::new(AnyShape)).unwrap();
+        let lambda = JavaLambdaCallable::new(vec![shape], None, |_cx, mut args| {
+            JavaLambdaCallOutcome::Returned(args.remove(0))
+        });
+        let expected = cx.factory().string("shared function".into()).unwrap();
+        let actual = lambda
+            .call(&mut cx, Args::new(vec![expected.clone()]))
+            .unwrap();
+        assert_eq!(
+            actual.object().display(&mut cx).unwrap(),
+            expected.object().display(&mut cx).unwrap()
+        );
+
+        let value = cx.factory().opaque(Arc::new(lambda)).unwrap();
+        let generated = std::sync::atomic::AtomicBool::new(false);
+        let refused = adapt_sim_callable_as_functional_interface(&mut cx, value, || {
+            generated.store(true, std::sync::atomic::Ordering::SeqCst);
+            unreachable!("generation must follow capability admission")
+        });
+        assert!(matches!(
+            refused,
+            Err(FunctionalInterfaceError::InteropRefused(_))
+        ));
+        assert!(!generated.load(std::sync::atomic::Ordering::SeqCst));
     }
 
     #[test]

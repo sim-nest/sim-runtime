@@ -1,0 +1,5 @@
+; The recipe harness supplies `java/apply-twice`, whose parameter is an admitted
+; Java functional interface, and grants jvm.functional-adapter to this run.
+(define add-one (lambda (value) (+ value 1)))
+(java/apply-twice add-one 40)
+; => 42
