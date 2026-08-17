@@ -53,6 +53,11 @@ profile = "lang/julia-core/v1"
 evidence = "crates/sim-lib-lang-julia/src/profile.rs"
 ownership = []
 [[guest]]
+crate = "sim-lib-lang-jvm"
+profile = "lang/jvm/v1"
+evidence = "crates/sim-lib-lang-jvm/src/surface.rs"
+ownership = []
+[[guest]]
 crate = "sim-lib-lang-prolog"
 profile = "lang/prolog/v1"
 evidence = "crates/sim-lib-lang-prolog/src/profile.rs"

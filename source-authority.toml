@@ -53,6 +53,11 @@ status = "unwired"
 reason = "The profile has no dynamic-source entry point."
 
 [[guest]]
+crate = "sim-lib-lang-jvm"
+status = "unwired"
+reason = "Classfile bytes enter through explicit jvm.class.load rather than dynamic source admission."
+
+[[guest]]
 crate = "sim-lib-lang-prolog"
 status = "unwired"
 reason = "Queries use the logic organ rather than dynamic source admission."
