@@ -23,8 +23,8 @@ contracts instead of copying them.
 
 ## Field-by-field migration ledger
 
-Every field in the four discovered guest records is classified. “Neutral” means
-the shared plan/instance may own an equivalent descriptor; “policy” means the
+Every field in the four discovered guest records is classified. "Neutral" means
+the shared plan/instance may own an equivalent descriptor; "policy" means the
 guest retains the field or interprets its neutral descriptor.
 
 | Guest record | Current field | Classification | Frozen treatment |

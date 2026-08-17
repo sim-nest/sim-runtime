@@ -197,8 +197,8 @@ fn text_pattern_dialects_fail_closed_on_malformed_patterns() {
 
 #[test]
 fn lua_current_behavior_is_a_stable_characterization_capture() {
-    let unicode = compile_lua_pattern("(😀+)").unwrap();
-    let unicode_match = text_match(&unicode, "x😀😀y").unwrap();
+    let unicode = compile_lua_pattern("(\u{1f600}+)").unwrap();
+    let unicode_match = text_match(&unicode, "x\u{1f600}\u{1f600}y").unwrap();
     let greedy = text_span(&compile_lua_pattern("a*a").unwrap(), "aaa");
     let lazy = text_span(&compile_lua_pattern("a-a").unwrap(), "aaa");
     let empty = text_span(&compile_lua_pattern("a-").unwrap(), "aaa");
@@ -268,7 +268,10 @@ fn lua_current_behavior_is_a_stable_characterization_capture() {
 
 #[test]
 fn glob_current_behavior_is_a_stable_characterization_capture() {
-    let unicode = text_span(&compile_glob_pattern("?😀*").unwrap(), "å😀x");
+    let unicode = text_span(
+        &compile_glob_pattern("?\u{1f600}*").unwrap(),
+        "\u{e5}\u{1f600}x",
+    );
     let empty = text_span(&compile_glob_pattern("*").unwrap(), "");
     let rejected = text_span(&compile_glob_pattern("*.rs").unwrap(), "lib.py");
     let limited = run_text_pattern(

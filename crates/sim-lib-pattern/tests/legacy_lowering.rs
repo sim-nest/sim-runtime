@@ -18,7 +18,7 @@ fn legacy_lua_programs_lower_without_changing_observations() {
         ("a-", "aaa", Some((0, 0))),
         ("%b()", "x(a(b)c)y", Some((1, 8))),
         ("%f[%a]cat", "1cat", Some((1, 4))),
-        ("(😀+)", "x😀😀y", Some((1, 9))),
+        ("(\u{1f600}+)", "x\u{1f600}\u{1f600}y", Some((1, 9))),
     ];
     for (pattern, subject, expected) in cases {
         assert_eq!(

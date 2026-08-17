@@ -85,7 +85,7 @@ fn adversarial_ambiguity_stops_with_an_exact_bounded_work_receipt() {
 fn offsets_remain_exact_in_all_three_subject_domains() {
     let bytes = PatternIr::<ByteDomain, ()>::new(
         IrNode::Concat(
-            "😀x"
+            "\u{1f600}x"
                 .as_bytes()
                 .iter()
                 .copied()
@@ -96,30 +96,34 @@ fn offsets_remain_exact_in_all_three_subject_domains() {
         &EnginePolicy::new([]),
     )
     .unwrap();
-    let DomainExecutionOutcome::Match { matched: bytes, .. } =
-        execute_bytes(&compile(&bytes), "😀x".as_bytes(), limits(128), |_, _| {
-            false
-        })
-    else {
+    let DomainExecutionOutcome::Match { matched: bytes, .. } = execute_bytes(
+        &compile(&bytes),
+        "\u{1f600}x".as_bytes(),
+        limits(128),
+        |_, _| false,
+    ) else {
         panic!("byte lowering must match");
     };
 
     let scalars = PatternIr::<ScalarDomain, ()>::new(
-        IrNode::Concat(vec![IrNode::Symbol('😀'), IrNode::Symbol('x')]),
+        IrNode::Concat(vec![IrNode::Symbol('\u{1f600}'), IrNode::Symbol('x')]),
         BTreeMap::new(),
         &EnginePolicy::new([]),
     )
     .unwrap();
     let DomainExecutionOutcome::Match {
         matched: scalars, ..
-    } = execute_scalars(&compile(&scalars), &['😀', 'x'], limits(128), |_, _| {
-        false
-    })
+    } = execute_scalars(
+        &compile(&scalars),
+        &['\u{1f600}', 'x'],
+        limits(128),
+        |_, _| false,
+    )
     else {
         panic!("scalar lowering must match");
     };
 
-    let units = CodeUnitString::from_scalar("😀x");
+    let units = CodeUnitString::from_scalar("\u{1f600}x");
     let code_units = PatternIr::<CodeUnitDomain, ()>::new(
         IrNode::Concat(
             units

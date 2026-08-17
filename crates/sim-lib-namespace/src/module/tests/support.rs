@@ -202,7 +202,7 @@ fn identity_specifier_policy_preserves_every_landed_specifier_byte_for_byte() {
         "./sibling.sim",
         "../parent.sim",
         "with spaces.sim",
-        "unicodé.sim",
+        "unicod\u{e9}.sim",
     ] {
         let request =
             SpecifierPolicyRequest::new(Some(importer.clone()), vec![specifier.to_owned()])

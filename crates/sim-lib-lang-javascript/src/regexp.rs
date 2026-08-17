@@ -499,8 +499,8 @@ mod tests {
     }
     #[test]
     fn shared_regular_features_report_code_unit_spans() {
-        let regexp = JavascriptRegExp::compile(r"^(?:ab|😀){2,3}(c+?)$", "").unwrap();
-        let matched = regexp.find("ab😀cc", 0, 10_000).unwrap();
+        let regexp = JavascriptRegExp::compile("^(?:ab|\u{1f600}){2,3}(c+?)$", "").unwrap();
+        let matched = regexp.find("ab\u{1f600}cc", 0, 10_000).unwrap();
         assert_eq!((matched.start, matched.end), (0, 6));
         assert_eq!(matched.captures, [(4, 6)]);
         assert!(regexp.find("xababcc", 0, 10_000).is_none());
@@ -548,8 +548,8 @@ mod tests {
 
     #[test]
     fn current_regexp_behavior_is_a_stable_characterization_capture() {
-        let unicode = JavascriptRegExp::compile("😀+", "").unwrap();
-        let unicode_match = unicode.find("x😀😀y", 0, 1_000).unwrap();
+        let unicode = JavascriptRegExp::compile("\u{1f600}+", "").unwrap();
+        let unicode_match = unicode.find("x\u{1f600}\u{1f600}y", 0, 1_000).unwrap();
         let greedy = JavascriptRegExp::compile("a*a", "")
             .unwrap()
             .find("aaa", 0, 1_000);
