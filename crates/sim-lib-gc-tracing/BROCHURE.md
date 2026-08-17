@@ -16,3 +16,8 @@ The crate supplies stop-the-world collection policy for `sim-lib-mutation`'s lan
 ## Where it fits
 
 Use this loadable policy when a language profile or host selects tracing collection for managed objects. Mutation and arena ownership remain in `sim-lib-mutation`; language object semantics remain in their profiles; the kernel gains no garbage-collector API or heap implementation.
+
+`ManagedHeap<T>` is the shared policy wrapper around that arena. Choose bounded
+tracing for cyclic production graphs or the explicit hard-capped retain policy
+for minimal closures. Guest libraries extend the shared node and heap with
+language-named operations; they do not clone either substrate.

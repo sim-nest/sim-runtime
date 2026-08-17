@@ -1,3 +1,5 @@
+// conformance: the Julia profile composes the shared runtime organs.
+
 use std::sync::Arc;
 
 use sim_kernel::{

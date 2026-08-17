@@ -6,6 +6,14 @@ In one line: It manages how a running program moves -- pausing, resuming, retryi
 
 This library shapes the flow of work inside SIM. It lets a computation pause and pick up later, hand values back and forth as it goes, explore several possibilities and back out of the ones that fail, and jump straight out of deep nesting when that is the clearest thing to do. It also handles trouble in an orderly way, offering named ways to recover instead of simply stopping. Together these turn awkward control situations -- long-running steps, search, cleanup, and error handling -- into ordinary, describable pieces you can reason about.
 
+Every guest raises the same non-recursive `Raised` envelope. It obtains the
+raised class from the guest's class descriptor, keeps the ordinary guest object
+as the payload, and records causes, contexts, groups, and suppressed values as
+stable managed edges through `ManagedException`. The bounded class matcher then
+selects handlers from descriptor lineage. A new guest composes these three
+parts instead of declaring another throwable carrier or recursive relation
+chain.
+
 ## Why you will be glad
 
 - Long or paused work can resume where it left off without losing its place.

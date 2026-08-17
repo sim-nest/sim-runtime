@@ -1,0 +1,6 @@
+(expr:map
+  [kind "characterization-migration-contract"]
+  [workflow [capture-before refactor capture-after compare-strict]]
+  [identity content-addressed]
+  [observations [value-or-failure events receipts browse]]
+  [mismatch [stable-path left-canonical-value right-canonical-value failure-location]])

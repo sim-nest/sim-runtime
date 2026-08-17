@@ -5,11 +5,11 @@ use sim_kernel::{Args, Cx, Result, Value};
 /// Protected calls turn ordinary kernel call failures into language-neutral
 /// raised values supplied by the caller's error mapper.
 #[derive(Clone, Debug)]
-pub enum ProtectedOutcome {
+pub enum ProtectedOutcome<E = Value> {
     /// The callable returned normally.
     Returned(Vec<Value>),
     /// The callable raised a mapped error value.
-    Raised(Value),
+    Raised(E),
 }
 
 /// Calls `function` and maps kernel errors into a returned protected outcome.
@@ -23,6 +23,19 @@ pub fn protected_call(
     args: Args,
     map_error: impl FnOnce(&mut Cx, sim_kernel::Error) -> Result<Value>,
 ) -> Result<ProtectedOutcome> {
+    protected_call_with(cx, function, args, map_error)
+}
+
+/// Calls `function` while allowing a typed raised payload at the boundary.
+///
+/// This is the generic seam used by [`crate::RaisedProtectedOutcome`]; the
+/// original [`protected_call`] remains source-compatible for ordinary values.
+pub fn protected_call_with<E>(
+    cx: &mut Cx,
+    function: Value,
+    args: Args,
+    map_error: impl FnOnce(&mut Cx, sim_kernel::Error) -> Result<E>,
+) -> Result<ProtectedOutcome<E>> {
     match cx.call_value(function, args) {
         Ok(value) => Ok(ProtectedOutcome::Returned(vec![value])),
         Err(error) => Ok(ProtectedOutcome::Raised(map_error(cx, error)?)),

@@ -6,10 +6,12 @@
 | --- | --- | ---: | ---: |
 | `sim-incremental-core` | `workspace` | 0 | 0 |
 | `sim-lib-binding` | `workspace` | 0 | 0 |
+| `sim-lib-class` | `workspace` | 0 | 0 |
 | `sim-lib-control` | `workspace` | 0 | 0 |
 | `sim-lib-core` | `workspace` | 0 | 0 |
 | `sim-lib-dispatch` | `workspace` | 0 | 0 |
 | `sim-lib-exec` | `workspace` | 0 | 0 |
+| `sim-lib-function` | `workspace` | 0 | 0 |
 | `sim-lib-gc-tracing` | `workspace` | 0 | 0 |
 | `sim-lib-incremental` | `workspace` | 0 | 0 |
 | `sim-lib-lang-cl` | `workspace` | 0 | 0 |
@@ -18,6 +20,7 @@
 | `sim-lib-lang-islisp` | `workspace` | 0 | 0 |
 | `sim-lib-lang-javascript` | `workspace` | 0 | 0 |
 | `sim-lib-lang-julia` | `workspace` | 0 | 0 |
+| `sim-lib-lang-jvm` | `workspace` | 0 | 0 |
 | `sim-lib-lang-lua` | `workspace` | 0 | 0 |
 | `sim-lib-lang-matrix` | `workspace` | 0 | 0 |
 | `sim-lib-lang-prolog` | `workspace` | 1 | 1 |
@@ -27,6 +30,7 @@
 | `sim-lib-lang-typed-lazy` | `workspace` | 0 | 0 |
 | `sim-lib-lang-typescript` | `workspace` | 0 | 0 |
 | `sim-lib-logic` | `workspace` | 0 | 0 |
+| `sim-lib-machine` | `workspace` | 0 | 0 |
 | `sim-lib-mutation` | `workspace` | 0 | 0 |
 | `sim-lib-namespace` | `workspace` | 0 | 0 |
 | `sim-lib-pattern` | `workspace` | 0 | 0 |

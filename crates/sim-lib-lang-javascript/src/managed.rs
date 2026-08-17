@@ -1,10 +1,9 @@
-use sim_lib_gc_tracing::{CollectionError, CollectionLimits, CollectionReceipt, collect};
 use sim_lib_mutation::{
-    EdgeId, EdgeVisitor, HardCappedRetainPolicy, ManagedArena, ManagedHandle, ManagedId,
-    ManagedObject,
+    ArenaError, EdgeId, EphemeronMutationError, ManagedHandle, ManagedNode,
+    StrongEdgeMutationError, WeakEdgeMutationError,
 };
 
-/// Single-agent role of a managed JavaScript allocation.
+/// Open JavaScript role label carried by the shared managed node.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum JavascriptManagedKind {
     /// Ordinary cyclic object.
@@ -17,130 +16,160 @@ pub enum JavascriptManagedKind {
     /// Callable identity whose edges include its captured environment.
     Function,
 }
-/// Cyclic JavaScript payload stored exclusively by the shared arena.
-#[derive(Clone, Debug, Default)]
-pub struct JavascriptManagedObject {
-    /// Language role.
-    pub kind: JavascriptManagedKind,
-    /// Strong language edges.
-    pub edges: Vec<ManagedId>,
-}
-impl ManagedObject for JavascriptManagedObject {
-    fn trace_edges(&self, visitor: &mut dyn EdgeVisitor) {
-        for (i, target) in self.edges.iter().copied().enumerate() {
-            visitor.strong(EdgeId(i as u32), target);
-        }
-    }
-    fn clear_weak_edge(&mut self, _: EdgeId, _: ManagedId) -> bool {
-        false
-    }
-    fn clear_ephemeron_edge(&mut self, _: EdgeId, _: ManagedId, _: ManagedId) -> bool {
-        false
-    }
-}
-/// Explicit collection policy; collection is optional, never a load prerequisite.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum JavascriptHeapPolicy {
-    /// Shared tracing collector.
-    Tracing(CollectionLimits),
-    /// Retain until teardown, with an inspectable cycle gap.
-    Retain,
-}
-/// JavaScript cyclic state composed from the shared arena and collector.
-pub struct JavascriptHeap {
-    arena: ManagedArena<JavascriptManagedObject>,
-    policy: JavascriptHeapPolicy,
-}
-impl JavascriptHeap {
-    /// Create the standard bounded tracing configuration.
-    pub fn standard(
-        cap: usize,
-        limits: CollectionLimits,
-    ) -> Result<Self, sim_lib_mutation::ArenaError> {
-        Ok(Self {
-            arena: ManagedArena::new(HardCappedRetainPolicy::new(cap)?),
-            policy: JavascriptHeapPolicy::Tracing(limits),
-        })
-    }
-    /// Create the explicit retain configuration.
-    pub fn retaining(cap: usize) -> Result<Self, sim_lib_mutation::ArenaError> {
-        Ok(Self {
-            arena: ManagedArena::new(HardCappedRetainPolicy::new(cap)?),
-            policy: JavascriptHeapPolicy::Retain,
-        })
-    }
-    /// Allocate cyclic-capable state in the one shared owner.
-    pub fn allocate(
-        &mut self,
-        value: JavascriptManagedObject,
-    ) -> Result<ManagedHandle, sim_lib_mutation::ArenaError> {
-        self.arena.allocate(value)
-    }
-    /// Add a strong edge.
-    pub fn connect(
+
+/// Compatibility name for JavaScript's role-bearing shared managed node.
+pub type JavascriptManagedObject = ManagedNode<JavascriptManagedKind>;
+
+/// Compatibility name for the shared managed heap instantiated for JavaScript.
+pub type JavascriptHeap = sim_lib_gc_tracing::ManagedHeap<JavascriptManagedObject>;
+
+/// Compatibility name for the shared heap policy.
+pub type JavascriptHeapPolicy = sim_lib_gc_tracing::ManagedHeapPolicy;
+
+/// JavaScript-named graph operations over the shared heap and node.
+pub trait JavascriptHeapExt {
+    /// Adds a checked strong edge and returns its stable edge identity.
+    fn connect(
         &mut self,
         from: ManagedHandle,
         to: ManagedHandle,
-    ) -> Result<(), sim_lib_mutation::ArenaError> {
-        self.arena.get_mut(from)?.edges.push(to.id());
-        Ok(())
+    ) -> Result<EdgeId, JavascriptManagedMutationError>;
+
+    /// Adds a checked weak edge and returns its stable edge identity.
+    fn connect_weak(
+        &mut self,
+        from: ManagedHandle,
+        to: ManagedHandle,
+    ) -> Result<EdgeId, JavascriptManagedMutationError>;
+
+    /// Adds a checked ephemeron and returns its stable edge identity.
+    fn connect_ephemeron(
+        &mut self,
+        from: ManagedHandle,
+        key: ManagedHandle,
+        value: ManagedHandle,
+    ) -> Result<EdgeId, JavascriptManagedMutationError>;
+}
+
+/// A checked JavaScript managed-graph mutation failure.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum JavascriptManagedMutationError {
+    /// The owning allocation handle is stale.
+    Arena(ArenaError),
+    /// A strong edge could not be admitted.
+    Strong(StrongEdgeMutationError),
+    /// A weak edge could not be admitted.
+    Weak(WeakEdgeMutationError),
+    /// An ephemeron could not be admitted.
+    Ephemeron(EphemeronMutationError),
+}
+
+impl From<ArenaError> for JavascriptManagedMutationError {
+    fn from(value: ArenaError) -> Self {
+        Self::Arena(value)
     }
-    /// Number of live allocations.
-    pub fn live_len(&self) -> usize {
-        self.arena.len()
+}
+
+impl JavascriptHeapExt for JavascriptHeap {
+    fn connect(
+        &mut self,
+        from: ManagedHandle,
+        to: ManagedHandle,
+    ) -> Result<EdgeId, JavascriptManagedMutationError> {
+        self.get_mut(from)?
+            .insert_strong(to.id())
+            .map_err(JavascriptManagedMutationError::Strong)
     }
-    /// Selected policy.
-    pub const fn policy(&self) -> JavascriptHeapPolicy {
-        self.policy
+
+    fn connect_weak(
+        &mut self,
+        from: ManagedHandle,
+        to: ManagedHandle,
+    ) -> Result<EdgeId, JavascriptManagedMutationError> {
+        self.get_mut(from)?
+            .insert_weak(to.id())
+            .map_err(JavascriptManagedMutationError::Weak)
     }
-    /// Explicit retention gap when collection is disabled.
-    pub const fn cycle_leak_gap(&self) -> Option<&'static str> {
-        match self.policy {
-            JavascriptHeapPolicy::Retain => {
-                Some("unreachable JavaScript cycles are retained until teardown")
-            }
-            JavascriptHeapPolicy::Tracing(_) => None,
-        }
-    }
-    /// Run a synchronous safepoint.
-    pub fn collect(&mut self) -> Result<Option<CollectionReceipt>, CollectionError> {
-        match self.policy {
-            JavascriptHeapPolicy::Tracing(l) => collect(&mut self.arena, l).map(Some),
-            JavascriptHeapPolicy::Retain => Ok(None),
-        }
+
+    fn connect_ephemeron(
+        &mut self,
+        from: ManagedHandle,
+        key: ManagedHandle,
+        value: ManagedHandle,
+    ) -> Result<EdgeId, JavascriptManagedMutationError> {
+        self.get_mut(from)?
+            .insert_ephemeron(key.id(), value.id())
+            .map_err(JavascriptManagedMutationError::Ephemeron)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sim_lib_gc_tracing::CollectionLimits;
+
     fn limits() -> CollectionLimits {
         CollectionLimits {
             objects: 8,
-            edges: 8,
+            edges: 16,
             stack: 8,
-            work: 32,
+            work: 64,
             clears: 8,
             finalizers: 0,
         }
     }
+
     #[test]
-    fn shared_collector_reclaims_cycles() {
-        let mut h = JavascriptHeap::standard(8, limits()).unwrap();
-        let a = h.allocate(JavascriptManagedObject::default()).unwrap();
-        let b = h.allocate(JavascriptManagedObject::default()).unwrap();
-        h.connect(a, b).unwrap();
-        h.connect(b, a).unwrap();
-        assert_eq!(h.collect().unwrap().unwrap().swept.len(), 2);
-    }
-    #[test]
-    fn retention_gap_is_explicit() {
-        assert!(
-            JavascriptHeap::retaining(2)
-                .unwrap()
-                .cycle_leak_gap()
-                .unwrap()
-                .contains("cycles")
+    fn shared_node_preserves_strong_cycle_behavior() {
+        let mut heap = JavascriptHeap::tracing(8, limits()).unwrap();
+        let first = heap
+            .allocate(JavascriptManagedObject::new(JavascriptManagedKind::Object))
+            .unwrap();
+        let second = heap
+            .allocate(JavascriptManagedObject::new(JavascriptManagedKind::Object))
+            .unwrap();
+        heap.connect(first, second).unwrap();
+        heap.connect(second, first).unwrap();
+        assert_eq!(
+            heap.collect().unwrap().unwrap().swept,
+            [first.id(), second.id()]
         );
+    }
+
+    #[test]
+    fn shared_heap_preserves_explicit_retention_gap() {
+        let mut heap = JavascriptHeap::retaining(2).unwrap();
+        heap.allocate(JavascriptManagedObject::new(JavascriptManagedKind::Object))
+            .unwrap();
+        assert!(heap.cycle_leak_gap().unwrap().contains("cycles"));
+        assert_eq!(heap.collect().unwrap(), None);
+        assert_eq!(heap.live_len(), 1);
+    }
+
+    #[test]
+    fn javascript_weak_and_ephemeron_edges_clear_on_shared_collector() {
+        let mut heap = JavascriptHeap::tracing(8, limits()).unwrap();
+        let owner = heap
+            .allocate(JavascriptManagedObject::new(JavascriptManagedKind::Object))
+            .unwrap();
+        let weak_target = heap
+            .allocate(JavascriptManagedObject::new(JavascriptManagedKind::Object))
+            .unwrap();
+        let key = heap
+            .allocate(JavascriptManagedObject::new(JavascriptManagedKind::Object))
+            .unwrap();
+        let value = heap
+            .allocate(JavascriptManagedObject::new(JavascriptManagedKind::Object))
+            .unwrap();
+        let weak = heap.connect_weak(owner, weak_target).unwrap();
+        let ephemeron = heap.connect_ephemeron(owner, key, value).unwrap();
+        let root = heap.root(owner).unwrap();
+
+        let receipt = heap.collect().unwrap().unwrap();
+        assert_eq!(receipt.swept, [weak_target.id(), key.id(), value.id()]);
+        assert_eq!(receipt.cleared_weak, [(owner.id(), weak)]);
+        assert_eq!(receipt.cleared_ephemerons, [(owner.id(), ephemeron)]);
+        assert!(heap.get(owner).unwrap().edge_snapshot().is_empty());
+        heap.release_root(root).unwrap();
     }
 }

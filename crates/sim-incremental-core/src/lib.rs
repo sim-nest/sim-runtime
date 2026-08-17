@@ -9,6 +9,25 @@
 //! tokens, and bounded graph snapshots without depending on SIM expressions,
 //! codecs, Table/Dir storage, web surfaces, or expression-tree records.
 //!
+//! # Dataflow reuse and cycle boundary
+//!
+//! Dataflow extensions reuse this crate's existing ownership ledger instead of
+//! defining parallel protocol types:
+//!
+//! - fingerprint: [`ValueFingerprint`]
+//! - observation: [`Observation`]
+//! - revision: [`Revision`]
+//! - budget: [`QueryBudgets`]
+//! - continuation: [`ContinuationToken`]
+//! - snapshot: [`GraphSnapshot`]
+//!
+//! A cycle in a dataflow graph is valid when its edges carry monotone lattice
+//! facts: repeatedly joining those facts must converge at a fixed point. That
+//! worklist-level feedback does not recursively enter query callbacks. By
+//! contrast, a query dependency cycle occurs when a [`QueryFrame::read`] tries
+//! to re-enter a query already on the active query stack. It is a programming
+//! error reported as [`IncrementalError::Cycle`], not a fixed-point request.
+//!
 //! # Examples
 //!
 //! ```
@@ -26,6 +45,7 @@
 //! ```
 
 mod budget;
+pub mod dataflow;
 mod engine;
 mod error;
 mod fingerprint;

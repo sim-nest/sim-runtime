@@ -1,0 +1,8 @@
+id = "collection-owner-composition"
+title = "Compose JavaScript collections with shared sequence storage"
+codec = "javascript"
+setup = "setup.js"
+purpose = "purpose.md"
+order = 30
+tags = ["javascript", "array", "map", "set", "sequence", "composition"]
+requires = ["codec/javascript", "lang/javascript-core/v1", "organ/sequence/v1"]

@@ -2,7 +2,27 @@
 
 use sim_kernel::{Error, Result};
 
-use crate::{PatternDialect, TextClass, TextOp};
+use crate::{
+    Anchor, CaptureId, EnginePolicy, IrNode, PatternDialect, PatternIr, RepeatBounds, ScalarDomain,
+    TextClass, TextOp,
+};
+use std::collections::BTreeMap;
+
+/// Lua-only operations admitted by the shared text automaton.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum LuaExtension {
+    /// Match one character from a Lua character class.
+    Class(TextClass),
+    /// Match a delimiter pair, including nested pairs.
+    Balanced {
+        /// Opening delimiter.
+        open: char,
+        /// Closing delimiter.
+        close: char,
+    },
+    /// Assert a transition from outside to inside a Lua character class.
+    Frontier(TextClass),
+}
 
 /// Compiler for Lua-style text patterns.
 #[derive(Clone, Copy, Debug, Default)]
@@ -10,6 +30,14 @@ pub struct LuaPatternDialect;
 
 impl PatternDialect for LuaPatternDialect {
     fn compile(&self, pattern: &str) -> Result<Vec<TextOp>> {
+        let ir = self.compile_ir(pattern)?;
+        Ok(project_compatibility_program(ir.root()))
+    }
+}
+
+impl LuaPatternDialect {
+    /// Lowers Lua syntax directly into validated shared pattern IR.
+    pub fn compile_ir(self, pattern: &str) -> Result<PatternIr<ScalarDomain, LuaExtension>> {
         LuaCompiler::new(pattern).compile()
     }
 }
@@ -36,41 +64,77 @@ impl LuaCompiler {
         }
     }
 
-    fn compile(mut self) -> Result<Vec<TextOp>> {
-        let mut ops = Vec::new();
+    fn compile(mut self) -> Result<PatternIr<ScalarDomain, LuaExtension>> {
+        let mut frames = vec![Vec::new()];
+        let mut next_capture = 0u32;
         while let Some(ch) = self.next() {
             match ch {
-                '^' if ops.is_empty() => ops.push(TextOp::AnchorStart),
-                '^' => self.push_atom(&mut ops, TextOp::Literal('^'))?,
-                '$' if self.is_end() => ops.push(TextOp::AnchorEnd),
-                '$' => self.push_atom(&mut ops, TextOp::Literal('$'))?,
-                '.' => self.push_atom(&mut ops, TextOp::Any)?,
-                '(' => ops.push(TextOp::CaptureStart),
-                ')' => ops.push(TextOp::CaptureEnd),
+                '^' if frames.len() == 1 && frames[0].is_empty() => {
+                    frames[0].push(IrNode::Anchor(Anchor::SubjectStart));
+                }
+                '^' => self.push_atom(&mut frames, IrNode::Symbol('^'))?,
+                '$' if self.is_end() => frames
+                    .last_mut()
+                    .expect("root frame exists")
+                    .push(IrNode::Anchor(Anchor::SubjectEnd)),
+                '$' => self.push_atom(&mut frames, IrNode::Symbol('$'))?,
+                '.' => self.push_atom(&mut frames, IrNode::Any)?,
+                '(' => frames.push(Vec::new()),
+                ')' => {
+                    if frames.len() == 1 {
+                        return Err(malformed("capture close without open"));
+                    }
+                    let body = IrNode::Concat(frames.pop().expect("capture frame exists"));
+                    frames
+                        .last_mut()
+                        .expect("parent frame exists")
+                        .push(IrNode::Capture {
+                            id: CaptureId(next_capture),
+                            node: Box::new(body),
+                        });
+                    next_capture += 1;
+                }
                 '[' => {
                     let set = self.parse_set()?;
-                    self.push_atom(&mut ops, TextOp::Class(set))?;
+                    self.push_atom(&mut frames, IrNode::Extension(LuaExtension::Class(set)))?;
                 }
                 '%' => {
                     let escaped = self.parse_percent()?;
                     match escaped {
-                        Escaped::Atom(op) => self.push_atom(&mut ops, op)?,
-                        Escaped::ZeroWidth(op) => ops.push(op),
+                        Escaped::Atom(node) => self.push_atom(&mut frames, node)?,
+                        Escaped::ZeroWidth(node) => {
+                            frames.last_mut().expect("root frame exists").push(node)
+                        }
                     }
                 }
                 '*' | '+' | '-' | '?' => return Err(malformed("quantifier without atom")),
-                literal => self.push_atom(&mut ops, TextOp::Literal(literal))?,
+                literal => self.push_atom(&mut frames, IrNode::Symbol(literal))?,
             }
         }
-        Ok(ops)
+        if frames.len() != 1 {
+            return Err(malformed("unterminated capture"));
+        }
+        let root = IrNode::Concat(frames.pop().expect("root frame exists"));
+        let extensions = collect_extensions(&root);
+        PatternIr::new(root, BTreeMap::new(), &EnginePolicy::new(extensions))
+            .map_err(|error| malformed(&error.to_string()))
     }
 
-    fn push_atom(&mut self, ops: &mut Vec<TextOp>, op: TextOp) -> Result<()> {
-        ops.push(op);
-        if let Some(quantifier) = self.peek().and_then(lua_quantifier) {
+    fn push_atom(
+        &mut self,
+        frames: &mut [Vec<IrNode<char, LuaExtension>>],
+        mut node: IrNode<char, LuaExtension>,
+    ) -> Result<()> {
+        if let Some((min, max, greedy)) = self.peek().and_then(lua_quantifier) {
             self.index += 1;
-            ops.push(quantifier);
+            node = IrNode::Repeat {
+                node: Box::new(node),
+                bounds: RepeatBounds::new(min, max)
+                    .expect("Lua quantifiers have valid static bounds"),
+                greedy,
+            };
         }
+        frames.last_mut().expect("root frame exists").push(node);
         Ok(())
     }
 
@@ -79,23 +143,23 @@ impl LuaCompiler {
             return Err(malformed("dangling percent escape"));
         };
         Ok(match ch {
-            'a' => Escaped::Atom(TextOp::Class(TextClass::Alpha)),
-            'A' => Escaped::Atom(TextOp::Class(TextClass::Not(Box::new(TextClass::Alpha)))),
-            'd' => Escaped::Atom(TextOp::Class(TextClass::Digit)),
-            'D' => Escaped::Atom(TextOp::Class(TextClass::Not(Box::new(TextClass::Digit)))),
-            'l' => Escaped::Atom(TextOp::Class(TextClass::Lower)),
-            'L' => Escaped::Atom(TextOp::Class(TextClass::Not(Box::new(TextClass::Lower)))),
-            'u' => Escaped::Atom(TextOp::Class(TextClass::Upper)),
-            'U' => Escaped::Atom(TextOp::Class(TextClass::Not(Box::new(TextClass::Upper)))),
-            'w' => Escaped::Atom(TextOp::Class(TextClass::Alnum)),
-            'W' => Escaped::Atom(TextOp::Class(TextClass::Not(Box::new(TextClass::Alnum)))),
-            's' => Escaped::Atom(TextOp::Class(TextClass::Space)),
-            'S' => Escaped::Atom(TextOp::Class(TextClass::Not(Box::new(TextClass::Space)))),
-            'p' => Escaped::Atom(TextOp::Class(TextClass::Punct)),
-            'P' => Escaped::Atom(TextOp::Class(TextClass::Not(Box::new(TextClass::Punct)))),
-            'x' => Escaped::Atom(TextOp::Class(TextClass::Hex)),
-            'X' => Escaped::Atom(TextOp::Class(TextClass::Not(Box::new(TextClass::Hex)))),
-            'z' => Escaped::Atom(TextOp::Class(TextClass::Zero)),
+            'a' => class_atom(TextClass::Alpha),
+            'A' => class_atom(TextClass::Not(Box::new(TextClass::Alpha))),
+            'd' => class_atom(TextClass::Digit),
+            'D' => class_atom(TextClass::Not(Box::new(TextClass::Digit))),
+            'l' => class_atom(TextClass::Lower),
+            'L' => class_atom(TextClass::Not(Box::new(TextClass::Lower))),
+            'u' => class_atom(TextClass::Upper),
+            'U' => class_atom(TextClass::Not(Box::new(TextClass::Upper))),
+            'w' => class_atom(TextClass::Alnum),
+            'W' => class_atom(TextClass::Not(Box::new(TextClass::Alnum))),
+            's' => class_atom(TextClass::Space),
+            'S' => class_atom(TextClass::Not(Box::new(TextClass::Space))),
+            'p' => class_atom(TextClass::Punct),
+            'P' => class_atom(TextClass::Not(Box::new(TextClass::Punct))),
+            'x' => class_atom(TextClass::Hex),
+            'X' => class_atom(TextClass::Not(Box::new(TextClass::Hex))),
+            'z' => class_atom(TextClass::Zero),
             'b' => {
                 let open = self
                     .next()
@@ -103,15 +167,15 @@ impl LuaCompiler {
                 let close = self
                     .next()
                     .ok_or_else(|| malformed("balanced pattern missing close delimiter"))?;
-                Escaped::Atom(TextOp::Balanced { open, close })
+                Escaped::Atom(IrNode::Extension(LuaExtension::Balanced { open, close }))
             }
             'f' => {
                 if self.next() != Some('[') {
                     return Err(malformed("frontier pattern requires a character set"));
                 }
-                Escaped::ZeroWidth(TextOp::Frontier(self.parse_set()?))
+                Escaped::ZeroWidth(IrNode::Extension(LuaExtension::Frontier(self.parse_set()?)))
             }
-            literal => Escaped::Atom(TextOp::Literal(literal)),
+            literal => Escaped::Atom(IrNode::Symbol(literal)),
         })
     }
 
@@ -145,8 +209,12 @@ impl LuaCompiler {
 }
 
 enum Escaped {
-    Atom(TextOp),
-    ZeroWidth(TextOp),
+    Atom(IrNode<char, LuaExtension>),
+    ZeroWidth(IrNode<char, LuaExtension>),
+}
+
+fn class_atom(class: TextClass) -> Escaped {
+    Escaped::Atom(IrNode::Extension(LuaExtension::Class(class)))
 }
 
 pub(crate) fn parse_set_body(
@@ -221,32 +289,141 @@ fn set_escape(ch: char) -> SetItem {
     }
 }
 
-fn lua_quantifier(ch: char) -> Option<TextOp> {
+fn lua_quantifier(ch: char) -> Option<(usize, Option<usize>, bool)> {
     match ch {
-        '*' => Some(TextOp::Repeat {
-            min: 0,
-            max: None,
-            greedy: true,
-        }),
-        '+' => Some(TextOp::Repeat {
-            min: 1,
-            max: None,
-            greedy: true,
-        }),
-        '-' => Some(TextOp::Repeat {
-            min: 0,
-            max: None,
-            greedy: false,
-        }),
-        '?' => Some(TextOp::Repeat {
-            min: 0,
-            max: Some(1),
-            greedy: true,
-        }),
+        '*' => Some((0, None, true)),
+        '+' => Some((1, None, true)),
+        '-' => Some((0, None, false)),
+        '?' => Some((0, Some(1), true)),
         _ => None,
+    }
+}
+
+fn collect_extensions(node: &IrNode<char, LuaExtension>) -> Vec<LuaExtension> {
+    let mut extensions = Vec::new();
+    visit(node, &mut |extension| extensions.push(extension.clone()));
+    extensions
+}
+
+fn project_compatibility_program(node: &IrNode<char, LuaExtension>) -> Vec<TextOp> {
+    let mut ops = Vec::new();
+    project(node, &mut ops);
+    ops
+}
+
+fn project(node: &IrNode<char, LuaExtension>, ops: &mut Vec<TextOp>) {
+    match node {
+        IrNode::Symbol(ch) => ops.push(TextOp::Literal(*ch)),
+        IrNode::Any => ops.push(TextOp::Any),
+        IrNode::Concat(nodes) | IrNode::Alternation(nodes) => {
+            for node in nodes {
+                project(node, ops);
+            }
+        }
+        IrNode::Repeat {
+            node,
+            bounds,
+            greedy,
+        } => {
+            project(node, ops);
+            ops.push(TextOp::Repeat {
+                min: bounds.min(),
+                max: bounds.max(),
+                greedy: *greedy,
+            });
+        }
+        IrNode::Group(node) => project(node, ops),
+        IrNode::Capture { node, .. } => {
+            ops.push(TextOp::CaptureStart);
+            project(node, ops);
+            ops.push(TextOp::CaptureEnd);
+        }
+        IrNode::Anchor(Anchor::SubjectStart) => ops.push(TextOp::AnchorStart),
+        IrNode::Anchor(Anchor::SubjectEnd) => ops.push(TextOp::AnchorEnd),
+        IrNode::Extension(LuaExtension::Class(class)) => ops.push(TextOp::Class(class.clone())),
+        IrNode::Extension(LuaExtension::Balanced { open, close }) => {
+            ops.push(TextOp::Balanced {
+                open: *open,
+                close: *close,
+            });
+        }
+        IrNode::Extension(LuaExtension::Frontier(class)) => {
+            ops.push(TextOp::Frontier(class.clone()));
+        }
+        IrNode::Assertion(_) => unreachable!("Lua lowering does not create assertions"),
+    }
+}
+
+fn visit(node: &IrNode<char, LuaExtension>, f: &mut impl FnMut(&LuaExtension)) {
+    match node {
+        IrNode::Concat(nodes) | IrNode::Alternation(nodes) => {
+            for node in nodes {
+                visit(node, f);
+            }
+        }
+        IrNode::Repeat { node, .. } | IrNode::Group(node) | IrNode::Capture { node, .. } => {
+            visit(node, f);
+        }
+        IrNode::Extension(extension) => f(extension),
+        IrNode::Symbol(_) | IrNode::Any | IrNode::Anchor(_) | IrNode::Assertion(_) => {}
     }
 }
 
 fn malformed(message: &str) -> Error {
     Error::Eval(format!("malformed Lua pattern: {message}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn balanced_match_is_one_named_adapter_node() {
+        let ir = LuaPatternDialect.compile_ir("%b()").unwrap();
+        let mut extensions = Vec::new();
+        visit(ir.root(), &mut |extension| {
+            extensions.push(extension.clone())
+        });
+        assert_eq!(
+            extensions,
+            vec![LuaExtension::Balanced {
+                open: '(',
+                close: ')'
+            }]
+        );
+    }
+
+    #[test]
+    fn capture_ids_and_compatibility_boundaries_are_frozen() {
+        let ir = LuaPatternDialect.compile_ir("(%a+)%s+(%d+)").unwrap();
+        let mut ids = Vec::new();
+        fn collect(node: &IrNode<char, LuaExtension>, ids: &mut Vec<CaptureId>) {
+            match node {
+                IrNode::Concat(nodes) | IrNode::Alternation(nodes) => {
+                    for node in nodes {
+                        collect(node, ids);
+                    }
+                }
+                IrNode::Repeat { node, .. } | IrNode::Group(node) => collect(node, ids),
+                IrNode::Capture { id, node } => {
+                    ids.push(*id);
+                    collect(node, ids);
+                }
+                IrNode::Symbol(_)
+                | IrNode::Any
+                | IrNode::Anchor(_)
+                | IrNode::Assertion(_)
+                | IrNode::Extension(_) => {}
+            }
+        }
+        collect(ir.root(), &mut ids);
+        assert_eq!(ids, vec![CaptureId(0), CaptureId(1)]);
+        assert_eq!(
+            project_compatibility_program(ir.root())
+                .iter()
+                .filter(|op| matches!(op, TextOp::CaptureStart | TextOp::CaptureEnd))
+                .count(),
+            4
+        );
+    }
 }

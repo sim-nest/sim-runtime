@@ -39,4 +39,6 @@ pub static RECIPES: sim_cookbook::EmbeddedDir =
 #[cfg(test)]
 mod closure_tests;
 #[cfg(test)]
+mod cross_language_specimen;
+#[cfg(test)]
 mod tests;

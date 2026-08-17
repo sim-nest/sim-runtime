@@ -1,8 +1,13 @@
 // conformance: generic incremental query core behavior
 
-use std::sync::{
-    Arc,
-    atomic::{AtomicI64, AtomicUsize, Ordering},
+use std::{
+    collections::{BTreeMap, VecDeque},
+    fs,
+    path::Path,
+    sync::{
+        Arc,
+        atomic::{AtomicI64, AtomicUsize, Ordering},
+    },
 };
 
 use crate::{
@@ -89,6 +94,93 @@ fn cycle_errors_include_the_repeated_path() {
         IncrementalError::Cycle {
             path: vec!["a", "b", "a"]
         }
+    );
+}
+
+#[test]
+fn dataflow_reuses_the_incremental_core_ownership_ledger() {
+    fn require_owned_types<K, V>(
+        _: ValueFingerprint,
+        _: Observation<K>,
+        _: Revision,
+        _: QueryBudgets,
+        _: crate::ContinuationToken,
+        _: GraphSnapshot<K, V>,
+    ) {
+    }
+
+    require_owned_types::<&'static str, i64>(
+        ValueFingerprint::new(0),
+        Observation::new("source", ObservationKind::Epoch, Revision::ZERO, None),
+        Revision::ZERO,
+        QueryBudgets::default(),
+        crate::ContinuationToken::new(0),
+        GraphSnapshot::new(Vec::new()),
+    );
+
+    let source_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    assert_no_shadowed_dataflow_types(&source_root);
+}
+
+fn assert_no_shadowed_dataflow_types(directory: &Path) {
+    const OWNED_NAMES: [&str; 6] = [
+        "ValueFingerprint",
+        "Observation",
+        "Revision",
+        "QueryBudgets",
+        "ContinuationToken",
+        "GraphSnapshot",
+    ];
+    for entry in fs::read_dir(directory).expect("incremental-core source directory must exist") {
+        let path = entry.expect("source entry must be readable").path();
+        if path.is_dir() {
+            assert_no_shadowed_dataflow_types(&path);
+            continue;
+        }
+        let relative = path
+            .strip_prefix(Path::new(env!("CARGO_MANIFEST_DIR")))
+            .expect("source file must belong to incremental-core");
+        if !relative.to_string_lossy().contains("dataflow") {
+            continue;
+        }
+        let source = fs::read_to_string(&path).expect("dataflow source must be UTF-8");
+        for name in OWNED_NAMES {
+            for declaration in ["struct", "enum", "type", "trait"] {
+                let needle = format!("{declaration} {name}");
+                assert!(
+                    !source.contains(&needle),
+                    "{} shadows core-owned {name} with `{needle}`",
+                    relative.display()
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn lattice_feedback_converges_but_query_recursion_errors() {
+    let edges = BTreeMap::from([("a", vec!["b"]), ("b", vec!["a"])]);
+    let mut facts = BTreeMap::from([("a", 1_u8), ("b", 0_u8)]);
+    let mut pending = VecDeque::from(["a", "b"]);
+    while let Some(from) = pending.pop_front() {
+        let propagated = facts[&from];
+        for to in &edges[&from] {
+            if facts[to] < propagated {
+                facts.insert(*to, propagated);
+                pending.push_back(to);
+            }
+        }
+    }
+    assert_eq!(facts, BTreeMap::from([("a", 1), ("b", 1)]));
+
+    let mut engine = IncrementalEngine::<&'static str, i64>::new();
+    engine.register_fn("a", |_, frame| frame.read("b"));
+    engine.register_fn("b", |_, frame| frame.read("a"));
+    assert_eq!(
+        engine.verify("a"),
+        Err(IncrementalError::Cycle {
+            path: vec!["a", "b", "a"]
+        })
     );
 }
 

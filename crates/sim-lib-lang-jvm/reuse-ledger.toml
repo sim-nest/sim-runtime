@@ -1,0 +1,109 @@
+schema = "sim.jvm-reuse-ledger/v1"
+
+[[organ]]
+product = "CHARACTERIZE_1"
+crate = "sim-lib-lang-javascript"
+version = "0.1.6"
+anchor = "crates/sim-lib-lang-javascript/src/lib.rs"
+decision = "reuse guest-policy characterization pattern only; no implementation is copied"
+
+[[organ]]
+product = "INDEX_9"
+crate = "sim-tooling"
+version = "0.1.0"
+anchor = "../sim-tooling/src/index_find.rs"
+decision = "reuse Index discovery and record its current coverage gap for the new crate"
+
+[[organ]]
+product = "MANAGED_2"
+crate = "sim-lib-mutation"
+version = "0.1.4"
+anchor = "crates/sim-lib-mutation/src/managed/object.rs#ManagedNode"
+decision = "reuse managed graph ownership for every future JVM heap object"
+
+[[organ]]
+product = "UTF16_2"
+crate = "sim-text"
+version = "0.1.0"
+anchor = "../sim-foundation/crates/sim-text/src/lib.rs#CodeUnitString"
+decision = "reuse exact code-unit text; Rust String is not a Java value"
+
+[[organ]]
+product = "MACHINE_2"
+crate = "sim-lib-machine"
+version = "0.1.0"
+anchor = "crates/sim-lib-machine/src/code.rs#LocatedCode"
+decision = "reuse bounded decoded-instruction machine storage and receipts"
+
+[[organ]]
+product = "CLASSFILE_2"
+crate = "sim-codec-classfile"
+version = "0.1.0"
+anchor = "../sim-codecs/crates/sim-codec-classfile/src/attribute.rs#BootstrapMethod"
+supporting_anchor = "../sim-codecs/crates/sim-codec-classfile/src/constant.rs#MethodHandle"
+decision = "reuse lossless BootstrapMethods, method-handle reference kinds, invokedynamic constants, and method-type constants"
+
+[[organ]]
+product = "JVM_7"
+crate = "sim-lib-lang-jvm"
+version = "0.1.0"
+anchor = "crates/sim-lib-lang-jvm/src/dynamic.rs#DynamicLinkCache"
+supporting_anchor = "crates/sim-lib-lang-jvm/src/verifier/invocation.rs#transfer_dynamic_invocation_instruction"
+decision = "reuse the occurrence-keyed linker registry seam and the verifier's sole dynamic-site rule owner"
+
+[[organ]]
+product = "DATAFLOW_2"
+crate = "sim-incremental-core"
+version = "0.1.1"
+anchor = "crates/sim-incremental-core/src/dataflow/engine.rs#DataflowCompletionProof"
+decision = "reuse graph propagation, bounded continuation, and content-bound completion proof"
+
+[[organ]]
+product = "CLASS_2"
+crate = "sim-lib-class"
+version = "0.1.0"
+anchor = "crates/sim-lib-class/src/descriptor.rs#ClassDescriptor"
+decision = "reuse checked class descriptors and inheritance semantics"
+
+[[organ]]
+product = "FUNCTION_2"
+crate = "sim-lib-function"
+version = "0.1.0"
+anchor = "crates/sim-lib-function/src/plan.rs#FunctionPlan"
+supporting_anchor = "crates/sim-lib-function/src/instance.rs#FunctionInstance"
+decision = "reuse neutral parameter, capture, callable, and browsing ownership; JVM policy supplies only its body and adaptation"
+
+[[organ]]
+product = "KERNEL"
+crate = "sim-kernel"
+version = "0.2.0"
+anchor = "../sim-kernel/src/callable.rs#Callable"
+supporting_anchor = "../sim-kernel/src/shape.rs#Shape"
+decision = "reuse the callable and Shape boundaries for explicit cross-guest interoperation"
+
+[[organ]]
+product = "DISPATCH"
+crate = "sim-lib-dispatch"
+version = "0.1.3"
+anchor = "crates/sim-lib-dispatch/src/generic.rs#GenericFunction"
+decision = "explicit non-owner: Java descriptor and bridge selection never use generic dispatch"
+
+[[organ]]
+product = "CODECS"
+crate = "sim-codec-lisp"
+version = "0.2.1"
+anchor = "../sim-codecs/crates/sim-codec-lisp/src/lib.rs"
+supporting_anchor = "crates/sim-lib-core/src/read_eval.rs#ReadEvalBroker"
+decision = "reuse expression codecs and read construction; lambda linkage gains no private serialization escape"
+
+[[organ]]
+product = "EXCEPTIONS_3"
+crate = "sim-lib-control"
+version = "0.1.5"
+anchor = "crates/sim-lib-control/src/model.rs#Raised"
+decision = "reuse the common raised envelope; do not add a JVM unwind carrier"
+
+[[finding]]
+surface = "SIM Index"
+detail = "The new sim-lib-lang-jvm crate has no generated Index anchor until its authored feature metadata phase."
+disposition = "recorded coverage gap; no duplicate implementation permitted"

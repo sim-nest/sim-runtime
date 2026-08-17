@@ -1,0 +1,32 @@
+schema = "sim.machine-ownership/v1"
+owner = "sim-lib-machine"
+guest_crate_prefix = "sim-lib-lang-"
+
+# These are declaration roles, not forbidden vocabulary. The guard combines
+# them with public source facts so ordinary language values named `slot` or
+# `frame` do not become false positives.
+forbidden_public_type_suffixes = [
+  "FrameDriver",
+  "FrameStack",
+  "OperandStack",
+  "SlotFile",
+  "SlotStorage",
+  "UnitStack",
+]
+forbidden_recursive_driver_names = [
+  "drive",
+  "drive_frame",
+  "execute_frame",
+  "interpret",
+  "run_interpreter",
+]
+allowed_instruction_type_suffixes = [
+  "Instruction",
+  "Instructions",
+  "Opcode",
+  "Opcodes",
+]
+allowed_instruction_function_prefixes = [
+  "execute_instruction",
+  "lower_instruction",
+]

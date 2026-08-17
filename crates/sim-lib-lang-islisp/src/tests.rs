@@ -1,3 +1,5 @@
+// conformance: the ISLisp profile composes the shared runtime organs.
+
 use std::{collections::BTreeMap, sync::Arc};
 
 use sim_kernel::{

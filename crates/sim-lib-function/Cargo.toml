@@ -1,0 +1,22 @@
+[package]
+name = "sim-lib-function"
+version = "0.1.0"
+edition = "2024"
+license = "MPL-2.0"
+description = "Language-neutral function plans and managed function instances for SIM."
+readme = "README.md"
+publish = true
+repository = "https://github.com/sim-nest/sim-runtime"
+homepage = "https://github.com/sim-nest/sim-runtime"
+
+[dependencies]
+sim-kernel = { version = "0.2.1" }
+sim-lib-binding = { version = "0.1.4", path = "../sim-lib-binding" }
+sim-lib-dispatch = { version = "0.1.4", path = "../sim-lib-dispatch" }
+sim-lib-mutation = { version = "0.1.5", path = "../sim-lib-mutation" }
+
+[dev-dependencies]
+sim-lib-gc-tracing = { version = "0.1.0", path = "../sim-lib-gc-tracing" }
+
+[lints]
+workspace = true

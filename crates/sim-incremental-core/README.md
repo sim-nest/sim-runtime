@@ -8,7 +8,7 @@ Dependency-light incremental query graph with memo cutoff and bounded snapshots.
 
 - Manifest: `crates/sim-incremental-core/Cargo.toml`
 - Publish: `true`
-- Targets: `lib`
+- Targets: `lib, test`
 
 ## Crate Documentation
 

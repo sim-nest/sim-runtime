@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-control"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2024"
 license = "MPL-2.0"
 description = "Control-flow organs for SIM async, branching, and policy-aware execution."
@@ -13,14 +13,15 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 sim-cookbook = { version = "0.2.0" }
 sim-citizen = { version = "0.2.0" }
 sim-citizen-derive = { version = "0.2.0" }
-sim-kernel = { version = "0.2.0" }
-sim-lib-core = { version = "0.1.4", path = "../sim-lib-core" }
+sim-kernel = { version = "0.2.1" }
+sim-lib-core = { version = "0.2.0", path = "../sim-lib-core" }
+sim-lib-mutation = { version = "0.1.5", path = "../sim-lib-mutation" }
 
 [lints]
 workspace = true
 
 [dev-dependencies]
-sim-kernel = { version = "0.2.0", features = ["test-support"] }
+sim-kernel = { version = "0.2.1", features = ["test-support"] }
 
 [build-dependencies]
 sim-cookbook = { version = "0.2.0" }

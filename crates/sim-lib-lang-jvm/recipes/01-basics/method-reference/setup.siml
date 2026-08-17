@@ -1,0 +1,5 @@
+; `LAMBDA_FIXTURES_CLASS_BYTES` is supplied by the checked recipe harness.
+(jvm/define "LambdaFixtures" LAMBDA_FIXTURES_CLASS_BYTES)
+(define supplier (jvm/invoke-static "LambdaFixtures" "staticReference" "()Ljava/util/function/IntSupplier;"))
+(supplier)
+; => 11

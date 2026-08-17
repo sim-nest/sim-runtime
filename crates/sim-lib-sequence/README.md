@@ -8,7 +8,7 @@ Sequence operations, lazy streams, and collection transforms for SIM.
 
 - Manifest: `crates/sim-lib-sequence/Cargo.toml`
 - Publish: `true`
-- Targets: `custom-build, lib`
+- Targets: `custom-build, lib, test`
 
 ## Crate Documentation
 

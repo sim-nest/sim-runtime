@@ -1,17 +1,164 @@
 // conformance: bounded stop-the-world tracing collection.
 
 use sim_lib_mutation::{
-    EdgeId, EdgeVisitor, HardCappedRetainPolicy, ManagedArena, ManagedId, ManagedObject,
+    EdgeId, EdgeVisitor, HardCappedRetainPolicy, ManagedArena, ManagedId, ManagedNode,
+    ManagedObject,
 };
+
+#[test]
+fn managed_node_ephemeron_chains_reach_fixpoint_without_values_retaining_keys() {
+    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(7).unwrap());
+    let root = arena.allocate(ManagedNode::new(())).unwrap();
+    let live_key = arena.allocate(ManagedNode::new(())).unwrap();
+    let first_value = arena.allocate(ManagedNode::new(())).unwrap();
+    let chained_key = arena.allocate(ManagedNode::new(())).unwrap();
+    let chained_value = arena.allocate(ManagedNode::new(())).unwrap();
+    let dead_key = arena.allocate(ManagedNode::new(())).unwrap();
+    let dead_value = arena.allocate(ManagedNode::new(())).unwrap();
+    arena
+        .get_mut(root)
+        .unwrap()
+        .insert_strong(live_key.id())
+        .unwrap();
+    arena
+        .get_mut(root)
+        .unwrap()
+        .insert_ephemeron(live_key.id(), first_value.id())
+        .unwrap();
+    let dead_edge = arena
+        .get_mut(root)
+        .unwrap()
+        .insert_ephemeron(dead_key.id(), dead_value.id())
+        .unwrap();
+    arena
+        .get_mut(first_value)
+        .unwrap()
+        .insert_strong(chained_key.id())
+        .unwrap();
+    arena
+        .get_mut(first_value)
+        .unwrap()
+        .insert_ephemeron(chained_key.id(), chained_value.id())
+        .unwrap();
+    let _ = arena.root(root).unwrap();
+
+    let first = collect(&mut arena, limits()).unwrap();
+    assert!(first.marked.contains(&first_value.id()));
+    assert!(first.marked.contains(&chained_value.id()));
+    assert!(!first.marked.contains(&dead_key.id()));
+    assert!(!first.marked.contains(&dead_value.id()));
+    assert!(first.swept.contains(&dead_key.id()));
+    assert!(first.swept.contains(&dead_value.id()));
+    assert_eq!(first.cleared_ephemerons, vec![(root.id(), dead_edge)]);
+
+    let second = collect(&mut arena, limits()).unwrap();
+    assert!(second.cleared_ephemerons.is_empty());
+}
 
 use std::sync::{Arc, Mutex};
 
-use sim_lib_control::{AdmissionLimit, JobQueues, RuntimeJobClass, WorkLimit};
+use sim_lib_control::{
+    AdmissionLimit, ExceptionGraphBudget, ExceptionGraphView, JobQueues, ManagedException,
+    RuntimeJobClass, WorkLimit,
+};
 
 use crate::{
     CollectionError, CollectionLimits, CorrectnessDimension, FinalizationRegistry, LimitKind,
     collect, collect_with_finalization,
 };
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ExceptionRelation {
+    Cause,
+    Member,
+}
+
+#[test]
+fn managed_exception_diamond_and_cycle_have_exact_collection_receipts() {
+    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(5).unwrap());
+    let root = arena.allocate(ManagedException::new("root")).unwrap();
+    let left = arena.allocate(ManagedException::new("left")).unwrap();
+    let right = arena.allocate(ManagedException::new("right")).unwrap();
+    let shared = arena.allocate(ManagedException::new("shared")).unwrap();
+    let cycle = arena.allocate(ManagedException::new("cycle")).unwrap();
+    arena
+        .get_mut(root)
+        .unwrap()
+        .insert_relation(ExceptionRelation::Member, left.id())
+        .unwrap();
+    arena
+        .get_mut(root)
+        .unwrap()
+        .insert_relation(ExceptionRelation::Member, right.id())
+        .unwrap();
+    arena
+        .get_mut(left)
+        .unwrap()
+        .insert_relation(ExceptionRelation::Cause, shared.id())
+        .unwrap();
+    arena
+        .get_mut(right)
+        .unwrap()
+        .insert_relation(ExceptionRelation::Cause, shared.id())
+        .unwrap();
+    arena
+        .get_mut(cycle)
+        .unwrap()
+        .insert_relation(ExceptionRelation::Cause, cycle.id())
+        .unwrap();
+
+    let rooted = arena.root(root).unwrap();
+    let view = ExceptionGraphView::project(&arena, root, ExceptionGraphBudget::new(8)).unwrap();
+    assert!(!view.truncated);
+    assert_eq!(view.edges.len(), 4);
+    assert_eq!(
+        view.edges
+            .iter()
+            .filter(|edge| edge.target == shared.id())
+            .count(),
+        2,
+        "the shared exception is represented once for each parent edge"
+    );
+
+    let first = collect(&mut arena, limits()).unwrap();
+    assert_eq!(first.swept, vec![cycle.id()]);
+    assert!(first.cleared_weak.is_empty());
+    assert!(first.cleared_ephemerons.is_empty());
+    arena.release_root(rooted).unwrap();
+    let second = collect(&mut arena, limits()).unwrap();
+    assert_eq!(
+        second.swept,
+        vec![root.id(), left.id(), right.id(), shared.id()]
+    );
+}
+
+#[test]
+fn managed_exception_view_terminates_and_reports_budget_truncation() {
+    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(6).unwrap());
+    let nodes = (0..6)
+        .map(|index| arena.allocate(ManagedException::new(index)).unwrap())
+        .collect::<Vec<_>>();
+    for pair in nodes.windows(2) {
+        arena
+            .get_mut(pair[0])
+            .unwrap()
+            .insert_relation(ExceptionRelation::Cause, pair[1].id())
+            .unwrap();
+    }
+
+    let view = ExceptionGraphView::project(&arena, nodes[0], ExceptionGraphBudget::new(3)).unwrap();
+    assert!(view.truncated);
+    assert_eq!(view.edges.len(), 3);
+    assert_eq!(
+        view.edges
+            .iter()
+            .map(|edge| edge.edge.allocation_ordinal())
+            .collect::<Vec<_>>(),
+        vec![0, 0, 0]
+    );
+}
+
+mod neutral_graph;
 
 #[derive(Clone, Default)]
 struct Node {
@@ -442,4 +589,66 @@ fn hard_capped_retain_refuses_at_cap_while_tracing_reclaims_cycles() {
         vec![a.id(), b.id()]
     );
     assert!(arena.allocate(Node::default()).is_ok());
+}
+
+#[test]
+fn relabeling_all_nodes_changes_only_bounded_role_projection() {
+    fn graph() -> (
+        ManagedArena<ManagedNode<&'static str>>,
+        Vec<sim_lib_mutation::ManagedHandle>,
+    ) {
+        let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(3).unwrap());
+        let root = arena.allocate(ManagedNode::new("root")).unwrap();
+        let child = arena.allocate(ManagedNode::new("child")).unwrap();
+        let garbage = arena.allocate(ManagedNode::new("garbage")).unwrap();
+        arena
+            .get_mut(root)
+            .unwrap()
+            .insert_strong(child.id())
+            .unwrap();
+        arena.root(root).unwrap();
+        (arena, vec![root, child, garbage])
+    }
+
+    let (mut original, _) = graph();
+    let (mut relabeled, handles) = graph();
+    for (handle, role) in handles.into_iter().zip(["owner", "member", "discarded"]) {
+        relabeled.replace_role(handle, role).unwrap();
+    }
+
+    let original_projection = original.project_roles(3).unwrap();
+    let relabeled_projection = relabeled.project_roles(3).unwrap();
+    assert_eq!(
+        original_projection.safepoint,
+        relabeled_projection.safepoint
+    );
+    assert_eq!(
+        original_projection.mutation_epoch,
+        relabeled_projection.mutation_epoch
+    );
+    assert_eq!(
+        original_projection
+            .roles
+            .iter()
+            .map(|row| row.0)
+            .collect::<Vec<_>>(),
+        relabeled_projection
+            .roles
+            .iter()
+            .map(|row| row.0)
+            .collect::<Vec<_>>()
+    );
+    assert_ne!(original_projection.roles, relabeled_projection.roles);
+    assert!(matches!(
+        original.project_roles(2),
+        Err(sim_lib_mutation::RoleProjectionError::Limit {
+            limit: 2,
+            required: 3
+        })
+    ));
+
+    assert_eq!(
+        collect(&mut original, limits()),
+        collect(&mut relabeled, limits())
+    );
 }

@@ -1,0 +1,9 @@
+(expr:map
+  [kind "cross-language-callable-specimen"]
+  [functions
+    [[language python] [browse kernel/callable] [call kernel/callable] [outcome 42] [lookup declared-parents]]
+    [[language javascript] [browse kernel/callable] [call kernel/callable] [outcome 42] [lookup prototype]]
+    [[language lua] [browse kernel/callable] [call kernel/callable] [outcome 42] [lookup __index]]]
+  [content-identified-outcomes [42 42 42]]
+  [declared-parent-responders [python]]
+  [runner "cargo test -p sim-lib-lang-matrix cross_language_specimen"])

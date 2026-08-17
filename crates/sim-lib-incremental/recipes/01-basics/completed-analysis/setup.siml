@@ -1,0 +1,11 @@
+(expr:map
+  [shape incremental/Analysis]
+  [projection
+    [graph [nodes edges]]
+    [input-states "read-only boundary-state directory"]
+    [output-states "read-only boundary-state directory"]
+    [work-receipt [work observations depth output events]]
+    [explanations "read-only causal directory"]
+    [continuation nil]
+    [proof [schema fingerprint]]]
+  [construction "only DataflowAnalysisView::from_completion consumes a core completion proof"])

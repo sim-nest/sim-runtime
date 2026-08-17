@@ -1,0 +1,8 @@
+id = "json-codec-composition"
+title = "Compose JavaScript JSON policy with the shared codec"
+codec = "javascript"
+setup = "setup.js"
+purpose = "purpose.md"
+order = 20
+tags = ["javascript", "json", "codec", "composition"]
+requires = ["codec/javascript", "codec/json", "lang/javascript-core/v1"]

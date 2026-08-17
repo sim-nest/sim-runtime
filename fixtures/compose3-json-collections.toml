@@ -1,0 +1,208 @@
+schema = "sim.characterization-ledger/v1"
+phase = "COMPOSE3.00"
+content_id_algorithm = "sha256(domain + U+001F + scenario + U+001F + source_anchor + U+001F + outcome)"
+
+[[scenario]]
+domain = "json"
+name = "parse-error"
+source_anchor = "crates/sim-lib-lang-javascript/src/json.rs::parse_javascript_json"
+outcome = "invalid input is Parse carrying serde_json display text; no reviver call"
+
+[[scenario]]
+domain = "json"
+name = "parse-number"
+source_anchor = "crates/sim-lib-lang-javascript/src/json.rs::from_canonical"
+outcome = "JSON number projects through codec untagged f64 and becomes JavascriptJsonValue::Number(f64)"
+
+[[scenario]]
+domain = "json"
+name = "stringify-number"
+source_anchor = "crates/sim-lib-lang-javascript/src/json.rs::to_canonical"
+outcome = "finite f64 uses serde_json Number rendering; NaN and both infinities return NonFinite"
+
+[[scenario]]
+domain = "json"
+name = "property-order"
+source_anchor = "crates/sim-lib-lang-javascript/src/json.rs::ordered_entries"
+outcome = "canonical u32 indices except 4294967295 sort ascending, then other string keys retain insertion order"
+
+[[scenario]]
+domain = "json"
+name = "duplicate-properties"
+source_anchor = "crates/sim-lib-lang-javascript/src/json.rs::to_canonical"
+outcome = "object projection inserts into serde_json Map, so a later duplicate string key replaces the earlier value"
+
+[[scenario]]
+domain = "json"
+name = "reviver-order"
+source_anchor = "crates/sim-lib-lang-javascript/src/json.rs::walk_reviver"
+outcome = "depth-first postorder; array indices and object keys precede the empty root key"
+
+[[scenario]]
+domain = "json"
+name = "reviver-delete"
+source_anchor = "crates/sim-lib-lang-javascript/src/json.rs::walk_reviver"
+outcome = "None deletes an object property, becomes Undefined in an array cell, and becomes root Undefined at root"
+
+[[scenario]]
+domain = "json"
+name = "hook-order"
+source_anchor = "crates/sim-lib-lang-javascript/src/json.rs::project"
+outcome = "toJSON is called before replacer for root and every recursively projected value"
+
+[[scenario]]
+domain = "json"
+name = "replacer-delete"
+source_anchor = "crates/sim-lib-lang-javascript/src/json.rs::project"
+outcome = "replacer None omits an object property, substitutes null in an array, and yields no root string"
+
+[[scenario]]
+domain = "json"
+name = "undefined"
+source_anchor = "crates/sim-lib-lang-javascript/src/json.rs::project"
+outcome = "Undefined omits object members, renders null in arrays, and yields None at root"
+
+[[scenario]]
+domain = "json"
+name = "cycle-detection"
+source_anchor = "crates/sim-lib-lang-javascript/src/json.rs::project"
+outcome = "ancestor pointer repetition returns Cycle, but owned recursive enum values cannot construct a reference cycle so this error is unreachable"
+
+[[scenario]]
+domain = "json"
+name = "codec-projection"
+source_anchor = "crates/sim-codec-json/src/projection.rs::project_json_to_expr,project_expr_to_json"
+outcome = "guest parse and stringify both call the untagged interop projection in both directions"
+
+[[scenario]]
+domain = "json"
+name = "work-limits"
+source_anchor = "crates/sim-codec-json/src/projection.rs::project_json_to_expr_budgeted"
+outcome = "budgeted codec projection charges nodes, collection lengths, strings, and nesting; JavaScript JSON entry points use the unbudgeted projection"
+
+[[scenario]]
+domain = "array"
+name = "sparse-holes"
+source_anchor = "crates/sim-lib-lang-javascript/src/collections.rs::JavascriptArray"
+outcome = "sparse creates explicit holes; get and pop expose a hole as None while values materializes it as Undefined"
+
+[[scenario]]
+domain = "array"
+name = "length-growth"
+source_anchor = "crates/sim-lib-lang-javascript/src/collections.rs::JavascriptArray::set"
+outcome = "setting beyond length grows to index plus one and fills intervening cells with holes"
+
+[[scenario]]
+domain = "array"
+name = "length-truncation"
+source_anchor = "crates/sim-lib-lang-javascript/src/collections.rs::JavascriptArray::pop"
+outcome = "pop truncates exactly one cell; no general length setter or multi-cell truncation surface exists"
+
+[[scenario]]
+domain = "array"
+name = "map-holes-and-limit"
+source_anchor = "crates/sim-lib-lang-javascript/src/collections.rs::JavascriptArray::map"
+outcome = "map skips and retains holes; if present-cell count exceeds max_visits it returns Limit before any callback"
+
+[[scenario]]
+domain = "array"
+name = "filter-holes-and-limit"
+source_anchor = "crates/sim-lib-lang-javascript/src/collections.rs::JavascriptArray::filter"
+outcome = "filter skips holes and returns dense output; it can invoke callbacks before a later visit exceeds max_visits and returns Limit"
+
+[[scenario]]
+domain = "collection"
+name = "same-value-zero"
+source_anchor = "crates/sim-lib-lang-javascript/src/collections.rs::same_value_zero"
+outcome = "all NaN numbers compare equal and negative zero equals positive zero; other JavascriptValue arms use PartialEq"
+
+[[scenario]]
+domain = "map"
+name = "insertion-order"
+source_anchor = "crates/sim-lib-lang-javascript/src/collections.rs::JavascriptMap::set"
+outcome = "first insertion fixes position and replacement preserves it"
+
+[[scenario]]
+domain = "map"
+name = "delete-reinsert"
+source_anchor = "crates/sim-lib-lang-javascript/src/collections.rs::JavascriptMap::delete"
+outcome = "delete removes the entry and a later set appends it at the end"
+
+[[scenario]]
+domain = "map"
+name = "mutation-during-iteration"
+source_anchor = "crates/sim-lib-lang-javascript/src/collections.rs::JavascriptMap::entries"
+outcome = "entry iteration borrows the map, preventing overlapping mutation through the safe public API"
+
+[[scenario]]
+domain = "set"
+name = "insertion-order"
+source_anchor = "crates/sim-lib-lang-javascript/src/collections.rs::JavascriptSet::add"
+outcome = "first SameValueZero-unique insertion fixes position and a duplicate is ignored"
+
+[[scenario]]
+domain = "set"
+name = "delete-reinsert"
+source_anchor = "crates/sim-lib-lang-javascript/src/collections.rs::JavascriptSet::delete"
+outcome = "delete removes the value and a later add appends it at the end"
+
+[[scenario]]
+domain = "iterator"
+name = "mutation-during-iteration"
+source_anchor = "crates/sim-lib-lang-javascript/src/collections.rs::JavascriptIterator::new"
+outcome = "array and set iterators own cloned snapshots, so later source mutations are not observed"
+
+[[scenario]]
+domain = "iterator"
+name = "completion"
+source_anchor = "crates/sim-lib-lang-javascript/src/collections.rs::JavascriptIterator::next_result"
+outcome = "each captured value returns done false; exhaustion and every later call return absent value with done true"
+
+[[scenario]]
+domain = "symbol"
+name = "identity"
+source_anchor = "crates/sim-lib-lang-javascript/src/collections.rs::JavascriptSymbolRegistry::symbol"
+outcome = "every allocation gets a fresh realm-local numeric id even when descriptions match; description never participates in equality"
+
+[[scenario]]
+domain = "symbol"
+name = "global-registry"
+source_anchor = "crates/sim-lib-lang-javascript/src/collections.rs::JavascriptSymbolRegistry::symbol_for,key_for"
+outcome = "symbol_for repeats identity by string key and key_for returns a key only for a registered identity"
+
+[[scenario]]
+domain = "collection"
+name = "declared-errors"
+source_anchor = "crates/sim-lib-lang-javascript/src/collections.rs::JavascriptCollectionError"
+outcome = "Limit is returned by bounded map and filter; Index is declared but no current public collection method returns it"
+
+[content_ids]
+"json::parse-error" = "sha256:211ce9be18ba141ab8bed6c35764681f9c0109aee1f85cf85bd4ee40088f61f2"
+"json::parse-number" = "sha256:b95858d91f577091bfc3ae3a27fbe7ff454bc7ce77143b9f891300e0b59af70d"
+"json::stringify-number" = "sha256:2ee5ef78111cc41e311cdf85c6cbf4e1a9e10ee20c9cc020c7c923de569fa08b"
+"json::property-order" = "sha256:0e381146afdacbcfe4bb9e1ab8f8d7be96285c38e774dcef13d7f3020d72b242"
+"json::duplicate-properties" = "sha256:198aea2322362ffe9063b408e75f577da7d273dd7242d2594e42e7ec4ce26fd0"
+"json::reviver-order" = "sha256:c9a7251ab79a2adeed32e1e16c91e8b9baeacf3fc37464873a87328502040eb5"
+"json::reviver-delete" = "sha256:6d55c91781998a188602b0adb718d2e904d35b82d6445a0dac4cf6b5ac8b1449"
+"json::hook-order" = "sha256:68df5040a353687c52aec7f4c8e33f41372f2aeaa61f7e79bf0c320311ff7ea6"
+"json::replacer-delete" = "sha256:5a9c1f218c0688137df9107244e4e91d59a9a21591a3469a38fae847909b2067"
+"json::undefined" = "sha256:94d4ec57dd8a17deb59bcb99bebb3f21173ea5e0de26f8f68bccaab849d892ce"
+"json::cycle-detection" = "sha256:cc2aee5c7ea7606823c5fbde805f33527f0105f6772a0038f2b92f25771de8da"
+"json::codec-projection" = "sha256:8aa4c98c97754550b414722d58b9e37c8928cd2a326f3fb913260c7aad20f792"
+"json::work-limits" = "sha256:734335d3af129a59711f9bd0f38cd69e1834fbb4ed900d9d44e376c23e70ec43"
+"array::sparse-holes" = "sha256:5decba3f434d47c255a30e3a7db26825aed93a992b64d6bbf726116d982f8064"
+"array::length-growth" = "sha256:bf9e633d099d3129fcbd71763736e51949d62af20ffae5186a2c0aac34e0741b"
+"array::length-truncation" = "sha256:4f5224ee1f2b83f72b718e8556f72013340ca8208cbd81170458770ffee4e61b"
+"array::map-holes-and-limit" = "sha256:1d94398209afbf7fa1467cb7da81157dcba4e4516617d38f6a97bae665cdff0a"
+"array::filter-holes-and-limit" = "sha256:c81434c56f9f334d1cb9db423d0920e5b25de98b09953a0bae5d78e1d43fc5b5"
+"collection::same-value-zero" = "sha256:550f0ed5135dfeb968126bf0b93952f7c54c28b9cd77150d2cde5fd88874d83c"
+"map::insertion-order" = "sha256:6015cc70b12ce9890487a43c34fd0290484bba273b7d74f894fa6da0a0b20c29"
+"map::delete-reinsert" = "sha256:a91663cf7b4258140e297f43eeda0c33d8ca183f692f709e8d726426385603ae"
+"map::mutation-during-iteration" = "sha256:a9d27e84b4052181cfad33a9b977d8b36b3475c2c1846af272145777634e73e7"
+"set::insertion-order" = "sha256:f2f29279c785886280a3ae8815ce4c81510f20627ad51e546f501fef86b50d6d"
+"set::delete-reinsert" = "sha256:92926866f63b89d6ba4548d335b325bb45955fb1a12d2b197e88a4041f80cbc4"
+"iterator::mutation-during-iteration" = "sha256:98dd7bc17afda7d03dab5d85252b223b88cdc8b3e73ecde3bdca1bc931604ec8"
+"iterator::completion" = "sha256:8626803719a7f70f42c5e386cd95f6d690e705bc4e003e7af8f03fbb392b06f2"
+"symbol::identity" = "sha256:542caba99a5b45a82e2bb2d52178eaf76f32aea6a32706339a2a8b54db38a55d"
+"symbol::global-registry" = "sha256:382187720c6ebf112f77b1c5e92420ae2f6697689555f99af038994e5e4af4bb"
+"collection::declared-errors" = "sha256:4ee44a184d5c0e28138f48a133a58cbb8b376cfe38f77f4830628118b0a6e472"

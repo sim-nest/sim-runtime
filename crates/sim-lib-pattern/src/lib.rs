@@ -8,8 +8,14 @@
 
 mod adt;
 mod claims;
+mod compile;
+mod cursor;
 mod dialect;
+mod domain_execute;
+mod execute;
+mod extension;
 mod glob_dialect;
+mod ir;
 mod lua_dialect;
 mod match_form;
 mod matching;
@@ -27,8 +33,31 @@ pub use claims::{
     pattern_organ_symbol, pattern_tag_op_key, publish_pattern_organ_claims,
     publish_pattern_organ_claims_for_lib,
 };
+pub use compile::{
+    AssertionProgram, Automaton, CompilationEvidence, Instruction, State, StateId, TagBoundary,
+    compile,
+};
+pub use cursor::{
+    ByteDomain, ByteOffset, CodeUnitDomain, CodeUnitOffset, Cursor, ScalarDomain, ScalarOffset,
+    SymbolDomain,
+};
 pub use dialect::PatternDialect;
+pub use domain_execute::{
+    DomainCaptureSpan, DomainExecutionOutcome, DomainMatch, execute_bytes, execute_code_units,
+    execute_scalars, require_code_unit_offset,
+};
+pub use execute::{
+    CaptureSpan, ExecutionLimit, ExecutionMatch, ExecutionOutcome, ExecutionReceipt,
+    UnsupportedFeature, execute_regular,
+};
+pub use extension::{
+    BoundedExtension, ExtensionKind, ExtensionLimits, ExtensionOutcome, ExtensionReceipt,
+    ExtensionRefusal, ExtensionStep, ExtensionWork, execute_extension,
+};
 pub use glob_dialect::{GlobPatternDialect, compile_glob_pattern};
+pub use ir::{
+    Anchor, AssertionId, CaptureId, EnginePolicy, IrError, IrNode, PatternIr, RepeatBounds,
+};
 pub use lua_dialect::{LuaPatternDialect, compile_lua_pattern};
 pub use match_form::MatchForm;
 pub use matching::{

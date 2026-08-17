@@ -3,8 +3,10 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::{
-    ArenaError, EdgeId, EdgeVisitor, HardCappedRetainPolicy, ManagedArena, ManagedId,
-    ManagedObject, TraceSnapshot,
+    ArenaError, EdgeAllocationError, EdgeAllocator, EdgeId, EdgeKind, EdgeLimits, EdgeSnapshot,
+    EdgeVisitor, EphemeronMutationError, HardCappedRetainPolicy, ManagedArena, ManagedId,
+    ManagedNode, ManagedObject, ManagedRole, StrongEdgeMutationError, TraceSnapshot,
+    WeakEdgeMutationError,
 };
 
 #[derive(Clone, Debug)]
@@ -34,6 +36,361 @@ impl ManagedObject for Node {
         match self.0.get_mut(edge.0 as usize) {
             Some(Edge::Weak(target)) if *target == Some(expected) => target.take().is_some(),
             _ => false,
+        }
+    }
+}
+
+#[test]
+fn edge_ids_are_monotonic_typed_and_never_reused() {
+    let mut allocator = EdgeAllocator::new();
+    let first = allocator.allocate(EdgeKind::Strong).unwrap();
+    let removed = first;
+    let second = allocator.allocate(EdgeKind::Weak).unwrap();
+
+    assert_eq!(removed.id().allocation_ordinal(), 0);
+    assert_eq!(removed.kind(), EdgeKind::Strong);
+    assert_eq!(second.id().allocation_ordinal(), 1);
+    assert_eq!(second.kind(), EdgeKind::Weak);
+    assert!(removed.id() < second.id());
+}
+
+#[test]
+fn edge_identity_overflow_fails_closed() {
+    let mut allocator = EdgeAllocator::starting_at(u32::MAX);
+    let last = allocator.allocate(EdgeKind::Ephemeron).unwrap();
+    assert_eq!(last.id().allocation_ordinal(), u32::MAX);
+    assert_eq!(last.kind(), EdgeKind::Ephemeron);
+    assert_eq!(
+        allocator.allocate(EdgeKind::Strong),
+        Err(EdgeAllocationError::IdentityExhausted)
+    );
+    assert_eq!(
+        allocator.allocate(EdgeKind::Weak),
+        Err(EdgeAllocationError::IdentityExhausted)
+    );
+}
+
+#[test]
+fn generic_role_changes_are_graph_neutral() {
+    let mut role = ManagedRole::new(String::from("instance"));
+    let mut allocator = EdgeAllocator::new();
+    let before = [
+        allocator.allocate(EdgeKind::Strong).unwrap(),
+        allocator.allocate(EdgeKind::Weak).unwrap(),
+    ];
+
+    assert_eq!(role.replace_role(String::from("prototype")), "instance");
+    assert_eq!(role.role(), "prototype");
+
+    let after = allocator.allocate(EdgeKind::Strong).unwrap();
+    assert_eq!(before.map(|edge| edge.id().allocation_ordinal()), [0, 1]);
+    assert_eq!(after.id().allocation_ordinal(), 2);
+}
+
+#[test]
+fn managed_node_strong_graph_matches_ordered_model_across_mutations() {
+    let mut arena = arena(5);
+    let targets = (0..4)
+        .map(|_| arena.allocate(Node::default()).unwrap())
+        .collect::<Vec<_>>();
+    let mut node = ManagedNode::new(String::from("object"));
+    let first = node.insert_strong(targets[0].id()).unwrap();
+    let second = node.insert_strong(targets[1].id()).unwrap();
+    let third = node.insert_strong(targets[2].id()).unwrap();
+
+    node.replace_strong(second, targets[1].id(), targets[3].id())
+        .unwrap();
+    assert_eq!(
+        node.remove_strong(first, targets[0].id()),
+        Ok(targets[0].id())
+    );
+
+    let mut traced = Vec::new();
+    struct StrongTrace<'a>(&'a mut Vec<(EdgeId, ManagedId)>);
+    impl EdgeVisitor for StrongTrace<'_> {
+        fn strong(&mut self, edge: EdgeId, target: ManagedId) {
+            self.0.push((edge, target));
+        }
+        fn weak(&mut self, _edge: EdgeId, _target: ManagedId) {}
+        fn ephemeron(&mut self, _edge: EdgeId, _key: ManagedId, _value: ManagedId) {}
+    }
+    node.trace_edges(&mut StrongTrace(&mut traced));
+
+    assert_eq!(
+        traced,
+        vec![(second, targets[3].id()), (third, targets[2].id())]
+    );
+    assert_eq!(node.role(), "object");
+    assert_eq!(node.replace_role(String::from("array")), "object");
+    assert_eq!(node.role(), "array");
+    assert!(first < second && second < third);
+}
+
+#[test]
+fn managed_node_failed_strong_mutations_are_exact_and_atomic() {
+    let mut arena = arena(3);
+    let original = arena.allocate(Node::default()).unwrap().id();
+    let stale_expectation = arena.allocate(Node::default()).unwrap().id();
+    let replacement = arena.allocate(Node::default()).unwrap().id();
+    let mut node = ManagedNode::new(());
+    let edge = node.insert_strong(original).unwrap();
+    let before = node.clone();
+
+    assert_eq!(
+        node.replace_strong(edge, stale_expectation, replacement),
+        Err(StrongEdgeMutationError::TargetChanged {
+            expected: stale_expectation,
+            actual: original,
+        })
+    );
+    assert_eq!(node, before);
+    assert_eq!(
+        node.remove_strong(edge, stale_expectation),
+        Err(StrongEdgeMutationError::TargetChanged {
+            expected: stale_expectation,
+            actual: original,
+        })
+    );
+    assert_eq!(node, before);
+    assert_eq!(
+        node.remove_strong(EdgeId(edge.0 + 1), original),
+        Err(StrongEdgeMutationError::UnknownEdge(EdgeId(edge.0 + 1)))
+    );
+    assert_eq!(node, before);
+}
+
+#[test]
+fn managed_node_weak_edges_mutate_trace_and_clear_exactly_once() {
+    let mut arena = arena(4);
+    let first_target = arena.allocate(Node::default()).unwrap().id();
+    let second_target = arena.allocate(Node::default()).unwrap().id();
+    let mismatch = arena.allocate(Node::default()).unwrap().id();
+    let mut node = ManagedNode::new(());
+    let removed = node.insert_weak(first_target).unwrap();
+    let strong = node.insert_strong(mismatch).unwrap();
+    let retained = node.insert_weak(first_target).unwrap();
+
+    node.replace_weak(retained, first_target, second_target)
+        .unwrap();
+    assert_eq!(node.remove_weak(removed, first_target), Ok(first_target));
+    let after_clear = node.insert_weak(first_target).unwrap();
+
+    let before_mismatch = node.clone();
+    assert_eq!(
+        node.replace_weak(retained, mismatch, first_target),
+        Err(WeakEdgeMutationError::TargetChanged {
+            expected: mismatch,
+            actual: second_target,
+        })
+    );
+    assert_eq!(node, before_mismatch);
+    assert!(!node.clear_weak_edge(retained, mismatch));
+    assert!(node.clear_weak_edge(retained, second_target));
+    assert!(!node.clear_weak_edge(retained, second_target));
+
+    #[derive(Default)]
+    struct OrderedTrace(Vec<(EdgeKind, EdgeId, ManagedId)>);
+    impl EdgeVisitor for OrderedTrace {
+        fn strong(&mut self, edge: EdgeId, target: ManagedId) {
+            self.0.push((EdgeKind::Strong, edge, target));
+        }
+        fn weak(&mut self, edge: EdgeId, target: ManagedId) {
+            self.0.push((EdgeKind::Weak, edge, target));
+        }
+        fn ephemeron(&mut self, _edge: EdgeId, _key: ManagedId, _value: ManagedId) {}
+    }
+    let mut traced = OrderedTrace::default();
+    node.trace_edges(&mut traced);
+    assert_eq!(
+        traced.0,
+        vec![
+            (EdgeKind::Strong, strong, mismatch),
+            (EdgeKind::Weak, after_clear, first_target),
+        ]
+    );
+    assert!(removed < strong && strong < retained && retained < after_clear);
+}
+
+#[test]
+fn managed_node_ephemerons_mutate_trace_and_clear_exact_pairs_once() {
+    let mut arena = arena(6);
+    let key = arena.allocate(Node::default()).unwrap().id();
+    let value = arena.allocate(Node::default()).unwrap().id();
+    let replacement_key = arena.allocate(Node::default()).unwrap().id();
+    let replacement_value = arena.allocate(Node::default()).unwrap().id();
+    let mismatch = arena.allocate(Node::default()).unwrap().id();
+    let mut node = ManagedNode::new(());
+    let removed = node.insert_ephemeron(key, value).unwrap();
+    let strong = node.insert_strong(mismatch).unwrap();
+    let retained = node.insert_ephemeron(key, value).unwrap();
+
+    node.replace_ephemeron(retained, (key, value), (replacement_key, replacement_value))
+        .unwrap();
+    assert_eq!(
+        node.remove_ephemeron(removed, (key, value)),
+        Ok((key, value))
+    );
+    let after_clear = node.insert_ephemeron(key, value).unwrap();
+
+    let before_mismatch = node.clone();
+    assert_eq!(
+        node.replace_ephemeron(retained, (mismatch, value), (key, value)),
+        Err(EphemeronMutationError::EntryChanged {
+            expected_key: mismatch,
+            expected_value: value,
+            actual_key: replacement_key,
+            actual_value: replacement_value,
+        })
+    );
+    assert_eq!(node, before_mismatch);
+    assert!(!node.clear_ephemeron_edge(retained, replacement_key, mismatch));
+    assert!(node.clear_ephemeron_edge(retained, replacement_key, replacement_value));
+    assert!(!node.clear_ephemeron_edge(retained, replacement_key, replacement_value));
+
+    #[derive(Default)]
+    struct OrderedTrace(Vec<(EdgeKind, EdgeId, ManagedId, ManagedId)>);
+    impl EdgeVisitor for OrderedTrace {
+        fn strong(&mut self, edge: EdgeId, target: ManagedId) {
+            self.0.push((EdgeKind::Strong, edge, target, target));
+        }
+        fn weak(&mut self, _edge: EdgeId, _target: ManagedId) {}
+        fn ephemeron(&mut self, edge: EdgeId, key: ManagedId, value: ManagedId) {
+            self.0.push((EdgeKind::Ephemeron, edge, key, value));
+        }
+    }
+    let mut traced = OrderedTrace::default();
+    node.trace_edges(&mut traced);
+    assert_eq!(
+        traced.0,
+        vec![
+            (EdgeKind::Strong, strong, mismatch, mismatch),
+            (EdgeKind::Ephemeron, after_clear, key, value),
+        ]
+    );
+    assert!(removed < strong && strong < retained && retained < after_clear);
+}
+
+#[test]
+fn managed_node_limits_wrong_kinds_and_snapshots_are_exact() {
+    let mut arena = arena(4);
+    let targets = (0..4)
+        .map(|_| arena.allocate(Node::default()).unwrap().id())
+        .collect::<Vec<_>>();
+    let mut node = ManagedNode::with_edge_limits((), EdgeLimits::new(3, 1, 2, 1));
+    let weak = node.insert_weak(targets[0]).unwrap();
+    let strong = node.insert_strong(targets[1]).unwrap();
+    let before = node.clone();
+
+    assert_eq!(
+        node.replace_strong(weak, targets[0], targets[2]),
+        Err(StrongEdgeMutationError::WrongKind {
+            edge: weak,
+            actual: EdgeKind::Weak,
+        })
+    );
+    assert_eq!(node, before);
+    assert_eq!(
+        node.insert_strong(targets[2]),
+        Err(StrongEdgeMutationError::Allocation(
+            EdgeAllocationError::CapacityExceeded {
+                kind: EdgeKind::Strong,
+                cap: 1,
+            }
+        ))
+    );
+    assert_eq!(node, before);
+    let ephemeron = node.insert_ephemeron(targets[2], targets[3]).unwrap();
+    let full = node.clone();
+    assert_eq!(
+        node.insert_weak(targets[3]),
+        Err(WeakEdgeMutationError::Allocation(
+            EdgeAllocationError::CapacityExceeded {
+                kind: EdgeKind::Weak,
+                cap: 3,
+            }
+        ))
+    );
+    assert_eq!(node, full);
+    assert_eq!(
+        node.edge_snapshot(),
+        vec![
+            EdgeSnapshot::Weak {
+                edge: weak,
+                target: targets[0]
+            },
+            EdgeSnapshot::Strong {
+                edge: strong,
+                target: targets[1]
+            },
+            EdgeSnapshot::Ephemeron {
+                edge: ephemeron,
+                key: targets[2],
+                value: targets[3]
+            },
+        ]
+    );
+}
+
+#[test]
+fn generated_edge_operations_preserve_model_and_failure_atomicity() {
+    let mut arena = arena(8);
+    let targets = (0..8)
+        .map(|_| arena.allocate(Node::default()).unwrap().id())
+        .collect::<Vec<_>>();
+
+    for seed in 0_u64..32 {
+        let mut state = seed | 1;
+        let mut node = ManagedNode::with_edge_limits((), EdgeLimits::new(6, 3, 2, 2));
+        for _ in 0..128 {
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1);
+            let target = targets[(state as usize >> 8) % targets.len()];
+            let before = node.clone();
+            let succeeded = match state % 6 {
+                0 => node.insert_strong(target).is_ok(),
+                1 => node.insert_weak(target).is_ok(),
+                2 => node
+                    .insert_ephemeron(target, targets[(state as usize >> 16) % targets.len()])
+                    .is_ok(),
+                _ => node
+                    .replace_strong(
+                        EdgeId((state >> 24) as u32 % 10),
+                        target,
+                        targets[(state as usize >> 32) % targets.len()],
+                    )
+                    .is_ok(),
+            };
+            if !succeeded {
+                assert_eq!(
+                    node, before,
+                    "seed {seed} failed operation mutated the node"
+                );
+            }
+            let snapshot = node.edge_snapshot();
+            assert!(snapshot.windows(2).all(|pair| pair[0].id() < pair[1].id()));
+            assert!(snapshot.len() <= 6);
+            assert!(
+                snapshot
+                    .iter()
+                    .filter(|edge| matches!(edge, EdgeSnapshot::Strong { .. }))
+                    .count()
+                    <= 3
+            );
+            assert!(
+                snapshot
+                    .iter()
+                    .filter(|edge| matches!(edge, EdgeSnapshot::Weak { .. }))
+                    .count()
+                    <= 2
+            );
+            assert!(
+                snapshot
+                    .iter()
+                    .filter(|edge| matches!(edge, EdgeSnapshot::Ephemeron { .. }))
+                    .count()
+                    <= 2
+            );
         }
     }
 }

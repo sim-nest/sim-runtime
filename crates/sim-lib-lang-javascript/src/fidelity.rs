@@ -148,7 +148,9 @@ mod tests {
     fn sources_have_no_private_engine_fallback() {
         let sources = [
             include_str!("runtime.rs"),
-            include_str!("objects.rs"),
+            include_str!("objects/function.rs"),
+            include_str!("objects/space.rs"),
+            include_str!("objects/tests.rs"),
             include_str!("jobs.rs"),
             include_str!("modules.rs"),
             include_str!("managed.rs"),

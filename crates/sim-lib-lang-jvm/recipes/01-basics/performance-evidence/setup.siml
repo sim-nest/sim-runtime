@@ -1,0 +1,5 @@
+{coverage "performance-coverage.toml"
+ prepared "code.rs::prepare_code"
+ micro-ops "code.rs::PreparedMicroOp"
+ fusions "superinstructions_generated.rs::FUSED_DEFINITIONS"
+ raw-owner "sim-tooling/benchmarks/bytecode-speed-4"}

@@ -17,24 +17,36 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 
 | Feature | Subject | Specimens | Summary |
 | --- | --- | ---: | --- |
-| `feature/sim-runtime/javascript-core-profile` | `crate/sim-lib-lang-javascript` | 1 | Run embedded, capability-scoped ECMAScript over SIM values with ordinary objects, exact UTF-16 strings, explicit drain-to-empty jobs, authorized source modules, and no Node, DOM, timers, ambient host IO, or implicit event loop. |
+| `feature/sim-runtime/javascript-core-profile` | `crate/sim-lib-lang-javascript` | 4 | Run embedded, capability-scoped ECMAScript over SIM values with ordinary objects, exact UTF-16 strings, explicit drain-to-empty jobs, and JavaScript-named constructors for shared source-module and dynamic-source policies, with no private authority envelopes, Node, DOM, timers, ambient host IO, or implicit event loop. |
 | `feature/sim-runtime/typescript-notation-profile` | `crate/sim-lib-lang-typescript` | 1 | TypeScript notation; does not type-check. Load admitted notation by direct JavaScript erasure while retaining faithful, non-enforcing Shape metadata and explicit compiler gaps. |
-| `feature/sim-runtime/incremental-query-core` | `crate/sim-incremental-core` | 1 | Provide the generic memo graph algorithm that runtime organs can wrap without depending on SIM value surfaces. |
-| `feature/sim-runtime/incremental-query-organ` | `crate/sim-lib-incremental` | 1 | Expose incremental expression queries as a loadable SIM organ with capability-gated registration, invalidation, verification, explanation, snapshots, and metrics. |
-| `feature/sim-runtime/capabilities-read-eval` | `crate/sim-lib-core` | 1 | Gate diminished read-eval and surface packing through explicit runtime libraries and capability checks. |
-| `feature/sim-runtime/organs` | `crate/sim-lib-binding` | 1 | Provide binding, control, logic, pattern, incremental, mutation, namespace, and sequence organs as reusable runtime behavior. |
+| `feature/sim-runtime/typed-lazy-typeclass-dictionaries` | `crate/sim-lib-lang-typed-lazy` | 1 | Represent a typeclass instance as an explicit language-owned evidence record mapping required method names to implementation symbols. |
+| `feature/sim-runtime/prolog-predicate-clause-store` | `crate/sim-lib-lang-prolog` | 1 | Keep each Prolog predicate language-owned as the indexed set of logic-organ clauses resolved through unification and backtracking. |
+| `feature/sim-runtime/class-semantics` | `crate/sim-lib-class` | 3 | Own checked declared-parent class descriptors projected onto the kernel Class protocol, with bounded lineage policies and managed, non-retaining caches for linearizations and derived member views. |
+| `feature/sim-runtime/incremental-query-core` | `crate/sim-incremental-core` | 4 | Provide the generic memo graph and the one proof-producing dataflow fixpoint engine that runtime organs can wrap without depending on SIM value surfaces. |
+| `feature/sim-runtime/incremental-query-organ` | `crate/sim-lib-incremental` | 1 | Expose incremental expression queries and immutable proof-backed dataflow analysis views as a loadable SIM organ. |
+| `feature/sim-runtime/capabilities-read-eval` | `crate/sim-lib-core` | 2 | Gate diminished read-eval and surface packing through explicit runtime libraries and capability checks. |
+| `feature/sim-runtime/organs` | `crate/sim-lib-binding` | 1 | Provide binding, function, control, logic, pattern, incremental, mutation, namespace, and sequence organs as reusable runtime behavior. |
+| `feature/sim-runtime/pattern-cursor-domains` | `crate/sim-lib-pattern` | 2 | Execute bounded patterns over byte, Unicode scalar, or exact UTF-16 code-unit subjects while retaining the offset domain in every match and capture position. |
+| `feature/sim-runtime/function-organ` | `crate/sim-lib-function` | 6 | Compose immutable function declarations with concrete guest body policies, collector-visible captures, kernel invocation, and optional dispatch methods. |
 | `feature/sim-runtime/binding-organ` | `crate/sim-lib-binding` | 1 | Bind declared calls and maintain lexical, dynamic, recursive, and live binding cells without guest-language ownership. |
 | `feature/sim-runtime/control-organ` | `crate/sim-lib-control` | 1 | Drive bounded resumable frames, cleanup-safe unwind, and explicitly checkpointed typed FIFO jobs. |
+| `feature/sim-runtime/machine-contract` | `crate/sim-lib-machine` | 4 | Define policy seams and explicit bounded, resumable frames for decoded instructions, logical widths, calls, returns, protected handlers, cleanup, interruption, roots, safepoints, admission, and receipts without choosing a guest or host mechanism. |
 | `feature/sim-runtime/gc-tracing` | `crate/sim-lib-gc-tracing` | 1 | Reclaim unreachable managed-object cycles with deterministic, failure-atomic stop-the-world tracing. |
 | `feature/sim-runtime/mutation-organ` | `crate/sim-lib-mutation` | 2 | Expose capability-gated mutable containers plus a bounded, allocation-deterministic managed-object arena and versioned tracing contract. |
+| `feature/sim-runtime/generic-dispatch-organ` | `crate/sim-lib-dispatch` | 1 | Select and combine shape-specialized methods behind one profile-neutral generic-function owner. |
+| `feature/sim-runtime/islisp-generic-adapter` | `crate/sim-lib-lang-islisp` | 1 | Present ISLISP generic vocabulary while admitting primary methods to the shared dispatch organ. |
+| `feature/sim-runtime/cl-generic-adapter` | `crate/sim-lib-lang-cl` | 1 | Present defgeneric and defmethod vocabulary while retaining the CL-lite profile identity over shared dispatch. |
+| `feature/sim-runtime/julia-generic-adapter` | `crate/sim-lib-lang-julia` | 1 | Present Julia method vocabulary and profile identity over shared generic dispatch. |
 | `feature/sim-runtime/property-mechanics` | `crate/sim-lib-dispatch` | 1 | Store ordered own properties and execute data or accessor descriptors with receiver-aware, budgeted interception. |
 | `feature/sim-runtime/namespace-organ` | `crate/sim-lib-namespace` | 2 | Expose namespace records plus capability-aware, source-bound module resolution, linking, live bindings, cache lifecycle, and receipts. |
+| `feature/sim-runtime/characterization-captures` | `crate/sim-lib-standard-core` | 2 | Intern bounded semantic scenario observations as immutable evidence and compare migrations with exact canonical differences. |
 | `feature/sim-runtime/library-loading` | `crate/sim-lib-standard-core` | 1 | Load standard and language-profile runtime libraries through stable export records. |
 | `feature/sim-runtime/guest-language-profiles` | `crate/sim-lib-standard-core` | 2 | Add source-language surfaces as readers, direct Expr lowering, checked eval policy, and shared organ composition without guest-owned runtime machinery. |
-| `feature/sim-runtime/python-object-control-policy` | `crate/sim-lib-lang-python` | 1 | Compose Python classes, C3, descriptors, bound methods, super, checked exceptions, context cleanup, generators, coroutines, and cyclic collection over shared runtime organs. |
+| `feature/sim-runtime/python-object-control-policy` | `crate/sim-lib-lang-python` | 2 | Compose Python classes, C3, descriptors, bound methods, super, checked exceptions, context cleanup, generators, coroutines, and cyclic collection over shared runtime organs. |
 | `feature/sim-runtime/python-authorized-library-core` | `crate/sim-lib-lang-python` | 1 | Run embedded, capability-scoped, agent-authored Python over SIM values with ordered matching, supplied-root modules, and diminished eval/exec. |
 | `feature/sim-runtime/host-exec` | `crate/sim-lib-exec` | 1 | Expose bounded process execution as a capability-gated host primitive outside the kernel. |
 | `feature/sim-runtime/contract-emitter` | `crate/xtask` | 0 | Emit generated repository contract and index fragments for runtime crates. |
+| `feature/sim-runtime/jvm-loadable-profile` | `crate/sim-lib-lang-jvm` | 9 | Decode caller-authorized classfile bytes and execute bounded JVM calls, managed objects, arrays, exceptions, exact Java text, and bidirectional functional-interface adapters through one host-registered library, with exact whole-class proofs required by the verified fidelity tier. |
 
 ## Surfaces
 
@@ -50,6 +62,10 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 - `crates/sim-lib-binding/recipes/01-basics/let-square/recipe.toml`
 - `crates/sim-lib-binding/recipes/01-basics/let-square/setup.siml`
 - `crates/sim-lib-binding/recipes/book.toml`
+- `crates/sim-lib-class/recipes/01-basics/chapter.toml`
+- `crates/sim-lib-class/recipes/01-basics/neutral-class/purpose.md`
+- `crates/sim-lib-class/recipes/01-basics/neutral-class/recipe.toml`
+- `crates/sim-lib-class/recipes/book.toml`
 - `crates/sim-lib-control/recipes/01-basics/chapter.toml`
 - `crates/sim-lib-control/recipes/01-basics/if-branch/purpose.md`
 - `crates/sim-lib-control/recipes/01-basics/if-branch/recipe.toml`
@@ -75,12 +91,22 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 - `crates/sim-lib-exec/recipes/01-basics/bounded-process/setup.siml`
 - `crates/sim-lib-exec/recipes/01-basics/chapter.toml`
 - `crates/sim-lib-exec/recipes/book.toml`
+- `crates/sim-lib-function/recipes/01-basics/chapter.toml`
+- `crates/sim-lib-function/recipes/01-basics/neutral-language/purpose.md`
+- `crates/sim-lib-function/recipes/01-basics/neutral-language/recipe.toml`
+- `crates/sim-lib-function/recipes/book.toml`
 - `crates/sim-lib-gc-tracing/recipes/01-collection/bounded-cycle/purpose.md`
 - `crates/sim-lib-gc-tracing/recipes/01-collection/bounded-cycle/recipe.toml`
 - `crates/sim-lib-gc-tracing/recipes/01-collection/bounded-cycle/setup.siml`
 - `crates/sim-lib-gc-tracing/recipes/01-collection/chapter.toml`
+- `crates/sim-lib-gc-tracing/recipes/01-collection/managed-substrate/purpose.md`
+- `crates/sim-lib-gc-tracing/recipes/01-collection/managed-substrate/recipe.toml`
+- `crates/sim-lib-gc-tracing/recipes/01-collection/managed-substrate/setup.siml`
 - `crates/sim-lib-gc-tracing/recipes/book.toml`
 - `crates/sim-lib-incremental/recipes/01-basics/chapter.toml`
+- `crates/sim-lib-incremental/recipes/01-basics/completed-analysis/purpose.md`
+- `crates/sim-lib-incremental/recipes/01-basics/completed-analysis/recipe.toml`
+- `crates/sim-lib-incremental/recipes/01-basics/completed-analysis/setup.siml`
 - `crates/sim-lib-incremental/recipes/01-basics/query-family/purpose.md`
 - `crates/sim-lib-incremental/recipes/01-basics/query-family/recipe.toml`
 - `crates/sim-lib-incremental/recipes/01-basics/query-family/setup.siml`
@@ -115,6 +141,12 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 - `crates/sim-lib-lang-islisp/recipes/01-basics/profile-descriptor/setup.siml`
 - `crates/sim-lib-lang-islisp/recipes/book.toml`
 - `crates/sim-lib-lang-javascript/recipes/01-basics/chapter.toml`
+- `crates/sim-lib-lang-javascript/recipes/01-basics/collection-owner-composition/purpose.md`
+- `crates/sim-lib-lang-javascript/recipes/01-basics/collection-owner-composition/recipe.toml`
+- `crates/sim-lib-lang-javascript/recipes/01-basics/collection-owner-composition/setup.js`
+- `crates/sim-lib-lang-javascript/recipes/01-basics/json-codec-composition/purpose.md`
+- `crates/sim-lib-lang-javascript/recipes/01-basics/json-codec-composition/recipe.toml`
+- `crates/sim-lib-lang-javascript/recipes/01-basics/json-codec-composition/setup.js`
 - `crates/sim-lib-lang-javascript/recipes/01-basics/source-core/purpose.md`
 - `crates/sim-lib-lang-javascript/recipes/01-basics/source-core/recipe.toml`
 - `crates/sim-lib-lang-javascript/recipes/01-basics/source-core/setup.js`
@@ -127,6 +159,23 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 - `crates/sim-lib-lang-julia/recipes/01-basics/profile-descriptor/recipe.toml`
 - `crates/sim-lib-lang-julia/recipes/01-basics/profile-descriptor/setup.siml`
 - `crates/sim-lib-lang-julia/recipes/book.toml`
+- `crates/sim-lib-lang-jvm/recipes/01-basics/authorized-static-call/purpose.md`
+- `crates/sim-lib-lang-jvm/recipes/01-basics/authorized-static-call/recipe.toml`
+- `crates/sim-lib-lang-jvm/recipes/01-basics/authorized-static-call/setup.siml`
+- `crates/sim-lib-lang-jvm/recipes/01-basics/chapter.toml`
+- `crates/sim-lib-lang-jvm/recipes/01-basics/java-lambda/purpose.md`
+- `crates/sim-lib-lang-jvm/recipes/01-basics/java-lambda/recipe.toml`
+- `crates/sim-lib-lang-jvm/recipes/01-basics/java-lambda/setup.siml`
+- `crates/sim-lib-lang-jvm/recipes/01-basics/method-reference/purpose.md`
+- `crates/sim-lib-lang-jvm/recipes/01-basics/method-reference/recipe.toml`
+- `crates/sim-lib-lang-jvm/recipes/01-basics/method-reference/setup.siml`
+- `crates/sim-lib-lang-jvm/recipes/01-basics/performance-evidence/purpose.md`
+- `crates/sim-lib-lang-jvm/recipes/01-basics/performance-evidence/recipe.toml`
+- `crates/sim-lib-lang-jvm/recipes/01-basics/performance-evidence/setup.siml`
+- `crates/sim-lib-lang-jvm/recipes/01-basics/sim-functional-interface/purpose.md`
+- `crates/sim-lib-lang-jvm/recipes/01-basics/sim-functional-interface/recipe.toml`
+- `crates/sim-lib-lang-jvm/recipes/01-basics/sim-functional-interface/setup.siml`
+- `crates/sim-lib-lang-jvm/recipes/book.toml`
 - `crates/sim-lib-lang-lua/recipes/01-basics/chapter.toml`
 - `crates/sim-lib-lang-lua/recipes/01-basics/closure-upvalue/purpose.md`
 - `crates/sim-lib-lang-lua/recipes/01-basics/closure-upvalue/recipe.toml`
@@ -148,6 +197,9 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 - `crates/sim-lib-lang-lua/recipes/01-basics/string-patterns/setup.siml`
 - `crates/sim-lib-lang-lua/recipes/book.toml`
 - `crates/sim-lib-lang-matrix/recipes/01-basics/chapter.toml`
+- `crates/sim-lib-lang-matrix/recipes/01-basics/cross-language-callable/purpose.md`
+- `crates/sim-lib-lang-matrix/recipes/01-basics/cross-language-callable/recipe.toml`
+- `crates/sim-lib-lang-matrix/recipes/01-basics/cross-language-callable/setup.siml`
 - `crates/sim-lib-lang-matrix/recipes/01-basics/runtime-language-matrix/purpose.md`
 - `crates/sim-lib-lang-matrix/recipes/01-basics/runtime-language-matrix/recipe.toml`
 - `crates/sim-lib-lang-matrix/recipes/01-basics/runtime-language-matrix/setup.siml`
@@ -227,6 +279,9 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 - `crates/sim-lib-sequence/recipes/01-basics/map-square/setup.siml`
 - `crates/sim-lib-sequence/recipes/book.toml`
 - `crates/sim-lib-standard-core/recipes/01-basics/chapter.toml`
+- `crates/sim-lib-standard-core/recipes/01-basics/characterize-migration/purpose.md`
+- `crates/sim-lib-standard-core/recipes/01-basics/characterize-migration/recipe.toml`
+- `crates/sim-lib-standard-core/recipes/01-basics/characterize-migration/setup.siml`
 - `crates/sim-lib-standard-core/recipes/01-basics/profile-fidelity/purpose.md`
 - `crates/sim-lib-standard-core/recipes/01-basics/profile-fidelity/recipe.toml`
 - `crates/sim-lib-standard-core/recipes/01-basics/profile-fidelity/setup.siml`
@@ -273,7 +328,7 @@ pub use fidelity::{
     javascript_fidelity_dimensions, javascript_regression_cases,
 };
 pub use jobs::{
-    JavascriptAsyncFunction, JavascriptException, JavascriptGenerator, JavascriptJobClass,
+    JavascriptAsyncFunction, JavascriptExceptionRealm, JavascriptGenerator, JavascriptJobClass,
     JavascriptJobs, JavascriptPromise, JavascriptPromiseState,
 };
 pub use json::{
@@ -281,17 +336,18 @@ pub use json::{
     parse_javascript_json, stringify_javascript_json,
 };
 pub use managed::{
-    JavascriptHeap, JavascriptHeapPolicy, JavascriptManagedKind, JavascriptManagedObject,
+    JavascriptHeap, JavascriptHeapExt, JavascriptHeapPolicy, JavascriptManagedKind,
+    JavascriptManagedMutationError, JavascriptManagedObject,
 };
 pub use matrix_row::{javascript_core_matrix_row, javascript_core_source_cases};
 pub use modules::{
-    DynamicJavascript, JavascriptDynamicAdmission, JavascriptModuleAdmission,
-    JavascriptModulePolicy,
+    dynamic_javascript_policy, dynamic_javascript_policy_with_codec, javascript_module_policy,
+    javascript_module_policy_with_codec,
 };
 pub use objects::{
-    JavascriptFunction, JavascriptFunctionKind, JavascriptObjectError, JavascriptObjectGap,
-    JavascriptObjects, JavascriptPropertyKey, JavascriptThis,
-    javascript_callable_shape_constraints, javascript_object_gaps,
+    JavascriptCallError, JavascriptFunction, JavascriptFunctionKind, JavascriptFunctionPolicy,
+    JavascriptObjectError, JavascriptObjectGap, JavascriptObjects, JavascriptPropertyKey,
+    JavascriptThis, javascript_callable_shape_constraints, javascript_object_gaps,
 };
 pub use profile::{
     JavascriptIntrinsic, install_javascript_core_profile, javascript_core_profile,
@@ -307,6 +363,324 @@ pub use text::{JavascriptCodeUnitString, JavascriptTextError};
 /// Cookbook recipes embedded at build time.
 pub static RECIPES: sim_cookbook::EmbeddedDir =
     include!(concat!(env!("OUT_DIR"), "/cookbook_recipes.rs"));
+```
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-sequence/tests/composition_ownership_guard` is checked by `cargo test`.
+
+Source `crates/sim-lib-sequence/tests/composition_ownership_guard.rs`:
+
+```rust
+//! Structural guard for guest JSON and collection composition.
+
+// conformance: guest collections reuse the shared ordered sequence substrate.
+
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
+
+const PRIVATE_ORDERED_TABLE: &str = r#"
+struct GuestOrderedTable<K, V> {
+    rows: Vec<(K, V)>,
+    key_index: std::collections::BTreeMap<K, usize>,
+}
+"#;
+
+const POLICY_WRAPPER: &str = r#"
+use sim_lib_sequence::{OrderedTable, SparseSequence};
+struct JavascriptArray<V> { elements: SparseSequence<V> }
+struct JavascriptMap<K, V> { entries: OrderedTable<K, V, SameValueZero> }
+"#;
+
+#[derive(Debug)]
+struct Relationship {
+    path: String,
+    class: String,
+    owner: String,
+    reason: String,
+}
+
+#[derive(Debug)]
+struct Policy {
+    json_owner: String,
+    sequence_owner: String,
+    remediation: String,
+    sparse_storage_fields: Vec<String>,
+    sparse_length_fields: Vec<String>,
+    ordered_storage_fields: Vec<String>,
+    ordered_index_fields: Vec<String>,
+    json_driver_names: Vec<String>,
+    relationships: Vec<Relationship>,
+}
+
+impl Policy {
+    fn load(root: &Path) -> Self {
+        let source = fs::read_to_string(root.join("composition-ownership.toml"))
+            .expect("composition ownership policy must exist");
+        assert_eq!(scalar(&source, "schema"), "sim.composition-ownership/v1");
+        Self {
+            json_owner: scalar(&source, "json_owner"),
+            sequence_owner: scalar(&source, "sequence_owner"),
+            remediation: scalar(&source, "remediation"),
+            sparse_storage_fields: array(&source, "sparse_storage_fields"),
+            sparse_length_fields: array(&source, "sparse_length_fields"),
+            ordered_storage_fields: array(&source, "ordered_storage_fields"),
+            ordered_index_fields: array(&source, "ordered_index_fields"),
+            json_driver_names: array(&source, "json_driver_names"),
+            relationships: sections(&source, "[[approved_relationship]]")
+                .map(|row| Relationship {
+                    path: scalar(row, "path"),
+                    class: scalar(row, "class"),
+                    owner: scalar(row, "owner"),
+                    reason: scalar(row, "reason"),
+                })
+                .collect(),
+        }
+    }
+
+    fn findings(&self, path: &Path, source: &str) -> Vec<String> {
+        let relative = path.to_string_lossy().replace('\\', "/");
+        if let Some(row) = self
+            .relationships
+            .iter()
+            .find(|row| relative.ends_with(&row.path))
+        {
+            assert_eq!(row.class, "policy-wrapper");
+            assert!(row.owner == self.json_owner || row.owner == self.sequence_owner);
+            assert!(!row.reason.is_empty());
+        }
+
+        let mut findings = Vec::new();
+        for item in structs(source) {
+            let fields = field_names(&item);
+            let sparse = field_pair(
+                &fields,
+                &self.sparse_storage_fields,
+                &self.sparse_length_fields,
+            );
+            let ordered = field_pair(
+                &fields,
+                &self.ordered_storage_fields,
+                &self.ordered_index_fields,
+            );
+            if sparse.is_some() && (item.contains("Vec<Option<") || item.contains("BTreeMap<usize"))
+            {
+                findings.push(format!(
+                    "{relative} retains a private sparse store; owner: {}; remediation: {}",
+                    self.sequence_owner, self.remediation
+                ));
+            }
+            if ordered.is_some() && item.contains("Vec<(") {
+                findings.push(format!(
+                    "{relative} retains a private ordered table; owner: {}; remediation: {}",
+                    self.sequence_owner, self.remediation
+                ));
+            }
+        }
+        for name in &self.json_driver_names {
+            if source.contains(&format!("fn {name}(")) {
+                findings.push(format!(
+                    "{relative} declares private JSON parsing or rendering `{name}`; owner: {}; remediation: {}",
+                    self.json_owner, self.remediation
+                ));
+            }
+        }
+        findings.sort();
+        findings.dedup();
+        findings
+    }
+}
+
+fn field_pair<'a>(
+    fields: &'a [String],
+    left: &[String],
+    right: &[String],
+) -> Option<(&'a str, &'a str)> {
+    Some((
+        fields.iter().find(|field| left.contains(field))?,
+        fields.iter().find(|field| right.contains(field))?,
+    ))
+}
+
+fn sections<'a>(source: &'a str, heading: &str) -> impl Iterator<Item = &'a str> {
+    source
+        .split(heading)
+        .skip(1)
+        .map(|row| row.split("[[").next().unwrap_or(row))
+}
+
+fn scalar(source: &str, key: &str) -> String {
+    source
+        .lines()
+        .map(str::trim)
+        .find_map(|line| line.strip_prefix(&format!("{key} = \"")))
+        .and_then(|rest| rest.strip_suffix('"'))
+        .unwrap_or_default()
+        .to_owned()
+}
+
+fn array(source: &str, key: &str) -> Vec<String> {
+    let Some(line) = source
+        .lines()
+        .map(str::trim)
+        .find(|line| line.starts_with(&format!("{key} = [")))
+    else {
+        return Vec::new();
+    };
+    line.split_once('[')
+        .and_then(|(_, rest)| rest.rsplit_once(']'))
+        .map(|(body, _)| body)
+        .unwrap_or_default()
+        .split(',')
+        .filter_map(|item| item.trim().strip_prefix('"')?.strip_suffix('"'))
+        .map(str::to_owned)
+        .collect()
+}
+
+fn structs(source: &str) -> Vec<String> {
+    let mut items = Vec::new();
+    let mut current = None::<(String, i32)>;
+    for line in source.lines() {
+        let trimmed = line.trim_start();
+        if current.is_none()
+            && (trimmed.starts_with("struct ") || trimmed.starts_with("pub struct "))
+        {
+            current = Some((format!("{line}\n"), brace_delta(line)));
+            continue;
+        }
+        if let Some((text, depth)) = &mut current {
+            text.push_str(line);
+            text.push('\n');
+            *depth += brace_delta(line);
+            if *depth <= 0 {
+                items.push(std::mem::take(text));
+                current = None;
+            }
+        }
+    }
+    items
+}
+
+fn field_names(item: &str) -> Vec<String> {
+    item.lines()
+        .skip(1)
+        .filter_map(|line| {
+            line.trim()
+                .trim_start_matches("pub ")
+                .split_once(':')
+                .map(|(name, _)| name.trim())
+        })
+        .filter(|name| {
+            name.chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+        })
+        .map(str::to_owned)
+        .collect()
+}
+
+fn brace_delta(line: &str) -> i32 {
+    line.bytes()
+        .map(|byte| match byte {
+            b'{' => 1,
+            b'}' => -1,
+            _ => 0,
+        })
+        .sum()
+}
+
+fn repository_root() -> PathBuf {
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .canonicalize()
+        .expect("sequence source directory must resolve");
+    while !path.join("composition-ownership.toml").is_file() {
+        assert!(path.pop(), "composition ownership repository not found");
+    }
+    path
+}
+
+fn rust_sources(path: &Path) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    let mut pending = vec![path.to_owned()];
+    while let Some(path) = pending.pop() {
+        for entry in fs::read_dir(path).expect("source directory") {
+            let entry = entry.expect("source entry");
+            if entry.file_type().expect("source type").is_dir() {
+                pending.push(entry.path());
+            } else if entry.path().extension().is_some_and(|ext| ext == "rs") {
+                files.push(entry.path());
+            }
+        }
+    }
+    files
+}
+
+#[test]
+fn guard_rejects_private_ordered_table_and_admits_javascript_policy_wrapper() {
+    let policy = Policy::load(&repository_root());
+    let findings = policy.findings(
+        Path::new("crates/sim-lib-lang-example/src/collections.rs"),
+        PRIVATE_ORDERED_TABLE,
+    );
+    assert!(
+        findings
+            .iter()
+            .any(|finding| finding.contains("private ordered table"))
+    );
+    assert!(
+        policy
+            .findings(
+                Path::new("crates/sim-lib-lang-javascript/src/collections.rs"),
+                POLICY_WRAPPER,
+            )
+            .is_empty()
+    );
+}
+
+#[test]
+fn guest_sources_compose_json_and_sequence_owners_without_private_mechanics() {
+    let root = repository_root();
+    let policy = Policy::load(&root);
+    let mut findings = Vec::new();
+    for path in rust_sources(&root.join("crates")) {
+        let relative = path.strip_prefix(&root).expect("repository source");
+        if relative.to_string_lossy().contains("sim-lib-lang-") {
+            let source = fs::read_to_string(&path).expect("guest source");
+            findings.extend(policy.findings(relative, &source));
+        }
+    }
+    assert!(findings.is_empty(), "{}", findings.join("\n"));
+}
+```
+
+Specimen `recipe/sim-runtime/crates/sim-lib-lang-javascript/01-basics/json-codec-composition` is checked by `sh scripts/check-recipes.sh`.
+
+Source `crates/sim-lib-lang-javascript/recipes/01-basics/json-codec-composition/recipe.toml`:
+
+```toml
+id = "json-codec-composition"
+title = "Compose JavaScript JSON policy with the shared codec"
+codec = "javascript"
+setup = "setup.js"
+purpose = "purpose.md"
+order = 20
+tags = ["javascript", "json", "codec", "composition"]
+requires = ["codec/javascript", "codec/json", "lang/javascript-core/v1"]
+```
+
+Specimen `recipe/sim-runtime/crates/sim-lib-lang-javascript/01-basics/collection-owner-composition` is checked by `sh scripts/check-recipes.sh`.
+
+Source `crates/sim-lib-lang-javascript/recipes/01-basics/collection-owner-composition/recipe.toml`:
+
+```toml
+id = "collection-owner-composition"
+title = "Compose JavaScript collections with shared sequence storage"
+codec = "javascript"
+setup = "setup.js"
+purpose = "purpose.md"
+order = 30
+tags = ["javascript", "array", "map", "set", "sequence", "composition"]
+requires = ["codec/javascript", "lang/javascript-core/v1", "organ/sequence/v1"]
 ```
 
 ### `feature/sim-runtime/typescript-notation-profile`
@@ -352,6 +726,958 @@ pub static RECIPES: sim_cookbook::EmbeddedDir =
 mod tests;
 ```
 
+### `feature/sim-runtime/typed-lazy-typeclass-dictionaries`
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-lang-typed-lazy/src/lib` is checked by `cargo test`.
+
+Source `crates/sim-lib-lang-typed-lazy/src/lib.rs`:
+
+```rust
+#![forbid(unsafe_code)]
+#![deny(missing_docs)]
+//! Typed, lazy surface profile for the SIM runtime.
+//!
+//! The kernel defines the codec, eval-policy, and `Expr` contracts; this crate
+//! is a loadable language profile presenting a typed, lazily-evaluated surface
+//! syntax over the shared `Expr` graph, not a standalone interpreter.
+
+mod conformance;
+mod matrix_row;
+mod profile;
+mod runtime;
+mod symbols;
+
+pub use conformance::{run_typed_lazy_conformance_case, run_typed_lazy_matrix_row};
+pub use matrix_row::{typed_lazy_matrix_row, typed_lazy_source_cases};
+pub use profile::{install_typed_lazy_profile, typed_lazy_profile};
+pub use runtime::{LazyRef, TypeclassDictionary, typed_lazy_option_type};
+pub use symbols::{
+    typed_lazy_conformance_test_symbol, typed_lazy_control_fidelity_symbol,
+    typed_lazy_lowering_symbol, typed_lazy_pattern_fidelity_symbol, typed_lazy_profile_symbol,
+    typed_lazy_reader_symbol, typed_lazy_typeclass_fidelity_symbol,
+};
+
+/// Cookbook recipes for this lib, embedded at build time.
+pub static RECIPES: sim_cookbook::EmbeddedDir =
+    include!(concat!(env!("OUT_DIR"), "/cookbook_recipes.rs"));
+
+#[cfg(test)]
+mod tests;
+```
+
+### `feature/sim-runtime/prolog-predicate-clause-store`
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-logic/src/tests/organ_proof` is checked by `cargo test`.
+
+Source `crates/sim-lib-logic/src/tests/organ_proof.rs`:
+
+```rust
+use std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
+};
+
+// conformance: runtime organs prove facts through the logic library.
+
+use sim_kernel::{Cx, DefaultFactory, EagerPolicy, Expr, NumberLiteral, ShapeMatch, Symbol};
+
+use crate::{
+    LogicConfig, LogicDb,
+    all_solutions::{FindallRequest, findall_through_sequence_with_probe},
+    env::LogicEnv,
+    query::query_all,
+};
+
+fn cx_with_number_tower() -> Cx {
+    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    cx.load_lib(&sim_lib_numbers_arith::NumbersArithmeticLib::new())
+        .unwrap();
+    cx.load_lib(&sim_lib_numbers_i64::I64NumbersLib::new())
+        .unwrap();
+    cx.load_lib(&sim_lib_numbers_f64::F64NumbersLib::new())
+        .unwrap();
+    cx.load_lib(&sim_lib_numbers_bigint::BigIntNumbersLib::new())
+        .unwrap();
+    cx
+}
+
+fn number(domain: &str, canonical: impl Into<String>) -> Expr {
+    Expr::Number(NumberLiteral {
+        domain: Symbol::qualified("numbers", domain),
+        canonical: canonical.into(),
+    })
+}
+
+fn capture<'a>(answer: &'a ShapeMatch, name: &str) -> &'a Expr {
+    answer
+        .captures
+        .exprs()
+        .iter()
+        .find_map(|(symbol, expr)| (symbol == &Symbol::new(name)).then_some(expr))
+        .unwrap()
+}
+
+fn color_db() -> LogicDb {
+    let mut db = LogicDb::new();
+    for color in ["red", "green", "blue"] {
+        db.assert_clause_expr(Expr::List(vec![
+            Expr::Symbol(Symbol::new("fact")),
+            Expr::List(vec![
+                Expr::Symbol(Symbol::new("color")),
+                Expr::Symbol(Symbol::new(color)),
+            ]),
+        ]))
+        .unwrap();
+    }
+    db
+}
+
+#[test]
+fn is_routes_mixed_terms_through_number_tower() {
+    let mut cx = cx_with_number_tower();
+    let answers = query_all(
+        &mut cx,
+        &LogicDb::new(),
+        &LogicConfig::default(),
+        Expr::List(vec![
+            Expr::Symbol(Symbol::new("is")),
+            Expr::Local(Symbol::new("X")),
+            Expr::List(vec![
+                Expr::Symbol(Symbol::new("+")),
+                number("i64", "1"),
+                number("f64", "0.5"),
+            ]),
+        ]),
+        Some(1),
+    )
+    .unwrap();
+
+    assert_eq!(answers.len(), 1);
+    assert_eq!(capture(&answers[0], "X"), &number("f64", "1.5"));
+}
+
+#[test]
+fn is_widens_overflowing_integer_terms_through_number_tower() {
+    let mut cx = cx_with_number_tower();
+    let answers = query_all(
+        &mut cx,
+        &LogicDb::new(),
+        &LogicConfig::default(),
+        Expr::List(vec![
+            Expr::Symbol(Symbol::new("is")),
+            Expr::Local(Symbol::new("X")),
+            Expr::List(vec![
+                Expr::Symbol(Symbol::new("+")),
+                number("i64", i64::MAX.to_string()),
+                number("i64", "1"),
+            ]),
+        ]),
+        Some(1),
+    )
+    .unwrap();
+
+    assert_eq!(answers.len(), 1);
+    assert_eq!(
+        capture(&answers[0], "X"),
+        &number("bigint", "9223372036854775808")
+    );
+}
+
+#[test]
+fn findall_collects_answers_forced_from_sequence_engine() {
+    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let db = color_db();
+    let config = LogicConfig::default();
+    let forced = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::clone(&forced);
+    let template = Expr::Local(Symbol::new("X"));
+    let goal = Expr::List(vec![
+        Expr::Symbol(Symbol::new("color")),
+        Expr::Local(Symbol::new("X")),
+    ]);
+    let output = Expr::Local(Symbol::new("Xs"));
+    let env = LogicEnv::new();
+    let envs = findall_through_sequence_with_probe(
+        &mut cx,
+        FindallRequest {
+            db: &db,
+            config: &config,
+            template: &template,
+            goal: &goal,
+            output: &output,
+            env: &env,
+        },
+        |_| {
+            probe.fetch_add(1, Ordering::SeqCst);
+        },
+    )
+    .unwrap();
+
+    assert_eq!(forced.load(Ordering::SeqCst), 3);
+    assert_eq!(envs.len(), 1);
+    assert_eq!(
+        envs[0].get(&Symbol::new("Xs")),
+        Some(&Expr::List(vec![
+            Expr::Symbol(Symbol::new("red")),
+            Expr::Symbol(Symbol::new("green")),
+            Expr::Symbol(Symbol::new("blue")),
+        ]))
+    );
+}
+
+#[test]
+fn findall_query_projects_answer_template() {
+    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let answers = query_all(
+        &mut cx,
+        &color_db(),
+        &LogicConfig::default(),
+        Expr::List(vec![
+            Expr::Symbol(Symbol::new("findall")),
+            Expr::Local(Symbol::new("X")),
+            Expr::List(vec![
+                Expr::Symbol(Symbol::new("color")),
+                Expr::Local(Symbol::new("X")),
+            ]),
+            Expr::Local(Symbol::new("Xs")),
+        ]),
+        Some(1),
+    )
+    .unwrap();
+
+    assert_eq!(answers.len(), 1);
+    assert_eq!(
+        capture(&answers[0], "Xs"),
+        &Expr::List(vec![
+            Expr::Symbol(Symbol::new("red")),
+            Expr::Symbol(Symbol::new("green")),
+            Expr::Symbol(Symbol::new("blue")),
+        ])
+    );
+}
+```
+
+### `feature/sim-runtime/class-semantics`
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-class/tests/neutral_class_specimens` is checked by `cargo test`.
+
+Source `crates/sim-lib-class/tests/neutral_class_specimens.rs`:
+
+```rust
+// conformance: neutral class descriptors support complete language-independent specimens.
+
+//! End-to-end class specimens for a language that does not exist.
+
+use std::{collections::BTreeMap, sync::Arc};
+
+use sim_kernel::{
+    Class, ClassId, Cx, Expr, MatchScore, Object, ObjectCompat, ReadConstructor, Result, Shape,
+    ShapeDoc, ShapeMatch, Symbol, Value,
+};
+use sim_lib_class::{
+    C3Policy, CacheAccessKind, ClassCache, ClassDescriptor, ClassDescriptorInput, ClassIdentity,
+    DescriptorClass, LineageBudget, LineageError, LineageGraph, LineagePolicy, MemberShape,
+    ReadConstruction,
+};
+use sim_lib_gc_tracing::CollectionLimits;
+
+#[derive(Default)]
+struct SpecimenGraph(BTreeMap<&'static str, Vec<&'static str>>);
+
+impl LineageGraph for SpecimenGraph {
+    type Node = &'static str;
+
+    fn declared_parents(&self, node: &Self::Node) -> Vec<Self::Node> {
+        self.0.get(node).cloned().unwrap_or_default()
+    }
+}
+
+fn generous_budget() -> LineageBudget {
+    LineageBudget {
+        nodes: 32,
+        work: 512,
+    }
+}
+
+struct NamedShape(&'static str);
+
+impl Shape for NamedShape {
+    fn check_value(&self, _cx: &mut Cx, _value: Value) -> Result<ShapeMatch> {
+        Ok(ShapeMatch::accept(MatchScore::exact(1)))
+    }
+
+    fn check_expr(&self, _cx: &mut Cx, _expr: &Expr) -> Result<ShapeMatch> {
+        Ok(ShapeMatch::accept(MatchScore::exact(1)))
+    }
+
+    fn describe(&self, _cx: &mut Cx) -> Result<ShapeDoc> {
+        Ok(ShapeDoc::new(self.0))
+    }
+}
+
+struct PairReadConstructor {
+    args_shape: Value,
+}
+
+impl Object for PairReadConstructor {
+    fn display(&self, _cx: &mut Cx) -> Result<String> {
+        Ok("#<read-constructor specimen:Pair>".into())
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl ObjectCompat for PairReadConstructor {
+    fn as_read_constructor(&self) -> Option<&dyn ReadConstructor> {
+        Some(self)
+    }
+}
+
+impl ReadConstructor for PairReadConstructor {
+    fn symbol(&self) -> Symbol {
+        Symbol::qualified("specimen", "Pair")
+    }
+
+    fn args_shape(&self, _cx: &mut Cx) -> Result<Value> {
+        Ok(self.args_shape.clone())
+    }
+
+    fn construct_read(&self, cx: &mut Cx, args: Vec<Value>) -> Result<Value> {
+        cx.factory().list(args)
+    }
+}
+
+fn shape(cx: &Cx, name: &'static str) -> Value {
+    cx.factory().opaque(Arc::new(NamedShape(name))).unwrap()
+}
+
+#[test]
+fn diamond_linearization_matches_a_hand_written_order() {
+    let graph = SpecimenGraph(BTreeMap::from([
+        ("Root", vec![]),
+        ("Left", vec!["Root"]),
+        ("Right", vec!["Root"]),
+        ("Leaf", vec!["Left", "Right"]),
+    ]));
+
+    // This oracle is deliberately authored here rather than derived from C3Policy.
+    let expected = vec!["Leaf", "Left", "Right", "Root"];
+    assert_eq!(
+        C3Policy
+            .linearize(&graph, &"Leaf", generous_budget())
+            .unwrap(),
+        expected
+    );
+}
+
+#[test]
+fn inconsistent_precedence_cycle_and_budget_exhaustion_are_typed() {
+    let conflict = SpecimenGraph(BTreeMap::from([
+        ("X", vec![]),
+        ("Y", vec![]),
+        ("A", vec!["X", "Y"]),
+        ("B", vec!["Y", "X"]),
+        ("Z", vec!["A", "B"]),
+    ]));
+    assert!(matches!(
+        C3Policy.linearize(&conflict, &"Z", generous_budget()),
+        Err(LineageError::ConflictingPrecedence { .. })
+    ));
+
+    let cycle = SpecimenGraph(BTreeMap::from([
+        ("A", vec!["B"]),
+        ("B", vec!["C"]),
+        ("C", vec!["A"]),
+    ]));
+    assert_eq!(
+        C3Policy.linearize(&cycle, &"A", generous_budget()),
+        Err(LineageError::Cycle {
+            path: vec!["A", "B", "C", "A"]
+        })
+    );
+
+    let chain = SpecimenGraph(BTreeMap::from([
+        ("Root", vec![]),
+        ("Middle", vec!["Root"]),
+        ("Leaf", vec!["Middle"]),
+    ]));
+    assert_eq!(
+        C3Policy.linearize(&chain, &"Leaf", LineageBudget { nodes: 2, work: 32 }),
+        Err(LineageError::NodeBudgetExhausted {
+            limit: 2,
+            required: 3
+        })
+    );
+}
+
+#[test]
+fn managed_cache_reclamation_observes_the_clearing_receipt() {
+    let mut cache = ClassCache::new(8).unwrap();
+    let root = cache.allocate_class(&[], vec!["root-member"]).unwrap();
+    let leaf = cache.allocate_class(&[root], vec!["leaf-member"]).unwrap();
+    let access = cache.derived(leaf, &C3Policy, generous_budget()).unwrap();
+    assert_eq!(access.kind, CacheAccessKind::Recomputed);
+    assert_eq!(access.view.members, ["leaf-member", "root-member"]);
+
+    cache.release(root).unwrap();
+    cache.release(leaf).unwrap();
+    let receipt = cache
+        .collect(CollectionLimits {
+            objects: 8,
+            edges: 8,
+            stack: 8,
+            work: 64,
+            clears: 8,
+            finalizers: 0,
+        })
+        .unwrap();
+    assert_eq!(receipt.cleared_ephemerons.len(), 1);
+    assert_eq!(receipt.swept.len(), 3);
+    assert_eq!(cache.managed_len(), 1);
+}
+
+#[test]
+fn member_shapes_are_browseable_and_read_construction_round_trips() {
+    let mut cx = sim_kernel::testing::bare_cx();
+    let any = shape(&cx, "specimen:any");
+    let coordinate = shape(&cx, "specimen:coordinate");
+    let read_constructor = cx
+        .factory()
+        .opaque(Arc::new(PairReadConstructor {
+            args_shape: coordinate.clone(),
+        }))
+        .unwrap();
+    let descriptor = ClassDescriptor::new(ClassDescriptorInput {
+        identity: ClassIdentity::checked(ClassId(19_005), Symbol::qualified("specimen", "Pair"))
+            .unwrap(),
+        parents: vec![],
+        constructor_shape: any.clone(),
+        instance_shape: any,
+        members: vec![MemberShape {
+            name: Symbol::new("first"),
+            shape: coordinate.clone(),
+        }],
+        read_construction: Some(ReadConstruction {
+            constructor: read_constructor,
+            args_shape: coordinate.clone(),
+        }),
+        metadata: vec![],
+    })
+    .unwrap();
+    let class = DescriptorClass::new(descriptor, |cx: &mut Cx, _| cx.factory().nil(), 8, 32);
+
+    let members = class.members(&mut cx).unwrap();
+    let browsed = members
+        .object()
+        .as_table_impl()
+        .unwrap()
+        .get(&mut cx, Symbol::new("first"))
+        .unwrap();
+    assert_eq!(
+        browsed
+            .object()
+            .as_shape()
+            .unwrap()
+            .describe(&mut cx)
+            .unwrap()
+            .name,
+        "specimen:coordinate"
+    );
+
+    let constructor = class.read_constructor(&mut cx).unwrap().unwrap();
+    assert_eq!(
+        constructor
+            .object()
+            .as_read_constructor()
+            .unwrap()
+            .args_shape(&mut cx)
+            .unwrap(),
+        coordinate
+    );
+    let args = vec![
+        cx.factory().string("left".into()).unwrap(),
+        cx.factory().string("right".into()).unwrap(),
+    ];
+    let reconstructed = constructor
+        .object()
+        .as_read_constructor()
+        .unwrap()
+        .construct_read(&mut cx, args.clone())
+        .unwrap();
+    let observed = sim_kernel::force_list_to_vec(
+        &mut cx,
+        reconstructed.object().as_list().unwrap(),
+        "specimen Pair read construction",
+    )
+    .unwrap();
+    assert_eq!(observed, args);
+}
+
+#[test]
+fn specimen_has_no_guest_language_dependency_or_type() {
+    let manifest = include_str!("../Cargo.toml");
+    let source = include_str!("neutral_class_specimens.rs");
+    assert!(!manifest.contains("sim-lib-lang-"));
+    assert!(!source.contains(&["sim", "_lib_lang_"].concat()));
+}
+```
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-class/tests/ownership_guard` is checked by `cargo test`.
+
+Source `crates/sim-lib-class/tests/ownership_guard.rs`:
+
+```rust
+// conformance: declared-class semantics remain inside their documented boundary.
+
+//! Structural source-fact guard for the declared-class semantic boundary.
+
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
+
+const JAVASCRIPT_ADAPTER: &str = r#"
+pub fn adapt(object: &JavascriptObject) -> ClassDescriptor {
+    ClassDescriptor { parents: vec![object.prototype()], name: object.name(), members: vec![] }
+}
+"#;
+
+const PYTHON_CLASS: &str = r#"
+pub struct PythonClass { name: Symbol, bases: Vec<ClassRef> }
+pub fn declared_parents(class: &PythonClass) -> &[ClassRef] { &class.bases }
+"#;
+
+const COPIED_DESCRIPTOR: &str = r#"
+pub struct GuestClassDescriptor {
+    name: Symbol,
+    parents: Vec<ClassRef>,
+    members: Vec<Member>,
+}
+"#;
+
+const UNBOUNDED_LINEAGE: &str = r#"
+pub fn ancestors(class: ClassRef) -> Vec<ClassRef> {
+    let mut parents = vec![class];
+    while let Some(parent) = parents.pop() { parents.extend(parent.parents()); }
+    parents
+}
+"#;
+
+#[derive(Debug)]
+struct Exclusion {
+    model: String,
+    terms: Vec<String>,
+    mismatch_code: String,
+}
+
+#[derive(Debug)]
+struct Policy {
+    owner: String,
+    remediation: String,
+    crate_prefix: String,
+    descriptor_fields: Vec<String>,
+    descriptor_minimum_fields: usize,
+    lineage_terms: Vec<String>,
+    bound_terms: Vec<String>,
+    exclusions: Vec<Exclusion>,
+    approved_paths: Vec<String>,
+}
+
+impl Policy {
+    fn load(root: &Path) -> Self {
+        let source = fs::read_to_string(root.join("class-ownership.toml"))
+            .expect("class ownership policy must exist");
+        assert_eq!(scalar(&source, "schema"), "sim.class-ownership/v1");
+        let exclusions = sections(&source, "[[exclusion]]")
+            .map(|row| Exclusion {
+                model: scalar(row, "model"),
+                terms: array(row, "source_terms"),
+                mismatch_code: scalar(row, "mismatch_code"),
+            })
+            .collect::<Vec<_>>();
+        assert!(!exclusions.is_empty());
+        Self {
+            owner: scalar(&source, "owner"),
+            remediation: scalar(&source, "remediation"),
+            crate_prefix: scalar(&source, "crate_prefix"),
+            descriptor_fields: array(&source, "descriptor_fields"),
+            descriptor_minimum_fields: integer(&source, "descriptor_minimum_fields"),
+            lineage_terms: array(&source, "lineage_terms"),
+            bound_terms: array(&source, "bound_terms"),
+            exclusions,
+            approved_paths: sections(&source, "[[approved_relationship]]")
+                .map(|row| scalar(row, "path"))
+                .collect(),
+        }
+    }
+
+    fn findings(&self, path: &Path, source: &str) -> Vec<String> {
+        let relative = path.to_string_lossy().replace('\\', "/");
+        if self
+            .approved_paths
+            .iter()
+            .any(|approved| relative.ends_with(approved))
+        {
+            return Vec::new();
+        }
+        let lower = structural_source(source).to_ascii_lowercase();
+        let mut findings = Vec::new();
+        for item in public_structs(&lower) {
+            let count = field_names(&item)
+                .iter()
+                .filter(|field| self.descriptor_fields.contains(field))
+                .count();
+            if count >= self.descriptor_minimum_fields {
+                findings.push(format!(
+                    "{} copies the declared class descriptor owned by {}; {}",
+                    path.display(),
+                    self.owner,
+                    self.remediation
+                ));
+            }
+        }
+        for body in function_bodies(&lower) {
+            let walks_lineage = self.lineage_terms.iter().any(|term| {
+                if term == "parent" || term == "parents" {
+                    body.contains(".parents(")
+                        || body.contains("parents()")
+                        || body.contains("declared_parents")
+                } else {
+                    body.contains(term)
+                }
+            });
+            let loops = body.contains("while ") || body.contains("loop {") || body.contains("for ");
+            let bounded = self.bound_terms.iter().any(|term| body.contains(term));
+            if walks_lineage && loops && !bounded {
+                let signature = body
+                    .split_once('{')
+                    .map_or("unknown function", |(signature, _)| signature.trim());
+                findings.push(format!(
+                    "{} contains an unbounded lineage walk in `{signature}`; {}",
+                    path.display(),
+                    self.remediation
+                ));
+            }
+            let declares_parents = body.contains("parents:")
+                || body.contains("declared_parents")
+                || body.contains("set_parents(");
+            if declares_parents {
+                for exclusion in &self.exclusions {
+                    if exclusion.terms.iter().any(|term| body.contains(term)) {
+                        findings.push(format!(
+                            "{} recasts {} state as declared parents [{}]; {}",
+                            path.display(),
+                            exclusion.model,
+                            exclusion.mismatch_code,
+                            self.remediation
+                        ));
+                    }
+                }
+            }
+        }
+        findings.sort();
+        findings.dedup();
+        findings
+    }
+}
+
+fn scalar(source: &str, key: &str) -> String {
+    source
+        .lines()
+        .map(str::trim)
+        .find_map(|line| {
+            line.strip_prefix(&format!("{key} = \""))?
+                .strip_suffix('"')
+                .map(str::to_owned)
+        })
+        .unwrap_or_default()
+}
+fn integer(source: &str, key: &str) -> usize {
+    source
+        .lines()
+        .map(str::trim)
+        .find_map(|line| line.strip_prefix(&format!("{key} = "))?.parse().ok())
+        .unwrap_or_default()
+}
+fn array(source: &str, key: &str) -> Vec<String> {
+    let prefix = format!("{key} = [");
+    source
+        .lines()
+        .map(str::trim)
+        .find_map(|line| {
+            let body = line.strip_prefix(&prefix)?.strip_suffix(']')?;
+            Some(
+                body.split(',')
+                    .filter_map(|item| {
+                        item.trim()
+                            .strip_prefix('"')?
+                            .strip_suffix('"')
+                            .map(str::to_owned)
+                    })
+                    .collect(),
+            )
+        })
+        .unwrap_or_default()
+}
+fn sections<'a>(source: &'a str, heading: &str) -> impl Iterator<Item = &'a str> {
+    source
+        .split(heading)
+        .skip(1)
+        .map(|row| row.split("[[").next().unwrap_or(row))
+}
+
+fn public_structs(source: &str) -> Vec<String> {
+    braced_items(source, "pub struct ")
+}
+fn function_bodies(source: &str) -> Vec<String> {
+    braced_items(source, "fn ")
+}
+
+fn structural_source(source: &str) -> String {
+    let bytes = source.as_bytes();
+    let mut masked = bytes.to_vec();
+    let mut cursor = 0;
+    while cursor < bytes.len() {
+        if bytes[cursor..].starts_with(b"//") {
+            let end = bytes[cursor..]
+                .iter()
+                .position(|byte| *byte == b'\n')
+                .map_or(bytes.len(), |offset| cursor + offset);
+            mask_non_newlines(&mut masked[cursor..end]);
+            cursor = end;
+        } else if bytes[cursor..].starts_with(b"/*") {
+            let mut end = cursor + 2;
+            let mut depth = 1_usize;
+            while end < bytes.len() && depth != 0 {
+                if bytes[end..].starts_with(b"/*") {
+                    depth += 1;
+                    end += 2;
+                } else if bytes[end..].starts_with(b"*/") {
+                    depth -= 1;
+                    end += 2;
+                } else {
+                    end += 1;
+                }
+            }
+            mask_non_newlines(&mut masked[cursor..end]);
+            cursor = end;
+        } else if let Some((quote, hashes)) = raw_string_open(bytes, cursor) {
+            let mut end = quote + 1;
+            while end < bytes.len() {
+                if bytes[end] == b'"'
+                    && bytes.get(end + 1..end + 1 + hashes) == Some(&vec![b'#'; hashes][..])
+                {
+                    end += 1 + hashes;
+                    break;
+                }
+                end += 1;
+            }
+            mask_non_newlines(&mut masked[quote..end]);
+            cursor = end;
+        } else if bytes[cursor] == b'"' {
+            let end = quoted_end(bytes, cursor, b'"');
+            mask_non_newlines(&mut masked[cursor..end]);
+            cursor = end;
+        } else if bytes[cursor] == b'\'' {
+            if let Some(end) = char_literal_end(source, cursor) {
+                mask_non_newlines(&mut masked[cursor..end]);
+                cursor = end;
+            } else {
+                cursor += 1;
+            }
+        } else {
+            cursor += 1;
+        }
+    }
+    String::from_utf8(masked).expect("masking preserves UTF-8 source structure")
+}
+
+fn raw_string_open(bytes: &[u8], cursor: usize) -> Option<(usize, usize)> {
+    if cursor != 0 && (bytes[cursor - 1].is_ascii_alphanumeric() || bytes[cursor - 1] == b'_') {
+        return None;
+    }
+    let mut next = match bytes.get(cursor..cursor + 2) {
+        Some([b'b' | b'c', b'r']) => cursor + 2,
+        _ if bytes.get(cursor) == Some(&b'r') => cursor + 1,
+        _ => return None,
+    };
+    let hashes_start = next;
+    while bytes.get(next) == Some(&b'#') {
+        next += 1;
+    }
+    (bytes.get(next) == Some(&b'"')).then_some((next, next - hashes_start))
+}
+
+fn quoted_end(bytes: &[u8], start: usize, quote: u8) -> usize {
+    let mut cursor = start + 1;
+    let mut escaped = false;
+    while cursor < bytes.len() {
+        if escaped {
+            escaped = false;
+        } else if bytes[cursor] == b'\\' {
+            escaped = true;
+        } else if bytes[cursor] == quote {
+            return cursor + 1;
+        }
+        cursor += 1;
+    }
+    bytes.len()
+}
+
+fn char_literal_end(source: &str, start: usize) -> Option<usize> {
+    let tail = source.get(start + 1..)?;
+    if tail.starts_with('\\') {
+        let end = quoted_end(source.as_bytes(), start, b'\'');
+        return (end < source.len()).then_some(end);
+    }
+    let width = tail.chars().next()?.len_utf8();
+    let end = start + 1 + width;
+    (source.as_bytes().get(end) == Some(&b'\'')).then_some(end + 1)
+}
+
+fn mask_non_newlines(bytes: &mut [u8]) {
+    for byte in bytes {
+        if *byte != b'\n' {
+            *byte = b' ';
+        }
+    }
+}
+fn braced_items(source: &str, marker: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut offset = 0;
+    while let Some(found) = source[offset..].find(marker) {
+        let start = offset + found;
+        let Some(open_rel) = source[start..].find('{') else {
+            break;
+        };
+        let open = start + open_rel;
+        let mut depth = 0_i32;
+        for (rel, byte) in source[open..].bytes().enumerate() {
+            depth += match byte {
+                b'{' => 1,
+                b'}' => -1,
+                _ => 0,
+            };
+            if depth == 0 {
+                out.push(source[start..=open + rel].to_owned());
+                offset = open + rel + 1;
+                break;
+            }
+        }
+        if offset <= start {
+            break;
+        }
+    }
+    out
+}
+fn field_names(item: &str) -> Vec<String> {
+    item.lines()
+        .skip(1)
+        .filter_map(|line| {
+            line.trim()
+                .trim_start_matches("pub ")
+                .split_once(':')
+                .map(|(name, _)| name.trim().to_owned())
+        })
+        .collect()
+}
+fn repository_root() -> PathBuf {
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .canonicalize()
+        .expect("class source directory must resolve");
+    while !path.join("class-ownership.toml").is_file() {
+        assert!(path.pop(), "class ownership policy repository not found");
+    }
+    path
+}
+
+#[test]
+fn policy_is_ledger_driven_and_distinguishes_prototypes_from_real_parents() {
+    let root = repository_root();
+    let policy = Policy::load(&root);
+    let bad = policy.findings(Path::new("adapter.rs"), JAVASCRIPT_ADAPTER);
+    assert!(
+        bad.iter()
+            .any(|finding| finding.contains("javascript-prototype")
+                && finding.contains("prototype-delegates-properties"))
+    );
+    assert!(
+        policy
+            .findings(Path::new("python.rs"), PYTHON_CLASS)
+            .is_empty()
+    );
+    assert!(
+        policy
+            .findings(Path::new("walk.rs"), UNBOUNDED_LINEAGE)
+            .iter()
+            .any(|finding| finding.contains("unbounded lineage"))
+    );
+    for exclusion in &policy.exclusions {
+        assert!(
+            !exclusion.model.is_empty()
+                && !exclusion.mismatch_code.is_empty()
+                && !exclusion.terms.is_empty()
+        );
+    }
+}
+
+#[test]
+fn guard_rejects_copied_class_descriptor() {
+    let root = repository_root();
+    let policy = Policy::load(&root);
+    let findings = policy.findings(Path::new("guest_class.rs"), COPIED_DESCRIPTOR);
+    assert!(
+        findings
+            .iter()
+            .any(|finding| finding.contains("copies the declared class descriptor"))
+    );
+}
+
+#[test]
+fn repository_has_no_unapproved_class_boundary_violation() {
+    let root = repository_root();
+    let policy = Policy::load(&root);
+    for entry in fs::read_dir(root.join("crates")).unwrap().flatten() {
+        if !entry
+            .file_name()
+            .to_string_lossy()
+            .starts_with(&policy.crate_prefix)
+        {
+            continue;
+        }
+        let mut paths = vec![entry.path().join("src")];
+        while let Some(path) = paths.pop() {
+            let Ok(children) = fs::read_dir(path) else {
+                continue;
+            };
+            for child in children.flatten() {
+                if child.file_type().unwrap().is_dir() {
+                    paths.push(child.path());
+                } else if child.path().extension().is_some_and(|ext| ext == "rs") {
+                    let source = fs::read_to_string(child.path()).unwrap();
+                    let findings = policy.findings(&child.path(), &source);
+                    assert!(findings.is_empty(), "{}", findings.join("\n"));
+                }
+            }
+        }
+    }
+}
+```
+
+Specimen `recipe/sim-runtime/crates/sim-lib-class/01-basics/neutral-class` is checked by `sh scripts/check-recipes.sh`.
+
+Source `crates/sim-lib-class/recipes/01-basics/neutral-class/recipe.toml`:
+
+```toml
+id = "neutral-class"
+title = "Classes for a language that does not exist yet"
+summary = "Exercise lineage, failures, managed caching, Shape browsing, and read construction without a guest runtime."
+tags = ["class", "language-neutral", "lineage", "managed", "shape", "read-construction"]
+```
+
 ### `feature/sim-runtime/incremental-query-core`
 
 Specimen `spec-test/sim-runtime/crates/sim-incremental-core/src/tests` is checked by `cargo test`.
@@ -361,9 +1687,14 @@ Source `crates/sim-incremental-core/src/tests.rs`:
 ```rust
 // conformance: generic incremental query core behavior
 
-use std::sync::{
-    Arc,
-    atomic::{AtomicI64, AtomicUsize, Ordering},
+use std::{
+    collections::{BTreeMap, VecDeque},
+    fs,
+    path::Path,
+    sync::{
+        Arc,
+        atomic::{AtomicI64, AtomicUsize, Ordering},
+    },
 };
 
 use crate::{
@@ -450,6 +1781,93 @@ fn cycle_errors_include_the_repeated_path() {
         IncrementalError::Cycle {
             path: vec!["a", "b", "a"]
         }
+    );
+}
+
+#[test]
+fn dataflow_reuses_the_incremental_core_ownership_ledger() {
+    fn require_owned_types<K, V>(
+        _: ValueFingerprint,
+        _: Observation<K>,
+        _: Revision,
+        _: QueryBudgets,
+        _: crate::ContinuationToken,
+        _: GraphSnapshot<K, V>,
+    ) {
+    }
+
+    require_owned_types::<&'static str, i64>(
+        ValueFingerprint::new(0),
+        Observation::new("source", ObservationKind::Epoch, Revision::ZERO, None),
+        Revision::ZERO,
+        QueryBudgets::default(),
+        crate::ContinuationToken::new(0),
+        GraphSnapshot::new(Vec::new()),
+    );
+
+    let source_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    assert_no_shadowed_dataflow_types(&source_root);
+}
+
+fn assert_no_shadowed_dataflow_types(directory: &Path) {
+    const OWNED_NAMES: [&str; 6] = [
+        "ValueFingerprint",
+        "Observation",
+        "Revision",
+        "QueryBudgets",
+        "ContinuationToken",
+        "GraphSnapshot",
+    ];
+    for entry in fs::read_dir(directory).expect("incremental-core source directory must exist") {
+        let path = entry.expect("source entry must be readable").path();
+        if path.is_dir() {
+            assert_no_shadowed_dataflow_types(&path);
+            continue;
+        }
+        let relative = path
+            .strip_prefix(Path::new(env!("CARGO_MANIFEST_DIR")))
+            .expect("source file must belong to incremental-core");
+        if !relative.to_string_lossy().contains("dataflow") {
+            continue;
+        }
+        let source = fs::read_to_string(&path).expect("dataflow source must be UTF-8");
+        for name in OWNED_NAMES {
+            for declaration in ["struct", "enum", "type", "trait"] {
+                let needle = format!("{declaration} {name}");
+                assert!(
+                    !source.contains(&needle),
+                    "{} shadows core-owned {name} with `{needle}`",
+                    relative.display()
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn lattice_feedback_converges_but_query_recursion_errors() {
+    let edges = BTreeMap::from([("a", vec!["b"]), ("b", vec!["a"])]);
+    let mut facts = BTreeMap::from([("a", 1_u8), ("b", 0_u8)]);
+    let mut pending = VecDeque::from(["a", "b"]);
+    while let Some(from) = pending.pop_front() {
+        let propagated = facts[&from];
+        for to in &edges[&from] {
+            if facts[to] < propagated {
+                facts.insert(*to, propagated);
+                pending.push_back(to);
+            }
+        }
+    }
+    assert_eq!(facts, BTreeMap::from([("a", 1), ("b", 1)]));
+
+    let mut engine = IncrementalEngine::<&'static str, i64>::new();
+    engine.register_fn("a", |_, frame| frame.read("b"));
+    engine.register_fn("b", |_, frame| frame.read("a"));
+    assert_eq!(
+        engine.verify("a"),
+        Err(IncrementalError::Cycle {
+            path: vec!["a", "b", "a"]
+        })
     );
 }
 
@@ -727,6 +2145,875 @@ impl Lcg {
 }
 ```
 
+Specimen `spec-test/sim-runtime/crates/sim-incremental-core/tests/definite_assignment_specimen` is checked by `cargo test`.
+
+Source `crates/sim-incremental-core/tests/definite_assignment_specimen.rs`:
+
+```rust
+// conformance: definite assignment runs through the neutral incremental surface.
+
+//! Definite assignment over the neutral, located register-machine surface.
+
+use std::collections::BTreeSet;
+
+use sim_incremental_core::{
+    QueryBudgets, ValueFingerprint,
+    dataflow::{
+        AdmittedTransfer, Boundary, DataflowEvent, EdgeClass, EdgeSpec, FixpointEngine,
+        GraphDirection, JoinSemilattice, LocatedGraphAdapter, NodeSpec, StateSize, TransferPolicy,
+    },
+};
+use sim_kernel::{CodecId, Origin, SourceId, Span};
+use sim_lib_machine::{
+    BranchTarget, InstructionPolicy, LocatedCode, LocatedInstruction, RegionSpec, SourceLocation,
+    TargetLocation,
+};
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct Instruction {
+    id: u8,
+    operation: Operation,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Operation {
+    Branch,
+    Assign(u8),
+    Merge,
+    Use(u8),
+    Loop,
+    Return,
+    Handler,
+    Unreachable,
+}
+
+struct Registers;
+
+impl InstructionPolicy for Registers {
+    type Instruction = Instruction;
+    type InstructionId = u8;
+
+    fn instruction_id(instruction: &Instruction) -> Self::InstructionId {
+        instruction.id
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+struct Location {
+    instruction: u8,
+    line: u8,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+enum FlowEdge {
+    BranchAssigned,
+    BranchBypass,
+    AssignedMerge,
+    BypassMerge,
+    MergeUse,
+    UseLoop,
+    LoopBack,
+    LoopExit,
+    ProtectedHandler,
+    HandlerReturn,
+    UnreachableReturn,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+enum FlowClass {
+    Exceptional,
+}
+
+struct RegisterCfg<'a> {
+    code: &'a LocatedCode<Registers>,
+}
+
+impl LocatedGraphAdapter for RegisterCfg<'_> {
+    type NodeId = u8;
+    type EdgeId = FlowEdge;
+    type Location = Location;
+    type Class = FlowClass;
+
+    fn nodes(&self) -> Vec<NodeSpec<u8, Location>> {
+        (1..=9)
+            .map(|id| {
+                let cursor = self.code.cursor(id).expect("specimen instruction exists");
+                assert_eq!(self.code.instruction(cursor).id(), &id);
+                assert!(instruction_matches_id(
+                    id,
+                    self.code.instruction(cursor).instruction().operation
+                ));
+                NodeSpec {
+                    id,
+                    location: location(id),
+                    boundary: if id == 1 {
+                        Boundary::Input
+                    } else if id == 7 {
+                        Boundary::Output
+                    } else {
+                        Boundary::Internal
+                    },
+                }
+            })
+            .collect()
+    }
+
+    fn edges(&self) -> Vec<EdgeSpec<FlowEdge, u8, FlowClass>> {
+        let edge = |id, source, target, class| EdgeSpec {
+            id,
+            source,
+            target,
+            class,
+            direction: GraphDirection::Forward,
+        };
+        vec![
+            edge(FlowEdge::BranchAssigned, 1, 2, EdgeClass::Control),
+            edge(FlowEdge::BranchBypass, 1, 3, EdgeClass::Control),
+            edge(FlowEdge::AssignedMerge, 2, 4, EdgeClass::Control),
+            edge(FlowEdge::BypassMerge, 3, 4, EdgeClass::Control),
+            edge(FlowEdge::MergeUse, 4, 5, EdgeClass::Control),
+            edge(FlowEdge::UseLoop, 5, 6, EdgeClass::Control),
+            edge(FlowEdge::LoopBack, 6, 4, EdgeClass::Control),
+            edge(FlowEdge::LoopExit, 6, 7, EdgeClass::Control),
+            edge(
+                FlowEdge::ProtectedHandler,
+                6,
+                8,
+                EdgeClass::Custom(FlowClass::Exceptional),
+            ),
+            edge(FlowEdge::HandlerReturn, 8, 7, EdgeClass::Control),
+            edge(FlowEdge::UnreachableReturn, 9, 7, EdgeClass::Control),
+        ]
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+enum Fact {
+    Assigned { register: u8, at: Location },
+    UnassignedBranch { register: u8, at: Location },
+    InstructionRevision { instruction: u8, revision: u8 },
+}
+
+#[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
+struct Facts(BTreeSet<Fact>);
+
+impl Facts {
+    fn one(fact: Fact) -> Self {
+        Self(BTreeSet::from([fact]))
+    }
+}
+
+impl StateSize for Facts {
+    fn state_size(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl JoinSemilattice for Facts {
+    fn bottom(&self) -> Self {
+        Self::default()
+    }
+
+    fn join(&self, other: &Self) -> Self {
+        Self(self.0.union(&other.0).copied().collect())
+    }
+
+    fn less_equal(&self, other: &Self) -> bool {
+        self.0.is_subset(&other.0)
+    }
+}
+
+struct Identity;
+
+impl TransferPolicy<Facts> for Identity {
+    fn fingerprint(&self) -> ValueFingerprint {
+        ValueFingerprint::new(0x4445_4641_5353_4947)
+    }
+
+    fn policy_size(&self) -> usize {
+        0
+    }
+
+    fn transfer(&self, state: &Facts) -> Facts {
+        state.clone()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct Diagnostic {
+    register: u8,
+    merge: Location,
+    assigned_branch: Location,
+    unassigned_branch: Location,
+}
+
+#[test]
+fn real_register_machine_proves_definite_assignment_and_edited_cone() {
+    let code = register_code();
+    let graph = RegisterCfg { code: &code }.build_graph().unwrap();
+
+    assert_eq!(code.branch_targets(1).len(), 2);
+    assert_eq!(code.branch_targets(6).len(), 2);
+    assert_eq!(code.protected_regions().len(), 1);
+    assert!(graph.predecessors(&9).unwrap().is_empty());
+    assert!(matches!(
+        graph.edge(&FlowEdge::ProtectedHandler).unwrap().class(),
+        EdgeClass::Custom(FlowClass::Exceptional)
+    ));
+
+    let transfer = AdmittedTransfer::admit(
+        Identity,
+        &[
+            Facts::default(),
+            Facts::one(Fact::Assigned {
+                register: 0,
+                at: location(2),
+            }),
+            Facts::one(Fact::UnassignedBranch {
+                register: 0,
+                at: location(3),
+            }),
+        ],
+    )
+    .unwrap();
+    let seeds = specimen_seeds(1);
+    let original = FixpointEngine::solve_proven(
+        &graph,
+        &transfer,
+        Facts::default(),
+        seeds.clone(),
+        QueryBudgets::unlimited(),
+    )
+    .unwrap();
+
+    let merge_facts = &original.solution().state(&4).unwrap().0;
+    let diagnostic = Diagnostic {
+        register: 0,
+        merge: location(4),
+        assigned_branch: match merge_facts.iter().find_map(|fact| match fact {
+            Fact::Assigned { register: 0, at } => Some(*at),
+            _ => None,
+        }) {
+            Some(location) => location,
+            None => panic!("assigned branch evidence must reach the merge"),
+        },
+        unassigned_branch: match merge_facts.iter().find_map(|fact| match fact {
+            Fact::UnassignedBranch { register: 0, at } => Some(*at),
+            _ => None,
+        }) {
+            Some(location) => location,
+            None => panic!("bypass branch evidence must reach the merge"),
+        },
+    };
+    assert_eq!(
+        diagnostic,
+        Diagnostic {
+            register: 0,
+            merge: location(4),
+            assigned_branch: location(2),
+            unassigned_branch: location(3),
+        }
+    );
+    assert!(original.solution().state(&9).unwrap().0.is_empty());
+    assert!(
+        original
+            .solution()
+            .state(&8)
+            .unwrap()
+            .0
+            .contains(&Fact::InstructionRevision {
+                instruction: 8,
+                revision: 1,
+            })
+    );
+
+    let incremental = FixpointEngine::solve_incremental(
+        &original,
+        &graph,
+        &transfer,
+        Facts::default(),
+        specimen_seeds(2),
+        QueryBudgets::unlimited(),
+    )
+    .unwrap();
+    let affected = BTreeSet::from([7, 8]);
+    let retained_event_count = original
+        .solution()
+        .events()
+        .iter()
+        .filter(|event| match event {
+            DataflowEvent::Visit(node) => !affected.contains(node),
+            DataflowEvent::Propagate { edge, .. } => {
+                !affected.contains(graph.edge(edge).unwrap().source())
+            }
+        })
+        .count();
+    let revisited = incremental
+        .solution()
+        .events()
+        .iter()
+        .skip(retained_event_count)
+        .filter_map(|event| match event {
+            DataflowEvent::Visit(node) => Some(*node),
+            _ => None,
+        })
+        .collect::<BTreeSet<_>>();
+    assert_eq!(revisited, affected);
+    assert!(
+        incremental.solution().events()[retained_event_count..]
+            .iter()
+            .all(|event| match event {
+                DataflowEvent::Visit(node) => matches!(node, 7 | 8),
+                DataflowEvent::Propagate { edge, .. } => matches!(edge, FlowEdge::HandlerReturn),
+            })
+    );
+}
+
+fn specimen_seeds(revision: u8) -> Vec<(u8, Facts)> {
+    vec![
+        (
+            2,
+            Facts::one(Fact::Assigned {
+                register: 0,
+                at: location(2),
+            }),
+        ),
+        (
+            3,
+            Facts::one(Fact::UnassignedBranch {
+                register: 0,
+                at: location(3),
+            }),
+        ),
+        (
+            8,
+            Facts::one(Fact::InstructionRevision {
+                instruction: 8,
+                revision,
+            }),
+        ),
+    ]
+}
+
+fn register_code() -> LocatedCode<Registers> {
+    let operations = [
+        Operation::Branch,
+        Operation::Assign(0),
+        Operation::Branch,
+        Operation::Merge,
+        Operation::Use(0),
+        Operation::Loop,
+        Operation::Return,
+        Operation::Handler,
+        Operation::Unreachable,
+    ];
+    LocatedCode::freeze(
+        operations
+            .into_iter()
+            .enumerate()
+            .map(|(index, operation)| {
+                let id = u8::try_from(index + 1).unwrap();
+                LocatedInstruction::new(
+                    Instruction { id, operation },
+                    id,
+                    SourceLocation::Bytes(Origin {
+                        codec: CodecId(1),
+                        source: SourceId("definite-assignment-register-machine".into()),
+                        span: Span {
+                            start: index,
+                            end: index + 1,
+                        },
+                        trivia: vec![],
+                    }),
+                    false,
+                    None,
+                )
+            })
+            .collect(),
+        vec![
+            BranchTarget {
+                from: 1,
+                to: TargetLocation::Instruction(2),
+            },
+            BranchTarget {
+                from: 1,
+                to: TargetLocation::Instruction(3),
+            },
+            BranchTarget {
+                from: 6,
+                to: TargetLocation::Instruction(4),
+            },
+            BranchTarget {
+                from: 6,
+                to: TargetLocation::Instruction(7),
+            },
+        ],
+        vec![RegionSpec {
+            start: 6,
+            end: Some(7),
+            handler: TargetLocation::Instruction(8),
+        }],
+    )
+    .unwrap()
+}
+
+const fn instruction_matches_id(id: u8, operation: Operation) -> bool {
+    matches!(
+        (id, operation),
+        (1 | 3, Operation::Branch)
+            | (2, Operation::Assign(0))
+            | (4, Operation::Merge)
+            | (5, Operation::Use(0))
+            | (6, Operation::Loop)
+            | (7, Operation::Return)
+            | (8, Operation::Handler)
+            | (9, Operation::Unreachable)
+    )
+}
+
+const fn location(instruction: u8) -> Location {
+    Location {
+        instruction,
+        line: instruction,
+    }
+}
+```
+
+Specimen `spec-test/sim-runtime/crates/sim-incremental-core/tests/range_analysis_specimen` is checked by `cargo test`.
+
+Source `crates/sim-incremental-core/tests/range_analysis_specimen.rs`:
+
+```rust
+// conformance: bounded range analysis requires explicit widening.
+
+//! Backward range analysis whose ascending loop requires explicit widening.
+
+use sim_incremental_core::{
+    BudgetKind, QueryBudgets, ValueFingerprint,
+    dataflow::{
+        AdmittedTransfer, Boundary, DataflowError, DataflowGraph, DataflowProgress, EdgeClass,
+        EdgeSpec, FixpointEngine, GraphDirection, JoinSemilattice, NodeSpec, StateSize,
+        TransferPolicy,
+    },
+};
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+enum Bound {
+    Finite(u64),
+    PositiveInfinity,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct Range {
+    lower: u64,
+    upper: Bound,
+}
+
+impl Range {
+    const fn point(value: u64) -> Self {
+        Self {
+            lower: value,
+            upper: Bound::Finite(value),
+        }
+    }
+}
+
+impl StateSize for Range {
+    fn state_size(&self) -> usize {
+        size_of::<Self>()
+    }
+}
+
+impl JoinSemilattice for Range {
+    fn bottom(&self) -> Self {
+        Self::point(0)
+    }
+
+    fn join(&self, other: &Self) -> Self {
+        Self {
+            lower: self.lower.min(other.lower),
+            upper: self.upper.max(other.upper),
+        }
+    }
+
+    fn less_equal(&self, other: &Self) -> bool {
+        other.lower <= self.lower && self.upper <= other.upper
+    }
+}
+
+/// The caller-owned loop policy. `None` deliberately means no widening.
+#[derive(Clone, Copy, Debug)]
+struct WideningPolicy {
+    widen_after: Option<u64>,
+}
+
+impl TransferPolicy<Range> for WideningPolicy {
+    fn fingerprint(&self) -> ValueFingerprint {
+        ValueFingerprint::new(match self.widen_after {
+            Some(threshold) => 0x5749_4445_4e00_0000 ^ threshold,
+            None => 0x4e4f_5f57_4944_454e,
+        })
+    }
+
+    fn policy_size(&self) -> usize {
+        size_of::<Self>()
+    }
+
+    fn transfer(&self, state: &Range) -> Range {
+        let upper = match (state.upper, self.widen_after) {
+            (Bound::Finite(value), Some(threshold)) if value >= threshold => {
+                Bound::PositiveInfinity
+            }
+            (Bound::Finite(value), _) => Bound::Finite(value.saturating_add(1)),
+            (Bound::PositiveInfinity, _) => Bound::PositiveInfinity,
+        };
+        Range {
+            lower: state.lower,
+            upper,
+        }
+    }
+}
+
+#[test]
+fn backward_range_analysis_requires_fingerprinted_widening() {
+    let graph = range_graph();
+    let samples = [
+        Range::point(0),
+        Range {
+            lower: 0,
+            upper: Bound::Finite(1),
+        },
+        Range {
+            lower: 0,
+            upper: Bound::PositiveInfinity,
+        },
+    ];
+    let no_widening =
+        AdmittedTransfer::admit(WideningPolicy { widen_after: None }, &samples).unwrap();
+    let seed = [(2, Range::point(1))];
+
+    // The ordinary budgeted engine refuses this infinite ascending chain.
+    let refusal = FixpointEngine::solve(
+        &graph,
+        &no_widening,
+        Range::point(0),
+        seed,
+        QueryBudgets::new(30, usize::MAX, usize::MAX, usize::MAX),
+    )
+    .unwrap_err();
+    assert!(matches!(
+        refusal,
+        DataflowError::BudgetExceeded {
+            kind: BudgetKind::Work,
+            ..
+        }
+    ));
+
+    // The cooperative budget preserves the exact unfinished work behind a token.
+    let DataflowProgress::Suspended(continuation) =
+        FixpointEngine::start_resumable(&graph, &no_widening, Range::point(0), seed, 5, 2).unwrap()
+    else {
+        panic!("an unwidened ascending loop must not claim completion");
+    };
+    assert_ne!(continuation.token().get(), 0);
+    let DataflowProgress::Suspended(resumed) = FixpointEngine::resume(
+        &graph,
+        &no_widening,
+        &Range::point(0),
+        seed,
+        continuation,
+        5,
+    )
+    .unwrap() else {
+        panic!("a second finite budget must remain resumable, not hang");
+    };
+    assert_ne!(resumed.token().get(), 0);
+
+    let widening = AdmittedTransfer::admit(
+        WideningPolicy {
+            widen_after: Some(3),
+        },
+        &samples,
+    )
+    .unwrap();
+    assert_ne!(no_widening.fingerprint(), widening.fingerprint());
+    let budgets = QueryBudgets::new(100, 100, 3, 1_000);
+    let first =
+        FixpointEngine::solve_proven(&graph, &widening, Range::point(0), seed, budgets).unwrap();
+    let second =
+        FixpointEngine::solve_proven(&graph, &widening, Range::point(0), seed, budgets).unwrap();
+
+    assert_eq!(first.identity(), second.identity());
+    assert_eq!(
+        first.solution().state(&0),
+        Some(&Range {
+            lower: 0,
+            upper: Bound::PositiveInfinity,
+        })
+    );
+    let DataflowProgress::Complete(explained) =
+        FixpointEngine::start_resumable(&graph, &widening, Range::point(0), seed, usize::MAX, 1)
+            .unwrap()
+    else {
+        panic!("the widened analysis must converge within one continuation step");
+    };
+    let explanation = explained.explain(&0, 1).unwrap();
+    assert_eq!(explanation.predecessors().len(), 1);
+    assert!(explanation.truncated());
+    assert!(explanation.omitted() > 0);
+}
+
+fn range_graph() -> DataflowGraph<u8, u8, &'static str, ()> {
+    DataflowGraph::build(
+        [
+            NodeSpec {
+                id: 0,
+                location: "entry",
+                boundary: Boundary::Output,
+            },
+            NodeSpec {
+                id: 1,
+                location: "loop",
+                boundary: Boundary::Internal,
+            },
+            NodeSpec {
+                id: 2,
+                location: "exit",
+                boundary: Boundary::Input,
+            },
+        ],
+        [
+            EdgeSpec {
+                id: 0,
+                source: 0,
+                target: 1,
+                class: EdgeClass::Control,
+                direction: GraphDirection::Reverse,
+            },
+            EdgeSpec {
+                id: 1,
+                source: 1,
+                target: 1,
+                class: EdgeClass::Data,
+                direction: GraphDirection::Reverse,
+            },
+            EdgeSpec {
+                id: 2,
+                source: 1,
+                target: 2,
+                class: EdgeClass::Control,
+                direction: GraphDirection::Reverse,
+            },
+        ],
+    )
+    .unwrap()
+}
+```
+
+Specimen `spec-test/sim-runtime/crates/sim-incremental-core/tests/ownership_guard` is checked by `cargo test`.
+
+Source `crates/sim-incremental-core/tests/ownership_guard.rs`:
+
+```rust
+// conformance: the incremental core retains the generic dataflow worklist boundary.
+
+//! Structural ownership guard for the generic dataflow worklist.
+
+use std::{fs, path::PathBuf};
+
+const SHADOW_ENGINE: &str = r#"
+pub struct Solver<N, S> {
+    frontier: std::collections::VecDeque<N>,
+    memo: std::collections::BTreeMap<N, S>,
+}
+"#;
+
+const TRANSFER_RULES_ONLY: &str = r#"
+pub trait Transfer<S> { fn transfer(&self, input: &S) -> S; }
+pub struct DefiniteAssignment { generated: std::collections::BTreeSet<u32> }
+"#;
+
+#[derive(Debug)]
+struct Policy {
+    owner: String,
+    frontier_types: Vec<String>,
+    retained_state_types: Vec<String>,
+    classified_crates: Vec<(String, String, String)>,
+}
+
+impl Policy {
+    fn load(root: &std::path::Path) -> Self {
+        let source = fs::read_to_string(root.join("dataflow-ownership.toml"))
+            .expect("dataflow ownership policy must exist");
+        assert_eq!(scalar(&source, "schema"), "sim.dataflow-ownership/v1");
+        let mut classified_crates = Vec::new();
+        let mut has_transfer_classifier = false;
+        for row in source.split("[[classifier]]").skip(1) {
+            let class = scalar(row, "class");
+            let reason = scalar(row, "reason");
+            assert!(!reason.is_empty(), "every classifier requires a reason");
+            has_transfer_classifier |= class == "domain-transfer-rules";
+            for name in array(row, "crates") {
+                classified_crates.push((name, class.clone(), reason.clone()));
+            }
+        }
+        assert!(has_transfer_classifier);
+        Self {
+            owner: scalar(&source, "owner"),
+            frontier_types: array(&source, "frontier_types"),
+            retained_state_types: array(&source, "retained_state_types"),
+            classified_crates,
+        }
+    }
+
+    fn findings(&self, source: &str) -> Vec<String> {
+        public_structs(source)
+            .into_iter()
+            .filter(|item| self.frontier_types.iter().any(|kind| item.contains(kind)))
+            .filter(|item| {
+                self.retained_state_types
+                    .iter()
+                    .any(|kind| item.contains(kind))
+            })
+            .map(|item| format!("generic memoized worklist: {}", first_line(&item)))
+            .collect()
+    }
+
+    fn classifier(&self, crate_name: &str) -> Option<(&str, &str)> {
+        self.classified_crates
+            .iter()
+            .find(|(name, _, _)| name == crate_name)
+            .map(|(_, class, reason)| (class.as_str(), reason.as_str()))
+    }
+}
+
+fn scalar(source: &str, key: &str) -> String {
+    source
+        .lines()
+        .map(str::trim)
+        .find_map(|line| line.strip_prefix(&format!("{key} = \"")))
+        .and_then(|rest| rest.strip_suffix('"'))
+        .unwrap_or_default()
+        .to_owned()
+}
+
+fn array(source: &str, key: &str) -> Vec<String> {
+    let Some(start) = source.find(&format!("{key} = [")) else {
+        return Vec::new();
+    };
+    let rest = &source[start..];
+    let body = rest
+        .split_once('[')
+        .and_then(|(_, rest)| rest.split_once(']'))
+        .map(|(body, _)| body)
+        .unwrap_or_default();
+    body.split(',')
+        .filter_map(|item| item.trim().strip_prefix('"')?.strip_suffix('"'))
+        .map(str::to_owned)
+        .collect()
+}
+
+fn public_structs(source: &str) -> Vec<String> {
+    let mut items = Vec::new();
+    let mut current = None::<(String, i32)>;
+    for line in source.lines() {
+        if current.is_none() && line.trim_start().starts_with("pub struct ") {
+            let depth = brace_delta(line);
+            if depth == 0 && line.contains(';') {
+                continue;
+            }
+            current = Some((format!("{line}\n"), depth));
+            continue;
+        }
+        if let Some((text, depth)) = &mut current {
+            text.push_str(line);
+            text.push('\n');
+            *depth += brace_delta(line);
+            if *depth <= 0 {
+                items.push(std::mem::take(text));
+                current = None;
+            }
+        }
+    }
+    items
+}
+
+fn brace_delta(line: &str) -> i32 {
+    line.bytes()
+        .map(|byte| match byte {
+            b'{' => 1,
+            b'}' => -1,
+            _ => 0,
+        })
+        .sum()
+}
+
+fn first_line(item: &str) -> &str {
+    item.lines().next().unwrap_or("public struct")
+}
+
+fn repository_root() -> PathBuf {
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .canonicalize()
+        .expect("incremental source directory must resolve");
+    loop {
+        if path.join("dataflow-ownership.toml").is_file() {
+            return path;
+        }
+        assert!(path.pop(), "dataflow ownership policy repository not found");
+    }
+}
+
+#[test]
+fn guard_rejects_a_shadow_engine_and_admits_transfer_rules() {
+    let root = repository_root();
+    let policy = Policy::load(&root);
+    assert_eq!(policy.findings(SHADOW_ENGINE).len(), 1);
+    assert!(policy.findings(TRANSFER_RULES_ONLY).is_empty());
+}
+
+#[test]
+fn runtime_crates_have_no_unclassified_shadow_engine() {
+    let root = repository_root();
+    let policy = Policy::load(&root);
+    for entry in fs::read_dir(root.join("crates")).unwrap() {
+        let entry = entry.unwrap();
+        if !entry.file_type().unwrap().is_dir() {
+            continue;
+        }
+        let crate_name = entry.file_name().to_string_lossy().into_owned();
+        if crate_name == policy.owner {
+            continue;
+        }
+        if let Some((class, reason)) = policy.classifier(&crate_name) {
+            assert!(!class.is_empty() && !reason.is_empty());
+            continue;
+        }
+        let mut paths = vec![entry.path().join("src")];
+        while let Some(path) = paths.pop() {
+            if !path.exists() {
+                continue;
+            }
+            for child in fs::read_dir(path).unwrap() {
+                let child = child.unwrap();
+                if child.file_type().unwrap().is_dir() {
+                    paths.push(child.path());
+                } else if child.path().extension().is_some_and(|ext| ext == "rs") {
+                    let source = fs::read_to_string(child.path()).unwrap();
+                    let findings = policy.findings(&source);
+                    assert!(
+                        findings.is_empty(),
+                        "{} declares a second dataflow engine without an explicit classifier reason: {findings:?}",
+                        child.path().display()
+                    );
+                }
+            }
+        }
+    }
+}
+```
+
 ### `feature/sim-runtime/incremental-query-organ`
 
 Specimen `spec-test/sim-runtime/crates/sim-lib-incremental/src/tests` is checked by `cargo test`.
@@ -746,6 +3033,14 @@ use sim_kernel::{
 use crate::*;
 
 use sim_kernel::testing::bare_cx as cx;
+
+use sim_incremental_core::{
+    QueryBudgets, ValueFingerprint,
+    dataflow::{
+        AdmittedTransfer, Boundary, DataflowGraph, EdgeClass, EdgeSpec, FixpointEngine,
+        GraphDirection, JoinSemilattice, NodeSpec, StateSize, TransferPolicy,
+    },
+};
 
 fn string(cx: &mut Cx, value: &str) -> Value {
     cx.factory().string(value.to_owned()).unwrap()
@@ -974,6 +3269,152 @@ fn explanation_snapshot_and_card_projection_are_browseable() {
         value.object().as_expr(&mut cx).unwrap()
             == Expr::Symbol(Symbol::qualified("incremental", "register.v1"))
     }));
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct TestFacts(u8);
+
+impl StateSize for TestFacts {
+    fn state_size(&self) -> usize {
+        1
+    }
+}
+
+impl JoinSemilattice for TestFacts {
+    fn bottom(&self) -> Self {
+        Self(0)
+    }
+
+    fn join(&self, other: &Self) -> Self {
+        Self(self.0 | other.0)
+    }
+
+    fn less_equal(&self, other: &Self) -> bool {
+        self.0 & other.0 == self.0
+    }
+}
+
+#[derive(Clone)]
+struct IdentityTransfer;
+
+impl TransferPolicy<TestFacts> for IdentityTransfer {
+    fn fingerprint(&self) -> ValueFingerprint {
+        ValueFingerprint::new(19)
+    }
+
+    fn policy_size(&self) -> usize {
+        0
+    }
+
+    fn transfer(&self, state: &TestFacts) -> TestFacts {
+        state.clone()
+    }
+}
+
+#[test]
+fn completed_analysis_projects_browsable_boundary_states_and_proof_identity() {
+    let graph = DataflowGraph::build(
+        [
+            NodeSpec {
+                id: "entry".to_owned(),
+                location: "recipe.siml:1".to_owned(),
+                boundary: Boundary::Input,
+            },
+            NodeSpec {
+                id: "exit".to_owned(),
+                location: "recipe.siml:2".to_owned(),
+                boundary: Boundary::Output,
+            },
+        ],
+        [EdgeSpec {
+            id: "flow".to_owned(),
+            source: "entry".to_owned(),
+            target: "exit".to_owned(),
+            class: EdgeClass::<String>::Data,
+            direction: GraphDirection::Forward,
+        }],
+    )
+    .unwrap();
+    let transfer = AdmittedTransfer::admit(
+        IdentityTransfer,
+        &[TestFacts(0), TestFacts(1), TestFacts(3)],
+    )
+    .unwrap();
+    let proof = FixpointEngine::solve_proven(
+        &graph,
+        &transfer,
+        TestFacts(0),
+        [("entry".to_owned(), TestFacts(1))],
+        QueryBudgets::default(),
+    )
+    .unwrap();
+    let expected_identity = proof.identity().get().to_string();
+    let mut cx = cx();
+    install_incremental_lib(&mut cx).unwrap();
+    let analysis = DataflowAnalysisView::from_completion(&mut cx, &graph, proof, |state| {
+        Expr::Number(sim_kernel::NumberLiteral {
+            domain: Symbol::qualified("core", "u8"),
+            canonical: state.0.to_string(),
+        })
+    })
+    .unwrap();
+    let value = cx.factory().opaque(std::sync::Arc::new(analysis)).unwrap();
+
+    let inputs = table_get(&mut cx, &value, "input-states");
+    assert!(
+        !inputs
+            .object()
+            .as_dir()
+            .unwrap()
+            .is_dir(&mut cx, Symbol::new("entry"))
+            .unwrap()
+    );
+    assert_ne!(
+        table_get(&mut cx, &inputs, "entry")
+            .object()
+            .as_expr(&mut cx)
+            .unwrap(),
+        Expr::Nil
+    );
+    assert_eq!(
+        table_get(&mut cx, &inputs, "exit")
+            .object()
+            .as_expr(&mut cx)
+            .unwrap(),
+        Expr::Nil
+    );
+
+    let outputs = table_get(&mut cx, &value, "output-states");
+    assert_ne!(
+        table_get(&mut cx, &outputs, "exit")
+            .object()
+            .as_expr(&mut cx)
+            .unwrap(),
+        Expr::Nil
+    );
+    assert_eq!(
+        table_get(&mut cx, &outputs, "entry")
+            .object()
+            .as_expr(&mut cx)
+            .unwrap(),
+        Expr::Nil
+    );
+
+    let proof = table_get(&mut cx, &value, "proof");
+    let fingerprint = table_get(&mut cx, &proof, "fingerprint");
+    assert_eq!(number_text(&mut cx, &fingerprint), expected_identity);
+    let shape = cx
+        .resolve_shape(&incremental_analysis_shape_symbol())
+        .unwrap();
+    assert!(
+        shape
+            .object()
+            .as_shape()
+            .unwrap()
+            .check_value(&mut cx, value)
+            .unwrap()
+            .accepted
+    );
 }
 ```
 
@@ -1430,196 +3871,2194 @@ fn class_value_or_stub(cx: &mut Cx, id: ClassId, symbol: Symbol) -> Result<Value
 }
 ```
 
-### `feature/sim-runtime/organs`
+Specimen `spec-test/sim-runtime/crates/sim-lib-core/src/source_authority_ownership_tests` is checked by `cargo test`.
 
-Specimen `spec-test/sim-runtime/crates/sim-lib-logic/src/tests/organ_proof` is checked by `cargo test`.
-
-Source `crates/sim-lib-logic/src/tests/organ_proof.rs`:
+Source `crates/sim-lib-core/src/source_authority_ownership_tests.rs`:
 
 ```rust
-use std::sync::{
-    Arc,
-    atomic::{AtomicUsize, Ordering},
+// conformance: source authority remains owned by the shared runtime core.
+
+//! Structural source-fact guard for the shared source-authority boundary.
+
+use std::{
+    fs,
+    path::{Path, PathBuf},
 };
 
-// conformance: runtime organs prove facts through the logic library.
-
-use sim_kernel::{Cx, DefaultFactory, EagerPolicy, Expr, NumberLiteral, ShapeMatch, Symbol};
-
-use crate::{
-    LogicConfig, LogicDb,
-    all_solutions::{FindallRequest, findall_through_sequence_with_probe},
-    env::LogicEnv,
-    query::query_all,
-};
-
-fn cx_with_number_tower() -> Cx {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
-    cx.load_lib(&sim_lib_numbers_arith::NumbersArithmeticLib::new())
-        .unwrap();
-    cx.load_lib(&sim_lib_numbers_i64::I64NumbersLib::new())
-        .unwrap();
-    cx.load_lib(&sim_lib_numbers_f64::F64NumbersLib::new())
-        .unwrap();
-    cx.load_lib(&sim_lib_numbers_bigint::BigIntNumbersLib::new())
-        .unwrap();
-    cx
+#[derive(Debug)]
+struct Policy {
+    owner: String,
+    remediation: String,
+    guest_prefix: String,
+    forbidden_suffixes: Vec<String>,
+    authority_fields: Vec<String>,
+    guests: Vec<(String, String)>,
 }
 
-fn number(domain: &str, canonical: impl Into<String>) -> Expr {
-    Expr::Number(NumberLiteral {
-        domain: Symbol::qualified("numbers", domain),
-        canonical: canonical.into(),
-    })
-}
-
-fn capture<'a>(answer: &'a ShapeMatch, name: &str) -> &'a Expr {
-    answer
-        .captures
-        .exprs()
-        .iter()
-        .find_map(|(symbol, expr)| (symbol == &Symbol::new(name)).then_some(expr))
-        .unwrap()
-}
-
-fn color_db() -> LogicDb {
-    let mut db = LogicDb::new();
-    for color in ["red", "green", "blue"] {
-        db.assert_clause_expr(Expr::List(vec![
-            Expr::Symbol(Symbol::new("fact")),
-            Expr::List(vec![
-                Expr::Symbol(Symbol::new("color")),
-                Expr::Symbol(Symbol::new(color)),
-            ]),
-        ]))
-        .unwrap();
+impl Policy {
+    fn load(root: &Path) -> Self {
+        let source = fs::read_to_string(root.join("source-authority.toml")).unwrap();
+        assert_eq!(
+            scalar(&source, "schema"),
+            "sim.source-authority-ownership/v1"
+        );
+        Self {
+            owner: scalar(&source, "owner"),
+            remediation: scalar(&source, "remediation"),
+            guest_prefix: scalar(&source, "guest_crate_prefix"),
+            forbidden_suffixes: array(&source, "forbidden_type_suffixes"),
+            authority_fields: array(&source, "authority_fields"),
+            guests: source
+                .split("[[guest]]")
+                .skip(1)
+                .map(|row| (scalar(row, "crate"), scalar(row, "status")))
+                .collect(),
+        }
     }
-    db
+
+    fn findings(&self, relative: &Path, source: &str) -> Vec<String> {
+        let path = relative.to_string_lossy();
+        if !path
+            .split('/')
+            .any(|part| part.starts_with(&self.guest_prefix))
+        {
+            return Vec::new();
+        }
+        let mut findings = Vec::new();
+        for item in structs(source) {
+            let name = struct_name(&item);
+            let fields = field_names(&item);
+            let authority_count = fields
+                .iter()
+                .filter(|field| self.authority_fields.contains(field))
+                .count();
+            if authority_count > 1 {
+                findings.push(format!("{path} repeats {authority_count} source-authority fields in {name}; owner: {}; remediation: {}", self.owner, self.remediation));
+            }
+            if self
+                .forbidden_suffixes
+                .iter()
+                .any(|suffix| name.ends_with(suffix))
+            {
+                findings.push(format!("{path} declares generic guest admission type {name}; owner: {}; remediation: {}", self.owner, self.remediation));
+            }
+        }
+        findings
+    }
+}
+
+fn scalar(source: &str, key: &str) -> String {
+    source
+        .lines()
+        .map(str::trim)
+        .find_map(|line| line.strip_prefix(&format!("{key} = \"")))
+        .and_then(|rest| rest.strip_suffix('"'))
+        .unwrap_or_default()
+        .to_owned()
+}
+
+fn array(source: &str, key: &str) -> Vec<String> {
+    source
+        .lines()
+        .map(str::trim)
+        .find(|line| line.starts_with(&format!("{key} = [")))
+        .and_then(|line| line.split_once('['))
+        .and_then(|(_, rest)| rest.rsplit_once(']'))
+        .map(|(body, _)| {
+            body.split(',')
+                .filter_map(|item| item.trim().strip_prefix('"')?.strip_suffix('"'))
+                .map(str::to_owned)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn structs(source: &str) -> Vec<String> {
+    let mut result = Vec::new();
+    let mut current = None::<(String, i32)>;
+    for line in source.lines() {
+        let trimmed = line.trim_start();
+        if current.is_none()
+            && (trimmed.starts_with("struct ") || trimmed.starts_with("pub struct "))
+        {
+            current = Some((format!("{line}\n"), braces(line)));
+        } else if let Some((text, depth)) = &mut current {
+            text.push_str(line);
+            text.push('\n');
+            *depth += braces(line);
+            if *depth <= 0 {
+                result.push(std::mem::take(text));
+                current = None;
+            }
+        }
+    }
+    result
+}
+
+fn braces(line: &str) -> i32 {
+    line.bytes()
+        .map(|b| match b {
+            b'{' => 1,
+            b'}' => -1,
+            _ => 0,
+        })
+        .sum()
+}
+fn struct_name(item: &str) -> String {
+    item.split_whitespace()
+        .skip_while(|word| *word != "struct")
+        .nth(1)
+        .unwrap_or("")
+        .split(['<', '{'])
+        .next()
+        .unwrap_or("")
+        .to_owned()
+}
+fn field_names(item: &str) -> Vec<String> {
+    item.lines()
+        .skip(1)
+        .filter_map(|line| {
+            line.trim()
+                .trim_start_matches("pub ")
+                .split_once(':')
+                .map(|(name, _)| name.trim())
+        })
+        .filter(|name| {
+            name.chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+        })
+        .map(str::to_owned)
+        .collect()
+}
+fn root() -> PathBuf {
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let mut path = fs::canonicalize(manifest.join("src"))
+        .ok()
+        .and_then(|path| path.parent().map(Path::to_path_buf))
+        .unwrap_or(manifest);
+    while !path.join("source-authority.toml").is_file() {
+        assert!(path.pop());
+    }
+    path
+}
+fn rust_sources(path: &Path) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    let mut pending = vec![path.to_owned()];
+    while let Some(path) = pending.pop() {
+        for entry in fs::read_dir(path).unwrap() {
+            let entry = entry.unwrap();
+            if entry.file_type().unwrap().is_dir() {
+                pending.push(entry.path());
+            } else if entry.path().extension().is_some_and(|ext| ext == "rs") {
+                files.push(entry.path());
+            }
+        }
+    }
+    files
 }
 
 #[test]
-fn is_routes_mixed_terms_through_number_tower() {
-    let mut cx = cx_with_number_tower();
-    let answers = query_all(
-        &mut cx,
-        &LogicDb::new(),
-        &LogicConfig::default(),
-        Expr::List(vec![
-            Expr::Symbol(Symbol::new("is")),
-            Expr::Local(Symbol::new("X")),
-            Expr::List(vec![
-                Expr::Symbol(Symbol::new("+")),
-                number("i64", "1"),
-                number("f64", "0.5"),
-            ]),
-        ]),
-        Some(1),
-    )
-    .unwrap();
-
-    assert_eq!(answers.len(), 1);
-    assert_eq!(capture(&answers[0], "X"), &number("f64", "1.5"));
-}
-
-#[test]
-fn is_widens_overflowing_integer_terms_through_number_tower() {
-    let mut cx = cx_with_number_tower();
-    let answers = query_all(
-        &mut cx,
-        &LogicDb::new(),
-        &LogicConfig::default(),
-        Expr::List(vec![
-            Expr::Symbol(Symbol::new("is")),
-            Expr::Local(Symbol::new("X")),
-            Expr::List(vec![
-                Expr::Symbol(Symbol::new("+")),
-                number("i64", i64::MAX.to_string()),
-                number("i64", "1"),
-            ]),
-        ]),
-        Some(1),
-    )
-    .unwrap();
-
-    assert_eq!(answers.len(), 1);
-    assert_eq!(
-        capture(&answers[0], "X"),
-        &number("bigint", "9223372036854775808")
+fn fixture_allows_semantic_wrapper_but_rejects_shadow_authority() {
+    let policy = Policy::load(&root());
+    assert!(
+        policy
+            .findings(
+                Path::new("crates/sim-lib-lang-example/src/eval.rs"),
+                "struct GuestEvalSemantics {\n    mode: EvalMode,\n}"
+            )
+            .is_empty()
+    );
+    let findings = policy.findings(
+        Path::new("crates/sim-lib-lang-example/src/eval.rs"),
+        "struct DynamicAdmission {\n    read_policy: ReadPolicy,\n    requires: Vec<CapabilityName>,\n    allow: CapabilitySet,\n}",
+    );
+    assert!(
+        findings
+            .iter()
+            .any(|finding| finding.contains("repeats 3 source-authority fields"))
+    );
+    assert!(
+        findings
+            .iter()
+            .any(|finding| finding.contains("generic guest admission type"))
     );
 }
 
 #[test]
-fn findall_collects_answers_forced_from_sequence_engine() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
-    let db = color_db();
-    let config = LogicConfig::default();
-    let forced = Arc::new(AtomicUsize::new(0));
-    let probe = Arc::clone(&forced);
-    let template = Expr::Local(Symbol::new("X"));
-    let goal = Expr::List(vec![
-        Expr::Symbol(Symbol::new("color")),
-        Expr::Local(Symbol::new("X")),
-    ]);
-    let output = Expr::Local(Symbol::new("Xs"));
-    let env = LogicEnv::new();
-    let envs = findall_through_sequence_with_probe(
-        &mut cx,
-        FindallRequest {
-            db: &db,
-            config: &config,
-            template: &template,
-            goal: &goal,
-            output: &output,
-            env: &env,
+fn every_registered_guest_is_classified_and_sources_have_no_shadow_envelope() {
+    let root = root();
+    let policy = Policy::load(&root);
+    let profiles = fs::read_to_string(root.join("guest-profiles.toml")).unwrap();
+    let registered = profiles
+        .split("[[guest]]")
+        .skip(1)
+        .map(|row| scalar(row, "crate"))
+        .collect::<Vec<_>>();
+    assert_eq!(registered.len(), policy.guests.len());
+    for guest in registered {
+        assert!(
+            policy
+                .guests
+                .iter()
+                .any(|(name, status)| name == &guest
+                    && matches!(status.as_str(), "wired" | "unwired")),
+            "unclassified guest {guest}"
+        );
+    }
+    let mut findings = Vec::new();
+    for path in rust_sources(&root.join("crates")) {
+        let relative = path.strip_prefix(&root).unwrap();
+        findings.extend(policy.findings(relative, &fs::read_to_string(&path).unwrap()));
+    }
+    assert!(findings.is_empty(), "{}", findings.join("\n"));
+}
+```
+
+### `feature/sim-runtime/organs`
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-pattern/tests/ownership_guard` is checked by `cargo test`.
+
+Source `crates/sim-lib-pattern/tests/ownership_guard.rs`:
+
+```rust
+// conformance: matcher implementation remains owned by the shared pattern organ.
+
+//! Source-fact ownership guard for the single shared matcher organ.
+
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
+
+const PRIVATE_MATCHER: &str = r#"
+pub struct GuestNfa {
+    states: Vec<State>,
+    transitions: Vec<Transition>,
+}
+fn match_here(input: &[u8]) { match_here(&input[1..]) }
+"#;
+
+const SYNTAX_PARSER: &str = r#"
+pub struct GuestPatternParser { cursor: usize }
+pub fn parse_pattern(source: &str) -> PatternProgram { lower(source) }
+"#;
+
+#[derive(Debug)]
+struct Relationship {
+    path: String,
+    class: String,
+    reason: String,
+}
+
+#[derive(Debug)]
+struct Policy {
+    owner: String,
+    remediation: String,
+    guest_crate_prefix: String,
+    roadmap_family_terms: Vec<String>,
+    state_fields: Vec<String>,
+    transition_fields: Vec<String>,
+    driver_names: Vec<String>,
+    relationships: Vec<Relationship>,
+}
+
+impl Policy {
+    fn load(root: &Path) -> Self {
+        let source = fs::read_to_string(root.join("pattern-ownership.toml"))
+            .expect("pattern ownership policy must exist");
+        assert_eq!(scalar(&source, "schema"), "sim.pattern-ownership/v1");
+        Self {
+            owner: scalar(&source, "owner"),
+            remediation: scalar(&source, "remediation"),
+            guest_crate_prefix: scalar(&source, "guest_crate_prefix"),
+            roadmap_family_terms: array(&source, "roadmap_family_terms"),
+            state_fields: array(&source, "state_fields"),
+            transition_fields: array(&source, "transition_fields"),
+            driver_names: array(&source, "driver_names"),
+            relationships: sections(&source, "[[approved_relationship]]")
+                .map(|row| Relationship {
+                    path: scalar(row, "path"),
+                    class: scalar(row, "class"),
+                    reason: scalar(row, "reason"),
+                })
+                .collect(),
+        }
+    }
+
+    fn findings(&self, path: &Path, source: &str) -> Vec<String> {
+        let relative = path.to_string_lossy().replace('\\', "/");
+        let relationship = self
+            .relationships
+            .iter()
+            .find(|row| relative.ends_with(&row.path));
+        if let Some(row) = relationship {
+            assert!(matches!(
+                row.class.as_str(),
+                "syntax-parser" | "policy-adapter"
+            ));
+            assert!(!row.reason.is_empty());
+        }
+        let mut findings = structs(source).into_iter().filter_map(|item| {
+            let fields = field_names(&item);
+            let state = fields.iter().find(|field| self.state_fields.contains(field))?;
+            let transition = fields.iter().find(|field| self.transition_fields.contains(field))?;
+            Some(format!("{} retains private matcher fields `{state}` and `{transition}`; owner: {}; remediation: {}", relative, self.owner, self.remediation))
+        }).collect::<Vec<_>>();
+        for name in &self.driver_names {
+            if function_calls_itself(source, name)
+                || (name == "backtrack" && source.contains("backtrack_stack"))
+            {
+                findings.push(format!(
+                    "{relative} declares guest matcher driver `{name}`; owner: {}",
+                    self.owner
+                ));
+            }
+        }
+        for line in source.lines().filter(|line| is_public_diagnostic(line)) {
+            if let Some(term) = self
+                .roadmap_family_terms
+                .iter()
+                .find(|term| line.contains(term.as_str()))
+            {
+                findings.push(format!(
+                    "{relative} leaks roadmap family `{term}` in a public diagnostic"
+                ));
+            }
+        }
+        findings.sort();
+        findings.dedup();
+        findings
+    }
+}
+
+fn sections<'a>(source: &'a str, heading: &str) -> impl Iterator<Item = &'a str> {
+    source
+        .split(heading)
+        .skip(1)
+        .map(|row| row.split("[[").next().unwrap_or(row))
+}
+fn scalar(source: &str, key: &str) -> String {
+    source
+        .lines()
+        .map(str::trim)
+        .find_map(|line| line.strip_prefix(&format!("{key} = \"")))
+        .and_then(|rest| rest.strip_suffix('"'))
+        .unwrap_or_default()
+        .to_owned()
+}
+fn array(source: &str, key: &str) -> Vec<String> {
+    let Some(line) = source
+        .lines()
+        .map(str::trim)
+        .find(|line| line.starts_with(&format!("{key} = [")))
+    else {
+        return Vec::new();
+    };
+    line.split_once('[')
+        .and_then(|(_, rest)| rest.rsplit_once(']'))
+        .map(|(body, _)| body)
+        .unwrap_or_default()
+        .split(',')
+        .filter_map(|item| item.trim().strip_prefix('"')?.strip_suffix('"'))
+        .map(str::to_owned)
+        .collect()
+}
+fn structs(source: &str) -> Vec<String> {
+    let mut items = Vec::new();
+    let mut current = None::<(String, i32)>;
+    for line in source.lines() {
+        let trimmed = line.trim_start();
+        if current.is_none()
+            && (trimmed.starts_with("struct ") || trimmed.starts_with("pub struct "))
+        {
+            let depth = brace_delta(line);
+            current = Some((format!("{line}\n"), depth));
+            continue;
+        }
+        if let Some((text, depth)) = &mut current {
+            text.push_str(line);
+            text.push('\n');
+            *depth += brace_delta(line);
+            if *depth <= 0 {
+                items.push(std::mem::take(text));
+                current = None;
+            }
+        }
+    }
+    items
+}
+fn field_names(item: &str) -> Vec<String> {
+    item.lines()
+        .skip(1)
+        .filter_map(|line| {
+            line.trim()
+                .trim_start_matches("pub ")
+                .split_once(':')
+                .map(|(name, _)| name.trim())
+        })
+        .filter(|name| {
+            name.chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+        })
+        .map(str::to_owned)
+        .collect()
+}
+fn brace_delta(line: &str) -> i32 {
+    line.bytes()
+        .map(|byte| match byte {
+            b'{' => 1,
+            b'}' => -1,
+            _ => 0,
+        })
+        .sum()
+}
+fn function_calls_itself(source: &str, name: &str) -> bool {
+    let declaration = format!("fn {name}(");
+    let call = format!("{name}(");
+    source.matches(&call).count() > source.matches(&declaration).count()
+}
+fn is_public_diagnostic(line: &str) -> bool {
+    let lower = line.to_ascii_lowercase();
+    line.contains('"')
+        && ["diagnostic", "error::", "error(", "format!(", "message"]
+            .iter()
+            .any(|term| lower.contains(term))
+}
+fn repository_root() -> PathBuf {
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .canonicalize()
+        .expect("pattern source directory must resolve");
+    while !path.join("pattern-ownership.toml").is_file() {
+        assert!(path.pop(), "pattern ownership repository not found");
+    }
+    path
+}
+fn rust_sources(path: &Path) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    let mut pending = vec![path.to_owned()];
+    while let Some(path) = pending.pop() {
+        for entry in fs::read_dir(path).unwrap() {
+            let entry = entry.unwrap();
+            if entry.file_type().unwrap().is_dir() {
+                pending.push(entry.path());
+            } else if entry.path().extension().is_some_and(|ext| ext == "rs") {
+                files.push(entry.path());
+            }
+        }
+    }
+    files
+}
+
+#[test]
+fn guard_rejects_private_matcher_and_admits_syntax_parser() {
+    let policy = Policy::load(&repository_root());
+    let findings = policy.findings(
+        Path::new("crates/sim-lib-lang-example/src/matcher.rs"),
+        PRIVATE_MATCHER,
+    );
+    assert!(
+        findings
+            .iter()
+            .any(|finding| finding.contains("private matcher"))
+    );
+    assert!(
+        findings
+            .iter()
+            .any(|finding| finding.contains("match_here"))
+    );
+    assert!(
+        policy
+            .findings(
+                Path::new("crates/sim-lib-lang-example/src/parser.rs"),
+                SYNTAX_PARSER
+            )
+            .is_empty()
+    );
+}
+
+#[test]
+fn guest_crates_have_no_private_matcher_or_roadmap_diagnostic() {
+    let root = repository_root();
+    let policy = Policy::load(&root);
+    for entry in fs::read_dir(root.join("crates")).unwrap() {
+        let entry = entry.unwrap();
+        if !entry
+            .file_name()
+            .to_string_lossy()
+            .starts_with(&policy.guest_crate_prefix)
+        {
+            continue;
+        }
+        for path in rust_sources(&entry.path().join("src")) {
+            let source = fs::read_to_string(&path).unwrap();
+            let findings = policy.findings(&path, &source);
+            assert!(findings.is_empty(), "{}", findings.join("\n"));
+        }
+    }
+}
+
+#[test]
+fn pattern_overlap_board_is_fully_classified() {
+    let root = repository_root();
+    let source = fs::read_to_string(root.join("pattern-ownership.toml")).unwrap();
+    let rows = sections(&source, "[[overlap]]").collect::<Vec<_>>();
+    assert!(!rows.is_empty());
+    for row in rows {
+        let name = scalar(row, "name");
+        let path = scalar(row, "path");
+        let class = scalar(row, "class");
+        let reason = scalar(row, "reason");
+        assert!(!name.is_empty() && !path.is_empty() && !reason.is_empty());
+        assert!(
+            matches!(
+                class.as_str(),
+                "shared-owner" | "syntax-parser" | "policy-adapter"
+            ),
+            "{name} is unclassified"
+        );
+        assert!(
+            root.join(path).is_file(),
+            "{name} points at a missing source fact"
+        );
+    }
+}
+```
+
+### `feature/sim-runtime/pattern-cursor-domains`
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-pattern/tests/cursor_domains` is checked by `cargo test`.
+
+Source `crates/sim-lib-pattern/tests/cursor_domains.rs`:
+
+```rust
+// conformance: pattern cursors retain their byte, scalar, and code-unit domains.
+
+use sim_lib_pattern::{
+    CodeUnitDomain, CodeUnitOffset, DomainExecutionOutcome, EnginePolicy, IrNode, PatternIr,
+    ScalarDomain, ScalarOffset, TextLimits, compile, execute_code_units, execute_scalars,
+};
+use sim_text::CodeUnitString;
+use std::collections::BTreeMap;
+
+fn compiled<D: sim_lib_pattern::SymbolDomain>(
+    symbol: D::Symbol,
+) -> sim_lib_pattern::Automaton<D::Symbol, ()>
+where
+    D::Symbol: Clone,
+{
+    let ir = PatternIr::<D, ()>::new(
+        IrNode::Symbol(symbol),
+        BTreeMap::new(),
+        &EnginePolicy::new([]),
+    )
+    .unwrap();
+    compile(&ir)
+}
+
+#[test]
+fn code_unit_match_indexes_lone_surrogate_exactly() {
+    let subject = CodeUnitString::from_code_units(vec![0xd800]);
+    let outcome = execute_code_units(
+        &compiled::<CodeUnitDomain>(0xd800),
+        &subject,
+        TextLimits::default(),
+        |_, _| false,
+    );
+    let DomainExecutionOutcome::Match { matched, receipt } = outcome else {
+        panic!("lone surrogate must remain matchable as one exact code unit");
+    };
+    assert_eq!(matched.start, CodeUnitOffset::new(0));
+    assert_eq!(matched.end, CodeUnitOffset::new(1));
+    assert_eq!(subject.code_unit_at(matched.start), Some(0xd800));
+    assert_eq!(receipt.subject_symbols, 1);
+}
+
+#[test]
+fn code_unit_cursor_can_stop_between_surrogate_halves() {
+    let subject = CodeUnitString::from_scalar("\u{1f600}");
+    let outcome = execute_code_units(
+        &compiled::<CodeUnitDomain>(0xd83d),
+        &subject,
+        TextLimits::default(),
+        |_, _| false,
+    );
+    let DomainExecutionOutcome::Match { matched, .. } = outcome else {
+        panic!("must match");
+    };
+    assert_eq!(matched.end, CodeUnitOffset::new(1));
+    assert!(subject.scalar_offset(matched.end).is_err());
+
+    let scalars = ['\u{1f600}'];
+    let scalar_outcome = execute_scalars(
+        &compiled::<ScalarDomain>('\u{1f600}'),
+        &scalars,
+        TextLimits::default(),
+        |_, _| false,
+    );
+    let DomainExecutionOutcome::Match { matched, .. } = scalar_outcome else {
+        panic!("must match");
+    };
+    assert_eq!(matched.end, ScalarOffset::new(1));
+}
+```
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-pattern/tests/cross_dialect_safety` is checked by `cargo test`.
+
+Source `crates/sim-lib-pattern/tests/cross_dialect_safety.rs`:
+
+```rust
+// conformance: one bounded matcher safely serves every admitted pattern dialect.
+
+use sim_lib_pattern::{
+    ByteDomain, ByteOffset, CaptureId, CodeUnitDomain, CodeUnitOffset, DomainExecutionOutcome,
+    EnginePolicy, ExecutionLimit, GlobPatternDialect, IrNode, LuaPatternDialect, PatternIr,
+    RepeatBounds, ScalarDomain, ScalarOffset, TextLimits, compile, execute_bytes,
+    execute_code_units, execute_scalars,
+};
+use sim_text::CodeUnitString;
+use std::collections::BTreeMap;
+
+fn limits(max_steps: usize) -> TextLimits {
+    TextLimits {
+        max_steps,
+        ..TextLimits::default()
+    }
+}
+
+#[test]
+fn one_organ_executes_three_distinct_surface_lowerings() {
+    let neutral = PatternIr::<ByteDomain, ()>::new(
+        IrNode::Repeat {
+            node: Box::new(IrNode::Symbol(b'a')),
+            bounds: RepeatBounds::new(1, None).unwrap(),
+            greedy: true,
         },
-        |_| {
-            probe.fetch_add(1, Ordering::SeqCst);
-        },
+        BTreeMap::new(),
+        &EnginePolicy::new([]),
     )
     .unwrap();
+    let neutral = execute_bytes(&compile(&neutral), b"aaa", limits(128), |_, _| false);
+    let DomainExecutionOutcome::Match { matched, .. } = neutral else {
+        panic!("neutral IR must match through the shared organ");
+    };
+    assert_eq!((matched.start, matched.end), (ByteOffset(0), ByteOffset(3)));
 
-    assert_eq!(forced.load(Ordering::SeqCst), 3);
-    assert_eq!(envs.len(), 1);
+    let lua = LuaPatternDialect.compile_ir("^a+$").unwrap();
+    let lua = execute_scalars(&compile(&lua), &['a', 'a', 'a'], limits(128), |_, _| false);
+    let DomainExecutionOutcome::Match { matched, .. } = lua else {
+        panic!("Lua syntax must match through the shared organ");
+    };
     assert_eq!(
-        envs[0].get(&Symbol::new("Xs")),
-        Some(&Expr::List(vec![
-            Expr::Symbol(Symbol::new("red")),
-            Expr::Symbol(Symbol::new("green")),
-            Expr::Symbol(Symbol::new("blue")),
-        ]))
+        (matched.start, matched.end),
+        (ScalarOffset::new(0), ScalarOffset::new(3))
+    );
+
+    let glob = GlobPatternDialect.compile_ir("a*").unwrap();
+    let glob = execute_scalars(&compile(&glob), &['a', 'a', 'a'], limits(128), |_, _| false);
+    let DomainExecutionOutcome::Match { matched, .. } = glob else {
+        panic!("glob syntax must match through the shared organ");
+    };
+    assert_eq!(
+        (matched.start, matched.end),
+        (ScalarOffset::new(0), ScalarOffset::new(3))
     );
 }
 
 #[test]
-fn findall_query_projects_answer_template() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
-    let answers = query_all(
-        &mut cx,
-        &color_db(),
-        &LogicConfig::default(),
-        Expr::List(vec![
-            Expr::Symbol(Symbol::new("findall")),
-            Expr::Local(Symbol::new("X")),
-            Expr::List(vec![
-                Expr::Symbol(Symbol::new("color")),
-                Expr::Local(Symbol::new("X")),
-            ]),
-            Expr::Local(Symbol::new("Xs")),
+fn adversarial_ambiguity_stops_with_an_exact_bounded_work_receipt() {
+    let ambiguous = IrNode::Repeat {
+        node: Box::new(IrNode::Alternation(vec![
+            IrNode::Symbol(b'a'),
+            IrNode::Concat(vec![IrNode::Symbol(b'a'), IrNode::Symbol(b'a')]),
+        ])),
+        bounds: RepeatBounds::new(0, None).unwrap(),
+        greedy: true,
+    };
+    let ir = PatternIr::<ByteDomain, ()>::new(
+        IrNode::Concat(vec![ambiguous, IrNode::Symbol(b'b')]),
+        BTreeMap::new(),
+        &EnginePolicy::new([]),
+    )
+    .unwrap();
+    let outcome = execute_bytes(&compile(&ir), &vec![b'a'; 256], limits(40), |_, _| false);
+    let DomainExecutionOutcome::Limit { limit, receipt } = outcome else {
+        panic!("ambiguous rejection must stop at the caller's work boundary");
+    };
+    assert_eq!(limit, ExecutionLimit::Transitions);
+    assert_eq!(receipt.transitions, 40);
+    assert!(receipt.state_visits <= 40);
+    assert_eq!(receipt.subject_symbols, 256);
+}
+
+#[test]
+fn offsets_remain_exact_in_all_three_subject_domains() {
+    let bytes = PatternIr::<ByteDomain, ()>::new(
+        IrNode::Concat(
+            "\u{1f600}x"
+                .as_bytes()
+                .iter()
+                .copied()
+                .map(IrNode::Symbol)
+                .collect(),
+        ),
+        BTreeMap::new(),
+        &EnginePolicy::new([]),
+    )
+    .unwrap();
+    let DomainExecutionOutcome::Match { matched: bytes, .. } = execute_bytes(
+        &compile(&bytes),
+        "\u{1f600}x".as_bytes(),
+        limits(128),
+        |_, _| false,
+    ) else {
+        panic!("byte lowering must match");
+    };
+
+    let scalars = PatternIr::<ScalarDomain, ()>::new(
+        IrNode::Concat(vec![IrNode::Symbol('\u{1f600}'), IrNode::Symbol('x')]),
+        BTreeMap::new(),
+        &EnginePolicy::new([]),
+    )
+    .unwrap();
+    let DomainExecutionOutcome::Match {
+        matched: scalars, ..
+    } = execute_scalars(
+        &compile(&scalars),
+        &['\u{1f600}', 'x'],
+        limits(128),
+        |_, _| false,
+    )
+    else {
+        panic!("scalar lowering must match");
+    };
+
+    let units = CodeUnitString::from_scalar("\u{1f600}x");
+    let code_units = PatternIr::<CodeUnitDomain, ()>::new(
+        IrNode::Concat(
+            units
+                .as_code_units()
+                .iter()
+                .copied()
+                .map(IrNode::Symbol)
+                .collect(),
+        ),
+        BTreeMap::new(),
+        &EnginePolicy::new([]),
+    )
+    .unwrap();
+    let DomainExecutionOutcome::Match {
+        matched: code_units,
+        ..
+    } = execute_code_units(&compile(&code_units), &units, limits(128), |_, _| false)
+    else {
+        panic!("code-unit lowering must match");
+    };
+
+    assert_eq!(bytes.end, ByteOffset(5));
+    assert_eq!(scalars.end, ScalarOffset::new(2));
+    assert_eq!(code_units.end, CodeUnitOffset::new(3));
+}
+
+#[test]
+fn ordered_capture_precedence_is_stable_and_unsupported_syntax_fails_closed() {
+    let first = CaptureId(10);
+    let second = CaptureId(20);
+    let ir = PatternIr::<ByteDomain, ()>::new(
+        IrNode::Alternation(vec![
+            IrNode::Capture {
+                id: first,
+                node: Box::new(IrNode::Symbol(b'a')),
+            },
+            IrNode::Capture {
+                id: second,
+                node: Box::new(IrNode::Symbol(b'a')),
+            },
         ]),
-        Some(1),
+        BTreeMap::new(),
+        &EnginePolicy::new([]),
+    )
+    .unwrap();
+    let DomainExecutionOutcome::Match { matched, .. } =
+        execute_bytes(&compile(&ir), b"a", limits(128), |_, _| false)
+    else {
+        panic!("ordered ambiguity must match");
+    };
+    assert_eq!(
+        matched.captures.keys().copied().collect::<Vec<_>>(),
+        [first]
+    );
+
+    assert!(LuaPatternDialect.compile_ir("[unterminated").is_err());
+    assert!(GlobPatternDialect.compile_ir("[unterminated").is_err());
+}
+```
+
+### `feature/sim-runtime/function-organ`
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-function/src/callable` is checked by `cargo test`.
+
+Source `crates/sim-lib-function/src/callable.rs`:
+
+```rust
+// conformance: function instances compose with ordinary callable dispatch.
+
+//! Optional composition between ordinary function instances and dispatch.
+
+use std::sync::Arc;
+
+use sim_lib_dispatch::MethodBody;
+
+use crate::{FunctionBodyPolicy, FunctionInstance};
+
+/// Projects a function instance into a dispatch method body.
+///
+/// This adapter is deliberately opt-in: [`FunctionInstance`] remains a kernel
+/// callable in its own right, and an ordinary call never constructs or consults
+/// a generic function. Dispatch supplies only method selection; after selection,
+/// the same neutral call boundary invokes the same guest policy.
+pub fn dispatch_method_body<B>(function: FunctionInstance<B>) -> MethodBody
+where
+    B: FunctionBodyPolicy,
+{
+    Arc::new(move |cx, arguments| function.invoke_values(cx, arguments.to_vec()))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{
+        Arc, Mutex,
+        atomic::{AtomicUsize, Ordering},
+    };
+
+    use sim_kernel::{
+        Args, Callable, ClassRef, Cx, Expr, Result, Shape, Symbol, Value,
+        shape::{MatchScore, ShapeDoc, ShapeMatch},
+        testing::bare_cx,
+    };
+    use sim_lib_dispatch::{DispatchMethod, GenericFunction, MethodRole};
+
+    use super::*;
+    use crate::{ArgumentInput, ArgumentOrigin, BoundCall, FunctionPlan};
+
+    type RecordedArguments = Vec<(ArgumentOrigin, Value)>;
+    type RecordedCalls = Arc<Mutex<Vec<RecordedArguments>>>;
+
+    #[derive(Clone)]
+    struct RecordingBody {
+        calls: RecordedCalls,
+    }
+
+    impl FunctionBodyPolicy for RecordingBody {
+        fn invoke(
+            &self,
+            _cx: &mut Cx,
+            _plan: &FunctionPlan,
+            _captures: &[crate::CapturedBinding],
+            call: BoundCall,
+        ) -> Result<Value> {
+            let received = call
+                .arguments()
+                .iter()
+                .map(|argument| match argument.input() {
+                    ArgumentInput::Positional(value) => (argument.origin().clone(), value.clone()),
+                    _ => unreachable!("evaluated call plans contain positional inputs"),
+                })
+                .collect::<Vec<_>>();
+            let result = received[0].1.clone();
+            self.calls.lock().unwrap().push(received);
+            Ok(result)
+        }
+    }
+
+    struct InstrumentedShape {
+        selections: Arc<AtomicUsize>,
+    }
+
+    impl Shape for InstrumentedShape {
+        fn check_value(&self, _cx: &mut Cx, _value: Value) -> Result<ShapeMatch> {
+            self.selections.fetch_add(1, Ordering::SeqCst);
+            Ok(ShapeMatch::accept(MatchScore::exact(0)))
+        }
+
+        fn check_expr(&self, _cx: &mut Cx, _expr: &Expr) -> Result<ShapeMatch> {
+            Ok(ShapeMatch::accept(MatchScore::exact(0)))
+        }
+
+        fn describe(&self, _cx: &mut Cx) -> Result<ShapeDoc> {
+            Ok(ShapeDoc::new("instrumented"))
+        }
+    }
+
+    fn instance(cx: &mut Cx, calls: RecordedCalls) -> FunctionInstance<RecordingBody> {
+        let class: ClassRef = cx.factory().symbol(Symbol::new("guest-function")).unwrap();
+        FunctionInstance::new(
+            FunctionPlan::new(Symbol::new("guest:record"), vec![], vec![], None).unwrap(),
+            RecordingBody { calls },
+            vec![],
+            class,
+            None,
+            None,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn direct_and_selected_invocation_deliver_identical_bound_calls() {
+        let mut cx = bare_cx();
+        let calls = Arc::new(Mutex::new(Vec::new()));
+        let selections = Arc::new(AtomicUsize::new(0));
+        let function = instance(&mut cx, calls.clone());
+        let argument = cx.factory().symbol(Symbol::new("argument")).unwrap();
+
+        function
+            .call(&mut cx, Args::new(vec![argument.clone()]))
+            .unwrap();
+        assert_eq!(selections.load(Ordering::SeqCst), 0);
+
+        let mut generic = GenericFunction::new(Symbol::new("guest:generic"));
+        generic
+            .add_method(DispatchMethod::new(
+                Symbol::new("guest:method"),
+                MethodRole::Primary,
+                vec![Arc::new(InstrumentedShape {
+                    selections: selections.clone(),
+                })],
+                dispatch_method_body(function),
+            ))
+            .unwrap();
+        generic.call(&mut cx, &[argument]).unwrap();
+
+        assert_eq!(selections.load(Ordering::SeqCst), 1);
+        let calls = calls.lock().unwrap();
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0].len(), calls[1].len());
+        for (direct, selected) in calls[0].iter().zip(&calls[1]) {
+            assert_eq!(direct.0, selected.0);
+            assert_eq!(direct.1, selected.1);
+        }
+        assert_eq!(calls[0][0].0, ArgumentOrigin::KernelPosition(0));
+    }
+}
+```
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-function/src/instance` is checked by `cargo test`.
+
+Source `crates/sim-lib-function/src/instance.rs`:
+
+```rust
+// conformance: managed function instances preserve captures and callable identity.
+
+use std::{any::Any, error::Error, fmt};
+
+use sim_kernel::{
+    Args, Callable, ClassRef, Cx, Object, ObjectCompat, Result as KernelResult, ShapeRef, Value,
+};
+use sim_lib_binding::BindingCell;
+use sim_lib_mutation::{
+    EdgeId, EdgeVisitor, ManagedHandle, ManagedId, ManagedNode, ManagedObject,
+    StrongEdgeMutationError,
+};
+
+use crate::{BoundCall, CallInput, FunctionPlan, bind};
+
+/// Guest-owned execution policy for one concrete function body type.
+///
+/// The policy is statically selected by [`FunctionInstance`]. It receives the
+/// neutral call record and shared capture cells, leaving defaults, keyword
+/// rules, receiver behavior, evaluation, and diagnostics to the guest.
+pub trait FunctionBodyPolicy: Send + Sync + 'static {
+    /// Executes this body using the immutable declaration and live captures.
+    fn invoke(
+        &self,
+        cx: &mut Cx,
+        plan: &FunctionPlan,
+        captures: &[CapturedBinding],
+        call: BoundCall,
+    ) -> KernelResult<Value>;
+}
+
+/// One shared binding cell paired with its identity in the managed graph.
+#[derive(Clone, Debug)]
+pub struct CapturedBinding {
+    cell: BindingCell,
+    managed: ManagedHandle,
+}
+
+impl CapturedBinding {
+    /// Associates an existing binding cell with its managed allocation.
+    pub const fn new(cell: BindingCell, managed: ManagedHandle) -> Self {
+        Self { cell, managed }
+    }
+
+    /// Borrows the shared lexical cell.
+    pub const fn cell(&self) -> &BindingCell {
+        &self.cell
+    }
+
+    /// Returns the managed identity traced for this capture.
+    pub const fn managed(&self) -> ManagedHandle {
+        self.managed
+    }
+}
+
+/// Failure to construct a managed function instance.
+#[derive(Debug)]
+pub enum InstanceError {
+    /// Capture cells must exactly follow the plan's declared slots.
+    CaptureMismatch {
+        /// Number of capture descriptors in the plan.
+        expected: usize,
+        /// Number of supplied managed binding cells.
+        actual: usize,
+    },
+    /// A supplied cell did not match the corresponding frozen capture slot.
+    CaptureNameMismatch {
+        /// Zero-based position in the frozen capture sequence.
+        index: usize,
+        /// Name declared by the immutable function plan.
+        expected: String,
+        /// Name carried by the supplied shared binding cell.
+        actual: String,
+    },
+    /// The shared managed node refused a capture edge.
+    ManagedEdge(StrongEdgeMutationError),
+}
+
+impl fmt::Display for InstanceError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::CaptureMismatch { expected, actual } => write!(
+                formatter,
+                "function plan declares {expected} captures but {actual} were supplied"
+            ),
+            Self::CaptureNameMismatch {
+                index,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "function capture {index} is named {actual}, expected {expected}"
+            ),
+            Self::ManagedEdge(error) => write!(formatter, "cannot trace function capture: {error}"),
+        }
+    }
+}
+
+impl Error for InstanceError {}
+
+/// The typed payload retained by a managed function node.
+#[derive(Clone)]
+struct FunctionRole<B> {
+    plan: FunctionPlan,
+    body: B,
+    captures: Vec<CapturedBinding>,
+    class: ClassRef,
+    args_shape: Option<ShapeRef>,
+    result_shape: Option<ShapeRef>,
+}
+
+/// A language-neutral, managed function object with a concrete guest body.
+///
+/// Each capture is represented twice for distinct purposes: its existing
+/// [`BindingCell`] supplies shared lexical mutation, while its `ManagedHandle`
+/// becomes a strong edge in the common managed graph. No private environment
+/// graph or body registry is involved.
+#[derive(Clone)]
+pub struct FunctionInstance<B: FunctionBodyPolicy> {
+    node: ManagedNode<FunctionRole<B>>,
+}
+
+impl<B: FunctionBodyPolicy> FunctionInstance<B> {
+    /// Builds an instance from a plan, typed body, managed captures, and runtime metadata.
+    pub fn new(
+        plan: FunctionPlan,
+        body: B,
+        captures: Vec<CapturedBinding>,
+        class: ClassRef,
+        args_shape: Option<ShapeRef>,
+        result_shape: Option<ShapeRef>,
+    ) -> Result<Self, InstanceError> {
+        validate_capture_bindings(&plan, &captures)?;
+        let targets = captures
+            .iter()
+            .map(|capture| capture.managed().id())
+            .collect::<Vec<_>>();
+        let mut node = ManagedNode::new(FunctionRole {
+            plan,
+            body,
+            captures,
+            class,
+            args_shape,
+            result_shape,
+        });
+        for target in targets {
+            node.insert_strong(target)
+                .map_err(InstanceError::ManagedEdge)?;
+        }
+        Ok(Self { node })
+    }
+
+    /// Borrows the immutable declaration plan.
+    pub const fn plan(&self) -> &FunctionPlan {
+        &self.node.role().plan
+    }
+
+    /// Borrows the concrete guest body policy without erasure or downcasting.
+    pub const fn body(&self) -> &B {
+        &self.node.role().body
+    }
+
+    /// Borrows the capture cells in plan declaration order.
+    pub fn captures(&self) -> &[CapturedBinding] {
+        &self.node.role().captures
+    }
+
+    /// Borrows the caller-supplied runtime class.
+    pub const fn supplied_class(&self) -> &ClassRef {
+        &self.node.role().class
+    }
+
+    /// Borrows the caller-supplied argument Shape, when present.
+    pub const fn args_shape(&self) -> Option<&ShapeRef> {
+        self.node.role().args_shape.as_ref()
+    }
+
+    /// Borrows the caller-supplied result Shape, when present.
+    pub const fn result_shape(&self) -> Option<&ShapeRef> {
+        self.node.role().result_shape.as_ref()
+    }
+
+    /// Invokes the guest policy through the neutral evaluated-value boundary.
+    ///
+    /// Kernel calls and optional dispatch-method adaptation both use this path,
+    /// so neither surface can change the policy-visible [`BoundCall`].
+    pub fn invoke_bound(&self, cx: &mut Cx, call: BoundCall) -> KernelResult<Value> {
+        self.body().invoke(cx, self.plan(), self.captures(), call)
+    }
+
+    pub(crate) fn invoke_values(&self, cx: &mut Cx, values: Vec<Value>) -> KernelResult<Value> {
+        self.invoke_bound(cx, bind(CallInput::from(Args::new(values))))
+    }
+}
+
+/// Validates that concrete capture cells exactly match every frozen plan slot.
+pub fn validate_capture_bindings(
+    plan: &FunctionPlan,
+    captures: &[CapturedBinding],
+) -> Result<(), InstanceError> {
+    if plan.captures().len() != captures.len() {
+        return Err(InstanceError::CaptureMismatch {
+            expected: plan.captures().len(),
+            actual: captures.len(),
+        });
+    }
+    for (index, (descriptor, capture)) in plan.captures().iter().zip(captures).enumerate() {
+        if descriptor.name() != capture.cell().name() {
+            return Err(InstanceError::CaptureNameMismatch {
+                index,
+                expected: descriptor.name().to_string(),
+                actual: capture.cell().name().to_string(),
+            });
+        }
+    }
+    Ok(())
+}
+
+impl<B: FunctionBodyPolicy> ManagedObject for FunctionInstance<B> {
+    fn trace_edges(&self, visitor: &mut dyn EdgeVisitor) {
+        self.node.trace_edges(visitor);
+    }
+
+    fn clear_weak_edge(&mut self, edge: EdgeId, expected: ManagedId) -> bool {
+        self.node.clear_weak_edge(edge, expected)
+    }
+
+    fn clear_ephemeron_edge(
+        &mut self,
+        edge: EdgeId,
+        expected_key: ManagedId,
+        expected_value: ManagedId,
+    ) -> bool {
+        self.node
+            .clear_ephemeron_edge(edge, expected_key, expected_value)
+    }
+}
+
+impl<B: FunctionBodyPolicy> Object for FunctionInstance<B> {
+    fn display(&self, _cx: &mut Cx) -> KernelResult<String> {
+        Ok(format!("#<function {}>", self.plan().display_identity()))
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl<B: FunctionBodyPolicy> ObjectCompat for FunctionInstance<B> {
+    fn class(&self, _cx: &mut Cx) -> KernelResult<ClassRef> {
+        Ok(self.supplied_class().clone())
+    }
+
+    fn as_callable(&self) -> Option<&dyn Callable> {
+        Some(self)
+    }
+}
+
+impl<B: FunctionBodyPolicy> Callable for FunctionInstance<B> {
+    fn call(&self, cx: &mut Cx, args: Args) -> KernelResult<Value> {
+        self.invoke_values(cx, args.into_vec())
+    }
+
+    fn browse_args_shape(&self, _cx: &mut Cx) -> KernelResult<Option<ShapeRef>> {
+        Ok(self.args_shape().cloned())
+    }
+
+    fn browse_result_shape(&self, _cx: &mut Cx) -> KernelResult<Option<ShapeRef>> {
+        Ok(self.result_shape().cloned())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sim_kernel::{ShapeId, Symbol, testing::bare_cx};
+    use sim_lib_gc_tracing::{CollectionLimits, ManagedHeap};
+    use sim_lib_mutation::{EdgeSnapshot, ManagedNode};
+
+    use super::*;
+    use crate::CaptureDescriptor;
+
+    #[derive(Clone)]
+    struct EchoBody;
+
+    impl FunctionBodyPolicy for EchoBody {
+        fn invoke(
+            &self,
+            _cx: &mut Cx,
+            _plan: &FunctionPlan,
+            _captures: &[CapturedBinding],
+            call: BoundCall,
+        ) -> KernelResult<Value> {
+            match call.arguments()[0].input() {
+                crate::ArgumentInput::Positional(value) => Ok(value.clone()),
+                _ => unreachable!("kernel arguments are positional"),
+            }
+        }
+    }
+
+    fn plan(captures: usize) -> FunctionPlan {
+        FunctionPlan::new(
+            Symbol::new("guest:echo"),
+            Vec::new(),
+            (0..captures)
+                .map(|index| CaptureDescriptor::new(Symbol::new(format!("slot-{index}")), None))
+                .collect(),
+            Some(ShapeId(9)),
+        )
+        .unwrap()
+    }
+
+    fn metadata(cx: &mut Cx) -> (ClassRef, ShapeRef, ShapeRef) {
+        (
+            cx.factory().symbol(Symbol::new("guest-class")).unwrap(),
+            cx.factory().symbol(Symbol::new("args-shape")).unwrap(),
+            cx.factory().symbol(Symbol::new("result-shape")).unwrap(),
+        )
+    }
+
+    fn collection_limits() -> CollectionLimits {
+        CollectionLimits {
+            objects: 4,
+            edges: 4,
+            stack: 4,
+            work: 32,
+            clears: 4,
+            finalizers: 4,
+        }
+    }
+
+    #[test]
+    fn invocation_and_runtime_metadata_are_delegated_without_body_erasure() {
+        let mut cx = bare_cx();
+        let (class, args_shape, result_shape) = metadata(&mut cx);
+        let instance = FunctionInstance::new(
+            plan(0),
+            EchoBody,
+            Vec::new(),
+            class.clone(),
+            Some(args_shape.clone()),
+            Some(result_shape.clone()),
+        )
+        .unwrap();
+        let argument = cx.factory().symbol(Symbol::new("answer")).unwrap();
+
+        assert!(std::ptr::eq(instance.body(), &instance.node.role().body));
+        assert_eq!(instance.class(&mut cx).unwrap(), class);
+        assert_eq!(
+            instance.browse_args_shape(&mut cx).unwrap(),
+            Some(args_shape)
+        );
+        assert_eq!(
+            instance.browse_result_shape(&mut cx).unwrap(),
+            Some(result_shape)
+        );
+        assert_eq!(
+            instance
+                .call(&mut cx, Args::new(vec![argument.clone()]))
+                .unwrap(),
+            argument
+        );
+    }
+
+    #[test]
+    fn same_plan_instances_receive_distinct_managed_identities() {
+        let mut cx = bare_cx();
+        let (class, _, _) = metadata(&mut cx);
+        let mut heap = ManagedHeap::tracing(4, collection_limits()).unwrap();
+        let first = heap
+            .allocate(
+                FunctionInstance::new(plan(0), EchoBody, vec![], class.clone(), None, None)
+                    .unwrap(),
+            )
+            .unwrap();
+        let second = heap
+            .allocate(FunctionInstance::new(plan(0), EchoBody, vec![], class, None, None).unwrap())
+            .unwrap();
+
+        assert_ne!(first.id(), second.id());
+    }
+
+    #[derive(Clone)]
+    enum CycleObject {
+        Function(FunctionInstance<EchoBody>),
+        Environment(ManagedNode<()>),
+    }
+
+    impl ManagedObject for CycleObject {
+        fn trace_edges(&self, visitor: &mut dyn EdgeVisitor) {
+            match self {
+                Self::Function(function) => function.trace_edges(visitor),
+                Self::Environment(environment) => environment.trace_edges(visitor),
+            }
+        }
+
+        fn clear_weak_edge(&mut self, edge: EdgeId, expected: ManagedId) -> bool {
+            match self {
+                Self::Function(function) => function.clear_weak_edge(edge, expected),
+                Self::Environment(environment) => environment.clear_weak_edge(edge, expected),
+            }
+        }
+
+        fn clear_ephemeron_edge(
+            &mut self,
+            edge: EdgeId,
+            expected_key: ManagedId,
+            expected_value: ManagedId,
+        ) -> bool {
+            match self {
+                Self::Function(function) => {
+                    function.clear_ephemeron_edge(edge, expected_key, expected_value)
+                }
+                Self::Environment(environment) => {
+                    environment.clear_ephemeron_edge(edge, expected_key, expected_value)
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn closure_environment_cycle_is_collected_through_capture_edge() {
+        let mut cx = bare_cx();
+        let (class, _, _) = metadata(&mut cx);
+        let mut heap = ManagedHeap::tracing(4, collection_limits()).unwrap();
+        let environment = heap
+            .allocate(CycleObject::Environment(ManagedNode::new(())))
+            .unwrap();
+        let cell = BindingCell::uninitialized(Symbol::new("slot-0"));
+        let function = FunctionInstance::new(
+            plan(1),
+            EchoBody,
+            vec![CapturedBinding::new(cell, environment)],
+            class,
+            None,
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            function.node.edge_snapshot(),
+            vec![EdgeSnapshot::Strong {
+                edge: EdgeId(0),
+                target: environment.id(),
+            }]
+        );
+        let function = heap.allocate(CycleObject::Function(function)).unwrap();
+        match heap.get_mut(environment).unwrap() {
+            CycleObject::Environment(node) => {
+                node.insert_strong(function.id()).unwrap();
+            }
+            CycleObject::Function(_) => unreachable!(),
+        }
+
+        let receipt = heap.collect().unwrap().unwrap();
+        assert_eq!(receipt.swept, vec![environment.id(), function.id()]);
+        assert_eq!(heap.live_len(), 0);
+    }
+}
+```
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-function/tests/contract_shape` is checked by `cargo test`.
+
+Source `crates/sim-lib-function/tests/contract_shape.rs`:
+
+```rust
+// conformance: function contracts retain the shared Shape boundary.
+
+use std::{fs, path::PathBuf};
+
+fn crate_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+}
+
+#[test]
+fn production_surface_cannot_erase_the_guest_body() {
+    let source = fs::read_to_string(crate_root().join("src/lib.rs")).unwrap();
+    let forbidden = ["dyn Any", "Box < dyn Any", "Box<dyn Any>"];
+    for spelling in forbidden {
+        assert!(
+            !source
+                .lines()
+                .filter(|line| !line.starts_with("//!"))
+                .any(|line| line.contains(spelling)),
+            "production API erases its body through {spelling}"
+        );
+    }
+}
+
+#[test]
+fn production_surface_has_no_global_body_registry() {
+    let source = fs::read_to_string(crate_root().join("src/lib.rs")).unwrap();
+    for spelling in ["BodyRegistry", "BODY_REGISTRY", "body_registry"] {
+        assert!(
+            !source.contains(spelling),
+            "global body registry marker {spelling}"
+        );
+    }
+}
+
+#[test]
+fn generic_dispatch_is_confined_to_the_opt_in_adapter() {
+    let instance = fs::read_to_string(crate_root().join("src/instance.rs")).unwrap();
+    let adapter = fs::read_to_string(crate_root().join("src/callable.rs")).unwrap();
+    assert!(!instance.contains("GenericFunction"));
+    assert!(!instance.contains("DispatchMethod"));
+    assert!(adapter.contains("dispatch_method_body"));
+}
+
+#[test]
+fn neutral_binding_has_no_language_decision_tables() {
+    let source = fs::read_to_string(crate_root().join("src/bind.rs")).unwrap();
+    for spelling in ["default_value", "defaulted", "keyword_precedence"] {
+        assert!(
+            !source.contains(spelling),
+            "neutral binding contains language decision marker {spelling}"
+        );
+    }
+}
+```
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-function/tests/neutral_language_specimen` is checked by `cargo test`.
+
+Source `crates/sim-lib-function/tests/neutral_language_specimen.rs`:
+
+```rust
+// conformance: the function organ supports a complete neutral language specimen.
+
+//! A checked function-organ specimen for a language that does not exist yet.
+
+use std::sync::Arc;
+
+use sim_kernel::{
+    Callable, ClassRef, Cx, Expr, ObjectCompat, Result, Shape, ShapeId, Symbol, Value,
+    force_list_to_vec,
+    shape::{MatchScore, ShapeDoc, ShapeMatch},
+    testing::bare_cx,
+};
+use sim_lib_binding::BindingCell;
+use sim_lib_dispatch::{DispatchMethod, GenericFunction, MethodRole};
+use sim_lib_function::{
+    ArgumentInput, ArgumentOrigin, BoundCall, CallInput, CallMode, CaptureDescriptor,
+    CapturedBinding, FunctionBodyPolicy, FunctionInstance, FunctionPlan, ParameterDescriptor,
+    ParameterKind, bind, dispatch_method_body,
+};
+use sim_lib_gc_tracing::{CollectionLimits, ManagedHeap};
+use sim_lib_mutation::{EdgeId, EdgeVisitor, ManagedId, ManagedNode, ManagedObject};
+
+#[derive(Clone)]
+struct ToyBody;
+
+impl FunctionBodyPolicy for ToyBody {
+    fn invoke(
+        &self,
+        cx: &mut Cx,
+        _plan: &FunctionPlan,
+        captures: &[CapturedBinding],
+        call: BoundCall,
+    ) -> Result<Value> {
+        let captured = captures[0]
+            .cell()
+            .get()
+            .expect("the specimen initializes its lexical capture");
+        let positional = call
+            .positional()
+            .next()
+            .and_then(|argument| match argument.input() {
+                ArgumentInput::Positional(value) => Some(value.clone()),
+                _ => None,
+            })
+            .expect("the toy language requires one positional argument");
+        let named = call
+            .named()
+            .next()
+            .and_then(|argument| match argument.input() {
+                ArgumentInput::Named { name, value } if name == &Symbol::new("suffix") => {
+                    Some(value.clone())
+                }
+                _ => None,
+            });
+
+        let mut parts = vec![captured, positional];
+        if let Some(named) = named {
+            parts.push(named);
+        }
+        cx.factory().list(parts)
+    }
+}
+
+#[derive(Clone)]
+enum CycleObject {
+    Function(FunctionInstance<ToyBody>),
+    Environment(ManagedNode<()>),
+}
+
+impl ManagedObject for CycleObject {
+    fn trace_edges(&self, visitor: &mut dyn EdgeVisitor) {
+        match self {
+            Self::Function(function) => function.trace_edges(visitor),
+            Self::Environment(environment) => environment.trace_edges(visitor),
+        }
+    }
+
+    fn clear_weak_edge(&mut self, edge: EdgeId, expected: ManagedId) -> bool {
+        match self {
+            Self::Function(function) => function.clear_weak_edge(edge, expected),
+            Self::Environment(environment) => environment.clear_weak_edge(edge, expected),
+        }
+    }
+
+    fn clear_ephemeron_edge(
+        &mut self,
+        edge: EdgeId,
+        expected_key: ManagedId,
+        expected_value: ManagedId,
+    ) -> bool {
+        match self {
+            Self::Function(function) => {
+                function.clear_ephemeron_edge(edge, expected_key, expected_value)
+            }
+            Self::Environment(environment) => {
+                environment.clear_ephemeron_edge(edge, expected_key, expected_value)
+            }
+        }
+    }
+}
+
+struct AcceptAnything;
+
+impl Shape for AcceptAnything {
+    fn check_value(&self, _cx: &mut Cx, _value: Value) -> Result<ShapeMatch> {
+        Ok(ShapeMatch::accept(MatchScore::exact(0)))
+    }
+
+    fn check_expr(&self, _cx: &mut Cx, _expr: &Expr) -> Result<ShapeMatch> {
+        Ok(ShapeMatch::accept(MatchScore::exact(0)))
+    }
+
+    fn describe(&self, _cx: &mut Cx) -> Result<ShapeDoc> {
+        Ok(ShapeDoc::new("toy-value"))
+    }
+}
+
+fn limits() -> CollectionLimits {
+    CollectionLimits {
+        objects: 4,
+        edges: 4,
+        stack: 4,
+        work: 32,
+        clears: 4,
+        finalizers: 4,
+    }
+}
+
+fn plan() -> FunctionPlan {
+    FunctionPlan::new(
+        Symbol::new("toy:join"),
+        vec![
+            ParameterDescriptor::new(
+                Symbol::new("value"),
+                ParameterKind::Required,
+                CallMode::POSITIONAL,
+                Some(ShapeId(41)),
+            ),
+            ParameterDescriptor::new(
+                Symbol::new("suffix"),
+                ParameterKind::Optional,
+                CallMode::NAMED,
+                Some(ShapeId(42)),
+            ),
+        ],
+        vec![CaptureDescriptor::new(
+            Symbol::new("prefix"),
+            Some(ShapeId(40)),
+        )],
+        Some(ShapeId(43)),
+    )
+    .unwrap()
+}
+
+fn symbol(cx: &mut Cx, name: &str) -> Value {
+    cx.factory().symbol(Symbol::new(name)).unwrap()
+}
+
+#[test]
+fn neutral_language_composes_the_complete_function_organ() {
+    let mut cx = bare_cx();
+    let prefix = symbol(&mut cx, "captured");
+    let positional = symbol(&mut cx, "positional");
+    let suffix = symbol(&mut cx, "named");
+    let class: ClassRef = symbol(&mut cx, "toy-function");
+    let args_shape = symbol(&mut cx, "toy-args-shape");
+    let result_shape = symbol(&mut cx, "toy-result-shape");
+    let cell = BindingCell::initialized(Symbol::new("prefix"), prefix.clone());
+    let mut heap = ManagedHeap::tracing(4, limits()).unwrap();
+    let environment = heap
+        .allocate(CycleObject::Environment(ManagedNode::new(())))
+        .unwrap();
+    let function = FunctionInstance::new(
+        plan(),
+        ToyBody,
+        vec![CapturedBinding::new(cell, environment)],
+        class.clone(),
+        Some(args_shape.clone()),
+        Some(result_shape.clone()),
     )
     .unwrap();
 
-    assert_eq!(answers.len(), 1);
+    let named_call = bind(
+        CallInput::new()
+            .with(
+                ArgumentInput::Positional(positional.clone()),
+                ArgumentOrigin::Guest(Symbol::new("toy:arg/0")),
+            )
+            .with(
+                ArgumentInput::Named {
+                    name: Symbol::new("suffix"),
+                    value: suffix.clone(),
+                },
+                ArgumentOrigin::Guest(Symbol::new("toy:arg/suffix")),
+            ),
+    );
+    let named_result = function
+        .body()
+        .invoke(&mut cx, function.plan(), function.captures(), named_call)
+        .unwrap();
+    let named_values = force_list_to_vec(
+        &mut cx,
+        named_result.object().as_list().unwrap(),
+        "toy named result",
+    )
+    .unwrap();
     assert_eq!(
-        capture(&answers[0], "Xs"),
-        &Expr::List(vec![
-            Expr::Symbol(Symbol::new("red")),
-            Expr::Symbol(Symbol::new("green")),
-            Expr::Symbol(Symbol::new("blue")),
-        ])
+        named_values,
+        vec![prefix.clone(), positional.clone(), suffix]
+    );
+    assert_eq!(function.class(&mut cx).unwrap(), class);
+    assert_eq!(
+        function.browse_args_shape(&mut cx).unwrap(),
+        Some(args_shape)
+    );
+    assert_eq!(
+        function.browse_result_shape(&mut cx).unwrap(),
+        Some(result_shape)
+    );
+    assert_eq!(
+        function.plan().browse().parameters(),
+        &[
+            (Symbol::new("value"), Some(ShapeId(41))),
+            (Symbol::new("suffix"), Some(ShapeId(42))),
+        ]
+    );
+
+    let mut generic = GenericFunction::new(Symbol::new("toy:generic"));
+    generic
+        .add_method(DispatchMethod::new(
+            Symbol::new("toy:join-method"),
+            MethodRole::Primary,
+            vec![Arc::new(AcceptAnything)],
+            dispatch_method_body(function.clone()),
+        ))
+        .unwrap();
+    let dispatch_result = generic
+        .call(&mut cx, std::slice::from_ref(&positional))
+        .unwrap();
+    let dispatch_values = force_list_to_vec(
+        &mut cx,
+        dispatch_result.object().as_list().unwrap(),
+        "toy dispatch result",
+    )
+    .unwrap();
+    assert_eq!(dispatch_values, vec![prefix, positional]);
+
+    let function = heap.allocate(CycleObject::Function(function)).unwrap();
+    match heap.get_mut(environment).unwrap() {
+        CycleObject::Environment(node) => {
+            node.insert_strong(function.id()).unwrap();
+        }
+        CycleObject::Function(_) => unreachable!(),
+    }
+    let receipt = heap.collect().unwrap().unwrap();
+    assert_eq!(receipt.swept, vec![environment.id(), function.id()]);
+    assert_eq!(heap.live_len(), 0);
+}
+
+#[test]
+fn specimen_has_no_established_guest_runtime_dependency() {
+    let source = include_str!("neutral_language_specimen.rs");
+    for parts in [
+        ["sim_lib_lang_", "java", "script"].as_slice(),
+        ["sim_lib_lang_", "py", "thon"].as_slice(),
+        ["sim_lib_lang_", "lu", "a"].as_slice(),
+        ["sim_lib_lang_", "j", "vm"].as_slice(),
+    ] {
+        assert!(!source.contains(&parts.concat()));
+    }
+}
+```
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-function/tests/ownership_guard` is checked by `cargo test`.
+
+Source `crates/sim-lib-function/tests/ownership_guard.rs`:
+
+```rust
+// conformance: neutral declarations and captures retain their function-organ ownership.
+
+//! Source-fact ownership guard for neutral function declarations and captures.
+
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
+
+const SHADOW_FUNCTION: &str = r#"
+pub struct GuestFunction {
+    parameter_names: Vec<Symbol>,
+    capture_slots: Vec<Capture>,
+    body_policy: Policy,
+}
+"#;
+
+const PRIVATE_CAPTURE_GRAPH: &str = r#"
+struct PrivateEnvironment {
+    bindings: Vec<BindingCell>,
+    outer: Option<Box<PrivateEnvironment>>,
+}
+"#;
+
+const LANGUAGE_POLICY_ONLY: &str = r#"
+pub struct GuestFrame {
+    coroutine_flags: Flags,
+    traceback_state: Traceback,
+    body_policy: Policy,
+}
+"#;
+
+const DICTIONARY_FUNCTION_ADAPTER: &str = r#"
+pub fn adapt_typeclass_dictionary(dictionary: TypeclassDictionary) -> FunctionInstance<DictionaryBody> {
+    FunctionInstance::new(dictionary)
+}
+"#;
+
+const DICTIONARY_MANAGED_EDGES: &str = r#"
+pub struct TypeclassDictionary {
+    managed_edges: Vec<ManagedHandle>,
+}
+"#;
+
+#[derive(Debug)]
+struct Policy {
+    owner: String,
+    remediation: String,
+    guest_crate_prefix: String,
+    parameter_fields: Vec<String>,
+    capture_fields: Vec<String>,
+    private_graph_storage_fields: Vec<String>,
+    private_graph_edge_fields: Vec<String>,
+    approved_language_policy: Vec<(String, String)>,
+    non_participants: Vec<NonParticipant>,
+}
+
+#[derive(Debug)]
+struct NonParticipant {
+    model: String,
+    terms: Vec<String>,
+    mismatch_code: String,
+    reason: String,
+    approved_relationships: Vec<String>,
+}
+
+impl Policy {
+    fn load(root: &Path) -> Self {
+        let source = fs::read_to_string(root.join("function-ownership.toml"))
+            .expect("function ownership policy must exist");
+        assert_eq!(scalar(&source, "schema"), "sim.function-ownership/v1");
+        let owner = scalar(&source, "owner");
+        let remediation = scalar(&source, "remediation");
+        assert!(!owner.is_empty() && !remediation.is_empty());
+        let non_participants = sections(&source, "[[non_participant]]")
+            .map(|row| NonParticipant {
+                model: scalar(row, "model"),
+                terms: array(row, "source_terms"),
+                mismatch_code: scalar(row, "mismatch_code"),
+                reason: scalar(row, "reason"),
+                approved_relationships: array(row, "approved_relationships"),
+            })
+            .collect::<Vec<_>>();
+        assert!(!non_participants.is_empty());
+        Self {
+            owner,
+            remediation,
+            guest_crate_prefix: scalar(&source, "guest_crate_prefix"),
+            parameter_fields: array(&source, "parameter_fields"),
+            capture_fields: array(&source, "capture_fields"),
+            private_graph_storage_fields: array(&source, "private_graph_storage_fields"),
+            private_graph_edge_fields: array(&source, "private_graph_edge_fields"),
+            approved_language_policy: sections(&source, "[[approved_language_policy]]")
+                .map(|row| (scalar(row, "path"), scalar(row, "reason")))
+                .collect(),
+            non_participants,
+        }
+    }
+
+    fn findings(&self, path: &Path, source: &str) -> Vec<String> {
+        let mut findings = public_structs(source)
+            .into_iter()
+            .filter_map(|item| {
+                let fields = field_names(&item);
+                let parameter = fields.iter().find(|field| self.parameter_fields.contains(field))?;
+                let capture = fields.iter().find(|field| self.capture_fields.contains(field))?;
+                Some(format!(
+                    "{} combines neutral `{parameter}` and `{capture}` fields; owner: {}; remediation: {}",
+                    path.display(), self.owner, self.remediation
+                ))
+            })
+            .collect::<Vec<_>>();
+        let relative = path.to_string_lossy().replace('\\', "/");
+        let approved_policy = self
+            .approved_language_policy
+            .iter()
+            .find(|(approved, _)| relative.ends_with(approved));
+        if let Some((_, reason)) = approved_policy {
+            assert!(
+                !reason.is_empty(),
+                "approved language policy needs a reason"
+            );
+        } else {
+            findings.extend(all_structs(source).into_iter().filter_map(|item| {
+                let fields = field_names(&item);
+                let storage = fields
+                    .iter()
+                    .find(|field| self.private_graph_storage_fields.contains(field))?;
+                let edge = fields
+                    .iter()
+                    .find(|field| self.private_graph_edge_fields.contains(field))?;
+                Some(format!(
+                    "{} defines private capture graph fields `{storage}` and `{edge}`; owner: {}; remediation: {}",
+                    path.display(), self.owner, self.remediation
+                ))
+            }));
+        }
+        let lower = source.to_ascii_lowercase();
+        if lower.contains("functioninstance") {
+            for exclusion in &self.non_participants {
+                if exclusion.terms.iter().any(|term| lower.contains(term)) {
+                    findings.push(format!(
+                        "{} recasts {} as FunctionInstance [{}]: {}",
+                        path.display(),
+                        exclusion.model,
+                        exclusion.mismatch_code,
+                        exclusion.reason
+                    ));
+                }
+            }
+        }
+        findings.sort();
+        findings.dedup();
+        findings
+    }
+}
+
+fn sections<'a>(source: &'a str, heading: &str) -> impl Iterator<Item = &'a str> {
+    source
+        .split(heading)
+        .skip(1)
+        .map(|row| row.split("[[").next().unwrap_or(row))
+}
+
+fn scalar(source: &str, key: &str) -> String {
+    source
+        .lines()
+        .map(str::trim)
+        .find_map(|line| line.strip_prefix(&format!("{key} = \"")))
+        .and_then(|rest| rest.strip_suffix('"'))
+        .unwrap_or_default()
+        .to_owned()
+}
+
+fn array(source: &str, key: &str) -> Vec<String> {
+    let Some(line) = source
+        .lines()
+        .map(str::trim)
+        .find(|line| line.starts_with(&format!("{key} = [")))
+    else {
+        return Vec::new();
+    };
+    line.split_once('[')
+        .and_then(|(_, rest)| rest.rsplit_once(']'))
+        .map(|(body, _)| body)
+        .unwrap_or_default()
+        .split(',')
+        .filter_map(|item| item.trim().strip_prefix('"')?.strip_suffix('"'))
+        .map(str::to_owned)
+        .collect()
+}
+
+fn public_structs(source: &str) -> Vec<String> {
+    structs(source, true)
+}
+
+fn all_structs(source: &str) -> Vec<String> {
+    structs(source, false)
+}
+
+fn structs(source: &str, public_only: bool) -> Vec<String> {
+    let mut items = Vec::new();
+    let mut current = None::<(String, i32)>;
+    for line in source.lines() {
+        let trimmed = line.trim_start();
+        let starts_struct = trimmed.starts_with("struct ") || trimmed.starts_with("pub struct ");
+        if current.is_none()
+            && starts_struct
+            && (!public_only || trimmed.starts_with("pub struct "))
+        {
+            let depth = brace_delta(line);
+            if depth == 0 && line.contains(';') {
+                continue;
+            }
+            current = Some((format!("{line}\n"), depth));
+            continue;
+        }
+        if let Some((text, depth)) = &mut current {
+            text.push_str(line);
+            text.push('\n');
+            *depth += brace_delta(line);
+            if *depth <= 0 {
+                items.push(std::mem::take(text));
+                current = None;
+            }
+        }
+    }
+    items
+}
+
+fn field_names(item: &str) -> Vec<String> {
+    item.lines()
+        .skip(1)
+        .filter_map(|line| {
+            line.trim()
+                .trim_start_matches("pub ")
+                .split_once(':')
+                .map(|(name, _)| name.trim())
+        })
+        .filter(|name| {
+            name.chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+        })
+        .map(str::to_owned)
+        .collect()
+}
+
+fn brace_delta(line: &str) -> i32 {
+    line.bytes()
+        .map(|byte| match byte {
+            b'{' => 1,
+            b'}' => -1,
+            _ => 0,
+        })
+        .sum()
+}
+
+fn repository_root() -> PathBuf {
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .canonicalize()
+        .expect("function source directory must resolve");
+    loop {
+        if path.join("function-ownership.toml").is_file() {
+            return path;
+        }
+        assert!(path.pop(), "function ownership policy repository not found");
+    }
+}
+
+#[test]
+fn guard_rejects_shadow_schema_and_admits_language_policy() {
+    let root = repository_root();
+    let policy = Policy::load(&root);
+    let findings = policy.findings(
+        Path::new("crates/sim-lib-lang-example/src/function.rs"),
+        SHADOW_FUNCTION,
+    );
+    assert_eq!(findings.len(), 1);
+    assert!(findings[0].contains(&policy.owner));
+    assert!(findings[0].contains(&policy.remediation));
+    assert!(
+        policy
+            .findings(Path::new("frame.rs"), LANGUAGE_POLICY_ONLY)
+            .is_empty()
     );
 }
+
+#[test]
+fn guard_rejects_private_capture_graph() {
+    let root = repository_root();
+    let policy = Policy::load(&root);
+    let findings = policy.findings(Path::new("private_environment.rs"), PRIVATE_CAPTURE_GRAPH);
+    assert!(
+        findings
+            .iter()
+            .any(|finding| finding.contains("private capture graph"))
+    );
+}
+
+#[test]
+fn guard_rejects_dictionary_function_adapter_but_admits_managed_edges() {
+    let root = repository_root();
+    let policy = Policy::load(&root);
+    let findings = policy.findings(
+        Path::new("dictionary_adapter.rs"),
+        DICTIONARY_FUNCTION_ADAPTER,
+    );
+    assert!(findings.iter().any(|finding| {
+        finding.contains("typeclass-dictionary")
+            && finding.contains("dictionary-is-constraint-evidence-not-callable-identity")
+    }));
+    assert!(
+        policy
+            .findings(Path::new("dictionary.rs"), DICTIONARY_MANAGED_EDGES)
+            .is_empty()
+    );
+    let prolog = policy
+        .non_participants
+        .iter()
+        .find(|entry| entry.model == "prolog-predicate")
+        .expect("Prolog must be classified in the function exclusion ledger");
+    assert!(!prolog.reason.is_empty());
+    assert_eq!(prolog.approved_relationships, ["binding", "shape"]);
+    for entry in &policy.non_participants {
+        assert!(
+            !entry.model.is_empty()
+                && !entry.terms.is_empty()
+                && !entry.mismatch_code.is_empty()
+                && !entry.reason.is_empty()
+        );
+    }
+}
+
+#[test]
+fn guest_crates_have_no_unclassified_shadow_schema() {
+    let root = repository_root();
+    let policy = Policy::load(&root);
+    for entry in fs::read_dir(root.join("crates")).unwrap() {
+        let entry = entry.unwrap();
+        if !entry
+            .file_name()
+            .to_string_lossy()
+            .starts_with(&policy.guest_crate_prefix)
+        {
+            continue;
+        }
+        let mut paths = vec![entry.path().join("src")];
+        while let Some(path) = paths.pop() {
+            for child in fs::read_dir(path).unwrap() {
+                let child = child.unwrap();
+                if child.file_type().unwrap().is_dir() {
+                    paths.push(child.path());
+                } else if child.path().extension().is_some_and(|ext| ext == "rs") {
+                    let source = fs::read_to_string(child.path()).unwrap();
+                    let findings = policy.findings(&child.path(), &source);
+                    assert!(findings.is_empty(), "{}", findings.join("\n"));
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn migrated_overlap_board_has_no_unclassified_cell() {
+    let root = repository_root();
+    let board = fs::read_to_string(root.join("unify-ownership-board.toml")).unwrap();
+    assert_eq!(scalar(&board, "schema"), "sim.unify-ownership-board/v1");
+    let concerns = array(&board, "concerns");
+    assert_eq!(
+        concerns,
+        [
+            "function-plan",
+            "capture-graph",
+            "class-descriptor",
+            "lineage"
+        ]
+    );
+    let rows = sections(&board, "[[language]]").collect::<Vec<_>>();
+    assert_eq!(rows.len(), 6);
+    for row in rows {
+        let name = scalar(row, "name");
+        let cells = array(row, "cells");
+        assert!(!name.is_empty());
+        assert_eq!(
+            cells.len(),
+            concerns.len(),
+            "{name} has an incomplete overlap row"
+        );
+        assert!(
+            cells
+                .iter()
+                .all(|cell| matches!(cell.as_str(), "shared" | "language-policy" | "absent"))
+        );
+    }
+    for (path, reason) in &Policy::load(&root).approved_language_policy {
+        assert!(!path.is_empty() && !reason.is_empty());
+    }
+}
+```
+
+Specimen `recipe/sim-runtime/crates/sim-lib-function/01-basics/neutral-language` is checked by `sh scripts/check-recipes.sh`.
+
+Source `crates/sim-lib-function/recipes/01-basics/neutral-language/recipe.toml`:
+
+```toml
+id = "neutral-language"
+title = "A function for a language that does not exist yet"
+summary = "Compose typed body policy, lexical capture, arguments, browsing, collection, and dispatch."
+tags = ["function", "language-neutral", "managed", "dispatch", "sandbox-descriptor"]
 ```
 
 ### `feature/sim-runtime/binding-organ`
@@ -2424,6 +6863,1114 @@ fn checkpoint_drains_reentrant_jobs_and_enforces_both_bounds() {
 }
 ```
 
+### `feature/sim-runtime/machine-contract`
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-machine/tests/frame_calls_conformance` is checked by `cargo test`.
+
+Source `crates/sim-lib-machine/tests/frame_calls_conformance.rs`:
+
+```rust
+// conformance: neutral machine frames preserve bounded call and resume behavior.
+
+use sim_kernel::{CodecId, Origin, SourceId, Span};
+use sim_lib_control::{AdmissionLimit, WorkLimit};
+use sim_lib_machine::{
+    CallTransfer, Frame, FrameStack, FrameStackError, InstructionPolicy, LocatedCode,
+    LocatedInstruction, SourceLocation, TransferError, ValueWidthPolicy,
+};
+
+struct Instructions;
+
+impl InstructionPolicy for Instructions {
+    type Instruction = u8;
+    type InstructionId = u8;
+
+    fn instruction_id(instruction: &Self::Instruction) -> Self::InstructionId {
+        *instruction
+    }
+}
+
+struct Values;
+
+impl ValueWidthPolicy for Values {
+    type Value = u64;
+
+    fn width(_: &Self::Value) -> usize {
+        1
+    }
+}
+
+fn entry_cursor() -> sim_lib_machine::CodeCursor {
+    let code = LocatedCode::<Instructions>::freeze(
+        vec![LocatedInstruction::new(
+            0,
+            0,
+            SourceLocation::Bytes(Origin {
+                codec: CodecId(1),
+                source: SourceId("frame-test".into()),
+                span: Span { start: 0, end: 1 },
+                trivia: vec![],
+            }),
+            false,
+            None,
+        )],
+        vec![],
+        vec![],
+    )
+    .expect("single located instruction is valid");
+    code.entry()
+}
+
+#[test]
+fn million_deep_chain_exhausts_declared_budget_without_host_recursion() {
+    type TestFrame = Frame<Values, (), (), ()>;
+    const FRAME_BUDGET: usize = 32;
+    const REQUESTED_DEPTH: usize = 1_000_000;
+
+    let cursor = entry_cursor();
+    let mut frames = FrameStack::<TestFrame>::new(WorkLimit(FRAME_BUDGET));
+    let mut outcome = Ok(());
+    for _ in 0..REQUESTED_DEPTH {
+        outcome = frames.push(Frame::new(
+            AdmissionLimit(2),
+            WorkLimit(2),
+            cursor,
+            None,
+            (),
+            (),
+        ));
+        if outcome.is_err() {
+            break;
+        }
+    }
+
+    assert_eq!(
+        outcome,
+        Err(FrameStackError::DepthExhausted {
+            depth: FRAME_BUDGET,
+            limit: FRAME_BUDGET,
+        })
+    );
+    assert_eq!(frames.depth(), FRAME_BUDGET);
+}
+
+#[test]
+fn transfers_are_only_code_references_values_and_widths() {
+    let packet = CallTransfer::new(vec![10_u64, 20], vec![1, 2], "code:sum")
+        .expect("aligned nonzero widths");
+    assert_eq!(packet.target, "code:sum");
+    assert_eq!(packet.values, [10, 20]);
+    assert_eq!(packet.widths, [1, 2]);
+    assert_eq!(
+        CallTransfer::new(vec![10_u64], vec![], "code:bad"),
+        Err(TransferError::WidthCountMismatch)
+    );
+
+    let source = include_str!("../src/frame.rs").to_ascii_lowercase();
+    for forbidden in ["method", "signature", "class"] {
+        assert!(
+            !source.contains(forbidden),
+            "transfer/frame module imported forbidden guest concept: {forbidden}"
+        );
+    }
+}
+```
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-machine/tests/control_resume` is checked by `cargo test`.
+
+Source `crates/sim-lib-machine/tests/control_resume.rs`:
+
+```rust
+// conformance: protected handlers, exactly-once cleanup, and content-bound resume.
+use std::sync::{Arc, Mutex};
+
+use sim_kernel::{CodecId, Origin, SourceId, Span};
+use sim_lib_control::{CleanupStack, WorkLimit};
+use sim_lib_machine::{
+    AdmissionLimits, AdmissionPolicy, DriveOutcome, Driver, FrameStack, InstructionDriverPolicy,
+    InstructionPolicy, LocatedCode, LocatedInstruction, MachineAbrupt, MachineCheckpoint,
+    MachineDescription, MachineFrame, MachinePermit, MachineUnwind, RegionSpec, SourceLocation,
+    StepOutcome, TargetLocation,
+};
+
+struct Instructions;
+
+impl InstructionPolicy for Instructions {
+    type Instruction = u8;
+    type InstructionId = u8;
+
+    fn instruction_id(instruction: &u8) -> u8 {
+        *instruction
+    }
+}
+
+struct Admission;
+
+impl AdmissionPolicy<Instructions, ()> for Admission {
+    type Refusal = ();
+
+    fn validate_description(_: &MachineDescription<'_, Instructions, ()>) -> Result<(), ()> {
+        Ok(())
+    }
+
+    fn validate_instruction(_: &u8, _: &()) -> Result<(), ()> {
+        Ok(())
+    }
+
+    fn encode_metadata(_: &(), _: &mut Vec<u8>) {}
+
+    fn encode_instruction(instruction: &u8, output: &mut Vec<u8>) {
+        output.push(*instruction);
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct TestFrame {
+    cursor: sim_lib_machine::CodeCursor,
+}
+
+impl MachineFrame for TestFrame {
+    fn cursor(&self) -> sim_lib_machine::CodeCursor {
+        self.cursor
+    }
+
+    fn set_cursor(&mut self, cursor: sim_lib_machine::CodeCursor) {
+        self.cursor = cursor;
+    }
+}
+
+struct Program<'a> {
+    code: &'a LocatedCode<Instructions>,
+    interrupt_once: bool,
+    raise_once: bool,
+}
+
+impl InstructionDriverPolicy<Instructions, TestFrame> for Program<'_> {
+    type Return = ();
+    type Abrupt = &'static str;
+    type Yield = ();
+    type Interrupt = &'static str;
+    type Fault = ();
+
+    fn step(
+        &mut self,
+        instruction: &u8,
+        frame: &mut TestFrame,
+    ) -> Result<StepOutcome<TestFrame, (), &'static str, (), &'static str>, ()> {
+        if *instruction == 3 && self.raise_once {
+            self.raise_once = false;
+            return Ok(StepOutcome::Raise("raised"));
+        }
+        if *instruction == 3 && self.interrupt_once {
+            self.interrupt_once = false;
+            frame.set_cursor(self.code.cursor(4).unwrap());
+            return Ok(StepOutcome::Interrupt("interrupt"));
+        }
+        match self.code.next(frame.cursor()) {
+            Some(next) => Ok(StepOutcome::Continue(next)),
+            None => Ok(StepOutcome::Return(())),
+        }
+    }
+}
+
+#[test]
+fn nested_protected_interrupt_cleans_once_and_resumes_with_identical_receipts() {
+    let code = nested_code();
+    let description = MachineDescription::new(&code, limits(), &());
+    let permit = MachinePermit::admit::<_, _, Admission>(&description).unwrap();
+    let cleanup_order = Arc::new(Mutex::new(Vec::new()));
+    let mut cleanups: CleanupStack<MachineUnwind<(), &'static str, &'static str>> =
+        CleanupStack::new();
+    for region in ["outer", "middle", "inner"] {
+        let observed = Arc::clone(&cleanup_order);
+        cleanups.push(move |reason| {
+            assert!(matches!(
+                reason,
+                sim_lib_control::Unwind::Exception(MachineAbrupt::Interrupt("interrupt"))
+            ));
+            observed.lock().unwrap().push(region);
+        });
+    }
+
+    let mut frames = frame_stack(&code);
+    let mut interrupted = Driver::new(Program {
+        code: &code,
+        interrupt_once: true,
+        raise_once: false,
+    });
+    let prefix = match interrupted
+        .drive_with_cleanup::<_, _, Admission, _>(
+            &description,
+            &permit,
+            &mut frames,
+            WorkLimit(3),
+            cleanups,
+        )
+        .unwrap()
+    {
+        DriveOutcome::Interrupt("interrupt", receipt) => receipt,
+        _ => panic!("program did not interrupt"),
+    };
+    assert_eq!(*cleanup_order.lock().unwrap(), ["inner", "middle", "outer"]);
+
+    let checkpoint = MachineCheckpoint::new(frames, &permit, prefix);
+    assert_eq!(checkpoint.evidence().content_id(), permit.content_id());
+    let (mut resumed_frames, _) = checkpoint.resume(&permit).unwrap();
+    let resumed_tail = match interrupted
+        .drive_protected::<_, _, Admission, _>(
+            &description,
+            &permit,
+            &mut resumed_frames,
+            WorkLimit(6),
+        )
+        .unwrap()
+    {
+        DriveOutcome::Return((), receipt) => receipt,
+        _ => panic!("resumed program did not return"),
+    };
+
+    let mut baseline_frames = frame_stack(&code);
+    let mut uninterrupted = Driver::new(Program {
+        code: &code,
+        interrupt_once: false,
+        raise_once: false,
+    });
+    let _prefix = uninterrupted
+        .drive_protected::<_, _, Admission, _>(
+            &description,
+            &permit,
+            &mut baseline_frames,
+            WorkLimit(3),
+        )
+        .unwrap();
+    let baseline_tail = match uninterrupted
+        .drive_protected::<_, _, Admission, _>(
+            &description,
+            &permit,
+            &mut baseline_frames,
+            WorkLimit(4),
+        )
+        .unwrap()
+    {
+        DriveOutcome::Return((), receipt) => receipt,
+        _ => panic!("baseline program did not return"),
+    };
+    assert_eq!(resumed_tail, baseline_tail);
+}
+
+#[test]
+fn innermost_handler_is_selected_and_budget_exhaustion_cleans_once() {
+    let code = nested_code();
+    let description = MachineDescription::new(&code, limits(), &());
+    let permit = MachinePermit::admit::<_, _, Admission>(&description).unwrap();
+    let mut frames = frame_stack(&code);
+    let mut driver = Driver::new(Program {
+        code: &code,
+        interrupt_once: false,
+        raise_once: true,
+    });
+    let handled = driver
+        .drive_protected::<_, _, Admission, _>(&description, &permit, &mut frames, WorkLimit(6))
+        .unwrap();
+    let receipt = match handled {
+        DriveOutcome::Return((), receipt) => receipt,
+        _ => panic!("innermost handler did not complete"),
+    };
+    assert_eq!(receipt.steps()[3].0, 5);
+    assert_eq!(receipt.steps().last().unwrap().0, 7);
+
+    let count = Arc::new(Mutex::new(0));
+    let mut cleanups = CleanupStack::new();
+    let observed = Arc::clone(&count);
+    cleanups.push(
+        move |reason: &MachineUnwind<(), &'static str, &'static str>| {
+            assert!(matches!(
+                reason,
+                sim_lib_control::Unwind::Exception(MachineAbrupt::BudgetExhausted)
+            ));
+            *observed.lock().unwrap() += 1;
+        },
+    );
+    let mut frames = frame_stack(&code);
+    let mut bounded = Driver::new(Program {
+        code: &code,
+        interrupt_once: false,
+        raise_once: false,
+    });
+    assert!(matches!(
+        bounded
+            .drive_with_cleanup::<_, _, Admission, _>(
+                &description,
+                &permit,
+                &mut frames,
+                WorkLimit(1),
+                cleanups,
+            )
+            .unwrap(),
+        DriveOutcome::Continue(_)
+    ));
+    assert_eq!(*count.lock().unwrap(), 1);
+}
+
+fn frame_stack(code: &LocatedCode<Instructions>) -> FrameStack<TestFrame> {
+    let mut frames = FrameStack::new(WorkLimit(1));
+    frames
+        .push(TestFrame {
+            cursor: code.entry(),
+        })
+        .unwrap();
+    frames
+}
+
+fn nested_code() -> LocatedCode<Instructions> {
+    let instructions = (1..=7)
+        .map(|instruction| {
+            LocatedInstruction::new(
+                instruction,
+                instruction,
+                SourceLocation::Bytes(Origin {
+                    codec: CodecId(1),
+                    source: SourceId("control-resume-test".into()),
+                    span: Span {
+                        start: usize::from(instruction - 1),
+                        end: usize::from(instruction),
+                    },
+                    trivia: vec![],
+                }),
+                false,
+                None,
+            )
+        })
+        .collect();
+    LocatedCode::freeze(
+        instructions,
+        vec![],
+        vec![region(1, 7, 7), region(2, 6, 6), region(3, 5, 5)],
+    )
+    .unwrap()
+}
+
+fn region(start: u8, end: u8, handler: u8) -> RegionSpec<u8> {
+    RegionSpec {
+        start,
+        end: Some(end),
+        handler: TargetLocation::Instruction(handler),
+    }
+}
+
+fn limits() -> AdmissionLimits {
+    AdmissionLimits {
+        instructions: 7,
+        operand_units: 1,
+        slots: 1,
+        frames: 1,
+        work: 7,
+    }
+}
+```
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-machine/tests/neutral_machine_specimens` is checked by `cargo test`.
+
+Source `crates/sim-lib-machine/tests/neutral_machine_specimens.rs`:
+
+```rust
+// conformance: shared machine organs support stack and register specimens.
+
+//! Neutral end-to-end specimens: one operand-stack machine and one register machine.
+
+use sim_kernel::{CodecId, Origin, SourceId, Span};
+use sim_lib_control::{AdmissionLimit, WorkLimit};
+use sim_lib_machine::{
+    AdmissionLimits, AdmissionPolicy, DriveOutcome, Driver, FrameStack, InstructionDriverPolicy,
+    InstructionPolicy, LocatedCode, LocatedInstruction, MachineCheckpoint, MachineDescription,
+    MachineFrame, MachinePermit, ManagedRootSource, RegionSpec, RootSnapshot, SlotError, SlotFile,
+    SourceLocation, StepKind, StepOutcome, TargetLocation, UnitStack, ValueWidthPolicy,
+};
+use sim_lib_mutation::{HardCappedRetainPolicy, ManagedArena, ManagedId, ManagedNode};
+
+#[derive(Clone, Copy)]
+struct Instruction {
+    id: u8,
+    operation: Operation,
+}
+
+#[derive(Clone, Copy)]
+enum Operation {
+    Constant(i64),
+    Divide,
+    Add,
+    Call(u8),
+    Interrupt,
+    Return,
+}
+
+struct Instructions;
+
+impl InstructionPolicy for Instructions {
+    type Instruction = Instruction;
+    type InstructionId = u8;
+
+    fn instruction_id(instruction: &Instruction) -> u8 {
+        instruction.id
+    }
+}
+
+struct Admission;
+
+impl AdmissionPolicy<Instructions, ()> for Admission {
+    type Refusal = ();
+
+    fn validate_description(_: &MachineDescription<'_, Instructions, ()>) -> Result<(), ()> {
+        Ok(())
+    }
+
+    fn validate_instruction(_: &Instruction, _: &()) -> Result<(), ()> {
+        Ok(())
+    }
+
+    fn encode_metadata(_: &(), _: &mut Vec<u8>) {}
+
+    fn encode_instruction(instruction: &Instruction, output: &mut Vec<u8>) {
+        output.push(instruction.id);
+        match instruction.operation {
+            Operation::Constant(value) => output.extend_from_slice(&value.to_le_bytes()),
+            Operation::Divide => output.push(1),
+            Operation::Add => output.push(2),
+            Operation::Call(target) => output.extend_from_slice(&[3, target]),
+            Operation::Interrupt => output.push(4),
+            Operation::Return => output.push(5),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Value {
+    number: i64,
+    root: Option<ManagedId>,
+}
+
+struct Values;
+
+impl ValueWidthPolicy for Values {
+    type Value = Value;
+
+    fn width(_: &Value) -> usize {
+        1
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Abrupt {
+    DivisionByZero,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Interrupt {
+    Poll,
+}
+
+struct StackFrame {
+    cursor: sim_lib_machine::CodeCursor,
+    operands: UnitStack<Values>,
+}
+
+impl MachineFrame for StackFrame {
+    fn cursor(&self) -> sim_lib_machine::CodeCursor {
+        self.cursor
+    }
+
+    fn set_cursor(&mut self, cursor: sim_lib_machine::CodeCursor) {
+        self.cursor = cursor;
+    }
+}
+
+impl ManagedRootSource for StackFrame {
+    fn visit_managed_roots(&self, visit: &mut dyn FnMut(ManagedId) -> bool) -> bool {
+        let mut complete = true;
+        self.operands.visit_values(|value| {
+            if complete && let Some(root) = value.root {
+                complete = visit(root);
+            }
+        });
+        complete
+    }
+}
+
+struct StackCalculator<'a> {
+    code: &'a LocatedCode<Instructions>,
+    interrupt_once: bool,
+}
+
+impl InstructionDriverPolicy<Instructions, StackFrame> for StackCalculator<'_> {
+    type Return = ();
+    type Abrupt = Abrupt;
+    type Yield = ();
+    type Interrupt = Interrupt;
+    type Fault = ();
+
+    fn step(
+        &mut self,
+        instruction: &Instruction,
+        frame: &mut StackFrame,
+    ) -> Result<StepOutcome<StackFrame, (), Abrupt, (), Interrupt>, ()> {
+        let next = self.code.next(frame.cursor());
+        match instruction.operation {
+            Operation::Constant(number) => {
+                frame.operands.push(Value { number, root: None }).unwrap();
+                Ok(StepOutcome::Continue(
+                    next.expect("nonterminal instruction"),
+                ))
+            }
+            Operation::Divide => {
+                let divisor = frame.operands.pop().unwrap();
+                if divisor.number == 0 {
+                    Ok(StepOutcome::Raise(Abrupt::DivisionByZero))
+                } else {
+                    let dividend = frame.operands.pop().unwrap();
+                    frame
+                        .operands
+                        .push(Value {
+                            number: dividend.number / divisor.number,
+                            root: dividend.root,
+                        })
+                        .unwrap();
+                    Ok(StepOutcome::Continue(
+                        next.expect("nonterminal instruction"),
+                    ))
+                }
+            }
+            Operation::Add => {
+                let right = frame.operands.pop().unwrap();
+                let left = frame.operands.pop().unwrap();
+                frame
+                    .operands
+                    .push(Value {
+                        number: left.number + right.number,
+                        root: left.root.or(right.root),
+                    })
+                    .unwrap();
+                Ok(StepOutcome::Continue(
+                    next.expect("nonterminal instruction"),
+                ))
+            }
+            Operation::Call(target) => {
+                frame.set_cursor(next.expect("nonterminal instruction"));
+                Ok(StepOutcome::Call(stack_frame(
+                    self.code.cursor(target).unwrap(),
+                )))
+            }
+            Operation::Interrupt if self.interrupt_once => {
+                self.interrupt_once = false;
+                frame.set_cursor(next.expect("nonterminal instruction"));
+                Ok(StepOutcome::Interrupt(Interrupt::Poll))
+            }
+            Operation::Interrupt => Ok(StepOutcome::Continue(
+                next.expect("nonterminal instruction"),
+            )),
+            Operation::Return => Ok(StepOutcome::Return(())),
+        }
+    }
+}
+
+#[test]
+fn stack_calculator_protects_division_and_resumes_exactly() {
+    let code = specimen_code();
+    let description = description(&code);
+    let permit = permit(&description);
+    let root = managed_root();
+    let mut frames = FrameStack::new(WorkLimit(2));
+    let mut outer = stack_frame(code.entry());
+    outer
+        .operands
+        .push(Value {
+            number: 12,
+            root: Some(root),
+        })
+        .unwrap();
+    frames.push(outer).unwrap();
+    let mut driver = Driver::new(StackCalculator {
+        code: &code,
+        interrupt_once: true,
+    });
+
+    let prefix = match driver
+        .drive_protected::<_, _, Admission, _>(&description, &permit, &mut frames, WorkLimit(16))
+        .unwrap()
+    {
+        DriveOutcome::Interrupt(Interrupt::Poll, receipt) => receipt,
+        _ => panic!("stack specimen must interrupt"),
+    };
+    assert_eq!(
+        prefix.steps(),
+        &[
+            (1, StepKind::Continue),
+            (2, StepKind::Continue),
+            (3, StepKind::Raise),
+            (4, StepKind::Continue),
+            (5, StepKind::Call),
+            (9, StepKind::Continue),
+            (10, StepKind::Return),
+            (6, StepKind::Interrupt)
+        ]
+    );
+    assert_eq!(
+        RootSnapshot::scan(&frames, WorkLimit(1)).unwrap().roots(),
+        &[root]
+    );
+
+    let checkpoint = MachineCheckpoint::new(frames, &permit, prefix.clone());
+    assert_eq!(checkpoint.evidence().receipt(), &prefix);
+    let Ok((mut frames, prefix)) = checkpoint.resume(&permit) else {
+        panic!("the original permit must resume the stack specimen")
+    };
+    let tail = match driver
+        .drive_protected::<_, _, Admission, _>(&description, &permit, &mut frames, WorkLimit(4))
+        .unwrap()
+    {
+        DriveOutcome::Return((), receipt) => receipt,
+        _ => panic!("resumed stack specimen must return"),
+    };
+    assert_eq!(
+        tail.steps(),
+        &[(7, StepKind::Continue), (8, StepKind::Return)]
+    );
+    assert_eq!(prefix.charged() + tail.charged(), 10);
+    assert_eq!(frames.depth(), 0);
+}
+
+struct RegisterFrame {
+    cursor: sim_lib_machine::CodeCursor,
+    registers: SlotFile<Values>,
+}
+
+impl MachineFrame for RegisterFrame {
+    fn cursor(&self) -> sim_lib_machine::CodeCursor {
+        self.cursor
+    }
+    fn set_cursor(&mut self, cursor: sim_lib_machine::CodeCursor) {
+        self.cursor = cursor;
+    }
+}
+
+impl ManagedRootSource for RegisterFrame {
+    fn visit_managed_roots(&self, visit: &mut dyn FnMut(ManagedId) -> bool) -> bool {
+        let mut complete = true;
+        self.registers.visit_values(|value| {
+            if complete && let Some(root) = value.root {
+                complete = visit(root);
+            }
+        });
+        complete
+    }
+}
+
+struct RegisterMachine<'a> {
+    code: &'a LocatedCode<Instructions>,
+    interrupt_once: bool,
+}
+
+impl InstructionDriverPolicy<Instructions, RegisterFrame> for RegisterMachine<'_> {
+    type Return = ();
+    type Abrupt = Abrupt;
+    type Yield = ();
+    type Interrupt = Interrupt;
+    type Fault = ();
+
+    fn step(
+        &mut self,
+        instruction: &Instruction,
+        frame: &mut RegisterFrame,
+    ) -> Result<StepOutcome<RegisterFrame, (), Abrupt, (), Interrupt>, ()> {
+        let next = self.code.next(frame.cursor());
+        match instruction.operation {
+            Operation::Constant(number) => {
+                let slot = if instruction.id == 1 { 0 } else { 1 };
+                let root = frame.registers.load(slot).ok().and_then(|value| value.root);
+                frame.registers.store(slot, Value { number, root }).unwrap();
+                Ok(StepOutcome::Continue(
+                    next.expect("nonterminal instruction"),
+                ))
+            }
+            Operation::Divide => {
+                let divisor = *frame.registers.load(1).unwrap();
+                if divisor.number == 0 {
+                    Ok(StepOutcome::Raise(Abrupt::DivisionByZero))
+                } else {
+                    let dividend = *frame.registers.load(0).unwrap();
+                    frame
+                        .registers
+                        .store(
+                            0,
+                            Value {
+                                number: dividend.number / divisor.number,
+                                root: dividend.root,
+                            },
+                        )
+                        .unwrap();
+                    Ok(StepOutcome::Continue(
+                        next.expect("nonterminal instruction"),
+                    ))
+                }
+            }
+            Operation::Add => {
+                let left = *frame.registers.load(0).unwrap();
+                let right = *frame.registers.load(1).unwrap();
+                frame
+                    .registers
+                    .store(
+                        0,
+                        Value {
+                            number: left.number + right.number,
+                            root: left.root.or(right.root),
+                        },
+                    )
+                    .unwrap();
+                Ok(StepOutcome::Continue(
+                    next.expect("nonterminal instruction"),
+                ))
+            }
+            Operation::Call(target) => {
+                frame.set_cursor(next.expect("nonterminal instruction"));
+                Ok(StepOutcome::Call(register_frame(
+                    self.code.cursor(target).unwrap(),
+                )))
+            }
+            Operation::Interrupt if self.interrupt_once => {
+                self.interrupt_once = false;
+                frame.set_cursor(next.expect("nonterminal instruction"));
+                Ok(StepOutcome::Interrupt(Interrupt::Poll))
+            }
+            Operation::Interrupt => Ok(StepOutcome::Continue(
+                next.expect("nonterminal instruction"),
+            )),
+            Operation::Return => Ok(StepOutcome::Return(())),
+        }
+    }
+}
+
+#[test]
+fn register_machine_tracks_initialization_without_an_operand_stack() {
+    let code = specimen_code();
+    let description = description(&code);
+    let permit = permit(&description);
+    let root = managed_root();
+    let mut outer = register_frame(code.entry());
+    assert_eq!(
+        outer.registers.load(0),
+        Err(SlotError::Uninitialized { slot: 0 })
+    );
+    outer
+        .registers
+        .store(
+            0,
+            Value {
+                number: 12,
+                root: Some(root),
+            },
+        )
+        .unwrap();
+    let mut frames = FrameStack::new(WorkLimit(2));
+    frames.push(outer).unwrap();
+    let mut driver = Driver::new(RegisterMachine {
+        code: &code,
+        interrupt_once: true,
+    });
+
+    let prefix = match driver
+        .drive_protected::<_, _, Admission, _>(&description, &permit, &mut frames, WorkLimit(16))
+        .unwrap()
+    {
+        DriveOutcome::Interrupt(Interrupt::Poll, receipt) => receipt,
+        _ => panic!("register specimen must interrupt"),
+    };
+    assert_eq!(prefix.steps()[2], (3, StepKind::Raise));
+    assert_eq!(prefix.steps()[4], (5, StepKind::Call));
+    assert_eq!(
+        RootSnapshot::scan(&frames, WorkLimit(1)).unwrap().roots(),
+        &[root]
+    );
+
+    let checkpoint = MachineCheckpoint::new(frames, &permit, prefix.clone());
+    let Ok((mut frames, recorded_prefix)) = checkpoint.resume(&permit) else {
+        panic!("the original permit must resume the register specimen")
+    };
+    assert_eq!(recorded_prefix, prefix);
+    let tail = match driver
+        .drive_protected::<_, _, Admission, _>(&description, &permit, &mut frames, WorkLimit(4))
+        .unwrap()
+    {
+        DriveOutcome::Return((), receipt) => receipt,
+        _ => panic!("resumed register specimen must return"),
+    };
+    assert_eq!(
+        tail.steps(),
+        &[(7, StepKind::Continue), (8, StepKind::Return)]
+    );
+    assert_eq!(recorded_prefix.charged() + tail.charged(), 10);
+}
+
+fn specimen_code() -> LocatedCode<Instructions> {
+    let operations = [
+        Operation::Constant(12),
+        Operation::Constant(0),
+        Operation::Divide,
+        Operation::Constant(3),
+        Operation::Call(9),
+        Operation::Interrupt,
+        Operation::Add,
+        Operation::Return,
+        Operation::Constant(2),
+        Operation::Return,
+    ];
+    LocatedCode::freeze(
+        operations
+            .into_iter()
+            .enumerate()
+            .map(|(index, operation)| {
+                let id = u8::try_from(index + 1).unwrap();
+                LocatedInstruction::new(
+                    Instruction { id, operation },
+                    id,
+                    SourceLocation::Bytes(Origin {
+                        codec: CodecId(1),
+                        source: SourceId("neutral-machine-specimen".into()),
+                        span: Span {
+                            start: index,
+                            end: index + 1,
+                        },
+                        trivia: vec![],
+                    }),
+                    matches!(operation, Operation::Call(_) | Operation::Interrupt),
+                    None,
+                )
+            })
+            .collect(),
+        vec![],
+        vec![RegionSpec {
+            start: 3,
+            end: Some(4),
+            handler: TargetLocation::Instruction(4),
+        }],
+    )
+    .unwrap()
+}
+
+fn description(code: &LocatedCode<Instructions>) -> MachineDescription<'_, Instructions, ()> {
+    MachineDescription::new(
+        code,
+        AdmissionLimits {
+            instructions: 10,
+            operand_units: 4,
+            slots: 4,
+            frames: 2,
+            work: 16,
+        },
+        &(),
+    )
+}
+
+fn permit(description: &MachineDescription<'_, Instructions, ()>) -> MachinePermit {
+    MachinePermit::admit::<_, _, Admission>(description).unwrap()
+}
+
+fn stack_frame(cursor: sim_lib_machine::CodeCursor) -> StackFrame {
+    StackFrame {
+        cursor,
+        operands: UnitStack::new(WorkLimit(4)),
+    }
+}
+
+fn register_frame(cursor: sim_lib_machine::CodeCursor) -> RegisterFrame {
+    RegisterFrame {
+        cursor,
+        registers: SlotFile::new(AdmissionLimit(4)),
+    }
+}
+
+fn managed_root() -> ManagedId {
+    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(1).unwrap());
+    arena.allocate(ManagedNode::new(())).unwrap().id()
+}
+
+#[test]
+fn specimens_import_only_neutral_machine_vocabulary() {
+    let source = include_str!("neutral_machine_specimens.rs").to_ascii_lowercase();
+    for forbidden in [
+        concat!("j", "vm"),
+        concat!("class", "file"),
+        concat!("guest", "-language"),
+        concat!("guest", "_language"),
+    ] {
+        assert!(
+            !source.contains(forbidden),
+            "forbidden type import: {forbidden}"
+        );
+    }
+    let register_storage = source
+        .split("struct registerframe")
+        .nth(1)
+        .unwrap()
+        .split("struct registermachine")
+        .next()
+        .unwrap();
+    assert!(!register_storage.contains(concat!("unit", "stack")));
+}
+```
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-machine/tests/ownership_guard` is checked by `cargo test`.
+
+Source `crates/sim-lib-machine/tests/ownership_guard.rs`:
+
+```rust
+// conformance: guest instruction semantics remain outside the shared machine organ.
+
+//! Source-fact ownership guard for guest instruction semantics.
+
+use std::{fs, path::Path};
+
+use toml::Value;
+
+const BAD_GUEST: &str = r#"
+pub struct LuaFrameStack { frames: Vec<LuaFrame> }
+pub fn interpret(code: &[Opcode]) { interpret(code) }
+"#;
+
+const INSTRUCTION_ONLY_GUEST: &str = r#"
+pub enum LuaOpcode { Constant, Add, Return }
+pub fn execute_instruction(opcode: LuaOpcode) { let _ = opcode; }
+"#;
+
+#[derive(Debug)]
+struct Policy {
+    forbidden_types: Vec<String>,
+    recursive_drivers: Vec<String>,
+    allowed_types: Vec<String>,
+    allowed_functions: Vec<String>,
+}
+
+impl Policy {
+    fn load(root: &Path) -> Self {
+        let source = fs::read_to_string(root.join("machine-ownership.toml")).unwrap();
+        let value = source.parse::<Value>().unwrap();
+        assert_eq!(value["schema"].as_str(), Some("sim.machine-ownership/v1"));
+        Self {
+            forbidden_types: strings(&value, "forbidden_public_type_suffixes"),
+            recursive_drivers: strings(&value, "forbidden_recursive_driver_names"),
+            allowed_types: strings(&value, "allowed_instruction_type_suffixes"),
+            allowed_functions: strings(&value, "allowed_instruction_function_prefixes"),
+        }
+    }
+
+    fn findings(&self, source: &str) -> Vec<String> {
+        let mut findings = Vec::new();
+        for line in source.lines().map(str::trim) {
+            if let Some(name) = public_type_name(line) {
+                let allowed = self
+                    .allowed_types
+                    .iter()
+                    .any(|suffix| name.ends_with(suffix));
+                if !allowed
+                    && self
+                        .forbidden_types
+                        .iter()
+                        .any(|suffix| name.ends_with(suffix))
+                {
+                    findings.push(format!("guest-owned machine type {name}"));
+                }
+            }
+            if let Some(name) = function_name(line) {
+                let allowed = self
+                    .allowed_functions
+                    .iter()
+                    .any(|prefix| name.starts_with(prefix));
+                let driver = self
+                    .recursive_drivers
+                    .iter()
+                    .any(|candidate| candidate == name);
+                if !allowed && driver && function_calls_itself(source, name) {
+                    findings.push(format!("recursive guest interpreter loop {name}"));
+                }
+            }
+        }
+        findings.sort();
+        findings.dedup();
+        findings
+    }
+}
+
+fn strings(value: &Value, key: &str) -> Vec<String> {
+    value[key]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| item.as_str().unwrap().to_owned())
+        .collect()
+}
+
+fn public_type_name(line: &str) -> Option<&str> {
+    ["pub struct ", "pub enum ", "pub trait ", "pub type "]
+        .into_iter()
+        .find_map(|prefix| line.strip_prefix(prefix))
+        .and_then(|rest| {
+            rest.split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_')
+                .next()
+        })
+}
+
+fn function_name(line: &str) -> Option<&str> {
+    let rest = line
+        .strip_prefix("pub fn ")
+        .or_else(|| line.strip_prefix("fn "))?;
+    rest.split_once('(').map(|(name, _)| name.trim())
+}
+
+fn function_calls_itself(source: &str, name: &str) -> bool {
+    let declaration = format!("fn {name}(");
+    let call = format!("{name}(");
+    source.matches(&call).count() > source.matches(&declaration).count()
+}
+
+#[test]
+fn guest_machine_ownership_policy_rejects_machine_and_allows_instruction_semantics() {
+    let mut root = fs::canonicalize(Path::new(env!("CARGO_MANIFEST_DIR")).join("src"))
+        .expect("machine source directory must resolve");
+    while !root.join("machine-ownership.toml").is_file() {
+        assert!(root.pop(), "machine ownership repository not found");
+    }
+    let policy = Policy::load(&root);
+
+    let bad = policy.findings(BAD_GUEST);
+    assert!(bad.iter().any(|finding| finding.contains("LuaFrameStack")));
+    assert!(bad.iter().any(|finding| finding.contains("interpret")));
+    assert!(policy.findings(INSTRUCTION_ONLY_GUEST).is_empty());
+
+    for entry in fs::read_dir(root.join("crates")).unwrap() {
+        let entry = entry.unwrap();
+        let crate_name = entry.file_name();
+        if !crate_name.to_string_lossy().starts_with("sim-lib-lang-") {
+            continue;
+        }
+        let mut paths = vec![entry.path().join("src")];
+        while let Some(path) = paths.pop() {
+            for child in fs::read_dir(path).unwrap() {
+                let child = child.unwrap();
+                if child.file_type().unwrap().is_dir() {
+                    paths.push(child.path());
+                } else if child.path().extension().is_some_and(|ext| ext == "rs") {
+                    let source = fs::read_to_string(child.path()).unwrap();
+                    assert!(
+                        policy.findings(&source).is_empty(),
+                        "{} violates machine ownership: {:?}",
+                        child.path().display(),
+                        policy.findings(&source)
+                    );
+                }
+            }
+        }
+    }
+}
+```
+
 ### `feature/sim-runtime/gc-tracing`
 
 Specimen `spec-test/sim-runtime/crates/sim-lib-gc-tracing/src/tests` is checked by `cargo test`.
@@ -2434,17 +7981,164 @@ Source `crates/sim-lib-gc-tracing/src/tests.rs`:
 // conformance: bounded stop-the-world tracing collection.
 
 use sim_lib_mutation::{
-    EdgeId, EdgeVisitor, HardCappedRetainPolicy, ManagedArena, ManagedId, ManagedObject,
+    EdgeId, EdgeVisitor, HardCappedRetainPolicy, ManagedArena, ManagedId, ManagedNode,
+    ManagedObject,
 };
+
+#[test]
+fn managed_node_ephemeron_chains_reach_fixpoint_without_values_retaining_keys() {
+    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(7).unwrap());
+    let root = arena.allocate(ManagedNode::new(())).unwrap();
+    let live_key = arena.allocate(ManagedNode::new(())).unwrap();
+    let first_value = arena.allocate(ManagedNode::new(())).unwrap();
+    let chained_key = arena.allocate(ManagedNode::new(())).unwrap();
+    let chained_value = arena.allocate(ManagedNode::new(())).unwrap();
+    let dead_key = arena.allocate(ManagedNode::new(())).unwrap();
+    let dead_value = arena.allocate(ManagedNode::new(())).unwrap();
+    arena
+        .get_mut(root)
+        .unwrap()
+        .insert_strong(live_key.id())
+        .unwrap();
+    arena
+        .get_mut(root)
+        .unwrap()
+        .insert_ephemeron(live_key.id(), first_value.id())
+        .unwrap();
+    let dead_edge = arena
+        .get_mut(root)
+        .unwrap()
+        .insert_ephemeron(dead_key.id(), dead_value.id())
+        .unwrap();
+    arena
+        .get_mut(first_value)
+        .unwrap()
+        .insert_strong(chained_key.id())
+        .unwrap();
+    arena
+        .get_mut(first_value)
+        .unwrap()
+        .insert_ephemeron(chained_key.id(), chained_value.id())
+        .unwrap();
+    let _ = arena.root(root).unwrap();
+
+    let first = collect(&mut arena, limits()).unwrap();
+    assert!(first.marked.contains(&first_value.id()));
+    assert!(first.marked.contains(&chained_value.id()));
+    assert!(!first.marked.contains(&dead_key.id()));
+    assert!(!first.marked.contains(&dead_value.id()));
+    assert!(first.swept.contains(&dead_key.id()));
+    assert!(first.swept.contains(&dead_value.id()));
+    assert_eq!(first.cleared_ephemerons, vec![(root.id(), dead_edge)]);
+
+    let second = collect(&mut arena, limits()).unwrap();
+    assert!(second.cleared_ephemerons.is_empty());
+}
 
 use std::sync::{Arc, Mutex};
 
-use sim_lib_control::{AdmissionLimit, JobQueues, RuntimeJobClass, WorkLimit};
+use sim_lib_control::{
+    AdmissionLimit, ExceptionGraphBudget, ExceptionGraphView, JobQueues, ManagedException,
+    RuntimeJobClass, WorkLimit,
+};
 
 use crate::{
     CollectionError, CollectionLimits, CorrectnessDimension, FinalizationRegistry, LimitKind,
     collect, collect_with_finalization,
 };
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ExceptionRelation {
+    Cause,
+    Member,
+}
+
+#[test]
+fn managed_exception_diamond_and_cycle_have_exact_collection_receipts() {
+    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(5).unwrap());
+    let root = arena.allocate(ManagedException::new("root")).unwrap();
+    let left = arena.allocate(ManagedException::new("left")).unwrap();
+    let right = arena.allocate(ManagedException::new("right")).unwrap();
+    let shared = arena.allocate(ManagedException::new("shared")).unwrap();
+    let cycle = arena.allocate(ManagedException::new("cycle")).unwrap();
+    arena
+        .get_mut(root)
+        .unwrap()
+        .insert_relation(ExceptionRelation::Member, left.id())
+        .unwrap();
+    arena
+        .get_mut(root)
+        .unwrap()
+        .insert_relation(ExceptionRelation::Member, right.id())
+        .unwrap();
+    arena
+        .get_mut(left)
+        .unwrap()
+        .insert_relation(ExceptionRelation::Cause, shared.id())
+        .unwrap();
+    arena
+        .get_mut(right)
+        .unwrap()
+        .insert_relation(ExceptionRelation::Cause, shared.id())
+        .unwrap();
+    arena
+        .get_mut(cycle)
+        .unwrap()
+        .insert_relation(ExceptionRelation::Cause, cycle.id())
+        .unwrap();
+
+    let rooted = arena.root(root).unwrap();
+    let view = ExceptionGraphView::project(&arena, root, ExceptionGraphBudget::new(8)).unwrap();
+    assert!(!view.truncated);
+    assert_eq!(view.edges.len(), 4);
+    assert_eq!(
+        view.edges
+            .iter()
+            .filter(|edge| edge.target == shared.id())
+            .count(),
+        2,
+        "the shared exception is represented once for each parent edge"
+    );
+
+    let first = collect(&mut arena, limits()).unwrap();
+    assert_eq!(first.swept, vec![cycle.id()]);
+    assert!(first.cleared_weak.is_empty());
+    assert!(first.cleared_ephemerons.is_empty());
+    arena.release_root(rooted).unwrap();
+    let second = collect(&mut arena, limits()).unwrap();
+    assert_eq!(
+        second.swept,
+        vec![root.id(), left.id(), right.id(), shared.id()]
+    );
+}
+
+#[test]
+fn managed_exception_view_terminates_and_reports_budget_truncation() {
+    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(6).unwrap());
+    let nodes = (0..6)
+        .map(|index| arena.allocate(ManagedException::new(index)).unwrap())
+        .collect::<Vec<_>>();
+    for pair in nodes.windows(2) {
+        arena
+            .get_mut(pair[0])
+            .unwrap()
+            .insert_relation(ExceptionRelation::Cause, pair[1].id())
+            .unwrap();
+    }
+
+    let view = ExceptionGraphView::project(&arena, nodes[0], ExceptionGraphBudget::new(3)).unwrap();
+    assert!(view.truncated);
+    assert_eq!(view.edges.len(), 3);
+    assert_eq!(
+        view.edges
+            .iter()
+            .map(|edge| edge.edge.allocation_ordinal())
+            .collect::<Vec<_>>(),
+        vec![0, 0, 0]
+    );
+}
+
+mod neutral_graph;
 
 #[derive(Clone, Default)]
 struct Node {
@@ -2876,6 +8570,68 @@ fn hard_capped_retain_refuses_at_cap_while_tracing_reclaims_cycles() {
     );
     assert!(arena.allocate(Node::default()).is_ok());
 }
+
+#[test]
+fn relabeling_all_nodes_changes_only_bounded_role_projection() {
+    fn graph() -> (
+        ManagedArena<ManagedNode<&'static str>>,
+        Vec<sim_lib_mutation::ManagedHandle>,
+    ) {
+        let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(3).unwrap());
+        let root = arena.allocate(ManagedNode::new("root")).unwrap();
+        let child = arena.allocate(ManagedNode::new("child")).unwrap();
+        let garbage = arena.allocate(ManagedNode::new("garbage")).unwrap();
+        arena
+            .get_mut(root)
+            .unwrap()
+            .insert_strong(child.id())
+            .unwrap();
+        arena.root(root).unwrap();
+        (arena, vec![root, child, garbage])
+    }
+
+    let (mut original, _) = graph();
+    let (mut relabeled, handles) = graph();
+    for (handle, role) in handles.into_iter().zip(["owner", "member", "discarded"]) {
+        relabeled.replace_role(handle, role).unwrap();
+    }
+
+    let original_projection = original.project_roles(3).unwrap();
+    let relabeled_projection = relabeled.project_roles(3).unwrap();
+    assert_eq!(
+        original_projection.safepoint,
+        relabeled_projection.safepoint
+    );
+    assert_eq!(
+        original_projection.mutation_epoch,
+        relabeled_projection.mutation_epoch
+    );
+    assert_eq!(
+        original_projection
+            .roles
+            .iter()
+            .map(|row| row.0)
+            .collect::<Vec<_>>(),
+        relabeled_projection
+            .roles
+            .iter()
+            .map(|row| row.0)
+            .collect::<Vec<_>>()
+    );
+    assert_ne!(original_projection.roles, relabeled_projection.roles);
+    assert!(matches!(
+        original.project_roles(2),
+        Err(sim_lib_mutation::RoleProjectionError::Limit {
+            limit: 2,
+            required: 3
+        })
+    ));
+
+    assert_eq!(
+        collect(&mut original, limits()),
+        collect(&mut relabeled, limits())
+    );
+}
 ```
 
 ### `feature/sim-runtime/mutation-organ`
@@ -3163,8 +8919,10 @@ Source `crates/sim-lib-mutation/src/managed_tests.rs`:
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::{
-    ArenaError, EdgeId, EdgeVisitor, HardCappedRetainPolicy, ManagedArena, ManagedId,
-    ManagedObject, TraceSnapshot,
+    ArenaError, EdgeAllocationError, EdgeAllocator, EdgeId, EdgeKind, EdgeLimits, EdgeSnapshot,
+    EdgeVisitor, EphemeronMutationError, HardCappedRetainPolicy, ManagedArena, ManagedId,
+    ManagedNode, ManagedObject, ManagedRole, StrongEdgeMutationError, TraceSnapshot,
+    WeakEdgeMutationError,
 };
 
 #[derive(Clone, Debug)]
@@ -3194,6 +8952,361 @@ impl ManagedObject for Node {
         match self.0.get_mut(edge.0 as usize) {
             Some(Edge::Weak(target)) if *target == Some(expected) => target.take().is_some(),
             _ => false,
+        }
+    }
+}
+
+#[test]
+fn edge_ids_are_monotonic_typed_and_never_reused() {
+    let mut allocator = EdgeAllocator::new();
+    let first = allocator.allocate(EdgeKind::Strong).unwrap();
+    let removed = first;
+    let second = allocator.allocate(EdgeKind::Weak).unwrap();
+
+    assert_eq!(removed.id().allocation_ordinal(), 0);
+    assert_eq!(removed.kind(), EdgeKind::Strong);
+    assert_eq!(second.id().allocation_ordinal(), 1);
+    assert_eq!(second.kind(), EdgeKind::Weak);
+    assert!(removed.id() < second.id());
+}
+
+#[test]
+fn edge_identity_overflow_fails_closed() {
+    let mut allocator = EdgeAllocator::starting_at(u32::MAX);
+    let last = allocator.allocate(EdgeKind::Ephemeron).unwrap();
+    assert_eq!(last.id().allocation_ordinal(), u32::MAX);
+    assert_eq!(last.kind(), EdgeKind::Ephemeron);
+    assert_eq!(
+        allocator.allocate(EdgeKind::Strong),
+        Err(EdgeAllocationError::IdentityExhausted)
+    );
+    assert_eq!(
+        allocator.allocate(EdgeKind::Weak),
+        Err(EdgeAllocationError::IdentityExhausted)
+    );
+}
+
+#[test]
+fn generic_role_changes_are_graph_neutral() {
+    let mut role = ManagedRole::new(String::from("instance"));
+    let mut allocator = EdgeAllocator::new();
+    let before = [
+        allocator.allocate(EdgeKind::Strong).unwrap(),
+        allocator.allocate(EdgeKind::Weak).unwrap(),
+    ];
+
+    assert_eq!(role.replace_role(String::from("prototype")), "instance");
+    assert_eq!(role.role(), "prototype");
+
+    let after = allocator.allocate(EdgeKind::Strong).unwrap();
+    assert_eq!(before.map(|edge| edge.id().allocation_ordinal()), [0, 1]);
+    assert_eq!(after.id().allocation_ordinal(), 2);
+}
+
+#[test]
+fn managed_node_strong_graph_matches_ordered_model_across_mutations() {
+    let mut arena = arena(5);
+    let targets = (0..4)
+        .map(|_| arena.allocate(Node::default()).unwrap())
+        .collect::<Vec<_>>();
+    let mut node = ManagedNode::new(String::from("object"));
+    let first = node.insert_strong(targets[0].id()).unwrap();
+    let second = node.insert_strong(targets[1].id()).unwrap();
+    let third = node.insert_strong(targets[2].id()).unwrap();
+
+    node.replace_strong(second, targets[1].id(), targets[3].id())
+        .unwrap();
+    assert_eq!(
+        node.remove_strong(first, targets[0].id()),
+        Ok(targets[0].id())
+    );
+
+    let mut traced = Vec::new();
+    struct StrongTrace<'a>(&'a mut Vec<(EdgeId, ManagedId)>);
+    impl EdgeVisitor for StrongTrace<'_> {
+        fn strong(&mut self, edge: EdgeId, target: ManagedId) {
+            self.0.push((edge, target));
+        }
+        fn weak(&mut self, _edge: EdgeId, _target: ManagedId) {}
+        fn ephemeron(&mut self, _edge: EdgeId, _key: ManagedId, _value: ManagedId) {}
+    }
+    node.trace_edges(&mut StrongTrace(&mut traced));
+
+    assert_eq!(
+        traced,
+        vec![(second, targets[3].id()), (third, targets[2].id())]
+    );
+    assert_eq!(node.role(), "object");
+    assert_eq!(node.replace_role(String::from("array")), "object");
+    assert_eq!(node.role(), "array");
+    assert!(first < second && second < third);
+}
+
+#[test]
+fn managed_node_failed_strong_mutations_are_exact_and_atomic() {
+    let mut arena = arena(3);
+    let original = arena.allocate(Node::default()).unwrap().id();
+    let stale_expectation = arena.allocate(Node::default()).unwrap().id();
+    let replacement = arena.allocate(Node::default()).unwrap().id();
+    let mut node = ManagedNode::new(());
+    let edge = node.insert_strong(original).unwrap();
+    let before = node.clone();
+
+    assert_eq!(
+        node.replace_strong(edge, stale_expectation, replacement),
+        Err(StrongEdgeMutationError::TargetChanged {
+            expected: stale_expectation,
+            actual: original,
+        })
+    );
+    assert_eq!(node, before);
+    assert_eq!(
+        node.remove_strong(edge, stale_expectation),
+        Err(StrongEdgeMutationError::TargetChanged {
+            expected: stale_expectation,
+            actual: original,
+        })
+    );
+    assert_eq!(node, before);
+    assert_eq!(
+        node.remove_strong(EdgeId(edge.0 + 1), original),
+        Err(StrongEdgeMutationError::UnknownEdge(EdgeId(edge.0 + 1)))
+    );
+    assert_eq!(node, before);
+}
+
+#[test]
+fn managed_node_weak_edges_mutate_trace_and_clear_exactly_once() {
+    let mut arena = arena(4);
+    let first_target = arena.allocate(Node::default()).unwrap().id();
+    let second_target = arena.allocate(Node::default()).unwrap().id();
+    let mismatch = arena.allocate(Node::default()).unwrap().id();
+    let mut node = ManagedNode::new(());
+    let removed = node.insert_weak(first_target).unwrap();
+    let strong = node.insert_strong(mismatch).unwrap();
+    let retained = node.insert_weak(first_target).unwrap();
+
+    node.replace_weak(retained, first_target, second_target)
+        .unwrap();
+    assert_eq!(node.remove_weak(removed, first_target), Ok(first_target));
+    let after_clear = node.insert_weak(first_target).unwrap();
+
+    let before_mismatch = node.clone();
+    assert_eq!(
+        node.replace_weak(retained, mismatch, first_target),
+        Err(WeakEdgeMutationError::TargetChanged {
+            expected: mismatch,
+            actual: second_target,
+        })
+    );
+    assert_eq!(node, before_mismatch);
+    assert!(!node.clear_weak_edge(retained, mismatch));
+    assert!(node.clear_weak_edge(retained, second_target));
+    assert!(!node.clear_weak_edge(retained, second_target));
+
+    #[derive(Default)]
+    struct OrderedTrace(Vec<(EdgeKind, EdgeId, ManagedId)>);
+    impl EdgeVisitor for OrderedTrace {
+        fn strong(&mut self, edge: EdgeId, target: ManagedId) {
+            self.0.push((EdgeKind::Strong, edge, target));
+        }
+        fn weak(&mut self, edge: EdgeId, target: ManagedId) {
+            self.0.push((EdgeKind::Weak, edge, target));
+        }
+        fn ephemeron(&mut self, _edge: EdgeId, _key: ManagedId, _value: ManagedId) {}
+    }
+    let mut traced = OrderedTrace::default();
+    node.trace_edges(&mut traced);
+    assert_eq!(
+        traced.0,
+        vec![
+            (EdgeKind::Strong, strong, mismatch),
+            (EdgeKind::Weak, after_clear, first_target),
+        ]
+    );
+    assert!(removed < strong && strong < retained && retained < after_clear);
+}
+
+#[test]
+fn managed_node_ephemerons_mutate_trace_and_clear_exact_pairs_once() {
+    let mut arena = arena(6);
+    let key = arena.allocate(Node::default()).unwrap().id();
+    let value = arena.allocate(Node::default()).unwrap().id();
+    let replacement_key = arena.allocate(Node::default()).unwrap().id();
+    let replacement_value = arena.allocate(Node::default()).unwrap().id();
+    let mismatch = arena.allocate(Node::default()).unwrap().id();
+    let mut node = ManagedNode::new(());
+    let removed = node.insert_ephemeron(key, value).unwrap();
+    let strong = node.insert_strong(mismatch).unwrap();
+    let retained = node.insert_ephemeron(key, value).unwrap();
+
+    node.replace_ephemeron(retained, (key, value), (replacement_key, replacement_value))
+        .unwrap();
+    assert_eq!(
+        node.remove_ephemeron(removed, (key, value)),
+        Ok((key, value))
+    );
+    let after_clear = node.insert_ephemeron(key, value).unwrap();
+
+    let before_mismatch = node.clone();
+    assert_eq!(
+        node.replace_ephemeron(retained, (mismatch, value), (key, value)),
+        Err(EphemeronMutationError::EntryChanged {
+            expected_key: mismatch,
+            expected_value: value,
+            actual_key: replacement_key,
+            actual_value: replacement_value,
+        })
+    );
+    assert_eq!(node, before_mismatch);
+    assert!(!node.clear_ephemeron_edge(retained, replacement_key, mismatch));
+    assert!(node.clear_ephemeron_edge(retained, replacement_key, replacement_value));
+    assert!(!node.clear_ephemeron_edge(retained, replacement_key, replacement_value));
+
+    #[derive(Default)]
+    struct OrderedTrace(Vec<(EdgeKind, EdgeId, ManagedId, ManagedId)>);
+    impl EdgeVisitor for OrderedTrace {
+        fn strong(&mut self, edge: EdgeId, target: ManagedId) {
+            self.0.push((EdgeKind::Strong, edge, target, target));
+        }
+        fn weak(&mut self, _edge: EdgeId, _target: ManagedId) {}
+        fn ephemeron(&mut self, edge: EdgeId, key: ManagedId, value: ManagedId) {
+            self.0.push((EdgeKind::Ephemeron, edge, key, value));
+        }
+    }
+    let mut traced = OrderedTrace::default();
+    node.trace_edges(&mut traced);
+    assert_eq!(
+        traced.0,
+        vec![
+            (EdgeKind::Strong, strong, mismatch, mismatch),
+            (EdgeKind::Ephemeron, after_clear, key, value),
+        ]
+    );
+    assert!(removed < strong && strong < retained && retained < after_clear);
+}
+
+#[test]
+fn managed_node_limits_wrong_kinds_and_snapshots_are_exact() {
+    let mut arena = arena(4);
+    let targets = (0..4)
+        .map(|_| arena.allocate(Node::default()).unwrap().id())
+        .collect::<Vec<_>>();
+    let mut node = ManagedNode::with_edge_limits((), EdgeLimits::new(3, 1, 2, 1));
+    let weak = node.insert_weak(targets[0]).unwrap();
+    let strong = node.insert_strong(targets[1]).unwrap();
+    let before = node.clone();
+
+    assert_eq!(
+        node.replace_strong(weak, targets[0], targets[2]),
+        Err(StrongEdgeMutationError::WrongKind {
+            edge: weak,
+            actual: EdgeKind::Weak,
+        })
+    );
+    assert_eq!(node, before);
+    assert_eq!(
+        node.insert_strong(targets[2]),
+        Err(StrongEdgeMutationError::Allocation(
+            EdgeAllocationError::CapacityExceeded {
+                kind: EdgeKind::Strong,
+                cap: 1,
+            }
+        ))
+    );
+    assert_eq!(node, before);
+    let ephemeron = node.insert_ephemeron(targets[2], targets[3]).unwrap();
+    let full = node.clone();
+    assert_eq!(
+        node.insert_weak(targets[3]),
+        Err(WeakEdgeMutationError::Allocation(
+            EdgeAllocationError::CapacityExceeded {
+                kind: EdgeKind::Weak,
+                cap: 3,
+            }
+        ))
+    );
+    assert_eq!(node, full);
+    assert_eq!(
+        node.edge_snapshot(),
+        vec![
+            EdgeSnapshot::Weak {
+                edge: weak,
+                target: targets[0]
+            },
+            EdgeSnapshot::Strong {
+                edge: strong,
+                target: targets[1]
+            },
+            EdgeSnapshot::Ephemeron {
+                edge: ephemeron,
+                key: targets[2],
+                value: targets[3]
+            },
+        ]
+    );
+}
+
+#[test]
+fn generated_edge_operations_preserve_model_and_failure_atomicity() {
+    let mut arena = arena(8);
+    let targets = (0..8)
+        .map(|_| arena.allocate(Node::default()).unwrap().id())
+        .collect::<Vec<_>>();
+
+    for seed in 0_u64..32 {
+        let mut state = seed | 1;
+        let mut node = ManagedNode::with_edge_limits((), EdgeLimits::new(6, 3, 2, 2));
+        for _ in 0..128 {
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1);
+            let target = targets[(state as usize >> 8) % targets.len()];
+            let before = node.clone();
+            let succeeded = match state % 6 {
+                0 => node.insert_strong(target).is_ok(),
+                1 => node.insert_weak(target).is_ok(),
+                2 => node
+                    .insert_ephemeron(target, targets[(state as usize >> 16) % targets.len()])
+                    .is_ok(),
+                _ => node
+                    .replace_strong(
+                        EdgeId((state >> 24) as u32 % 10),
+                        target,
+                        targets[(state as usize >> 32) % targets.len()],
+                    )
+                    .is_ok(),
+            };
+            if !succeeded {
+                assert_eq!(
+                    node, before,
+                    "seed {seed} failed operation mutated the node"
+                );
+            }
+            let snapshot = node.edge_snapshot();
+            assert!(snapshot.windows(2).all(|pair| pair[0].id() < pair[1].id()));
+            assert!(snapshot.len() <= 6);
+            assert!(
+                snapshot
+                    .iter()
+                    .filter(|edge| matches!(edge, EdgeSnapshot::Strong { .. }))
+                    .count()
+                    <= 3
+            );
+            assert!(
+                snapshot
+                    .iter()
+                    .filter(|edge| matches!(edge, EdgeSnapshot::Weak { .. }))
+                    .count()
+                    <= 2
+            );
+            assert!(
+                snapshot
+                    .iter()
+                    .filter(|edge| matches!(edge, EdgeSnapshot::Ephemeron { .. }))
+                    .count()
+                    <= 2
+            );
         }
     }
 }
@@ -3495,6 +9608,1119 @@ fn collector_client_can_inventory_edges_without_language_types() {
         })
         .unwrap();
     assert_eq!(inventory.get(&a.id()), Some(&vec![b.id()]));
+}
+```
+
+### `feature/sim-runtime/generic-dispatch-organ`
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-dispatch/src/tests` is checked by `cargo test`.
+
+Source `crates/sim-lib-dispatch/src/tests.rs`:
+
+```rust
+// conformance: generic dispatch preserves its public selection contract.
+
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
+
+use sim_kernel::{
+    CapabilityName, Cx, Expr, HintMetadata, Ref, Result, Symbol, Value,
+    card::{card_for_ref, card_kind_predicate},
+    force_list_to_vec,
+    standard::standard_organ_kind,
+};
+use sim_shape::{AnyShape, ExprKindShape};
+
+use crate::*;
+
+use sim_kernel::testing::bare_cx as cx;
+
+fn string(cx: &mut Cx, value: &str) -> Value {
+    cx.factory().string(value.to_owned()).unwrap()
+}
+
+fn bool_value(cx: &mut Cx, value: bool) -> Value {
+    cx.factory().bool(value).unwrap()
+}
+
+fn body(label: &'static str) -> MethodBody {
+    Arc::new(move |cx, _args| cx.factory().string(label.to_owned()))
+}
+
+fn trace_body(label: &'static str, trace: Arc<Mutex<Vec<String>>>) -> MethodBody {
+    Arc::new(move |cx, _args| {
+        trace.lock().unwrap().push(label.to_owned());
+        cx.factory().string(label.to_owned())
+    })
+}
+
+fn string_shape() -> Arc<dyn sim_kernel::Shape> {
+    Arc::new(ExprKindShape::new(sim_kernel::ExprKind::String))
+}
+
+fn any_shape() -> Arc<dyn sim_kernel::Shape> {
+    Arc::new(AnyShape)
+}
+
+fn primary(id: &'static str, shapes: Vec<Arc<dyn sim_kernel::Shape>>) -> DispatchMethod {
+    DispatchMethod::new(
+        Symbol::qualified("method", id),
+        MethodRole::Primary,
+        shapes,
+        body(id),
+    )
+}
+
+#[test]
+fn operation_hints_include_method_metadata() {
+    let mut generic = GenericFunction::new(Symbol::qualified("dispatch-test", "hints"));
+    generic
+        .add_method(
+            primary("string", vec![string_shape()])
+                .with_argument_hint(Symbol::new("input"), "value to classify")
+                .with_capability_requirement(CapabilityName::new("dispatch.inspect"))
+                .with_codec_safe_form(Symbol::qualified("codec", "lisp"))
+                .with_example("(dispatch-test/hints input)"),
+        )
+        .unwrap();
+
+    let text = generic
+        .operation_hints()
+        .iter()
+        .map(HintMetadata::radar_text)
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    assert!(text.contains("runtime-hint/argument"));
+    assert!(text.contains("dispatch.inspect"));
+    assert!(text.contains("codec/lisp"));
+    assert!(text.contains("(dispatch-test/hints input)"));
+}
+
+#[test]
+fn failed_selection_pushes_radar_consumable_hints() {
+    let mut cx = cx();
+    let mut generic = GenericFunction::new(Symbol::qualified("dispatch-test", "diagnose"));
+    generic
+        .add_method(
+            primary("string", vec![string_shape()])
+                .with_argument_hint(Symbol::new("input"), "string value"),
+        )
+        .unwrap();
+
+    let arg = bool_value(&mut cx, true);
+    assert!(generic.call(&mut cx, &[arg]).is_err());
+
+    let diagnostics = cx.diagnostics().messages();
+    let hints = HintMetadata::collect_from_diagnostic(&diagnostics[0]);
+    let text = hints
+        .iter()
+        .map(HintMetadata::radar_text)
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    assert!(text.contains("runtime-hint/overload-selection"));
+    assert!(text.contains("runtime-hint/argument"));
+    assert!(text.contains("string value"));
+}
+
+#[test]
+fn most_specific_multimethod_is_selected() {
+    let mut cx = cx();
+    let mut generic = GenericFunction::new(Symbol::qualified("dispatch-test", "choose"));
+    generic
+        .add_method(primary("broad", vec![any_shape(), any_shape()]))
+        .unwrap();
+    generic
+        .add_method(primary("second-string", vec![any_shape(), string_shape()]))
+        .unwrap();
+
+    let args = [bool_value(&mut cx, true), string(&mut cx, "text")];
+    let selected = generic.select_primary(&mut cx, &args).unwrap();
+    assert_eq!(
+        selected.method(),
+        &Symbol::qualified("method", "second-string")
+    );
+
+    let result = generic.call(&mut cx, &args).unwrap();
+    assert_eq!(
+        result.object().as_expr(&mut cx).unwrap(),
+        Expr::String("second-string".to_owned())
+    );
+}
+
+#[test]
+fn method_combination_order_is_around_before_primary_after() -> Result<()> {
+    let mut cx = cx();
+    let trace = Arc::new(Mutex::new(Vec::new()));
+    let mut generic = GenericFunction::new(Symbol::qualified("dispatch-test", "combine"));
+    for (id, role, shape) in [
+        ("around-any", MethodRole::Around, any_shape()),
+        ("around-string", MethodRole::Around, string_shape()),
+        ("before-any", MethodRole::Before, any_shape()),
+        ("before-string", MethodRole::Before, string_shape()),
+        ("primary-string", MethodRole::Primary, string_shape()),
+        ("after-any", MethodRole::After, any_shape()),
+        ("after-string", MethodRole::After, string_shape()),
+    ] {
+        generic.add_method(DispatchMethod::new(
+            Symbol::qualified("method", id),
+            role,
+            vec![shape],
+            trace_body(id, trace.clone()),
+        ))?;
+    }
+
+    let args = [string(&mut cx, "text")];
+    let order = generic.dispatch_order(&mut cx, &args)?;
+    assert_eq!(
+        order,
+        vec![
+            Symbol::qualified("method", "around-string"),
+            Symbol::qualified("method", "around-any"),
+            Symbol::qualified("method", "before-string"),
+            Symbol::qualified("method", "before-any"),
+            Symbol::qualified("method", "primary-string"),
+            Symbol::qualified("method", "after-any"),
+            Symbol::qualified("method", "after-string"),
+        ]
+    );
+
+    let result = generic.call(&mut cx, &args)?;
+    assert_eq!(
+        result.object().as_expr(&mut cx).unwrap(),
+        Expr::String("primary-string".to_owned())
+    );
+    assert_eq!(
+        *trace.lock().unwrap(),
+        vec![
+            "around-string",
+            "around-any",
+            "before-string",
+            "before-any",
+            "primary-string",
+            "after-any",
+            "after-string",
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn specificity_is_inspectable() {
+    let mut cx = cx();
+    let mut generic = GenericFunction::new(Symbol::qualified("dispatch-test", "inspect"));
+    generic
+        .add_method(primary("any", vec![any_shape()]))
+        .unwrap();
+    generic
+        .add_method(primary("string", vec![string_shape()]))
+        .unwrap();
+
+    let args = [string(&mut cx, "text")];
+    let inspected = generic.inspect_specificity(&mut cx, &args).unwrap();
+    assert_eq!(inspected.len(), 2);
+    assert_eq!(
+        inspected[0].method(),
+        &Symbol::qualified("method", "string")
+    );
+    assert_eq!(inspected[1].method(), &Symbol::qualified("method", "any"));
+    assert!(inspected[0].score() > inspected[1].score());
+    assert_eq!(
+        inspected[0].argument_scores(),
+        &[sim_kernel::MatchScore::exact(10)]
+    );
+}
+
+#[test]
+fn cl_julia_and_clojure_profiles_reuse_one_generic() -> Result<()> {
+    let mut cx = cx();
+    let mut generic = GenericFunction::new(Symbol::qualified("dispatch-test", "shared"));
+    generic.add_method(primary("shared-string", vec![string_shape()]))?;
+    let profiles = [
+        Symbol::qualified("profile", "common-lisp-lite"),
+        Symbol::qualified("profile", "julia-lite"),
+        Symbol::qualified("profile", "clojure-core"),
+    ];
+
+    for profile in profiles {
+        let args = [string(&mut cx, "text")];
+        let result = generic.call_for_profile(&mut cx, &profile, &args)?;
+        assert_eq!(
+            result.object().as_expr(&mut cx).unwrap(),
+            Expr::String("shared-string".to_owned())
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn meta_index_reads_table_backed_meta_slot_without_baked_in_slot_names() -> Result<()> {
+    let mut cx = cx();
+    let mut protocol = TestMetaProtocol::default();
+    let receiver = string(&mut cx, "receiver");
+    let meta_table = string(&mut cx, "meta-table");
+    let direct_key = string(&mut cx, "direct");
+    let meta_key = string(&mut cx, "fallback");
+    let slot = Symbol::qualified("dispatch-test", "index-slot");
+    let direct_value = string(&mut cx, "raw");
+    let shadow_value = string(&mut cx, "shadow");
+    let fallback_value = string(&mut cx, "meta");
+
+    protocol.insert_raw(&receiver, &direct_key, direct_value.clone());
+    protocol.insert_meta(&receiver, &slot, meta_table.clone());
+    protocol.insert_raw(&meta_table, &direct_key, shadow_value);
+    protocol.insert_raw(&meta_table, &meta_key, fallback_value.clone());
+
+    let raw = meta_index(&mut cx, &protocol, &receiver, &direct_key, &slot)?.unwrap();
+    assert_eq!(
+        raw.object().as_expr(&mut cx).unwrap(),
+        direct_value.object().as_expr(&mut cx).unwrap()
+    );
+
+    let fallback = meta_index(&mut cx, &protocol, &receiver, &meta_key, &slot)?.unwrap();
+    assert_eq!(
+        fallback.object().as_expr(&mut cx).unwrap(),
+        fallback_value.object().as_expr(&mut cx).unwrap()
+    );
+    Ok(())
+}
+
+#[test]
+fn meta_index_supports_function_backed_meta_slot() -> Result<()> {
+    let mut cx = cx();
+    let mut protocol = TestMetaProtocol::default();
+    let receiver = string(&mut cx, "receiver");
+    let key = string(&mut cx, "computed-key");
+    let slot = Symbol::qualified("dispatch-test", "call-slot");
+    let function = string(&mut cx, "function-meta");
+    let computed = string(&mut cx, "computed");
+    let reply = computed.clone();
+
+    protocol.insert_meta(&receiver, &slot, function.clone());
+    protocol.insert_function(
+        function,
+        Arc::new(move |_cx, _receiver, _key| Ok(Some(reply.clone()))),
+    );
+
+    let result = meta_index(&mut cx, &protocol, &receiver, &key, &slot)?.unwrap();
+    assert_eq!(
+        result.object().as_expr(&mut cx).unwrap(),
+        computed.object().as_expr(&mut cx).unwrap()
+    );
+    Ok(())
+}
+
+#[test]
+fn meta_index_walks_prototype_chain_through_protocol_override() -> Result<()> {
+    let mut cx = cx();
+    let mut protocol = TestMetaProtocol::recursive();
+    let child = string(&mut cx, "child");
+    let parent = string(&mut cx, "parent");
+    let grandparent = string(&mut cx, "grandparent");
+    let key = string(&mut cx, "inherited-key");
+    let slot = Symbol::qualified("dispatch-test", "parent-slot");
+    let inherited = string(&mut cx, "inherited");
+
+    protocol.insert_meta(&child, &slot, parent.clone());
+    protocol.insert_meta(&parent, &slot, grandparent.clone());
+    protocol.insert_raw(&grandparent, &key, inherited.clone());
+
+    let result = meta_index(&mut cx, &protocol, &child, &key, &slot)?.unwrap();
+    assert_eq!(
+        result.object().as_expr(&mut cx).unwrap(),
+        inherited.object().as_expr(&mut cx).unwrap()
+    );
+    Ok(())
+}
+
+#[test]
+fn dispatch_organ_claims_project_to_card() {
+    let mut cx = cx();
+    publish_dispatch_organ_claims(&mut cx).unwrap();
+
+    let claims = cx
+        .query_facts(sim_kernel::ClaimPattern {
+            subject: Some(Ref::Symbol(dispatch_organ_symbol())),
+            predicate: Some(card_kind_predicate()),
+            object: Some(Ref::Symbol(standard_organ_kind())),
+            include_revoked: false,
+        })
+        .unwrap();
+    assert_eq!(claims.len(), 1);
+
+    let card = card_for_ref(&mut cx, Ref::Symbol(dispatch_organ_symbol())).unwrap();
+    let table = card.object().as_table(&mut cx).unwrap();
+    let entries = table.object().as_table_impl().unwrap();
+    let ops = entries.get(&mut cx, Symbol::new("ops")).unwrap();
+    let list = ops.object().as_list().unwrap();
+    let values = force_list_to_vec(&mut cx, list, "dispatch organ ops").unwrap();
+
+    assert!(values.into_iter().any(|value| {
+        value.object().as_expr(&mut cx).unwrap()
+            == Expr::Symbol(Symbol::qualified("dispatch", "specificity.v1"))
+    }));
+}
+
+type MetaFunction = Arc<dyn Fn(&mut Cx, &Value, &Value) -> Result<Option<Value>> + Send + Sync>;
+
+#[derive(Default)]
+struct TestMetaProtocol {
+    raw: HashMap<Value, HashMap<Value, Value>>,
+    meta: HashMap<(Value, Symbol), Value>,
+    functions: HashMap<Value, MetaFunction>,
+    recursive: bool,
+}
+
+impl TestMetaProtocol {
+    fn recursive() -> Self {
+        Self {
+            recursive: true,
+            ..Self::default()
+        }
+    }
+
+    fn insert_raw(&mut self, value: &Value, key: &Value, result: Value) {
+        self.raw
+            .entry(value.clone())
+            .or_default()
+            .insert(key.clone(), result);
+    }
+
+    fn insert_meta(&mut self, value: &Value, slot: &Symbol, result: Value) {
+        self.meta.insert((value.clone(), slot.clone()), result);
+    }
+
+    fn insert_function(&mut self, value: Value, function: MetaFunction) {
+        self.functions.insert(value, function);
+    }
+}
+
+impl MetaObjectProtocol for TestMetaProtocol {
+    fn raw_get(&self, _cx: &mut Cx, value: &Value, key: &Value) -> Result<Option<Value>> {
+        Ok(self
+            .raw
+            .get(value)
+            .and_then(|table| table.get(key).cloned()))
+    }
+
+    fn get_meta(&self, _cx: &mut Cx, value: &Value, slot: &Symbol) -> Result<Option<Value>> {
+        Ok(self.meta.get(&(value.clone(), slot.clone())).cloned())
+    }
+
+    fn apply_meta(
+        &self,
+        cx: &mut Cx,
+        receiver: &Value,
+        key: &Value,
+        index_slot: &Symbol,
+        meta_value: &Value,
+    ) -> Result<Option<Value>> {
+        if let Some(function) = self.functions.get(meta_value) {
+            return function(cx, receiver, key);
+        }
+        if self.recursive {
+            return meta_index(cx, self, meta_value, key, index_slot);
+        }
+        self.raw_get(cx, meta_value, key)
+    }
+}
+
+// ---- generic function as a runtime callable value ----
+
+#[test]
+fn generic_value_dispatches_most_specific_when_called() {
+    let mut cx = cx();
+    let mut generic = GenericFunction::new(Symbol::qualified("dispatch-test", "runtime-choose"));
+    generic
+        .add_method(primary("broad", vec![any_shape(), any_shape()]))
+        .unwrap();
+    generic
+        .add_method(primary("second-string", vec![any_shape(), string_shape()]))
+        .unwrap();
+
+    // Wrapped as a runtime value, it is an ordinary callable.
+    let value = generic_function_value(&mut cx, generic).unwrap();
+    assert!(value.object().as_callable().is_some());
+
+    // Calling through the general call path dispatches most-specific: the second
+    // argument is a string, so the (any, string) method wins over (any, any).
+    let arg0 = bool_value(&mut cx, true);
+    let arg1 = string(&mut cx, "text");
+    let result = cx
+        .call_value(value.clone(), sim_kernel::Args::new(vec![arg0, arg1]))
+        .unwrap();
+    let Expr::String(label) = result.object().as_expr(&mut cx).unwrap() else {
+        panic!("expected the method body's label string");
+    };
+    assert_eq!(label, "second-string");
+
+    // With two non-string arguments the broad (any, any) method is selected.
+    let a = bool_value(&mut cx, true);
+    let b = bool_value(&mut cx, false);
+    let broad = cx
+        .call_value(value, sim_kernel::Args::new(vec![a, b]))
+        .unwrap();
+    let Expr::String(label) = broad.object().as_expr(&mut cx).unwrap() else {
+        panic!("expected label string");
+    };
+    assert_eq!(label, "broad");
+}
+```
+
+### `feature/sim-runtime/islisp-generic-adapter`
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-lang-islisp/src/tests` is checked by `cargo test`.
+
+Source `crates/sim-lib-lang-islisp/src/tests.rs`:
+
+```rust
+// conformance: the ISLisp profile composes the shared runtime organs.
+
+use std::{collections::BTreeMap, sync::Arc};
+
+use sim_kernel::{
+    Cx, Expr, Ref, Symbol, Value,
+    card::{card_for_ref, card_kind_predicate},
+    standard::standard_profile_kind,
+};
+use sim_lib_standard_core::ProfileRegistry;
+use sim_shape::{AnyShape, ExprKindShape};
+
+use crate::*;
+
+use sim_kernel::testing::bare_cx as cx;
+
+fn string(cx: &mut Cx, value: &str) -> Value {
+    cx.factory().string(value.to_owned()).unwrap()
+}
+
+fn body(label: &'static str) -> sim_lib_dispatch::MethodBody {
+    Arc::new(move |cx, _args| cx.factory().string(label.to_owned()))
+}
+
+fn string_shape() -> Arc<dyn sim_kernel::Shape> {
+    Arc::new(ExprKindShape::new(sim_kernel::ExprKind::String))
+}
+
+fn any_shape() -> Arc<dyn sim_kernel::Shape> {
+    Arc::new(AnyShape)
+}
+
+#[test]
+fn islisp_generics_delegate_to_dispatch_organ() {
+    let mut cx = cx();
+    let mut generic = IslispGeneric::new(Symbol::qualified("islisp", "describe-object"));
+    generic
+        .add_primary_method(
+            Symbol::qualified("method", "broad"),
+            vec![any_shape()],
+            body("broad"),
+        )
+        .unwrap();
+    generic
+        .add_primary_method(
+            Symbol::qualified("method", "string"),
+            vec![string_shape()],
+            body("string"),
+        )
+        .unwrap();
+
+    let args = [string(&mut cx, "sample")];
+    let selected = generic.select_primary(&mut cx, &args).unwrap();
+    assert_eq!(selected.method(), &Symbol::qualified("method", "string"));
+    assert_eq!(
+        generic.dispatch_order(&mut cx, &args).unwrap(),
+        vec![Symbol::qualified("method", "string")]
+    );
+    assert_eq!(
+        generic
+            .call(&mut cx, &args)
+            .unwrap()
+            .object()
+            .as_expr(&mut cx)
+            .unwrap(),
+        Expr::String("string".to_owned())
+    );
+
+    let profile = islisp_profile();
+    assert!(
+        profile
+            .organs
+            .iter()
+            .any(|organ| organ.organ == sim_lib_dispatch::dispatch_organ_symbol())
+    );
+}
+
+#[test]
+fn object_and_generic_forms_are_documented() {
+    let specs = islisp_form_specs();
+    assert_eq!(specs.len(), 3);
+    assert!(specs.iter().any(|spec| {
+        spec.symbol == Symbol::qualified("islisp", "defclass")
+            && spec.role == IslispFormRole::Object
+            && !spec.doc.is_empty()
+    }));
+    assert!(specs.iter().any(|spec| {
+        spec.symbol == Symbol::qualified("islisp", "defgeneric")
+            && spec.role == IslispFormRole::Generic
+            && spec.organ == sim_lib_dispatch::dispatch_organ_symbol()
+    }));
+}
+
+#[test]
+fn object_values_round_trip_as_profile_data() {
+    let mut cx = cx();
+    let mut slots = BTreeMap::new();
+    slots.insert(Symbol::new("name"), string(&mut cx, "unit"));
+    let object = islisp_object_value(&mut cx, Symbol::qualified("class", "sample"), slots).unwrap();
+    let expr = object.object().as_expr(&mut cx).unwrap();
+    let Expr::Map(entries) = expr else {
+        panic!("expected object map expression");
+    };
+    assert!(entries.iter().any(|(key, value)| {
+        key == &Expr::Symbol(Symbol::new("class"))
+            && value == &Expr::Symbol(Symbol::qualified("class", "sample"))
+    }));
+}
+
+#[test]
+fn islisp_profile_publishes_per_organ_fidelity() {
+    let mut cx = cx();
+    let mut registry = ProfileRegistry::new();
+    let profile = install_islisp_profile(&mut cx, &mut registry).unwrap();
+
+    let profile_kind = cx
+        .query_facts(sim_kernel::ClaimPattern {
+            subject: Some(Ref::Symbol(profile.symbol.clone())),
+            predicate: Some(card_kind_predicate()),
+            object: Some(Ref::Symbol(standard_profile_kind())),
+            include_revoked: false,
+        })
+        .unwrap();
+    assert_eq!(profile_kind.len(), 1);
+
+    let fidelity = cx
+        .query_facts(sim_kernel::ClaimPattern {
+            subject: Some(Ref::Symbol(profile.symbol)),
+            predicate: Some(Symbol::qualified("standard", "fidelity-badge")),
+            object: Some(Ref::Symbol(islisp_dispatch_fidelity_symbol())),
+            include_revoked: false,
+        })
+        .unwrap();
+    assert_eq!(fidelity.len(), 1);
+
+    let card = card_for_ref(
+        &mut cx,
+        Ref::Symbol(sim_lib_dispatch::dispatch_organ_symbol()),
+    )
+    .unwrap()
+    .object()
+    .as_expr(&mut cx)
+    .unwrap();
+    assert!(matches!(card, Expr::Map(_)));
+}
+```
+
+### `feature/sim-runtime/cl-generic-adapter`
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-lang-cl/src/tests` is checked by `cargo test`.
+
+Source `crates/sim-lib-lang-cl/src/tests.rs`:
+
+```rust
+// conformance: the Common Lisp profile composes the shared runtime organs.
+
+use std::sync::Arc;
+
+use sim_codec::{Input, decode_tree_with_codec};
+use sim_kernel::{
+    ClaimPattern, Cx, Error, Expr, ReadPolicy, Ref, Symbol, TrustLevel, Value,
+    capability::{control_capture_capability, control_resume_capability},
+    control::{control_captured_status, control_result_status, control_resumed_status},
+    standard::standard_organ_predicate,
+};
+use sim_lib_control::{ConditionHandler, install_control_policy};
+use sim_lib_namespace::NamespaceKind;
+use sim_lib_standard_core::ProfileRegistry;
+use sim_shape::{AnyShape, ExprKindShape};
+
+use crate::*;
+
+use sim_kernel::testing::bare_cx as cx;
+
+fn read_policy() -> ReadPolicy {
+    ReadPolicy {
+        trust: TrustLevel::TrustedSource,
+        capabilities: sim_kernel::CapabilitySet::new(),
+    }
+}
+
+fn string(cx: &mut Cx, value: &str) -> Value {
+    cx.factory().string(value.to_owned()).unwrap()
+}
+
+fn string_body(label: &'static str) -> sim_lib_dispatch::MethodBody {
+    Arc::new(move |cx, _args| cx.factory().string(label.to_owned()))
+}
+
+fn string_shape() -> Arc<dyn sim_kernel::Shape> {
+    Arc::new(ExprKindShape::new(sim_kernel::ExprKind::String))
+}
+
+fn any_shape() -> Arc<dyn sim_kernel::Shape> {
+    Arc::new(AnyShape)
+}
+
+#[test]
+fn cl_reader_decodes_forms_with_locations() {
+    let mut cx = cx();
+    let codec_id = cx.registry_mut().fresh_codec_id();
+    cx.load_lib(&ClLiteReaderCodecLib::new(codec_id)).unwrap();
+
+    let tree = decode_tree_with_codec(
+        &mut cx,
+        &cl_reader_symbol(),
+        Input::Text("(defun add1 (x) (+ x 1))".to_owned()),
+        read_policy(),
+        "unit.lisp",
+    )
+    .unwrap();
+
+    assert_eq!(tree.origin.as_ref().unwrap().source.0.as_str(), "unit.lisp");
+    let Expr::List(items) = &tree.expr else {
+        panic!("expected CL-lite list");
+    };
+    assert_eq!(items[0], Expr::Symbol(Symbol::new("defun")));
+    assert_eq!(items.len(), 4);
+    assert_eq!(tree.children.len(), 4);
+
+    let quoted = decode_tree_with_codec(
+        &mut cx,
+        &cl_reader_symbol(),
+        Input::Text("'(:ok t nil)".to_owned()),
+        read_policy(),
+        "quote.lisp",
+    )
+    .unwrap();
+    let Expr::List(items) = &quoted.expr else {
+        panic!("expected quote list");
+    };
+    assert_eq!(items[0], Expr::Symbol(Symbol::new("quote")));
+}
+
+#[test]
+fn cl_string_literal_preserves_non_ascii() {
+    let mut cx = cx();
+    let codec_id = cx.registry_mut().fresh_codec_id();
+    cx.load_lib(&ClLiteReaderCodecLib::new(codec_id)).unwrap();
+
+    // Source holds a 2-byte UTF-8 scalar inside the quotes; kept ASCII-only in
+    // this file via a `\u{..}` escape (R8). It must decode, not turn to mojibake.
+    let tree = decode_tree_with_codec(
+        &mut cx,
+        &cl_reader_symbol(),
+        Input::Text("\"caf\u{00e9}\"".to_owned()),
+        read_policy(),
+        "unicode.lisp",
+    )
+    .unwrap();
+    assert_eq!(tree.expr, Expr::String("caf\u{00e9}".to_owned()));
+}
+
+#[test]
+fn cl_form_specs_name_the_shared_organs() {
+    let specs = cl_lite_form_specs();
+    assert!(specs.iter().any(|spec| {
+        spec.symbol == Symbol::qualified("cl", "defun")
+            && spec.role == ClLiteFormRole::Binding
+            && spec.organ == sim_lib_binding::binding_organ_symbol()
+    }));
+    assert!(specs.iter().any(|spec| {
+        spec.symbol == Symbol::qualified("cl", "handler-case")
+            && spec.role == ClLiteFormRole::Control
+            && spec.organ == sim_lib_control::control_organ_symbol()
+    }));
+    assert!(specs.iter().any(|spec| {
+        spec.symbol == Symbol::qualified("cl", "defmethod")
+            && spec.role == ClLiteFormRole::Dispatch
+            && spec.organ == sim_lib_dispatch::dispatch_organ_symbol()
+    }));
+    assert!(specs.iter().any(|spec| {
+        spec.symbol == Symbol::qualified("cl", "setf")
+            && spec.role == ClLiteFormRole::Mutation
+            && spec.organ == sim_lib_mutation::mutation_organ_symbol()
+    }));
+}
+
+#[test]
+fn defun_defmacro_let_and_setq_delegate_to_shared_organs() {
+    let mut cx = cx();
+    let mut runtime = ClLiteRuntime::new().unwrap();
+
+    let identity = Symbol::qualified("cl-user", "identity");
+    runtime
+        .defun(
+            &mut cx,
+            identity.clone(),
+            Arc::new(|_cx, _env, args| Ok(args[0].clone())),
+        )
+        .unwrap();
+    let input = string(&mut cx, "kept");
+    let output = call_cl_value(&mut cx, &runtime.function(&identity).unwrap(), vec![input])
+        .unwrap()
+        .object()
+        .as_expr(&mut cx)
+        .unwrap();
+    assert_eq!(output, Expr::String("kept".to_owned()));
+
+    let macro_name = Symbol::qualified("cl-user", "when");
+    runtime
+        .defmacro(
+            &mut cx,
+            macro_name.clone(),
+            Arc::new(|cx, _env, _args| cx.factory().symbol(Symbol::new("expanded"))),
+        )
+        .unwrap();
+    let expansion = call_cl_value(
+        &mut cx,
+        &runtime.macro_function(&macro_name).unwrap(),
+        Vec::new(),
+    )
+    .unwrap()
+    .object()
+    .as_expr(&mut cx)
+    .unwrap();
+    assert_eq!(expansion, Expr::Symbol(Symbol::new("expanded")));
+
+    let local_name = Symbol::new("x");
+    let local = string(&mut cx, "lexical");
+    let let_result = runtime
+        .let_form(&mut cx, vec![(local_name.clone(), local)], |_cx, env| {
+            env.lookup(&local_name)
+        })
+        .unwrap()
+        .object()
+        .as_expr(&mut cx)
+        .unwrap();
+    assert_eq!(let_result, Expr::String("lexical".to_owned()));
+
+    let var = Symbol::new("*state*");
+    let initial = string(&mut cx, "old");
+    runtime
+        .define_variable(&mut cx, var.clone(), initial)
+        .unwrap();
+    let denied_value = string(&mut cx, "denied");
+    let denied = runtime.setq(&mut cx, &var, denied_value).unwrap_err();
+    assert!(matches!(
+        denied,
+        Error::CapabilityDenied { capability } if capability == sim_lib_mutation::standard_mutate_capability()
+    ));
+
+    cx.grant(sim_lib_mutation::standard_mutate_capability());
+    let updated = string(&mut cx, "new");
+    runtime.setq(&mut cx, &var, updated).unwrap();
+    let stored = runtime
+        .variable_value(&var)
+        .unwrap()
+        .object()
+        .as_expr(&mut cx)
+        .unwrap();
+    assert_eq!(stored, Expr::String("new".to_owned()));
+}
+
+#[test]
+fn handler_case_and_restart_case_use_control_organ() {
+    let mut cx = cx();
+    install_control_policy(&mut cx);
+    cx.grant(control_capture_capability());
+    cx.grant(control_resume_capability());
+
+    let mut scope = ClLiteControlScope::new();
+    let kind = Symbol::qualified("condition", "file-error");
+    let continuation = Ref::Symbol(Symbol::qualified("continuation", "handler"));
+    scope.push_handler(ConditionHandler::new(
+        kind.clone(),
+        Ref::Symbol(Symbol::qualified("prompt", "handler")),
+        continuation.clone(),
+    ));
+
+    let captured = scope
+        .handler_case(
+            &mut cx,
+            kind,
+            Ref::Symbol(Symbol::qualified("payload", "missing-file")),
+        )
+        .unwrap();
+    assert_eq!(
+        control_result_status(&cx, captured.capture_result()).unwrap(),
+        Some(control_captured_status())
+    );
+    assert_eq!(captured.continuation(), &continuation);
+
+    let restart = Symbol::qualified("restart", "use-value");
+    scope.push_restart(restart.clone(), captured);
+    let resumed = scope
+        .restart_case(
+            &mut cx,
+            &restart,
+            Ref::Symbol(Symbol::qualified("value", "fallback")),
+        )
+        .unwrap();
+    assert_eq!(
+        control_result_status(&cx, resumed.reference()).unwrap(),
+        Some(control_resumed_status())
+    );
+}
+
+#[test]
+fn generic_functions_use_dispatch_organ() {
+    let mut cx = cx();
+    let mut generic = ClGenericFunction::new(Symbol::qualified("cl", "describe"));
+    generic
+        .add_primary_method(
+            Symbol::qualified("method", "broad"),
+            vec![any_shape()],
+            string_body("broad"),
+        )
+        .unwrap();
+    generic
+        .add_primary_method(
+            Symbol::qualified("method", "string"),
+            vec![string_shape()],
+            string_body("string"),
+        )
+        .unwrap();
+
+    let args = [string(&mut cx, "sample")];
+    let selected = generic.select_primary(&mut cx, &args).unwrap();
+    assert_eq!(selected.method(), &Symbol::qualified("method", "string"));
+    assert_eq!(
+        generic.dispatch_order(&mut cx, &args).unwrap(),
+        vec![Symbol::qualified("method", "string")]
+    );
+    assert_eq!(
+        generic
+            .call(&mut cx, &args)
+            .unwrap()
+            .object()
+            .as_expr(&mut cx)
+            .unwrap(),
+        Expr::String("string".to_owned())
+    );
+}
+
+#[test]
+fn profile_publishes_package_and_honest_clos_mop_badge() {
+    let mut cx = cx();
+    let mut registry = ProfileRegistry::new();
+    let profile = install_cl_lite_profile(&mut cx, &mut registry).unwrap();
+
+    assert!(registry.profile(&profile.symbol).is_some());
+    assert!(
+        profile
+            .organs
+            .iter()
+            .any(|organ| organ.organ == sim_lib_control::control_organ_symbol())
+    );
+    assert!(
+        profile
+            .fidelity_badges
+            .iter()
+            .any(|badge| { badge.badge == cl_clos_mop_fidelity_symbol() && badge.level == 0 })
+    );
+
+    let clos_badges = cx
+        .query_facts(sim_kernel::ClaimPattern {
+            subject: Some(Ref::Symbol(profile.symbol.clone())),
+            predicate: Some(Symbol::qualified("standard", "fidelity-badge")),
+            object: Some(Ref::Symbol(cl_clos_mop_fidelity_symbol())),
+            include_revoked: false,
+        })
+        .unwrap();
+    assert_eq!(clos_badges.len(), 1);
+
+    let package = cl_lite_package().unwrap();
+    assert_eq!(package.symbol(), &cl_lite_package_symbol());
+    assert_eq!(package.kind(), NamespaceKind::Package);
+    assert!(
+        package
+            .exported_entry(&Symbol::new("defun"))
+            .unwrap()
+            .target()
+            == &Symbol::qualified("cl", "defun")
+    );
+}
+
+#[test]
+fn profile_only_claims_loaded_organs_and_records_pending_backing_libs() {
+    let mut cx = cx();
+    let mut registry = ProfileRegistry::new();
+
+    let profile = install_cl_lite_profile(&mut cx, &mut registry).unwrap();
+
+    assert_eq!(
+        profile.backing_requirements,
+        vec![
+            Symbol::qualified("sim", "dispatch"),
+            Symbol::qualified("sim", "namespace"),
+            Symbol::qualified("sim", "mutation"),
+        ]
+    );
+    assert!(
+        !cx.registry()
+            .lib(&sim_lib_binding::manifest_name())
+            .unwrap()
+            .exports
+            .is_empty()
+    );
+    assert!(
+        !cx.registry()
+            .lib(&sim_lib_control::manifest_name())
+            .unwrap()
+            .exports
+            .is_empty()
+    );
+    for organ in [
+        sim_lib_binding::binding_organ_symbol(),
+        sim_lib_control::control_organ_symbol(),
+    ] {
+        assert_eq!(
+            cx.query_facts(ClaimPattern::exact(
+                Ref::Symbol(profile.symbol.clone()),
+                standard_organ_predicate(),
+                Ref::Symbol(organ),
+            ))
+            .unwrap()
+            .len(),
+            1
+        );
+    }
+    for organ in [
+        sim_lib_dispatch::dispatch_organ_symbol(),
+        sim_lib_namespace::namespace_organ_symbol(),
+        sim_lib_mutation::mutation_organ_symbol(),
+    ] {
+        assert!(
+            cx.query_facts(ClaimPattern::exact(
+                Ref::Symbol(profile.symbol.clone()),
+                standard_organ_predicate(),
+                Ref::Symbol(organ),
+            ))
+            .unwrap()
+            .is_empty()
+        );
+    }
+}
+```
+
+### `feature/sim-runtime/julia-generic-adapter`
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-lang-julia/src/tests` is checked by `cargo test`.
+
+Source `crates/sim-lib-lang-julia/src/tests.rs`:
+
+```rust
+// conformance: the Julia profile composes the shared runtime organs.
+
+use std::sync::Arc;
+
+use sim_kernel::{
+    Cx, Expr, Ref, Symbol, Value,
+    card::{card_for_ref, card_kind_predicate},
+    standard::standard_profile_kind,
+};
+use sim_lib_dispatch::MethodBody;
+use sim_lib_standard_core::ProfileRegistry;
+use sim_shape::{AnyShape, ExprKindShape};
+
+use crate::*;
+
+use sim_kernel::testing::bare_cx as cx;
+
+fn string(cx: &mut Cx, value: &str) -> Value {
+    cx.factory().string(value.to_owned()).unwrap()
+}
+
+fn body(label: &'static str) -> MethodBody {
+    Arc::new(move |cx, _args| cx.factory().string(label.to_owned()))
+}
+
+#[test]
+fn julia_specificity_reuses_dispatch_organ() {
+    let mut cx = cx();
+    let mut function = JuliaFunction::new(Symbol::qualified("julia", "show"));
+    function
+        .add_method(
+            Symbol::qualified("method", "any"),
+            vec![Arc::new(AnyShape)],
+            body("any"),
+        )
+        .unwrap();
+    function
+        .add_method(
+            Symbol::qualified("method", "string"),
+            vec![Arc::new(ExprKindShape::new(sim_kernel::ExprKind::String))],
+            body("string"),
+        )
+        .unwrap();
+
+    let args = [string(&mut cx, "text")];
+    assert_eq!(
+        function.dispatch_order(&mut cx, &args).unwrap(),
+        vec![Symbol::qualified("method", "string")]
+    );
+    assert_eq!(
+        function
+            .call(&mut cx, &args)
+            .unwrap()
+            .object()
+            .as_expr(&mut cx)
+            .unwrap(),
+        Expr::String("string".to_owned())
+    );
+    assert!(
+        julia_core_profile()
+            .organs
+            .iter()
+            .any(|organ| organ.organ == sim_lib_dispatch::dispatch_organ_symbol())
+    );
+}
+
+#[test]
+fn julia_profile_uses_algol_reader_and_honest_badges() {
+    let mut cx = cx();
+    let mut registry = ProfileRegistry::new();
+    let profile = install_julia_core_profile(&mut cx, &mut registry).unwrap();
+
+    assert_eq!(profile.reader, Symbol::qualified("codec", "algol"));
+    assert!(
+        profile.fidelity_badges.iter().any(|badge| {
+            badge.badge == julia_full_runtime_fidelity_symbol() && badge.level == 0
+        })
+    );
+    assert_eq!(
+        cx.query_facts(sim_kernel::ClaimPattern {
+            subject: Some(Ref::Symbol(profile.symbol)),
+            predicate: Some(card_kind_predicate()),
+            object: Some(Ref::Symbol(standard_profile_kind())),
+            include_revoked: false,
+        })
+        .unwrap()
+        .len(),
+        1
+    );
+    let card = card_for_ref(
+        &mut cx,
+        Ref::Symbol(sim_lib_dispatch::dispatch_organ_symbol()),
+    )
+    .unwrap()
+    .object()
+    .as_expr(&mut cx)
+    .unwrap();
+    assert!(matches!(card, Expr::Map(_)));
 }
 ```
 
@@ -3898,477 +11124,646 @@ use sim_lib_mutation::{
 };
 
 use super::*;
+use crate::{MAX_SPECIFIER_BYTES, MAX_SPECIFIER_CANDIDATES, SpecifierRefusalCode};
+use sim_kernel::{CapabilitySet, ReadPolicy};
 
-#[derive(Default)]
-struct MemoryDir {
-    files: RwLock<BTreeMap<Symbol, Value>>,
-    dirs: RwLock<BTreeMap<Symbol, Arc<MemoryDir>>>,
-}
+// Lexical partitions retain one module-private invariant surface while keeping
+// each source unit reviewable under the repository size policy.
+include!("tests/support.rs");
+include!("tests/lifecycle.rs");
+include!("tests/characterization.rs");
+include!("tests/concurrency.rs");
+```
 
-impl MemoryDir {
-    fn directory(&self, cx: &mut Cx, name: &str) -> Arc<Self> {
-        let dir = Arc::new(Self::default());
-        self.dirs
-            .write()
-            .unwrap()
-            .insert(Symbol::new(name), dir.clone());
-        let _ = cx;
-        dir
-    }
+### `feature/sim-runtime/characterization-captures`
 
-    fn source(&self, cx: &mut Cx, name: &str, source: &str) {
-        self.files.write().unwrap().insert(
-            Symbol::new(name),
-            cx.factory().string(source.to_owned()).unwrap(),
-        );
-    }
-}
+Specimen `spec-test/sim-runtime/crates/sim-lib-standard-core/src/harness_tests` is checked by `cargo test`.
 
-impl Object for MemoryDir {
-    fn display(&self, _cx: &mut Cx) -> Result<String> {
-        Ok("memory-module-root".to_owned())
-    }
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
+Source `crates/sim-lib-standard-core/src/harness_tests.rs`:
 
-impl ObjectCompat for MemoryDir {
-    fn class(&self, cx: &mut Cx) -> Result<ClassRef> {
-        cx.factory()
-            .class_stub(ClassId(0), Symbol::qualified("test", "ModuleRoot"))
-    }
-    fn as_table_impl(&self) -> Option<&dyn Table> {
-        Some(self)
-    }
-    fn as_dir(&self) -> Option<&dyn Dir> {
-        Some(self)
-    }
-}
+```rust
+// conformance: bounded scenario execution and content-addressed capture evidence.
 
-impl Table for MemoryDir {
-    fn backend_symbol(&self) -> Symbol {
-        Symbol::qualified("test", "module-root")
-    }
-    fn get(&self, cx: &mut Cx, key: Symbol) -> Result<Value> {
-        self.files
-            .read()
-            .unwrap()
-            .get(&key)
-            .cloned()
-            .map_or_else(|| cx.factory().nil(), Ok)
-    }
-    fn set(&self, _cx: &mut Cx, key: Symbol, value: Value) -> Result<()> {
-        self.files.write().unwrap().insert(key, value);
-        Ok(())
-    }
-    fn has(&self, _cx: &mut Cx, key: Symbol) -> Result<bool> {
-        Ok(self.files.read().unwrap().contains_key(&key))
-    }
-    fn del(&self, cx: &mut Cx, key: Symbol) -> Result<Value> {
-        self.files
-            .write()
-            .unwrap()
-            .remove(&key)
-            .map_or_else(|| cx.factory().nil(), Ok)
-    }
-    fn keys(&self, _cx: &mut Cx) -> Result<Vec<Symbol>> {
-        Ok(self.files.read().unwrap().keys().cloned().collect())
-    }
-    fn entries(&self, _cx: &mut Cx) -> Result<Vec<(Symbol, Value)>> {
-        Ok(self
-            .files
-            .read()
-            .unwrap()
-            .iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect())
-    }
-    fn len(&self, _cx: &mut Cx) -> Result<usize> {
-        Ok(self.files.read().unwrap().len())
-    }
-    fn clear(&self, _cx: &mut Cx) -> Result<()> {
-        self.files.write().unwrap().clear();
-        Ok(())
-    }
-}
+use std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
+};
 
-impl Dir for MemoryDir {
-    fn mkdir(&self, cx: &mut Cx, name: Symbol) -> Result<Value> {
-        let dir = self.directory(cx, &name.name);
-        cx.factory().opaque(dir)
-    }
-    fn opendir(&self, cx: &mut Cx, name: Symbol) -> Result<Option<Value>> {
-        self.dirs
-            .read()
-            .unwrap()
-            .get(&name)
-            .cloned()
-            .map(|dir| cx.factory().opaque(dir))
-            .transpose()
-    }
-    fn rmdir(&self, cx: &mut Cx, name: Symbol) -> Result<Value> {
-        self.dirs
-            .write()
-            .unwrap()
-            .remove(&name)
-            .map_or_else(|| cx.factory().nil(), |dir| cx.factory().opaque(dir))
-    }
-    fn is_dir(&self, _cx: &mut Cx, name: Symbol) -> Result<bool> {
-        Ok(self.dirs.read().unwrap().contains_key(&name))
-    }
-}
+use sim_kernel::{
+    ClaimKind, ClaimPattern, Cx, Datum, DatumStore, DefaultFactory, Expr, NoopEvalPolicy, Ref,
+    Symbol,
+    card::{card_for_ref, card_tests_predicate},
+    standard::standard_evidence_predicate,
+};
 
-fn context() -> Cx {
-    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
-    seat.grant(&mut cx, module_load_capability()).unwrap();
-    seat.grant(&mut cx, read_eval_capability()).unwrap();
-    cx.load_lib(&LispCodecLib::new(sim_kernel::CodecId(31)).unwrap())
-        .unwrap();
-    cx
-}
-
-fn request(
-    root: Arc<MemoryDir>,
-    specifier: &str,
-    importer: Option<ModuleIdentity>,
-) -> ModuleRequest {
-    ModuleRequest {
-        root_id: Symbol::new("fixture"),
-        root,
-        importer,
-        specifier: specifier.to_owned(),
-        codec: Symbol::qualified("codec", "lisp"),
-        read_policy: ReadPolicy {
-            trust: TrustLevel::TrustedSource,
-            capabilities: CapabilitySet::new().grant(read_eval_capability()),
-        },
-        requires: vec![module_load_capability()],
-        allow: CapabilitySet::new()
-            .grant(read_eval_capability())
-            .grant(module_load_capability()),
-    }
-}
-
-fn value_expr(cx: &mut Cx, module: &ModuleInstance) -> Expr {
-    module
-        .default_export()
-        .get()
-        .unwrap()
-        .object()
-        .as_expr(cx)
-        .unwrap()
-}
+use crate::{
+    BoundedLane, CanonicalObservation, CanonicalOutcome, CaptureComparisonProjection,
+    CharacterizationCapture, CharacterizationScenario, ConformanceHarness, ConformanceOutcome,
+    ConformanceTestCase, FidelityBadge, LanguageProfile, OrganUse, ScenarioInput, ScenarioLimits,
+    ScenarioObservationLane, ScenarioSpec, StandardTestReport, characterization_capture_kind,
+    characterization_capture_predicate, compare_characterization_captures,
+    publish_characterization_capture, standard_binding_organ_symbol,
+    standard_reported_fidelity_level_predicate, standard_test_capability,
+    standard_test_result_predicate, standard_test_run_kind, standard_test_status_predicate,
+    standard_test_stub,
+};
 
 #[test]
-fn relative_resolution_and_root_escape_are_explicit() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    let pkg = root.directory(&mut cx, "pkg");
-    pkg.source(&mut cx, "sibling.sim", "\"relative\"");
-    let importer = ModuleIdentity {
-        root: Symbol::new("fixture"),
-        path: "pkg/main.sim".to_owned(),
-    };
-    let loader = ModuleLoader::new();
-    let loaded = loader
-        .load(
-            &mut cx,
-            request(root.clone(), "./sibling.sim", Some(importer.clone())),
-        )
-        .unwrap();
-    assert_eq!(loaded.identity.path(), "pkg/sibling.sim");
-    assert_eq!(
-        value_expr(&mut cx, &loaded),
-        Expr::String("relative".to_owned())
+fn captures_intern_by_semantics_and_publish_scenario_evidence() {
+    let mut cx = test_cx();
+    let scenario = valid_scenario_spec("capture");
+    let baseline = CharacterizationCapture::new(
+        Symbol::qualified("projection", "canonical/v1"),
+        outcome_observation("same"),
     );
-    let error = loader
-        .load(&mut cx, request(root, "../../escape.sim", Some(importer)))
-        .unwrap_err();
-    assert!(error.to_string().contains("escapes supplied root"));
+
+    let first = publish_characterization_capture(&mut cx, &scenario, &baseline).unwrap();
+    let rendered_differently = baseline.clone();
+    let second =
+        publish_characterization_capture(&mut cx, &scenario, &rendered_differently).unwrap();
+
+    assert_eq!(first, second, "rendering is outside capture identity");
+    assert_has_claim(
+        &cx,
+        Ref::Symbol(scenario.id.clone()),
+        characterization_capture_predicate(),
+        first.clone(),
+    );
+    let Ref::Content(id) = first else {
+        panic!("capture must be content addressed");
+    };
+    let Some(Datum::Node { tag, .. }) = cx.datum_store().get(&id).unwrap() else {
+        panic!("capture datum must be interned");
+    };
+    assert_eq!(tag, &characterization_capture_kind());
+
+    let changed_observation =
+        CharacterizationCapture::new(baseline.projection.clone(), outcome_observation("changed"));
+    let changed =
+        publish_characterization_capture(&mut cx, &scenario, &changed_observation).unwrap();
+    assert_ne!(Ref::Content(id), changed);
+
+    let mut changed_projection = baseline.clone();
+    changed_projection.projection = Symbol::qualified("projection", "other/v1");
+    assert_ne!(
+        second,
+        publish_characterization_capture(&mut cx, &scenario, &changed_projection).unwrap()
+    );
 }
 
 #[test]
-fn failure_is_cached_and_receipted_deterministically() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut cx, "bad.sim", "(");
-    let loader = ModuleLoader::new();
-    let first = loader
-        .load(&mut cx, request(root.clone(), "bad.sim", None))
-        .unwrap_err()
-        .to_string();
-    root.source(&mut cx, "bad.sim", "\"repaired but cached\"");
-    let second = loader
-        .load(&mut cx, request(root, "bad.sim", None))
-        .unwrap_err()
-        .to_string();
-    assert_eq!(first, second);
+fn captures_fail_closed_on_schema_bounds_and_incomplete_lanes() {
+    let scenario = valid_scenario_spec("rejected");
+    let valid = CharacterizationCapture::new(
+        Symbol::qualified("projection", "canonical/v1"),
+        outcome_observation("same"),
+    );
+
+    let mut wrong_schema = valid.clone();
+    wrong_schema.schema = Symbol::qualified("standard", "characterization-capture/v2");
+    assert!(
+        publish_characterization_capture(&mut test_cx(), &scenario, &wrong_schema)
+            .unwrap_err()
+            .to_string()
+            .contains("unsupported characterization capture schema")
+    );
+
+    let mut incomplete = valid.clone();
+    incomplete.observation.outcome = None;
+    assert!(
+        publish_characterization_capture(&mut test_cx(), &scenario, &incomplete)
+            .unwrap_err()
+            .to_string()
+            .contains("incomplete value-or-failure")
+    );
+
+    let events_scenario = scenario
+        .clone()
+        .with_limits(ScenarioLimits::new(1, 2))
+        .observing(ScenarioObservationLane::Events);
+    let mut truncated = valid.clone();
+    truncated.observation.events = BoundedLane::Truncated {
+        items: vec![Datum::String("kept".to_owned())],
+        omitted: 1,
+    };
+    assert!(
+        publish_characterization_capture(&mut test_cx(), &events_scenario, &truncated)
+            .unwrap_err()
+            .to_string()
+            .contains("truncated Events")
+    );
+
+    let mut over_limit = valid;
+    over_limit.observation.events = BoundedLane::Complete(vec![
+        Datum::String("one".to_owned()),
+        Datum::String("two".to_owned()),
+    ]);
+    assert!(
+        publish_characterization_capture(&mut test_cx(), &events_scenario, &over_limit)
+            .unwrap_err()
+            .to_string()
+            .contains("exceeds its observation bound")
+    );
+}
+
+#[test]
+fn capture_comparison_reports_recursive_canonical_paths_and_values() {
+    let left_scenario = valid_scenario_spec("compare");
+    let mut right_scenario = left_scenario.clone();
+    right_scenario.setup = Symbol::qualified("setup", "new/v1");
+    right_scenario.inputs[0].datum = Datum::Node {
+        tag: Symbol::qualified("test", "input/v1"),
+        fields: vec![(Symbol::new("value"), Datum::String("right".to_owned()))],
+    };
+    right_scenario
+        .observation_lanes
+        .insert(ScenarioObservationLane::Events);
+
+    let projection = Symbol::qualified("projection", "strict/v1");
+    let left = CharacterizationCapture::new(projection.clone(), outcome_observation("left"));
+    let mut right = CharacterizationCapture::new(projection.clone(), outcome_observation("right"));
+    right.observation.events = BoundedLane::Complete(Vec::new());
+
+    let comparison = compare_characterization_captures(
+        &left_scenario,
+        &left,
+        &right_scenario,
+        &right,
+        &CaptureComparisonProjection::new(projection.clone()),
+    )
+    .unwrap();
+
+    assert_eq!(comparison.projection, projection);
     assert_eq!(
-        loader
-            .receipts()
-            .unwrap()
+        comparison
+            .differences
             .iter()
-            .map(|r| r.outcome)
+            .map(|difference| difference.path.as_str())
             .collect::<Vec<_>>(),
-        vec![
-            ModuleResolutionOutcome::Failed,
-            ModuleResolutionOutcome::Failed
+        [
+            "$.setup",
+            "$.inputs[0].datum",
+            "$.selected-lanes[1]",
+            "$.observation.outcome.value",
+            "$.observation.events",
         ]
     );
+    let outcome = comparison
+        .differences
+        .iter()
+        .find(|difference| difference.path == "$.observation.outcome.value")
+        .unwrap();
+    assert_eq!(outcome.left, Datum::String("left".to_owned()));
+    assert_eq!(outcome.right, Datum::String("right".to_owned()));
 }
 
 #[test]
-fn replacement_updates_existing_live_binding() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut cx, "live.sim", "\"one\"");
-    let loader = ModuleLoader::new();
-    let first = loader
-        .load(&mut cx, request(root.clone(), "live.sim", None))
-        .unwrap();
-    let edge = first.default_export().clone();
-    root.source(&mut cx, "live.sim", "\"two\"");
-    let second = loader
-        .reload(&mut cx, request(root, "live.sim", None))
-        .unwrap();
-    assert_eq!(second.generation(), 2);
-    assert_eq!(
-        edge.get().unwrap().object().as_expr(&mut cx).unwrap(),
-        Expr::String("two".to_owned())
-    );
-}
+fn capture_projection_is_exact_two_sided_and_part_of_capture_identity() {
+    let scenario = valid_scenario_spec("projection");
+    let identity = Symbol::qualified("projection", "timestamps/v1");
+    let left = CharacterizationCapture::new(identity.clone(), outcome_observation("old"));
+    let right = CharacterizationCapture::new(identity.clone(), outcome_observation("new"));
+    let projection =
+        CaptureComparisonProjection::new(identity.clone()).ignoring("$.observation.outcome.value");
 
-#[test]
-fn initializing_cycle_has_stable_receipt_without_storage_access() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    let loader = ModuleLoader::new();
-    let identity = ModuleIdentity {
-        root: Symbol::new("fixture"),
-        path: "cycle.sim".to_owned(),
-    };
-    loader.state.lock().unwrap().cache.insert(
-        identity.clone(),
-        CacheState::Initializing {
-            owner: std::thread::current().id(),
-            generation: 7,
-        },
-    );
-    let error = loader
-        .load(&mut cx, request(root, "cycle.sim", None))
-        .unwrap_err();
-    assert_eq!(
-        error.to_string(),
-        "evaluation error: module cycle at fixture:cycle.sim"
-    );
-    let receipt = loader.receipts().unwrap().pop().unwrap();
-    assert_eq!(
-        (receipt.generation, receipt.outcome),
-        (7, ModuleResolutionOutcome::Cycle)
-    );
-}
-
-#[test]
-fn cache_hit_reuses_one_linked_generation() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut cx, "shared.sim", "\"shared\"");
-    let loader = ModuleLoader::new();
-    let first = loader
-        .load(&mut cx, request(root.clone(), "shared.sim", None))
-        .unwrap();
-    let second = loader
-        .load(&mut cx, request(root, "shared.sim", None))
-        .unwrap();
-    assert_eq!(first.generation(), second.generation());
-    assert_eq!(
-        loader.receipts().unwrap().last().unwrap().outcome,
-        ModuleResolutionOutcome::CacheHit
-    );
-}
-
-#[test]
-fn concurrent_requests_share_one_initialization() {
-    let mut seed_cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut seed_cx, "concurrent.sim", "\"once\"");
-    let loader = Arc::new(ModuleLoader::new());
-    let workers = (0..8)
-        .map(|_| {
-            let root = root.clone();
-            let loader = loader.clone();
-            std::thread::spawn(move || {
-                let mut cx = context();
-                loader
-                    .load(&mut cx, request(root, "concurrent.sim", None))
-                    .unwrap()
-                    .generation()
-            })
-        })
-        .collect::<Vec<_>>();
     assert!(
-        workers
-            .into_iter()
-            .all(|worker| worker.join().unwrap() == 1)
+        compare_characterization_captures(&scenario, &left, &scenario, &right, &projection)
+            .unwrap()
+            .is_same()
     );
-    let receipts = loader.receipts().unwrap();
-    assert_eq!(
-        receipts
-            .iter()
-            .filter(|r| r.outcome == ModuleResolutionOutcome::Linked)
-            .count(),
-        1
+
+    let undeclared = CaptureComparisonProjection::new(identity.clone()).ignoring("$.not-present");
+    assert!(
+        compare_characterization_captures(&scenario, &left, &scenario, &right, &undeclared)
+            .unwrap_err()
+            .to_string()
+            .contains("declares non-two-sided field")
     );
-    assert_eq!(
-        receipts
-            .iter()
-            .filter(|r| r.outcome == ModuleResolutionOutcome::CacheHit)
-            .count(),
-        7
+
+    let changed =
+        CaptureComparisonProjection::new(Symbol::qualified("projection", "timestamps/v2"));
+    assert!(
+        compare_characterization_captures(&scenario, &left, &scenario, &right, &changed)
+            .unwrap_err()
+            .to_string()
+            .contains("is not recorded by both captures")
     );
 }
 
-#[derive(Debug)]
-struct CompositionNode;
-
-impl ManagedObject for CompositionNode {
-    fn trace_edges(&self, _visitor: &mut dyn EdgeVisitor) {}
-
-    fn clear_weak_edge(&mut self, _edge: EdgeId, _expected: ManagedId) -> bool {
-        false
+fn outcome_observation(value: &str) -> CanonicalObservation {
+    CanonicalObservation {
+        outcome: Some(CanonicalOutcome::Success(Datum::String(value.to_owned()))),
+        events: BoundedLane::Absent,
+        receipts: BoundedLane::Absent,
+        browse: BoundedLane::Absent,
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-enum CompositionJob {
-    Microtask,
-    Finalization,
+#[test]
+fn invalid_scenario_registry_fails_before_any_driver_effect() {
+    let effects = Arc::new(AtomicUsize::new(0));
+    let mut harness = ConformanceHarness::new()
+        .with_supported_scenario_lanes([ScenarioObservationLane::ValueOrFailure]);
+    harness
+        .register_scenario(scenario(
+            "valid",
+            valid_scenario_spec("valid"),
+            effects.clone(),
+        ))
+        .unwrap();
+    harness
+        .register_scenario(scenario(
+            "invalid",
+            valid_scenario_spec("invalid")
+                .with_limits(ScenarioLimits::new(1, 2))
+                .observing(ScenarioObservationLane::Events),
+            effects.clone(),
+        ))
+        .unwrap();
+
+    let error = harness.run_scenarios(&mut test_cx()).unwrap_err();
+
+    assert!(error.to_string().contains("unsupported lane"));
+    assert_eq!(effects.load(Ordering::SeqCst), 0);
 }
 
 #[test]
-fn language_neutral_organs_compose_through_one_source_module_lifecycle() {
-    let mut cx = context();
-    let root = Arc::new(MemoryDir::default());
-    root.source(&mut cx, "component.sim", "\"generation-one\"");
-
-    let mut arena = ManagedArena::new(HardCappedRetainPolicy::new(2).unwrap());
-    let managed = arena.allocate(CompositionNode).unwrap();
-    let rooted = arena.root(managed).unwrap();
-
-    let parameter = Symbol::new("component");
-    let argument = cx.factory().string("bound-component".to_owned()).unwrap();
-    let bound = CallSignature::new()
-        .with_positional(vec![CallParameter::required(parameter.clone())])
-        .bind([CallArgument::Positional(argument.clone())])
+fn scenario_preflight_rejects_duplicate_missing_bounds_and_undeclared_authority() {
+    let effects = Arc::new(AtomicUsize::new(0));
+    let mut duplicate = ConformanceHarness::new();
+    duplicate
+        .register_scenario(scenario(
+            "same",
+            valid_scenario_spec("same"),
+            effects.clone(),
+        ))
         .unwrap();
+    let duplicate_error = duplicate
+        .register_scenario(scenario(
+            "same",
+            valid_scenario_spec("same"),
+            effects.clone(),
+        ))
+        .unwrap_err();
     assert!(
-        bound
-            .get(&parameter)
-            .is_some_and(|value| value == &argument)
+        duplicate_error
+            .to_string()
+            .contains("duplicate scenario id")
     );
 
-    let mut properties: PropertyStore<&str, &str, u64, ()> = PropertyStore::default();
-    let generation = "generation";
-    properties
-        .define(
-            &"component",
-            generation,
-            Descriptor::Data(DataDescriptor {
-                value: 1,
-                writable: true,
-                enumerable: true,
-                configurable: false,
-            }),
-        )
-        .unwrap();
-    assert!(matches!(
-        properties.own(&"component", &generation),
-        Some(Descriptor::Data(DataDescriptor { value, configurable: false, .. }))
-            if *value == managed.id().allocation_ordinal() + 1
-    ));
+    for invalid in [
+        ScenarioSpec::new(scenario_symbol("missing"), setup_symbol())
+            .with_authority(authority_symbol())
+            .observing(ScenarioObservationLane::ValueOrFailure),
+        ScenarioSpec::new(scenario_symbol("authority"), setup_symbol())
+            .with_limits(ScenarioLimits::new(1, 1))
+            .with_input(ScenarioInput::new(
+                Symbol::new("input"),
+                authority_symbol(),
+                sim_kernel::Datum::String("value".to_owned()),
+            ))
+            .observing(ScenarioObservationLane::ValueOrFailure),
+    ] {
+        let mut harness = ConformanceHarness::new();
+        harness
+            .register_scenario(scenario("invalid", invalid, effects.clone()))
+            .unwrap();
+        assert!(harness.run_scenarios(&mut test_cx()).is_err());
+    }
+    assert_eq!(effects.load(Ordering::SeqCst), 0);
+}
 
-    let loader = ModuleLoader::new();
-    let first = loader
-        .load(&mut cx, request(root.clone(), "component.sim", None))
+#[test]
+fn bounded_scenarios_run_in_stable_identity_order() {
+    let effects = Arc::new(AtomicUsize::new(0));
+    let mut harness = ConformanceHarness::new();
+    harness
+        .register_scenario(scenario(
+            "second",
+            valid_scenario_spec("second"),
+            effects.clone(),
+        ))
         .unwrap();
-    let live_export = first.default_export().clone();
+    harness
+        .register_scenario(scenario(
+            "first",
+            valid_scenario_spec("first"),
+            effects.clone(),
+        ))
+        .unwrap();
+
+    let completed = harness.run_scenarios(&mut test_cx()).unwrap();
+
     assert_eq!(
-        value_expr(&mut cx, &first),
-        Expr::String("generation-one".to_owned())
+        completed,
+        vec![scenario_symbol("first"), scenario_symbol("second")]
     );
+    assert_eq!(effects.load(Ordering::SeqCst), 2);
+}
 
-    let mut frame = ResumableFrame::new(
-        FrameLimits { depth: 1, work: 2 },
-        |packet: ResumePacket<u64, ()>, budget: &mut sim_lib_control::StepBudget| {
-            budget.charge_work()?;
-            match packet {
-                ResumePacket::Start => Ok(ResumeResult::Yielded(1)),
-                ResumePacket::Send(generation) => Ok(ResumeResult::Returned(generation)),
-                ResumePacket::Throw(()) => Ok(ResumeResult::Failed(())),
-                ResumePacket::Close => Ok(ResumeResult::Returned(0)),
-            }
-        },
-    );
+#[test]
+fn standard_test_reports_per_organ_pass_fail() {
+    let mut cx = test_cx();
+    cx.grant(standard_test_capability());
+    let profile = conformance_profile(profile_symbol());
+
+    let report = standard_test_stub(&mut cx, &conformance_harness(false), &profile).unwrap();
+
+    assert!(!report.passed());
+    assert_eq!(report.result_count(), 2);
+    assert!(organ_report(&report, control_organ()).passed());
+    let binding = organ_report(&report, standard_binding_organ_symbol());
+    assert!(!binding.passed());
     assert_eq!(
-        frame.resume(ResumePacket::Start),
-        Ok(ResumeResult::Yielded(1))
+        binding.tests[0].detail.as_deref(),
+        Some("binding regression")
     );
+}
 
-    let mut jobs = JobQueues::new(AdmissionLimit(3));
-    jobs.enqueue(CompositionJob::Microtask, |jobs| {
-        jobs.enqueue(CompositionJob::Microtask, |_| {}).unwrap();
-    })
-    .unwrap();
-    jobs.enqueue(CompositionJob::Finalization, |_| {}).unwrap();
-    let checkpoint = jobs
-        .checkpoint(CompositionJob::Microtask, WorkLimit(2))
-        .unwrap();
-    assert_eq!(checkpoint.completed.len(), 2);
+#[test]
+fn failed_organ_tests_lower_reported_badge() {
+    let mut cx = test_cx();
+    cx.grant(standard_test_capability());
+    let profile = conformance_profile(profile_symbol());
+
+    let report = standard_test_stub(&mut cx, &conformance_harness(false), &profile).unwrap();
+
+    let control_badge = reported_badge(&report, Symbol::qualified("standard", "control"));
+    assert_eq!(control_badge.level, 2);
+    assert_eq!(control_badge.evidence, Ref::Symbol(control_test_symbol()));
+
+    let binding_badge = reported_badge(&report, binding_badge_symbol());
+    let failed_evidence = organ_report(&report, standard_binding_organ_symbol()).tests[0]
+        .evidence
+        .clone();
+    assert_eq!(binding_badge.level, 1);
+    assert_eq!(binding_badge.evidence, failed_evidence);
+}
+
+#[test]
+fn harness_is_profile_agnostic_and_organ_keyed() {
+    let mut cx = test_cx();
+    cx.grant(standard_test_capability());
+    let mut harness = ConformanceHarness::new();
+    harness.register_test(pass_case(control_test_symbol(), control_organ()));
+
+    assert_eq!(harness.test_count(), 1);
+    assert_eq!(harness.tests_for_organ(&control_organ()).len(), 1);
     assert!(
-        jobs.drain(CompositionJob::Finalization, WorkLimit(0))
-            .completed
+        harness
+            .tests_for_organ(&standard_binding_organ_symbol())
             .is_empty()
     );
 
-    root.source(&mut cx, "component.sim", "\"generation-two\"");
-    let second = loader
-        .reload(&mut cx, request(root, "component.sim", None))
-        .unwrap();
-    assert_eq!(
-        frame.resume(ResumePacket::Send(second.generation())),
-        Ok(ResumeResult::Returned(2))
-    );
-    assert_eq!(
-        live_export
-            .get()
-            .unwrap()
-            .object()
-            .as_expr(&mut cx)
-            .unwrap(),
-        Expr::String("generation-two".to_owned())
-    );
+    let first =
+        standard_test_stub(&mut cx, &harness, &conformance_profile(profile_symbol())).unwrap();
+    let second = standard_test_stub(
+        &mut cx,
+        &harness,
+        &conformance_profile(Symbol::qualified("lang", "other-conformance/v1")),
+    )
+    .unwrap();
+    assert_eq!(first.result_count(), 1);
+    assert_eq!(second.result_count(), 1);
+    assert!(first.passed());
+    assert!(second.passed());
+}
 
-    let (_, safepoint) = arena
-        .safepoint(|snapshot| snapshot.objects().count())
+#[test]
+fn standard_test_publishes_cards_and_evidence_claims() {
+    let mut cx = test_cx();
+    cx.grant(standard_test_capability());
+    let profile = conformance_profile(profile_symbol());
+
+    let report = standard_test_stub(&mut cx, &conformance_harness(false), &profile).unwrap();
+    let failed_evidence = organ_report(&report, standard_binding_organ_symbol()).tests[0]
+        .evidence
+        .clone();
+    let evidence_card = card_for_ref(&mut cx, failed_evidence.clone())
+        .unwrap()
+        .object()
+        .as_expr(&mut cx)
         .unwrap();
-    assert_eq!(safepoint.roots, vec![managed.id()]);
-    arena.release_root(rooted).unwrap();
-    let teardown = arena.teardown();
-    assert_eq!(teardown.objects, vec![managed.id()]);
+
     assert_eq!(
-        loader
-            .receipts()
-            .unwrap()
+        table_value(&evidence_card, "kind"),
+        Some(&Expr::Symbol(standard_test_run_kind()))
+    );
+    assert_list_contains_symbol(
+        table_value(&evidence_card, "tests").unwrap(),
+        binding_test_symbol(),
+    );
+    assert_has_claim(
+        &cx,
+        failed_evidence.clone(),
+        card_tests_predicate(),
+        Ref::Symbol(binding_test_symbol()),
+    );
+    assert_has_claim(
+        &cx,
+        Ref::Symbol(profile.symbol.clone()),
+        standard_test_result_predicate(),
+        failed_evidence.clone(),
+    );
+    assert_has_claim(
+        &cx,
+        Ref::Symbol(profile.symbol.clone()),
+        standard_evidence_predicate(),
+        failed_evidence.clone(),
+    );
+    assert_has_claim(
+        &cx,
+        failed_evidence.clone(),
+        standard_test_status_predicate(),
+        Ref::Symbol(Symbol::qualified("standard/test", "fail")),
+    );
+    let level_claims = cx
+        .query_facts(ClaimPattern::exact(
+            Ref::Symbol(profile.symbol.clone()),
+            standard_reported_fidelity_level_predicate(),
+            Ref::Symbol(Symbol::qualified("standard/fidelity-level", "1")),
+        ))
+        .unwrap();
+    assert_eq!(level_claims.len(), 1);
+    assert_eq!(level_claims[0].kind, ClaimKind::Observed);
+    assert_eq!(level_claims[0].evidence, vec![failed_evidence]);
+}
+
+fn conformance_profile(profile: Symbol) -> LanguageProfile {
+    LanguageProfile::new(profile.clone())
+        .with_reader(Symbol::qualified("codec", "lisp"))
+        .with_lowering(Symbol::qualified("standard", "identity-lowering"))
+        .with_eval_policy(Symbol::qualified("eval", "noop"))
+        .with_organ(OrganUse::new(control_organ()))
+        .with_organ(OrganUse::new(standard_binding_organ_symbol()))
+        .with_conformance_test(control_test_symbol())
+        .with_conformance_test(binding_test_symbol())
+        .with_fidelity_badge(FidelityBadge::new(
+            Ref::Symbol(profile.clone()),
+            Symbol::qualified("standard", "control"),
+            2,
+            Ref::Symbol(control_test_symbol()),
+        ))
+        .with_fidelity_badge(FidelityBadge::new(
+            Ref::Symbol(profile),
+            binding_badge_symbol(),
+            2,
+            Ref::Symbol(binding_test_symbol()),
+        ))
+}
+
+fn valid_scenario_spec(name: &str) -> ScenarioSpec {
+    ScenarioSpec::new(scenario_symbol(name), setup_symbol())
+        .with_authority(authority_symbol())
+        .with_limits(ScenarioLimits::new(1, 1))
+        .with_input(ScenarioInput::new(
+            Symbol::new("input"),
+            authority_symbol(),
+            sim_kernel::Datum::String("value".to_owned()),
+        ))
+        .observing(ScenarioObservationLane::ValueOrFailure)
+}
+
+fn scenario(
+    _name: &str,
+    spec: ScenarioSpec,
+    effects: Arc<AtomicUsize>,
+) -> CharacterizationScenario {
+    CharacterizationScenario::new(
+        spec,
+        Arc::new(move |_, _| {
+            effects.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }),
+    )
+}
+
+fn scenario_symbol(name: &str) -> Symbol {
+    Symbol::qualified("scenario", name)
+}
+
+fn setup_symbol() -> Symbol {
+    Symbol::qualified("setup", "standard-core")
+}
+
+fn authority_symbol() -> Symbol {
+    Symbol::qualified("authority", "evaluate")
+}
+
+fn conformance_harness(binding_passes: bool) -> ConformanceHarness {
+    let mut harness = ConformanceHarness::new();
+    harness.register_test(pass_case(control_test_symbol(), control_organ()));
+    let binding = if binding_passes {
+        pass_case(binding_test_symbol(), standard_binding_organ_symbol())
+    } else {
+        fail_case(
+            binding_test_symbol(),
+            standard_binding_organ_symbol(),
+            "binding regression",
+        )
+        .affecting_badge(binding_badge_symbol())
+    };
+    harness.register_test(binding);
+    harness
+}
+
+fn pass_case(test: Symbol, organ: Symbol) -> ConformanceTestCase {
+    ConformanceTestCase::new(test, organ, Arc::new(|_, _| Ok(ConformanceOutcome::pass())))
+}
+
+fn fail_case(test: Symbol, organ: Symbol, detail: &'static str) -> ConformanceTestCase {
+    ConformanceTestCase::new(
+        test,
+        organ,
+        Arc::new(move |_, _| Ok(ConformanceOutcome::fail(detail))),
+    )
+}
+
+fn organ_report(report: &StandardTestReport, organ: Symbol) -> &crate::OrganTestReport {
+    report
+        .organs
+        .iter()
+        .find(|reported| reported.organ == organ)
+        .unwrap()
+}
+
+fn reported_badge(report: &StandardTestReport, badge: Symbol) -> &FidelityBadge {
+    report
+        .reported_badges
+        .iter()
+        .find(|reported| reported.badge == badge)
+        .unwrap()
+}
+
+fn control_organ() -> Symbol {
+    Symbol::qualified("organ", "control")
+}
+
+fn profile_symbol() -> Symbol {
+    Symbol::qualified("lang", "conformance/v1")
+}
+
+fn control_test_symbol() -> Symbol {
+    Symbol::qualified("test", "control-pass")
+}
+
+fn binding_test_symbol() -> Symbol {
+    Symbol::qualified("test", "binding-fail")
+}
+
+fn binding_badge_symbol() -> Symbol {
+    Symbol::qualified("standard", "binding")
+}
+
+fn test_cx() -> Cx {
+    Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory))
+}
+
+fn table_value<'a>(expr: &'a Expr, key: &str) -> Option<&'a Expr> {
+    let Expr::Map(entries) = expr else {
+        return None;
+    };
+    entries.iter().find_map(|(entry_key, entry_value)| {
+        let Expr::Symbol(entry_key) = entry_key else {
+            return None;
+        };
+        (entry_key == &Symbol::new(key)).then_some(entry_value)
+    })
+}
+
+fn assert_list_contains_symbol(expr: &Expr, expected: Symbol) {
+    let Expr::List(items) = expr else {
+        panic!("expected list");
+    };
+    assert!(
+        items
             .iter()
-            .map(|receipt| receipt.outcome)
-            .collect::<Vec<_>>(),
-        [
-            ModuleResolutionOutcome::Linked,
-            ModuleResolutionOutcome::Linked
-        ]
+            .any(|item| item == &Expr::Symbol(expected.clone())),
+        "expected list to contain {expected}"
     );
 }
+
+fn assert_has_claim(cx: &Cx, subject: Ref, predicate: Symbol, object: Ref) {
+    let claims = cx
+        .query_facts(ClaimPattern::exact(subject, predicate, object))
+        .unwrap();
+    assert_eq!(claims.len(), 1);
+}
+```
+
+Specimen `recipe/sim-runtime/crates/sim-lib-standard-core/01-basics/characterize-migration` is checked by `sh scripts/check-recipes.sh`.
+
+Source `crates/sim-lib-standard-core/recipes/01-basics/characterize-migration/recipe.toml`:
+
+```toml
+id = "characterize-migration"
+title = "Characterize a migration"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 20
+tags = ["standard", "characterization", "migration", "contract"]
+requires = ["core", "codec/lisp"]
 ```
 
 ### `feature/sim-runtime/library-loading`
@@ -4757,6 +12152,7 @@ mod symbols;
 mod table;
 mod value;
 
+pub use call::LuaExceptionProfile;
 pub use conformance::{
     REUSE_LEDGER, ReuseLedgerEntry, run_lua_core_conformance_case, run_lua_core_matrix_row,
 };
@@ -4806,11 +12202,19 @@ Source `crates/sim-lib-lang-python/src/objects.rs`:
 ```rust
 //! Python object policy over the language-neutral property store.
 
+use sim_kernel::{
+    ClassId, ClassRef, Cx, Expr, MatchScore, Shape, ShapeDoc, ShapeMatch, ShapeRef, Value,
+};
+use sim_lib_class::{
+    C3Policy, CacheError, ClassCache, ClassDescriptor, ClassDescriptorInput, ClassIdentity,
+    ClassRoot, DeclaredParent, LineageBudget,
+};
 use sim_lib_dispatch::{
     AccessContext, AccessError, AccessorDescriptor, DataDescriptor, Descriptor, PropertyHook,
     PropertyStore,
 };
-use std::collections::{BTreeMap, BTreeSet};
+use sim_lib_gc_tracing::{CollectionLimits, CollectionReceipt};
+use std::{collections::BTreeMap, sync::Arc};
 
 // conformance: Python object policy checks classes, descriptors, methods, and super.
 
@@ -4847,23 +12251,26 @@ pub struct DescriptorHook {
 }
 
 /// A declared Python class and its C3-linearized bases.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct PythonClass {
-    /// Stable class identity.
-    pub id: u64,
+    /// Runtime class identity. Python never substitutes an integer surrogate.
+    pub identity: ClassRef,
     /// Display name.
     pub name: String,
     /// Direct bases in declaration order.
-    pub bases: Vec<u64>,
+    pub descriptor: ClassDescriptor,
     /// C3 method resolution order, including this class.
-    pub mro: Vec<u64>,
+    pub mro: Vec<ClassRef>,
+    cache_root: ClassRoot,
 }
 
 /// Failure to construct a consistent class hierarchy.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ClassError {
     /// A base class is unknown.
-    UnknownBase(u64),
+    UnknownBase(ClassId),
+    /// The supplied value is not a class or its descriptor is malformed.
+    InvalidClass,
     /// The requested bases have no consistent C3 linearization.
     InconsistentMro,
 }
@@ -4911,59 +12318,192 @@ impl PropertyHook<u64, String, PythonObjectValue, DescriptorHook> for Hooks {
 }
 
 /// Python class and instance policy using shared property mechanics.
-#[derive(Default)]
 pub struct PythonObjectSpace {
-    classes: BTreeMap<u64, PythonClass>,
-    instances: BTreeMap<u64, u64>,
+    classes: BTreeMap<ClassId, PythonClass>,
+    cache_ids: BTreeMap<sim_lib_mutation::ManagedId, ClassId>,
+    cache: ClassCache<()>,
+    instances: BTreeMap<u64, ClassId>,
     properties: PropertyStore<u64, String, PythonObjectValue, DescriptorHook>,
     hooks: Hooks,
 }
 
+impl Default for PythonObjectSpace {
+    fn default() -> Self {
+        Self {
+            classes: BTreeMap::new(),
+            cache_ids: BTreeMap::new(),
+            cache: ClassCache::new(4096).expect("fixed positive Python class-cache capacity"),
+            instances: BTreeMap::new(),
+            properties: PropertyStore::default(),
+            hooks: Hooks::default(),
+        }
+    }
+}
+
+struct PythonAnyShape;
+impl Shape for PythonAnyShape {
+    fn check_value(&self, _: &mut Cx, _: Value) -> sim_kernel::Result<ShapeMatch> {
+        Ok(ShapeMatch::accept(MatchScore::exact(1)))
+    }
+    fn check_expr(&self, _: &mut Cx, _: &Expr) -> sim_kernel::Result<ShapeMatch> {
+        Ok(ShapeMatch::accept(MatchScore::exact(1)))
+    }
+    fn describe(&self, _: &mut Cx) -> sim_kernel::Result<ShapeDoc> {
+        Ok(ShapeDoc::new("python-object"))
+    }
+}
+
 impl PythonObjectSpace {
+    pub(crate) fn is_subclass(&self, class: ClassId, candidate: ClassId) -> bool {
+        self.classes.get(&class).is_some_and(|declared| {
+            declared.mro.iter().any(|entry| {
+                entry
+                    .object()
+                    .as_class()
+                    .is_some_and(|entry| entry.id() == candidate)
+            })
+        })
+    }
+
+    pub(crate) fn subclass_work(&self, class: ClassId, candidate: ClassId, limit: usize) -> usize {
+        let Some(declared) = self.classes.get(&class) else {
+            return 0;
+        };
+        let required = declared
+            .mro
+            .iter()
+            .position(|entry| {
+                entry
+                    .object()
+                    .as_class()
+                    .is_some_and(|entry| entry.id() == candidate)
+            })
+            .map_or(declared.mro.len(), |at| at + 1);
+        if required > limit {
+            limit.saturating_add(1)
+        } else {
+            required
+        }
+    }
+
     /// Declare a class and compute its C3 MRO.
     pub fn define_class(
         &mut self,
-        id: u64,
-        name: impl Into<String>,
-        bases: Vec<u64>,
+        cx: &Cx,
+        identity: ClassRef,
+        bases: Vec<ClassRef>,
     ) -> Result<(), ClassError> {
-        let mut sequences = Vec::new();
+        let class = identity
+            .object()
+            .as_class()
+            .ok_or(ClassError::InvalidClass)?;
+        let id = class.id();
+        let name = class.symbol().name.to_string();
+        let mut parent_roots = Vec::with_capacity(bases.len());
+        let mut parents = Vec::with_capacity(bases.len());
         for base in &bases {
-            sequences.push(
-                self.classes
-                    .get(base)
-                    .ok_or(ClassError::UnknownBase(*base))?
-                    .mro
-                    .clone(),
-            );
+            let parent = base.object().as_class().ok_or(ClassError::InvalidClass)?;
+            let stored = self
+                .classes
+                .get(&parent.id())
+                .ok_or(ClassError::UnknownBase(parent.id()))?;
+            parent_roots.push(stored.cache_root);
+            parents.push(DeclaredParent::resolved(
+                ClassIdentity::checked(parent.id(), parent.symbol().clone())
+                    .map_err(|_| ClassError::InvalidClass)?,
+                base.clone(),
+            ));
         }
-        sequences.push(bases.clone());
-        let mut mro = vec![id];
-        mro.extend(c3_merge(sequences)?);
+        let shape: ShapeRef = cx
+            .factory()
+            .opaque(Arc::new(PythonAnyShape))
+            .map_err(|_| ClassError::InvalidClass)?;
+        let descriptor = ClassDescriptor::new(ClassDescriptorInput {
+            identity: ClassIdentity::checked(id, class.symbol().clone())
+                .map_err(|_| ClassError::InvalidClass)?,
+            parents,
+            constructor_shape: shape.clone(),
+            instance_shape: shape,
+            members: Vec::new(),
+            read_construction: None,
+            metadata: Vec::new(),
+        })
+        .map_err(|_| ClassError::InconsistentMro)?;
+        let cache_root = self
+            .cache
+            .allocate_class(&parent_roots, Vec::new())
+            .map_err(map_cache_error)?;
+        self.cache_ids.insert(cache_root.id(), id);
+        let derived = match self.cache.derived(cache_root, &C3Policy, lineage_budget()) {
+            Ok(derived) => derived,
+            Err(error) => {
+                self.cache_ids.remove(&cache_root.id());
+                self.cache.release(cache_root).map_err(map_cache_error)?;
+                return Err(map_cache_error(error));
+            }
+        };
+        let mro = derived
+            .view
+            .linearization
+            .iter()
+            .map(|managed| {
+                let class_id = self.cache_ids[managed];
+                if class_id == id {
+                    identity.clone()
+                } else {
+                    self.classes[&class_id].identity.clone()
+                }
+            })
+            .collect();
         self.classes.insert(
             id,
             PythonClass {
-                id,
-                name: name.into(),
-                bases,
+                identity,
+                name,
+                descriptor,
                 mro,
+                cache_root,
             },
         );
         Ok(())
     }
 
     /// Allocate an instance of a known class.
-    pub fn instantiate(&mut self, object: u64, class: u64) -> Result<(), AttributeError> {
-        if !self.classes.contains_key(&class) {
-            return Err(AttributeError::UnknownClass(class));
+    pub fn instantiate(&mut self, object: u64, class: ClassRef) -> Result<(), AttributeError> {
+        let id = class
+            .object()
+            .as_class()
+            .ok_or(AttributeError::UnknownClass(u64::MAX))?
+            .id();
+        if !self.classes.contains_key(&id) {
+            return Err(AttributeError::UnknownClass(u64::from(id.0)));
         }
-        self.instances.insert(object, class);
+        self.instances.insert(object, id);
         Ok(())
     }
 
     /// Return a declared class.
-    pub fn class(&self, id: u64) -> Option<&PythonClass> {
+    pub fn class(&self, id: ClassId) -> Option<&PythonClass> {
         self.classes.get(&id)
+    }
+
+    /// Releases a declared class root so its shared derived MRO can be reclaimed.
+    pub fn release_class(&mut self, id: ClassId) -> Result<(), ClassError> {
+        let class = self
+            .classes
+            .remove(&id)
+            .ok_or(ClassError::UnknownBase(id))?;
+        self.cache
+            .release(class.cache_root)
+            .map_err(map_cache_error)
+    }
+
+    /// Collects unreachable class descriptors and ephemeron-owned derived MRO values.
+    pub fn collect_classes(
+        &mut self,
+        limits: CollectionLimits,
+    ) -> Result<CollectionReceipt, ClassError> {
+        self.cache.collect(limits).map_err(map_cache_error)
     }
 
     /// Define a plain instance or class attribute.
@@ -5017,9 +12557,11 @@ impl PythonObjectSpace {
         let mro = self
             .classes
             .get(&class)
-            .ok_or(AttributeError::UnknownClass(class))?
+            .ok_or(AttributeError::UnknownClass(u64::from(class.0)))?
             .mro
-            .clone();
+            .iter()
+            .map(class_id)
+            .collect::<Result<Vec<_>, _>>()?;
         let key = key.to_owned();
         let descriptor_owner = mro
             .iter()
@@ -5054,11 +12596,14 @@ impl PythonObjectSpace {
             .instances
             .get(&object)
             .ok_or(AttributeError::UnknownObject(object))?;
-        let mro = &self
+        let mro = self
             .classes
             .get(&class)
-            .ok_or(AttributeError::UnknownClass(class))?
-            .mro;
+            .ok_or(AttributeError::UnknownClass(u64::from(class.0)))?
+            .mro
+            .iter()
+            .map(class_id)
+            .collect::<Result<Vec<_>, _>>()?;
         let at = mro
             .iter()
             .position(|candidate| *candidate == current)
@@ -5093,50 +12638,61 @@ impl PythonObjectSpace {
     }
 }
 
-fn c3_merge(mut sequences: Vec<Vec<u64>>) -> Result<Vec<u64>, ClassError> {
-    let mut result = Vec::new();
-    loop {
-        sequences.retain(|sequence| !sequence.is_empty());
-        if sequences.is_empty() {
-            return Ok(result);
-        }
-        let candidate = sequences
-            .iter()
-            .map(|sequence| sequence[0])
-            .find(|candidate| {
-                sequences
-                    .iter()
-                    .all(|sequence| !sequence[1..].contains(candidate))
-            })
-            .ok_or(ClassError::InconsistentMro)?;
-        result.push(candidate);
-        for sequence in &mut sequences {
-            if sequence.first() == Some(&candidate) {
-                sequence.remove(0);
-            }
-        }
-        let unique: BTreeSet<_> = result.iter().copied().collect();
-        if unique.len() != result.len() {
-            return Err(ClassError::InconsistentMro);
-        }
+fn lineage_budget() -> LineageBudget {
+    LineageBudget {
+        nodes: 4096,
+        work: 1_000_000,
     }
+}
+fn map_cache_error(error: CacheError) -> ClassError {
+    match error {
+        CacheError::Lineage(_) => ClassError::InconsistentMro,
+        _ => ClassError::InvalidClass,
+    }
+}
+fn class_id(class: &ClassRef) -> Result<u64, AttributeError> {
+    class
+        .object()
+        .as_class()
+        .map(|class| u64::from(class.id().0))
+        .ok_or(AttributeError::Access)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sim_kernel::Symbol;
+    fn class(cx: &Cx, id: u32, name: &str) -> ClassRef {
+        cx.factory()
+            .class_stub(ClassId(id), Symbol::qualified("python", name))
+            .unwrap()
+    }
     fn value(value: i64) -> PythonObjectValue {
         PythonObjectValue::Int(value)
     }
     #[test]
     fn c3_descriptors_binding_and_super_share_property_mechanics() {
         let mut space = PythonObjectSpace::default();
-        space.define_class(1, "object", vec![]).unwrap();
-        space.define_class(2, "Left", vec![1]).unwrap();
-        space.define_class(3, "Right", vec![1]).unwrap();
-        space.define_class(4, "Diamond", vec![2, 3]).unwrap();
-        assert_eq!(space.class(4).unwrap().mro, vec![4, 2, 3, 1]);
-        space.instantiate(10, 4).unwrap();
+        let cx = sim_kernel::testing::bare_cx();
+        let object = class(&cx, 1, "object");
+        let left = class(&cx, 2, "Left");
+        let right = class(&cx, 3, "Right");
+        let diamond = class(&cx, 4, "Diamond");
+        space.define_class(&cx, object.clone(), vec![]).unwrap();
+        space
+            .define_class(&cx, left.clone(), vec![object.clone()])
+            .unwrap();
+        space
+            .define_class(&cx, right.clone(), vec![object.clone()])
+            .unwrap();
+        space
+            .define_class(&cx, diamond.clone(), vec![left.clone(), right.clone()])
+            .unwrap();
+        assert_eq!(
+            space.class(ClassId(4)).unwrap().mro,
+            vec![diamond.clone(), left, right, object]
+        );
+        space.instantiate(10, diamond).unwrap();
         space.define_descriptor(
             2,
             "data",
@@ -5173,15 +12729,659 @@ mod tests {
     #[test]
     fn inconsistent_c3_fails_explicitly() {
         let mut space = PythonObjectSpace::default();
-        space.define_class(1, "object", vec![]).unwrap();
-        space.define_class(2, "A", vec![1]).unwrap();
-        space.define_class(3, "B", vec![1]).unwrap();
-        space.define_class(4, "AB", vec![2, 3]).unwrap();
-        space.define_class(5, "BA", vec![3, 2]).unwrap();
+        let cx = sim_kernel::testing::bare_cx();
+        let object = class(&cx, 1, "object");
+        let a = class(&cx, 2, "A");
+        let b = class(&cx, 3, "B");
+        let ab = class(&cx, 4, "AB");
+        let ba = class(&cx, 5, "BA");
+        space.define_class(&cx, object.clone(), vec![]).unwrap();
+        space
+            .define_class(&cx, a.clone(), vec![object.clone()])
+            .unwrap();
+        space.define_class(&cx, b.clone(), vec![object]).unwrap();
+        space
+            .define_class(&cx, ab.clone(), vec![a.clone(), b.clone()])
+            .unwrap();
+        space.define_class(&cx, ba.clone(), vec![b, a]).unwrap();
         assert_eq!(
-            space.define_class(6, "Impossible", vec![4, 5]),
+            space.define_class(&cx, class(&cx, 6, "Impossible"), vec![ab, ba]),
             Err(ClassError::InconsistentMro)
         );
+
+        let cyclic = class(&cx, 7, "Cyclic");
+        assert_eq!(
+            space.define_class(&cx, cyclic.clone(), vec![cyclic]),
+            Err(ClassError::UnknownBase(ClassId(7)))
+        );
+    }
+
+    #[test]
+    fn unreachable_python_class_reclaims_ephemeron_owned_mro() {
+        let cx = sim_kernel::testing::bare_cx();
+        let mut space = PythonObjectSpace::default();
+        let class = class(&cx, 20, "Temporary");
+        space.define_class(&cx, class, vec![]).unwrap();
+        space.release_class(ClassId(20)).unwrap();
+        let receipt = space
+            .collect_classes(CollectionLimits {
+                objects: 16,
+                edges: 16,
+                stack: 16,
+                work: 128,
+                clears: 16,
+                finalizers: 0,
+            })
+            .unwrap();
+        assert_eq!(receipt.cleared_ephemerons.len(), 1);
+        assert_eq!(space.cache.managed_len(), 1);
+    }
+}
+```
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-lang-python/src/resumable` is checked by `cargo test`.
+
+Source `crates/sim-lib-lang-python/src/resumable.rs`:
+
+```rust
+// conformance: Python resumable control composes the shared control organ.
+
+//! Python exception and resumable-control policy over the shared control organ.
+
+use std::{fmt, sync::Arc};
+
+use sim_kernel::{
+    ClassId, ClassRef, Cx, Object, ObjectCompat, Origin, Result as KernelResult, Symbol,
+};
+use sim_lib_control::{
+    BoundedSubclassOutcome, ClassMatchBudget, ClassMatchEvidence, ClassMatchOutcome, FrameError,
+    FrameLimits, ManagedException, Raised, ResumableFrame, ResumePacket, ResumeResult,
+    match_raised_class,
+};
+use sim_lib_mutation::{
+    ArenaError, HardCappedRetainPolicy, ManagedArena, ManagedHandle, StrongEdgeMutationError,
+};
+
+use crate::PythonObjectSpace;
+
+/// Checked Python iterator state over an owned sequence.
+pub struct PythonIterator<T> {
+    values: std::vec::IntoIter<T>,
+}
+impl<T> PythonIterator<T> {
+    /// Construct an iterator whose exhaustion is explicit and stable.
+    pub fn new(values: Vec<T>) -> Self {
+        Self {
+            values: values.into_iter(),
+        }
+    }
+    /// Return the next value or `None` for Python `StopIteration`.
+    pub fn next_checked(&mut self) -> Option<T> {
+        self.values.next()
+    }
+}
+
+/// Python-owned meaning of one managed exception edge.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PythonExceptionRelation {
+    /// Explicit `raise ... from ...` relation.
+    Cause,
+    /// Implicit active-exception relation.
+    Context,
+    /// Ordered direct member of an exception group.
+    GroupMember(usize),
+}
+
+/// Non-recursive Python data stored in a shared managed exception node.
+#[derive(Clone, Debug)]
+pub struct PythonExceptionData {
+    class: ClassRef,
+    message: String,
+    origin: Origin,
+    suppress_context: bool,
+    group_message: Option<String>,
+}
+
+/// Stable handle for an exception object owned by [`PythonExceptions`].
+pub type PythonExceptionRef = ManagedHandle;
+
+type ExceptionNode = ManagedException<PythonExceptionData, PythonExceptionRelation>;
+
+/// Failure to construct or relate Python exception objects.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum PythonExceptionError {
+    /// The class was not declared in the Python class system.
+    UnknownClass(ClassId),
+    /// An exception handle is stale.
+    Arena(ArenaError),
+    /// A managed relation exceeded its checked limits.
+    Relation(StrongEdgeMutationError),
+    /// Python forbids empty exception groups.
+    EmptyGroup,
+    /// The referenced object is not an exception group.
+    NotGroup,
+}
+
+impl From<ArenaError> for PythonExceptionError {
+    fn from(value: ArenaError) -> Self {
+        Self::Arena(value)
+    }
+}
+impl From<StrongEdgeMutationError> for PythonExceptionError {
+    fn from(value: StrongEdgeMutationError) -> Self {
+        Self::Relation(value)
+    }
+}
+
+#[derive(Debug)]
+struct PythonExceptionFace {
+    message: String,
+}
+impl Object for PythonExceptionFace {
+    fn display(&self, _cx: &mut Cx) -> KernelResult<String> {
+        Ok(self.message.clone())
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+impl ObjectCompat for PythonExceptionFace {}
+
+/// Python exception heap, class policy, chaining, grouping, and handler matching.
+pub struct PythonExceptions {
+    classes: PythonObjectSpace,
+    arena: ManagedArena<ExceptionNode>,
+}
+
+impl PythonExceptions {
+    /// Construct a bounded Python exception heap.
+    pub fn new(max_objects: usize) -> Result<Self, PythonExceptionError> {
+        Ok(Self {
+            classes: PythonObjectSpace::default(),
+            arena: ManagedArena::new(HardCappedRetainPolicy::new(max_objects)?),
+        })
+    }
+
+    /// Declare an exception class through the Python class system delivered by CLASS_2.
+    pub fn define_class(
+        &mut self,
+        cx: &Cx,
+        class: ClassRef,
+        bases: Vec<ClassRef>,
+    ) -> Result<(), crate::ClassError> {
+        self.classes.define_class(cx, class, bases)
+    }
+
+    /// Allocate an ordinary exception object with exact traceback origin.
+    pub fn allocate(
+        &mut self,
+        class: ClassRef,
+        message: impl Into<String>,
+        origin: Origin,
+    ) -> Result<PythonExceptionRef, PythonExceptionError> {
+        let id = class
+            .object()
+            .as_class()
+            .map(|class| class.id())
+            .ok_or(PythonExceptionError::UnknownClass(ClassId(u32::MAX)))?;
+        if self.classes.class(id).is_none() {
+            return Err(PythonExceptionError::UnknownClass(id));
+        }
+        Ok(self
+            .arena
+            .allocate(ManagedException::new(PythonExceptionData {
+                class,
+                message: message.into(),
+                origin,
+                suppress_context: false,
+                group_message: None,
+            }))?)
+    }
+
+    /// Allocate a non-empty exception group and retain members in source order.
+    pub fn group(
+        &mut self,
+        class: ClassRef,
+        message: impl Into<String>,
+        members: &[PythonExceptionRef],
+        origin: Origin,
+    ) -> Result<PythonExceptionRef, PythonExceptionError> {
+        if members.is_empty() {
+            return Err(PythonExceptionError::EmptyGroup);
+        }
+        for member in members {
+            self.arena.get(*member)?;
+        }
+        let group_message = message.into();
+        let group = self.allocate(class, group_message.clone(), origin)?;
+        let mut payload = self.arena.get(group)?.payload().clone();
+        payload.group_message = Some(group_message);
+        self.arena.get_mut(group)?.replace_payload(payload);
+        for (ordinal, member) in members.iter().enumerate() {
+            self.arena
+                .get_mut(group)?
+                .insert_relation(PythonExceptionRelation::GroupMember(ordinal), member.id())?;
+        }
+        Ok(group)
+    }
+
+    /// Attach an explicit cause and apply Python's context-suppression rule.
+    pub fn set_cause(
+        &mut self,
+        error: PythonExceptionRef,
+        cause: PythonExceptionRef,
+    ) -> Result<(), PythonExceptionError> {
+        self.arena.get(cause)?;
+        let node = self.arena.get_mut(error)?;
+        node.insert_relation(PythonExceptionRelation::Cause, cause.id())?;
+        let mut payload = node.payload().clone();
+        payload.suppress_context = true;
+        node.replace_payload(payload);
+        Ok(())
+    }
+
+    /// Attach the exception active when another exception was raised.
+    pub fn set_context(
+        &mut self,
+        error: PythonExceptionRef,
+        context: PythonExceptionRef,
+    ) -> Result<(), PythonExceptionError> {
+        self.arena.get(context)?;
+        self.arena
+            .get_mut(error)?
+            .insert_relation(PythonExceptionRelation::Context, context.id())?;
+        Ok(())
+    }
+
+    /// Convert a managed Python exception to the shared exceptional-completion envelope.
+    pub fn raise(
+        &self,
+        cx: &Cx,
+        error: PythonExceptionRef,
+    ) -> Result<Raised, PythonExceptionError> {
+        let payload = self.arena.get(error)?.payload();
+        let value = cx
+            .factory()
+            .opaque(Arc::new(PythonExceptionFace {
+                message: payload.message.clone(),
+            }))
+            .map_err(|_| PythonExceptionError::Arena(ArenaError::IdentityExhausted))?;
+        Raised::new(
+            payload.class.clone(),
+            value,
+            payload.origin.clone(),
+            Symbol::qualified("python", "exception"),
+        )
+        .map_err(|_| PythonExceptionError::Arena(ArenaError::IdentityExhausted))
+    }
+
+    /// Match a raised completion using bounded class evidence and Python predicate policy.
+    pub fn matches(
+        &self,
+        cx: &mut Cx,
+        raised: &Raised,
+        candidate: ClassRef,
+        budget: ClassMatchBudget,
+    ) -> ClassMatchOutcome {
+        match_raised_class(
+            cx,
+            raised,
+            candidate,
+            budget,
+            |_, actual, expected, budget| {
+                let actual_id = actual
+                    .object()
+                    .as_class()
+                    .expect("validated by matcher")
+                    .id();
+                let expected_id = expected
+                    .object()
+                    .as_class()
+                    .expect("validated by matcher")
+                    .id();
+                let evidence = ClassMatchEvidence {
+                    raised: actual_id,
+                    candidate: expected_id,
+                    performed_work: self
+                        .classes
+                        .subclass_work(actual_id, expected_id, budget.work),
+                };
+                if evidence.performed_work > budget.work {
+                    BoundedSubclassOutcome::BudgetExhausted {
+                        limit: budget.work,
+                        performed_work: budget.work,
+                    }
+                } else if self.classes.is_subclass(actual_id, expected_id) {
+                    BoundedSubclassOutcome::Subclass(evidence)
+                } else {
+                    BoundedSubclassOutcome::NotSubclass(evidence)
+                }
+            },
+            |_, raised, _| Ok(raised.profile() == &Symbol::qualified("python", "exception")),
+        )
+    }
+
+    /// Split a group by handler class while preserving direct-member order.
+    pub fn split(
+        &mut self,
+        cx: &mut Cx,
+        group: PythonExceptionRef,
+        candidate: ClassRef,
+        budget: ClassMatchBudget,
+    ) -> Result<(Option<PythonExceptionRef>, Option<PythonExceptionRef>), PythonExceptionError>
+    {
+        let data = self.arena.get(group)?.payload().clone();
+        let Some(message) = data.group_message.clone() else {
+            return Err(PythonExceptionError::NotGroup);
+        };
+        let mut members = self
+            .arena
+            .get(group)?
+            .relations()
+            .filter_map(|(_, role, id)| match role {
+                PythonExceptionRelation::GroupMember(ordinal) => {
+                    Some((*ordinal, self.arena.handle(id).ok()?))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        members.sort_by_key(|(ordinal, _)| *ordinal);
+        let mut matched = Vec::new();
+        let mut rest = Vec::new();
+        for (_, member) in members {
+            let raised = self.raise(cx, member)?;
+            if matches!(
+                self.matches(cx, &raised, candidate.clone(), budget),
+                ClassMatchOutcome::Matched(_)
+            ) {
+                matched.push(member);
+            } else {
+                rest.push(member);
+            }
+        }
+        let make = |this: &mut Self,
+                    values: &[PythonExceptionRef]|
+         -> Result<Option<PythonExceptionRef>, PythonExceptionError> {
+            if values.is_empty() {
+                Ok(None)
+            } else {
+                this.group(
+                    data.class.clone(),
+                    message.clone(),
+                    values,
+                    data.origin.clone(),
+                )
+                .map(Some)
+            }
+        };
+        let matched_group = make(self, &matched)?;
+        let rest_group = make(self, &rest)?;
+        Ok((matched_group, rest_group))
+    }
+
+    /// Return the immutable Python payload for diagnostics and policy checks.
+    pub fn inspect(
+        &self,
+        error: PythonExceptionRef,
+    ) -> Result<&PythonExceptionData, PythonExceptionError> {
+        Ok(self.arena.get(error)?.payload())
+    }
+
+    /// Return ordered typed relations for diagnostics and subgroup derivation.
+    pub fn relations(
+        &self,
+        error: PythonExceptionRef,
+    ) -> Result<Vec<(PythonExceptionRelation, PythonExceptionRef)>, PythonExceptionError> {
+        Ok(self
+            .arena
+            .get(error)?
+            .relations()
+            .map(|(_, role, id)| {
+                (
+                    *role,
+                    self.arena
+                        .handle(id)
+                        .expect("managed relation targets a live object"),
+                )
+            })
+            .collect())
+    }
+}
+
+impl PythonExceptionData {
+    /// Runtime exception class identity.
+    pub fn class(&self) -> &ClassRef {
+        &self.class
+    }
+    /// Exact guest diagnostic text.
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+    /// Traceback origin captured at construction.
+    pub fn origin(&self) -> &Origin {
+        &self.origin
+    }
+    /// Whether implicit context display is suppressed.
+    pub const fn suppress_context(&self) -> bool {
+        self.suppress_context
+    }
+    /// Group message, present only for exception groups.
+    pub fn group_message(&self) -> Option<&str> {
+        self.group_message.as_deref()
+    }
+}
+
+/// Policy seam for Python's synchronous context-manager protocol.
+pub trait ContextManager<T> {
+    /// Enter and produce the body value.
+    fn enter(&mut self) -> Result<T, Box<Raised>>;
+    /// Exit after normal or exceptional completion; `true` suppresses an exception.
+    fn exit(&mut self, error: Option<&Raised>) -> Result<bool, Box<Raised>>;
+}
+
+/// Run one synchronous context extent, guaranteeing `exit` on both paths.
+pub fn run_with_context<T, R>(
+    manager: &mut impl ContextManager<T>,
+    body: impl FnOnce(T) -> Result<R, Box<Raised>>,
+) -> Result<Option<R>, Box<Raised>> {
+    let entered = manager.enter()?;
+    match body(entered) {
+        Ok(value) => {
+            manager.exit(None)?;
+            Ok(Some(value))
+        }
+        Err(error) => {
+            if manager.exit(Some(&error))? {
+                Ok(None)
+            } else {
+                Err(error)
+            }
+        }
+    }
+}
+
+/// Observable Python generator transition.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum PythonGeneratorStep<T> {
+    /// A value was yielded.
+    Yielded(T),
+    /// The generator returned; this is `StopIteration.value`.
+    Returned(T),
+}
+
+/// Generator protocol or guest failure.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum PythonGeneratorError {
+    /// Shared frame protocol rejected the transition.
+    Frame(FrameError),
+    /// Guest exception escaped the frame.
+    Raised(Box<Raised>),
+}
+
+/// Python send/throw/close policy backed by the shared resumable frame.
+pub struct PythonGenerator<T, D> {
+    frame: ResumableFrame<D>,
+    _value: std::marker::PhantomData<T>,
+}
+impl<T, D> PythonGenerator<T, D>
+where
+    D: FnMut(
+        ResumePacket<T, Raised>,
+        &mut sim_lib_control::StepBudget,
+    ) -> Result<ResumeResult<T, T, Raised>, FrameError>,
+{
+    /// Construct a bounded generator. This supplies no scheduler or event loop.
+    pub fn new(limits: FrameLimits, driver: D) -> Self {
+        Self {
+            frame: ResumableFrame::new(limits, driver),
+            _value: std::marker::PhantomData,
+        }
+    }
+    /// Start execution and advance to the first yield.
+    pub fn start(&mut self) -> Result<PythonGeneratorStep<T>, PythonGeneratorError> {
+        self.resume(ResumePacket::Start)
+    }
+    /// Send a value into the suspended generator.
+    pub fn send(&mut self, value: T) -> Result<PythonGeneratorStep<T>, PythonGeneratorError> {
+        self.resume(ResumePacket::Send(value))
+    }
+    /// Throw an exception into the suspended generator.
+    pub fn throw(&mut self, error: Raised) -> Result<PythonGeneratorStep<T>, PythonGeneratorError> {
+        self.resume(ResumePacket::Throw(error))
+    }
+    /// Close the suspended generator and run its driver cleanup.
+    pub fn close(&mut self) -> Result<PythonGeneratorStep<T>, PythonGeneratorError> {
+        self.resume(ResumePacket::Close)
+    }
+    fn resume(
+        &mut self,
+        packet: ResumePacket<T, Raised>,
+    ) -> Result<PythonGeneratorStep<T>, PythonGeneratorError> {
+        match self
+            .frame
+            .resume(packet)
+            .map_err(PythonGeneratorError::Frame)?
+        {
+            ResumeResult::Yielded(value) => Ok(PythonGeneratorStep::Yielded(value)),
+            ResumeResult::Returned(value) => Ok(PythonGeneratorStep::Returned(value)),
+            ResumeResult::Failed(error) => Err(PythonGeneratorError::Raised(Box::new(error))),
+        }
+    }
+}
+
+impl fmt::Display for PythonExceptionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sim_kernel::{CodecId, SourceId, Span};
+
+    fn class(cx: &Cx, id: u32, name: &str) -> ClassRef {
+        cx.factory()
+            .class_stub(ClassId(id), Symbol::qualified("python", name))
+            .unwrap()
+    }
+    fn origin(at: usize) -> Origin {
+        Origin {
+            codec: CodecId(1),
+            source: SourceId("exceptions3-python".into()),
+            span: Span {
+                start: at,
+                end: at + 1,
+            },
+            trivia: Default::default(),
+        }
+    }
+
+    #[test]
+    fn managed_chains_groups_matching_and_diagnostics_preserve_python_policy() {
+        let mut cx = sim_kernel::testing::bare_cx();
+        let mut exceptions = PythonExceptions::new(32).unwrap();
+        let base = class(&cx, 1, "Exception");
+        let key = class(&cx, 2, "KeyError");
+        let runtime = class(&cx, 3, "RuntimeError");
+        let group_class = class(&cx, 4, "ExceptionGroup");
+        exceptions.define_class(&cx, base.clone(), vec![]).unwrap();
+        for derived in [&key, &runtime, &group_class] {
+            exceptions
+                .define_class(&cx, derived.clone(), vec![base.clone()])
+                .unwrap();
+        }
+        let cause = exceptions
+            .allocate(runtime.clone(), "disk", origin(1))
+            .unwrap();
+        let explicit = exceptions.allocate(runtime, "outer", origin(2)).unwrap();
+        exceptions.set_context(explicit, cause).unwrap();
+        exceptions.set_cause(explicit, cause).unwrap();
+        assert!(exceptions.inspect(explicit).unwrap().suppress_context());
+        assert_eq!(exceptions.inspect(explicit).unwrap().origin().span.start, 2);
+        let raised_key = exceptions
+            .allocate(key.clone(), "missing", origin(3))
+            .unwrap();
+        let raised = exceptions.raise(&cx, raised_key).unwrap();
+        assert!(matches!(
+            exceptions.matches(&mut cx, &raised, base, ClassMatchBudget { work: 8 }),
+            ClassMatchOutcome::Matched(_)
+        ));
+        assert!(matches!(
+            exceptions.matches(&mut cx, &raised, key.clone(), ClassMatchBudget { work: 8 }),
+            ClassMatchOutcome::Matched(_)
+        ));
+        assert_eq!(
+            raised.payload().object().display(&mut cx).unwrap(),
+            "missing"
+        );
+        assert_eq!(
+            exceptions.group(group_class.clone(), "empty", &[], origin(4)),
+            Err(PythonExceptionError::EmptyGroup)
+        );
+        let group = exceptions
+            .group(group_class, "batch", &[explicit, raised_key], origin(5))
+            .unwrap();
+        let (matched, rest) = exceptions
+            .split(&mut cx, group, key, ClassMatchBudget { work: 8 })
+            .unwrap();
+        let matched = matched.unwrap();
+        let rest = rest.unwrap();
+        assert_eq!(
+            exceptions.relations(matched).unwrap(),
+            vec![(PythonExceptionRelation::GroupMember(0), raised_key)]
+        );
+        assert_eq!(
+            exceptions.relations(rest).unwrap(),
+            vec![(PythonExceptionRelation::GroupMember(0), explicit)]
+        );
+        assert_eq!(
+            exceptions.inspect(matched).unwrap().group_message(),
+            Some("batch")
+        );
+    }
+
+    #[test]
+    fn generator_throws_only_shared_raised_envelopes() {
+        let cx = sim_kernel::testing::bare_cx();
+        let mut exceptions = PythonExceptions::new(4).unwrap();
+        let base = class(&cx, 1, "Exception");
+        exceptions.define_class(&cx, base.clone(), vec![]).unwrap();
+        let handle = exceptions.allocate(base, "boom", origin(7)).unwrap();
+        let raised = exceptions.raise(&cx, handle).unwrap();
+        let mut generator = PythonGenerator::new(FrameLimits { depth: 1, work: 2 }, |packet, _| {
+            Ok(match packet {
+                ResumePacket::Start => ResumeResult::Yielded(0),
+                ResumePacket::Throw(error) => ResumeResult::Failed(error),
+                ResumePacket::Send(value) => ResumeResult::Yielded(value),
+                ResumePacket::Close => ResumeResult::Returned(0),
+            })
+        });
+        generator.start().unwrap();
+        assert!(matches!(
+            generator.throw(raised),
+            Err(PythonGeneratorError::Raised(_))
+        ));
     }
 }
 ```
@@ -5205,6 +13405,7 @@ Source `crates/sim-lib-lang-python/src/lib.rs`:
 // conformance: the crate test suite checks the authorized Python library core.
 
 mod fidelity;
+mod function;
 mod library_core;
 mod managed;
 mod matrix_row;
@@ -5220,22 +13421,29 @@ pub use fidelity::{
     PYTHON_EVIDENCE_CASES, PYTHON_EXTERNAL_ORACLE, PYTHON_FIDELITY, PythonEvidenceCase,
     PythonFidelity,
 };
-pub use library_core::{
-    DynamicAdmission, DynamicPython, MatchCase, MatchOutcome, PythonLibraryManifest,
-    PythonModuleAdmission, PythonModulePolicy, PythonSurface, PythonSurfaceState, match_expr,
-    python_library_manifest,
+pub use function::{
+    PythonBodyPolicy, PythonCallError, PythonFunction, PythonFunctionFlags, PythonSignature,
 };
-pub use managed::{PythonHeap, PythonHeapPolicy, PythonManagedKind, PythonManagedObject};
+pub use library_core::{
+    MatchCase, MatchOutcome, PythonLibraryManifest, PythonSurface, PythonSurfaceState,
+    dynamic_python_policy, dynamic_python_policy_with_codec, match_expr, python_library_manifest,
+    python_module_policy, python_module_policy_with_codec,
+};
+pub use managed::{
+    PythonHeap, PythonHeapExt, PythonHeapPolicy, PythonManagedKind, PythonManagedMutationError,
+    PythonManagedObject,
+};
 pub use matrix_row::{python_core_matrix_row, python_core_source_cases};
 pub use objects::{
     AttributeError, ClassError, DescriptorHook, PythonClass, PythonObjectSpace, PythonObjectValue,
 };
 pub use profile::{install_python_core_profile, python_core_profile, python_profile_symbol};
 pub use resumable::{
-    ContextManager, PythonException, PythonExceptionGroup, PythonGenerator, PythonGeneratorError,
+    ContextManager, PythonExceptionData, PythonExceptionError, PythonExceptionRef,
+    PythonExceptionRelation, PythonExceptions, PythonGenerator, PythonGeneratorError,
     PythonGeneratorStep, PythonIterator, run_with_context,
 };
-pub use runtime::{Annotation, PythonEvalPolicy, PythonFunction, PythonValue};
+pub use runtime::{Annotation, PythonEvalPolicy, PythonValue};
 
 /// Deliberately unsupported Python object and control edges.
 pub const PYTHON_OBJECT_CONTROL_GAPS: &[&str] = &[
@@ -5577,4 +13785,572 @@ fn force_kill(pid: u32) {
         ])
         .status();
 }
+```
+
+### `feature/sim-runtime/jvm-loadable-profile`
+
+Specimen `recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/authorized-static-call` is checked by `sh scripts/check-recipes.sh`.
+
+Source `crates/sim-lib-lang-jvm/recipes/01-basics/authorized-static-call/recipe.toml`:
+
+```toml
+title = "Define authorized class bytes and call a static method"
+kind = "lisp"
+entry = "setup.siml"
+```
+
+Specimen `recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/java-lambda` is checked by `sh scripts/check-recipes.sh`.
+
+Source `crates/sim-lib-lang-jvm/recipes/01-basics/java-lambda/recipe.toml`:
+
+```toml
+title = "Invoke a compiler-produced Java lambda from SIM"
+kind = "lisp"
+entry = "setup.siml"
+```
+
+Specimen `recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/method-reference` is checked by `sh scripts/check-recipes.sh`.
+
+Source `crates/sim-lib-lang-jvm/recipes/01-basics/method-reference/recipe.toml`:
+
+```toml
+title = "Invoke a Java method reference from SIM"
+kind = "lisp"
+entry = "setup.siml"
+```
+
+Specimen `recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/sim-functional-interface` is checked by `sh scripts/check-recipes.sh`.
+
+Source `crates/sim-lib-lang-jvm/recipes/01-basics/sim-functional-interface/recipe.toml`:
+
+```toml
+title = "Pass an authorized SIM callable to Java"
+kind = "lisp"
+entry = "setup.siml"
+```
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/product_specimen` is checked by `cargo test`.
+
+Source `crates/sim-lib-lang-jvm/tests/product_specimen.rs`:
+
+```rust
+// conformance: the JVM product specimen runs through the loadable public surface.
+
+use std::sync::Arc;
+
+use sim_kernel::{Cx, DefaultFactory, NoopEvalPolicy};
+use sim_lib_lang_jvm::{class_load_capability, jvm_invoke_capability, run_product_specimen};
+
+#[test]
+fn published_specimen_runs_all_product_cases() {
+    let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    cx.grant(class_load_capability());
+    cx.grant(jvm_invoke_capability());
+    let report = run_product_specimen(&mut cx).unwrap();
+    assert_eq!(report.static_result, 14);
+    assert!(report.object_allocated);
+    assert_eq!(report.array_result, 17);
+    assert_eq!(
+        report.exception_class,
+        "java/lang/NegativeArraySizeException"
+    );
+    assert_eq!(report.concat_result, "SIM JVM");
+}
+```
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/ownership_guard` is checked by `cargo test`.
+
+Source `crates/sim-lib-lang-jvm/tests/ownership_guard.rs`:
+
+```rust
+// conformance: JVM policy retains the declared shared-organ ownership boundary.
+
+//! Policy-driven source-fact guard for JVM organ ownership.
+
+use std::{fs, path::Path};
+
+use toml::Value;
+
+const VIOLATIONS: &[(&str, &str)] = &[
+    ("classfile parsing", "pub struct ClassfileParser;"),
+    ("opcode list", "pub struct JvmOpcodeList;"),
+    ("private stack", "pub struct OperandStack;"),
+    ("private frame", "pub struct PrivateFrame;"),
+    (
+        "raw UTF-16 wrapper",
+        "pub struct JavaString { units: Vec<u16> }",
+    ),
+    ("shadow managed graph", "pub struct ShadowManagedGraph;"),
+    ("ambient classpath", "pub struct Classpath;"),
+    (
+        "string class matching",
+        "fn select(class_name: String) { match class_name.as_str() { _ => {} } }",
+    ),
+    ("unwind payload", "pub struct JvmUnwindPayload;"),
+    ("alternate entry", "pub fn enter_method() {}"),
+    ("alternate drive", "pub fn drive_method() {}"),
+    (
+        "verification byte parser",
+        "pub struct VerificationByteParser;",
+    ),
+    (
+        "private verifier worklist",
+        "pub struct VerificationWorklist;",
+    ),
+    (
+        "private verifier CFG",
+        "pub struct VerificationControlFlowGraph;",
+    ),
+    (
+        "boolean verified flag",
+        "pub struct ResultRow { verified: bool }",
+    ),
+    ("duplicate opcode switch", "pub fn verify_opcode() {}"),
+    (
+        "verifier opcode inventory",
+        "pub struct VerifierOpcodeSwitch;",
+    ),
+    (
+        "method-entry lambda linking",
+        "pub fn link_lambda_at_method_entry() {}",
+    ),
+    (
+        "synthetic classfile generation",
+        "pub struct LambdaClassfileGenerator;",
+    ),
+    ("host lambda closure", "pub struct HostLambdaClosure;"),
+    (
+        "Shape-ranked Java bridge",
+        "pub struct ShapeRankedJavaBridge;",
+    ),
+    ("duplicate function organ", "pub struct JvmFunctionOrgan;"),
+    ("strong global cache", "pub struct GlobalLambdaCache;"),
+    ("raw decode in drive", "pub fn decode_in_drive() {}"),
+    (
+        "duplicate opcode table",
+        "static OPCODE_TABLE: [u8; 1] = [0];",
+    ),
+    (
+        "unchecked specialization",
+        "pub fn specialize_unchecked() {}",
+    ),
+    ("private statistics", "pub struct PrivateStatistics;"),
+    ("alternate interpreter", "pub struct AlternateInterpreter;"),
+    (
+        "unmapped fused operation",
+        "pub fn execute_fused_unmapped() {}",
+    ),
+    ("fused opcode table", "pub struct FusedOpcodeTable;"),
+];
+
+#[derive(Debug)]
+struct Policy {
+    type_suffixes: Vec<String>,
+    function_names: Vec<String>,
+    field_types: Vec<String>,
+    source_patterns: Vec<String>,
+    allowed_drive: String,
+}
+
+impl Policy {
+    fn load(root: &Path) -> Self {
+        let value: Value = fs::read_to_string(root.join("jvm-ownership.toml"))
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert_eq!(value["schema"].as_str(), Some("sim.jvm-ownership/v1"));
+        Self {
+            type_suffixes: strings(&value, "forbidden_type_suffixes"),
+            function_names: strings(&value, "forbidden_function_names"),
+            field_types: strings(&value, "forbidden_field_types"),
+            source_patterns: strings(&value, "forbidden_source_patterns"),
+            allowed_drive: value["allowed_public_drive"].as_str().unwrap().into(),
+        }
+    }
+
+    fn findings(&self, source: &str) -> Vec<String> {
+        let mut findings = Vec::new();
+        for line in source.lines().map(str::trim) {
+            if let Some(name) = declaration_name(line)
+                && self
+                    .type_suffixes
+                    .iter()
+                    .any(|suffix| name.ends_with(suffix))
+            {
+                findings.push(format!("forbidden JVM-owned type {name}"));
+            }
+            if let Some(name) = function_name(line) {
+                if self
+                    .function_names
+                    .iter()
+                    .any(|candidate| candidate == name)
+                {
+                    findings.push(format!("alternate JVM entry {name}"));
+                }
+                if line.starts_with("pub fn drive") && name != self.allowed_drive {
+                    findings.push(format!("alternate JVM drive {name}"));
+                }
+            }
+            for field_type in &self.field_types {
+                let tuple_wrapper = line.contains('(') && line.ends_with("),");
+                let record_wrapper =
+                    declaration_name(line).is_some() && line.contains('{') && line.contains(':');
+                if (tuple_wrapper || record_wrapper) && line.contains(field_type) {
+                    findings.push(format!("forbidden JVM-owned field type {field_type}"));
+                }
+            }
+        }
+        for pattern in &self.source_patterns {
+            if source.contains(pattern) {
+                findings.push(format!("forbidden JVM source fact {pattern}"));
+            }
+        }
+        findings.sort();
+        findings.dedup();
+        findings
+    }
+}
+
+fn strings(value: &Value, key: &str) -> Vec<String> {
+    value[key]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| item.as_str().unwrap().to_owned())
+        .collect()
+}
+
+fn declaration_name(line: &str) -> Option<&str> {
+    [
+        "pub struct ",
+        "pub enum ",
+        "pub trait ",
+        "pub type ",
+        "struct ",
+        "enum ",
+    ]
+    .into_iter()
+    .find_map(|prefix| line.strip_prefix(prefix))
+    .and_then(|rest| {
+        rest.split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_')
+            .next()
+    })
+}
+
+fn function_name(line: &str) -> Option<&str> {
+    let rest = line
+        .strip_prefix("pub fn ")
+        .or_else(|| line.strip_prefix("fn "))?;
+    rest.split_once('(')
+        .map(|(name, _)| name.split('<').next().unwrap().trim())
+}
+
+fn rust_sources(path: &Path, output: &mut Vec<std::path::PathBuf>) {
+    for child in fs::read_dir(path).unwrap() {
+        let child = child.unwrap();
+        if child.file_type().unwrap().is_dir() {
+            rust_sources(&child.path(), output);
+        } else if child.path().extension().is_some_and(|ext| ext == "rs") {
+            output.push(child.path());
+        }
+    }
+}
+
+#[test]
+fn every_ownership_guard_has_a_violating_fixture() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let policy = Policy::load(root);
+    for (name, fixture) in VIOLATIONS {
+        assert!(
+            !policy.findings(fixture).is_empty(),
+            "{name} fixture was not rejected"
+        );
+    }
+}
+
+#[test]
+fn jvm_sources_contain_no_organ_ownership_forks() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let policy = Policy::load(root);
+    let mut paths = Vec::new();
+    rust_sources(&root.join("src"), &mut paths);
+    for path in paths {
+        let source = fs::read_to_string(&path).unwrap();
+        assert!(
+            policy.findings(&source).is_empty(),
+            "{} violates JVM organ ownership: {:?}",
+            path.display(),
+            policy.findings(&source)
+        );
+    }
+}
+```
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/baseline` is checked by `cargo test`.
+
+Source `crates/sim-lib-lang-jvm/tests/baseline.rs`:
+
+```rust
+// conformance: the bounded JVM baseline exercises every shared ownership seam.
+
+use sim_codec_classfile::{ClassfileCodec, OPCODES, inspect_classfile};
+use sim_kernel::CodecId;
+use sim_lib_class::ClassDescriptor;
+use sim_lib_control::Raised;
+use sim_lib_core::SourceAuthority;
+use sim_lib_machine::{InstructionPolicy, LocatedCode};
+use sim_lib_mutation::ManagedNode;
+use sim_text::CodeUnitString;
+
+struct DependencyPolicy;
+
+impl InstructionPolicy for DependencyPolicy {
+    type Instruction = ();
+    type InstructionId = u8;
+
+    fn instruction_id(_: &Self::Instruction) -> Self::InstructionId {
+        0
+    }
+}
+
+#[test]
+fn all_composed_organs_are_reachable() {
+    fn reachable<T>() {
+        assert!(!std::any::type_name::<T>().is_empty());
+    }
+
+    reachable::<Raised>();
+    reachable::<ManagedNode<u64>>();
+    reachable::<ClassDescriptor>();
+    reachable::<SourceAuthority>();
+    reachable::<CodeUnitString>();
+    reachable::<LocatedCode<DependencyPolicy>>();
+    reachable::<ClassfileCodec>();
+}
+
+#[test]
+fn manifests_freeze_the_supported_baseline() {
+    let supported: toml::Value = sim_lib_lang_jvm::SUPPORTED_RUNTIME.parse().unwrap();
+    assert_eq!(
+        supported["classfile_versions"]["minimum_major"].as_integer(),
+        Some(45)
+    );
+    assert_eq!(
+        supported["classfile_versions"]["maximum_major"].as_integer(),
+        Some(69)
+    );
+    assert_eq!(supported["unsupported"].as_array().unwrap().len(), 5);
+    assert_eq!(
+        supported["unsupported"][1]["includes"]
+            .as_array()
+            .unwrap()
+            .len(),
+        4
+    );
+
+    let intrinsics: toml::Value = sim_lib_lang_jvm::INTRINSIC_MANIFEST.parse().unwrap();
+    let manifest_members = intrinsics["members"].as_array().unwrap();
+    assert_eq!(
+        manifest_members.len(),
+        sim_lib_lang_jvm::INTRINSIC_TABLE.len()
+    );
+    for (manifest, compiled) in manifest_members
+        .iter()
+        .zip(sim_lib_lang_jvm::INTRINSIC_TABLE)
+    {
+        assert_eq!(manifest["class"].as_str(), Some(compiled.class));
+        assert_eq!(manifest["name"].as_str(), Some(compiled.name));
+        assert_eq!(manifest["descriptor"].as_str(), Some(compiled.descriptor));
+        assert_eq!(
+            manifest["arguments_shape"].as_str(),
+            Some(compiled.arguments_shape)
+        );
+        assert_eq!(
+            manifest["result_shape"].as_str(),
+            Some(compiled.result_shape)
+        );
+        assert_eq!(manifest["capability"].as_str(), Some(compiled.capability));
+        assert_eq!(manifest["effect"].as_str(), Some(compiled.effect));
+        assert_eq!(manifest["work"].as_integer(), Some(compiled.work.into()));
+        assert_eq!(
+            manifest["support"].as_str(),
+            Some(match compiled.support {
+                sim_lib_lang_jvm::IntrinsicSupport::Supported => "supported",
+                sim_lib_lang_jvm::IntrinsicSupport::Unsupported => "unsupported",
+            })
+        );
+    }
+
+    let ledger: toml::Value = sim_lib_lang_jvm::REUSE_LEDGER.parse().unwrap();
+    let products = ledger["organ"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|row| row["product"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        products,
+        [
+            "CHARACTERIZE_1",
+            "INDEX_9",
+            "MANAGED_2",
+            "UTF16_2",
+            "MACHINE_2",
+            "CLASSFILE_2",
+            "JVM_7",
+            "DATAFLOW_2",
+            "CLASS_2",
+            "FUNCTION_2",
+            "KERNEL",
+            "DISPATCH",
+            "CODECS",
+            "EXCEPTIONS_3",
+        ]
+    );
+}
+
+#[test]
+fn final_proof_is_wired_to_the_single_frozen_acceptance_file() {
+    let reference: toml::Value = include_str!("../bytecode-speed-acceptance.toml")
+        .parse()
+        .unwrap();
+    assert_eq!(reference["owner_repository"].as_str(), Some("sim-tooling"));
+    assert_eq!(
+        reference["path"].as_str(),
+        Some("benchmarks/bytecode-speed-4/acceptance.toml")
+    );
+    assert_eq!(
+        reference["final_proof_phase"].as_str(),
+        Some("BYTECODESPEED4.14")
+    );
+}
+
+#[test]
+fn generated_coverage_differs_from_manifests_by_zero() {
+    let intrinsics: toml::Value = sim_lib_lang_jvm::INTRINSIC_MANIFEST.parse().unwrap();
+    let intrinsic_manifest_total = intrinsics["members"].as_array().unwrap().len();
+    assert_eq!(
+        intrinsic_manifest_total.abs_diff(sim_lib_lang_jvm::INTRINSIC_TABLE.len()),
+        0
+    );
+
+    // OPCODES is itself generated from sim-codec-classfile's opcode-manifest.tsv;
+    // JVM policy consumes that complete byte-indexed table instead of restating it.
+    let opcode_manifest_total = OPCODES.len();
+    let opcode_coverage_total = (u8::MIN..=u8::MAX)
+        .filter(|byte| OPCODES[usize::from(*byte)].opcode as u8 == *byte)
+        .count();
+    assert_eq!(opcode_manifest_total.abs_diff(opcode_coverage_total), 0);
+    assert_eq!(
+        sim_lib_lang_jvm::VERIFIER_COVERAGE.opcode_rows,
+        OPCODES.len()
+    );
+    assert_eq!(sim_lib_lang_jvm::VERIFIER_COVERAGE.rule_families, 5);
+}
+
+#[test]
+fn verification_failures_are_readable_without_internal_state() {
+    let explanation = sim_lib_lang_jvm::VerificationExplanation::for_method(
+        &sim_lib_lang_jvm::MethodVerificationError::UnreachableHandler { row: 7 },
+    );
+    assert_eq!(explanation.code, "unreachable-handler");
+    assert!(explanation.reason.contains("row 7"));
+}
+
+#[test]
+fn verification_frames_have_bounded_read_only_views() {
+    let mut frame =
+        sim_lib_lang_jvm::VerificationFrame::new(sim_lib_lang_jvm::FrameKind::Locals, 3);
+    frame
+        .set_local(0, sim_lib_lang_jvm::VerificationType::Int)
+        .unwrap();
+    let view = sim_lib_lang_jvm::VerificationFrameView::bounded(&frame, 1);
+    assert!(view.reachable);
+    assert_eq!(view.capacity, 3);
+    assert_eq!(view.slots.as_ref(), &[Some("Int".into())]);
+    assert_eq!(view.omitted, 2);
+}
+
+#[test]
+fn frozen_fixtures_decode_through_the_shared_classfile_organ() {
+    let javac = include_bytes!("../fixtures/javac/StaticInt.class");
+    assert_eq!(&javac[6..8], &52_u16.to_be_bytes());
+    inspect_classfile(CodecId(139), javac.to_vec(), 4_096).unwrap();
+
+    let hand_built = include_bytes!("../fixtures/hand-built/Minimal.class");
+    assert_eq!(&hand_built[6..8], &45_u16.to_be_bytes());
+    inspect_classfile(CodecId(139), hand_built.to_vec(), 4_096).unwrap();
+}
+```
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/published_performance` is checked by `cargo test`.
+
+Source `crates/sim-lib-lang-jvm/tests/published_performance.rs`:
+
+```rust
+// conformance: published JVM performance evidence remains complete and traceable.
+
+use std::{fs, path::Path};
+
+#[test]
+fn published_coverage_is_complete_and_traceable_to_raw_samples() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let coverage: toml::Value = fs::read_to_string(root.join("performance-coverage.toml"))
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert_eq!(
+        coverage["schema"].as_str(),
+        Some("sim.jvm-performance-coverage/v1")
+    );
+    assert_eq!(sim_lib_lang_jvm::VERIFIER_COVERAGE.opcode_rows, 256);
+    let generated = include_str!("../src/superinstructions_generated.rs");
+    assert!(generated.contains("pub const FUSED_DEFINITIONS"));
+    assert!(generated.matches("FusedDefinition { handler:").count() > 0);
+
+    let reports = coverage["benchmark"].as_array().unwrap();
+    assert_eq!(reports.len(), 2);
+    for report in reports {
+        assert_eq!(report["owner_repository"].as_str(), Some("sim-tooling"));
+        assert_eq!(report["samples_per_arm"].as_integer(), Some(20));
+        assert_eq!(report["outcome"].as_str(), Some("inconclusive"));
+        assert!(report["raw_artifact"].as_str().unwrap().ends_with(".json"));
+        assert!(
+            report["content_key"]
+                .as_str()
+                .unwrap()
+                .starts_with("sha256:")
+        );
+    }
+}
+
+#[test]
+fn publication_names_fidelity_and_ownership_faces() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let coverage = fs::read_to_string(root.join("performance-coverage.toml")).unwrap();
+    let guide = fs::read_to_string(root.join("docs/jvm-bytecode-performance.md")).unwrap();
+    for required in [
+        "ExecutionPermit",
+        "PreparedMicroOp",
+        "FUSED_DEFINITIONS",
+        "jvm-ownership.toml",
+    ] {
+        assert!(
+            coverage.contains(required),
+            "missing coverage anchor {required}"
+        );
+    }
+    assert!(guide.contains("inconclusive"));
+    assert!(guide.contains("raw samples"));
+}
+```
+
+Specimen `recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/performance-evidence` is checked by `sh scripts/check-recipes.sh`.
+
+Source `crates/sim-lib-lang-jvm/recipes/01-basics/performance-evidence/recipe.toml`:
+
+```toml
+title = "Inspect prepared JVM performance evidence"
+kind = "lisp"
+entry = "setup.siml"
 ```

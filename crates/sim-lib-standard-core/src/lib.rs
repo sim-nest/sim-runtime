@@ -8,8 +8,19 @@
 //! capabilities, claims, diff, fidelity, the conformance harness, install,
 //! guest-runtime policy kits, language-profile support, the lisp codec surface,
 //! polyglot/profile support, and read/construct.
+//!
+//! # Characterizing a migration
+//!
+//! Define a bounded [`ScenarioSpec`] from public inputs and semantic observation
+//! lanes. Capture the old behavior as a [`CharacterizationCapture`], perform the
+//! refactor, and capture the same scenario again. A strict
+//! [`compare_characterization_captures`] result is either identical or contains
+//! stable paths plus the canonical value from each side. Failure locations are
+//! semantic evidence; debug output and private implementation fields are not.
 
 pub mod cap;
+mod capture;
+pub mod characterization;
 pub mod claims;
 pub mod diff;
 pub mod fidelity;
@@ -22,12 +33,23 @@ pub mod matrix;
 mod matrix_claims;
 #[cfg(feature = "native-export")]
 mod native;
+pub mod observation;
 pub mod polyglot;
 pub mod profile;
 pub mod read_construct;
 pub mod registry;
+pub mod scenario;
 
 pub use cap::{standard_diff_capability, standard_install_capability, standard_test_capability};
+pub use capture::{
+    CaptureComparison, CaptureComparisonProjection, CaptureDifference, CharacterizationCapture,
+    characterization_capture_kind, characterization_capture_predicate,
+    compare_characterization_captures, publish_characterization_capture,
+};
+pub use characterization::{
+    EVIDENCE_LANE_INVENTORY, EXPLICIT_PROJECTION_FIELDS, EvidenceLane, EvidenceLaneInventory,
+    ExplicitProjectionField, characterization_source_fixtures,
+};
 pub use claims::{
     publish_badge_claims, publish_badge_claims_for_lib, publish_profile_claims,
     publish_profile_claims_for_lib, standard_capability_predicate, standard_eval_policy_predicate,
@@ -60,6 +82,10 @@ pub use matrix::{
     SourceConformanceCase, SourceConformanceCaseKind, SourceExpectation, SourceObservation,
     compare_expr_observation, compare_source_observation,
 };
+pub use observation::{
+    BoundedLane, CanonicalFailure, CanonicalObservation, CanonicalOutcome, FailureLocation,
+    GuestValueProjection, project_guest_value,
+};
 pub use polyglot::{
     ProfileFunction, ProfileFunctionBinding, SharedOrganRuntime, profile_function_value,
 };
@@ -73,6 +99,10 @@ pub use read_construct::{
     standard_core_classes_lib_symbol,
 };
 pub use registry::ProfileRegistry;
+pub use scenario::{
+    CharacterizationScenario, ScenarioDriver, ScenarioInput, ScenarioLimits,
+    ScenarioObservationLane, ScenarioSpec,
+};
 
 /// Cookbook recipes for this lib, embedded at build time.
 pub static RECIPES: sim_cookbook::EmbeddedDir =
@@ -84,5 +114,7 @@ mod guest_kit_tests;
 mod harness_tests;
 #[cfg(test)]
 mod matrix_tests;
+#[cfg(test)]
+mod neutral_characterization_tests;
 #[cfg(test)]
 mod tests;

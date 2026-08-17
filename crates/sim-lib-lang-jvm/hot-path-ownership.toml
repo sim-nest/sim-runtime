@@ -1,0 +1,172 @@
+schema = "sim.jvm-hot-path-ownership/v1"
+source_roadmap = "BYTECODE_SPEED_4"
+
+# This is a source ledger, not an optimization design.  Symbols are deliberately
+# exact so the companion test detects ownership drift before performance work.
+
+[[path]]
+stage = "decode"
+owner = "sim-codec-classfile"
+repository = "sim-codecs"
+anchor = "crates/sim-codec-classfile/src/instruction.rs"
+symbol = "DecodedCode"
+fallback = "InstructionDecoder::decode retains the ordinary lossless classfile decode"
+
+[[path]]
+stage = "admission and method resolution"
+owner = "sim-lib-lang-jvm"
+repository = "sim-runtime"
+anchor = "crates/sim-lib-lang-jvm/src/entry.rs"
+symbol = "ClassfilePermit"
+fallback = "ClassfilePermit::resolve refuses foreign or missing members before effects"
+
+[[path]]
+stage = "verification"
+owner = "sim-lib-lang-jvm"
+repository = "sim-runtime"
+anchor = "crates/sim-lib-lang-jvm/src/entry.rs"
+symbol = "ClassVerifierProvider"
+supporting_anchor = "crates/sim-lib-lang-jvm/src/verifier/class_proof.rs"
+supporting_symbol = "ClassVerificationProof"
+fallback = "NoVerifier retains the StaticChecked tier; rejected or stale exact proofs never authorize unchecked execution"
+
+[[path]]
+stage = "preparation"
+owner = "sim-lib-lang-jvm composed with sim-lib-machine"
+repository = "sim-runtime"
+anchor = "crates/sim-lib-lang-jvm/src/code/prepare.rs"
+symbol = "prepare_code"
+supporting_anchor = "crates/sim-lib-machine/src/code.rs"
+supporting_symbol = "LocatedCode"
+fallback = "ordinary manifest-decoded instructions freeze into LocatedCode<PreparedJvmPolicy>"
+
+[[path]]
+stage = "dispatch and work accounting"
+owner = "sim-lib-machine"
+repository = "sim-runtime"
+anchor = "crates/sim-lib-machine/src/driver.rs"
+symbol = "Driver"
+supporting_anchor = "crates/sim-lib-machine/src/driver.rs"
+supporting_symbol = "WorkReceipt"
+fallback = "MachineDriver::drive charges and records each ordinary prepared instruction"
+
+[[path]]
+stage = "operand access"
+owner = "sim-lib-machine"
+repository = "sim-runtime"
+anchor = "crates/sim-lib-machine/src/slots.rs"
+symbol = "SlotFile"
+supporting_anchor = "crates/sim-lib-machine/src/stack.rs"
+supporting_symbol = "UnitStack"
+fallback = "checked SlotFile and OperandStack access preserves category widths and bounds"
+
+[[path]]
+stage = "runtime resolution"
+owner = "sim-lib-lang-jvm"
+repository = "sim-runtime"
+anchor = "crates/sim-lib-lang-jvm/src/resolution.rs"
+symbol = "ResolutionCache"
+fallback = "cache miss performs the ordinary revision-bound resolution path"
+
+[[path]]
+stage = "roots and safepoints"
+owner = "sim-lib-machine"
+repository = "sim-runtime"
+anchor = "crates/sim-lib-machine/src/managed.rs"
+symbol = "RootSnapshot"
+supporting_anchor = "crates/sim-lib-machine/src/driver.rs"
+supporting_symbol = "drive_with_safepoints"
+fallback = "RootSnapshot::scan publishes the complete frame view before each declared safepoint"
+
+[[path]]
+stage = "cleanup"
+owner = "sim-lib-machine"
+repository = "sim-runtime"
+anchor = "crates/sim-lib-machine/src/stack.rs"
+symbol = "clear"
+supporting_anchor = "crates/sim-lib-machine/src/slots.rs"
+supporting_symbol = "release"
+fallback = "ordinary stack clear and initialized-slot release remove retained values"
+
+[[path]]
+stage = "benchmark specification and reports"
+owner = "sim-tooling BENCH_2"
+repository = "sim-tooling"
+anchor = "src/bench.rs"
+symbol = "BenchSpec"
+supporting_anchor = "src/bench/report.rs"
+supporting_symbol = "BenchReport"
+fallback = "BENCH_2 rejects unmatched hosts or insufficient samples; JVM code owns no clock or report"
+
+[[path]]
+stage = "benchmark statistics"
+owner = "sim-lib-numbers-stats"
+repository = "sim-numbers"
+anchor = "crates/sim-lib-numbers-stats/src/implementation.rs"
+symbol = "StatsError"
+supporting_anchor = "crates/sim-lib-numbers-stats/src/quantile.rs"
+supporting_symbol = "QuantileSketch"
+fallback = "BENCH_2 reports the statistics refusal instead of substituting JVM-local arithmetic"
+
+[[optimization]]
+phase = "BYTECODESPEED4.04"
+proposal = "prepared operands and targets"
+owner_stage = "preparation"
+fallback_stage = "preparation"
+
+[[optimization]]
+phase = "BYTECODESPEED4.05"
+proposal = "dense prepared dispatch"
+owner_stage = "dispatch and work accounting"
+fallback_stage = "dispatch and work accounting"
+
+[[optimization]]
+phase = "BYTECODESPEED4.06"
+proposal = "frame and storage reuse"
+owner_stage = "operand access"
+fallback_stage = "cleanup"
+
+[[optimization]]
+phase = "BYTECODESPEED4.07"
+proposal = "guarded resolution caches"
+owner_stage = "runtime resolution"
+fallback_stage = "runtime resolution"
+
+[[optimization]]
+phase = "BYTECODESPEED4.08"
+proposal = "work and safepoint regions"
+owner_stage = "dispatch and work accounting"
+fallback_stage = "roots and safepoints"
+
+[[optimization]]
+phase = "BYTECODESPEED4.09"
+proposal = "conservative root acceleration"
+owner_stage = "roots and safepoints"
+fallback_stage = "roots and safepoints"
+
+[[optimization]]
+phase = "BYTECODESPEED4.10"
+proposal = "proof-driven check elision"
+owner_stage = "verification"
+fallback_stage = "operand access"
+
+[[optimization]]
+phase = "BYTECODESPEED4.11"
+proposal = "safe superinstructions"
+owner_stage = "preparation"
+fallback_stage = "dispatch and work accounting"
+
+[[contradiction]]
+predecessor_assumption = "extend a JVM-owned PreparedJvmCode representation and drive loop"
+landed_source = "prepare_code returns sim_lib_machine::LocatedCode<PreparedJvmPolicy>, and Driver owns the only instruction loop"
+disposition = "compose the shared machine owners; do not add a parallel JVM code container or interpreter"
+
+[[contradiction]]
+predecessor_assumption = "JVM_6, CLASSFILE_VERIFY_3, LAMBDA_LINK_3, DATAFLOW_1, and BENCH_1 are current owners"
+landed_source = "JVM_7, CLASSFILE_VERIFY_4, LAMBDA_LINK_4, DATAFLOW_2, and BENCH_2 have landed"
+disposition = "all optimization evidence and ownership resolve against the landed successors"
+
+[[contradiction]]
+predecessor_assumption = "EXCEPTIONS_2 is a direct optimization dependency"
+landed_source = "EXCEPTIONS_3 shared Raised carriage arrives transitively through JVM_7"
+disposition = "retain the shared raised envelope and add no optimizer-local exception carrier"

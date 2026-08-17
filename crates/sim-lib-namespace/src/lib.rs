@@ -9,6 +9,7 @@
 mod claims;
 mod module;
 mod namespace;
+mod specifier;
 
 pub use claims::{
     namespace_export_op_key, namespace_import_op_key, namespace_module_op_key, namespace_op_keys,
@@ -18,11 +19,15 @@ pub use claims::{
 };
 pub use module::{
     ModuleIdentity, ModuleInstance, ModuleLoader, ModuleRequest, ModuleResolutionOutcome,
-    ModuleResolutionReceipt, module_load_capability,
+    ModuleResolutionReceipt, SourceModulePolicy, module_load_capability,
 };
 pub use namespace::{
     ImportOptions, Namespace, NamespaceBindingSource, NamespaceEntry, NamespaceKind,
     namespace_shadow_conflict_symbol,
+};
+pub use specifier::{
+    IdentitySpecifierPolicy, MAX_SPECIFIER_BYTES, MAX_SPECIFIER_CANDIDATES, ModuleSpecifierPolicy,
+    NormalizedSpecifier, SpecifierPolicyRequest, SpecifierRefusal, SpecifierRefusalCode,
 };
 
 /// Cookbook recipes for this lib, embedded at build time.

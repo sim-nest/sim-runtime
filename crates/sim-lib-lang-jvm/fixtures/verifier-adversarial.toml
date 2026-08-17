@@ -1,0 +1,61 @@
+schema = "sim.jvm-verifier-differential/v1"
+oracle = "JVMS 4.10.1 clauses encoded by verifier_adversarial_tests.rs on sim-lib-logic"
+reference = "OpenJDK 8 verifier outcomes captured as stable fixture data; no host JDK is consulted"
+
+[[case]]
+id = "javac-static-int"
+family = "well-formed"
+expected = "accept"
+reference = "accept"
+budget = 64
+
+[[case]]
+id = "hand-built-minimal"
+family = "well-formed"
+expected = "accept"
+reference = "accept"
+budget = 64
+
+[[case]]
+id = "hostile-cycle"
+family = "well-formed"
+expected = "accept"
+reference = "accept"
+budget = 64
+
+[[case]]
+id = "deep-hierarchy-budget"
+family = "resource"
+expected = "resource"
+reference = "uncompared"
+divergence = "SIM preserves the explicit lineage resource failure; the reference verifier has no equivalent public verdict"
+budget = 8
+
+[[case]]
+id = "huge-stack-map-budget"
+family = "resource"
+expected = "resource"
+reference = "uncompared"
+divergence = "SIM preserves the explicit frame-size resource failure; the reference verifier has no equivalent public verdict"
+budget = 32
+
+[[case]]
+id = "aliased-uninitialized-handler"
+family = "ill-formed"
+expected = "reject"
+reference = "reject"
+budget = 32
+
+[[case]]
+id = "malformed-handler-boundary"
+family = "ill-formed"
+expected = "reject"
+reference = "reject"
+budget = 32
+
+[[case]]
+id = "incremental-frame-edit"
+family = "ill-formed"
+expected = "reject"
+reference = "reject"
+budget = 32

@@ -16,6 +16,13 @@
       "summary": "Binding behavior for the SIM runtime: lexical, dynamic, and scoped binding."
     },
     {
+      "crate_name": "sim_lib_class",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-class/Cargo.toml",
+      "package": "sim-lib-class",
+      "summary": "Concrete language-neutral class semantics for SIM."
+    },
+    {
       "crate_name": "sim_lib_control",
       "group": "workspace",
       "manifest": "crates/sim-lib-control/Cargo.toml",
@@ -42,6 +49,13 @@
       "manifest": "crates/sim-lib-exec/Cargo.toml",
       "package": "sim-lib-exec",
       "summary": "Capability-gated bounded host-process execution for the SIM runtime."
+    },
+    {
+      "crate_name": "sim_lib_function",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-function/Cargo.toml",
+      "package": "sim-lib-function",
+      "summary": "Language-neutral immutable function plans."
     },
     {
       "crate_name": "sim_lib_gc_tracing",
@@ -98,6 +112,13 @@
       "manifest": "crates/sim-lib-lang-julia/Cargo.toml",
       "package": "sim-lib-lang-julia",
       "summary": "Julia surface profile for the SIM runtime."
+    },
+    {
+      "crate_name": "sim_lib_lang_jvm",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-jvm/Cargo.toml",
+      "package": "sim-lib-lang-jvm",
+      "summary": "Manifest-frozen JVM profile boundary."
     },
     {
       "crate_name": "sim_lib_lang_lua",
@@ -161,6 +182,13 @@
       "manifest": "crates/sim-lib-logic/Cargo.toml",
       "package": "sim-lib-logic",
       "summary": "Logic behavior for the SIM runtime: clauses, unification, and queries."
+    },
+    {
+      "crate_name": "sim_lib_machine",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-machine/Cargo.toml",
+      "package": "sim-lib-machine",
+      "summary": "Policy contracts for neutral, bounded decoded-instruction machines."
     },
     {
       "crate_name": "sim_lib_mutation",

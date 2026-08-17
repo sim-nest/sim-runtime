@@ -1,5 +1,5 @@
 {
-  "card_count": 28,
+  "card_count": 31,
   "cards": [
     {
       "id": "browse/catalog",
@@ -125,7 +125,7 @@
       "id": "cookbook/organ/incremental",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-incremental",
-      "summary": "Memoized expression queries with invalidation, missing observations, cutoff, snapshots, and metrics."
+      "summary": "Memoized expression queries plus immutable, proof-backed dataflow analysis projections."
     },
     {
       "id": "cookbook/organ/mutation",
@@ -158,10 +158,28 @@
       "summary": "Permission-gated host process runs with time and output limits."
     },
     {
+      "id": "cookbook/sim-lib-class",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-class",
+      "summary": "Language-neutral class lineage, browsing, read construction, and managed caches."
+    },
+    {
+      "id": "cookbook/sim-lib-function",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-function",
+      "summary": "Language-neutral typed functions, managed captures, and optional dispatch."
+    },
+    {
+      "id": "cookbook/sim-lib-lang-jvm",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-lang-jvm",
+      "summary": ""
+    },
+    {
       "id": "cookbook/standard/core",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-standard-core",
-      "summary": "Language profiles, fidelity badges, and conformance helpers."
+      "summary": "Language profiles, fidelity badges, conformance helpers, and strict migration characterization."
     },
     {
       "id": "registry/catalog",
@@ -181,10 +199,12 @@
     "workspace": [
       "sim-incremental-core",
       "sim-lib-binding",
+      "sim-lib-class",
       "sim-lib-control",
       "sim-lib-core",
       "sim-lib-dispatch",
       "sim-lib-exec",
+      "sim-lib-function",
       "sim-lib-gc-tracing",
       "sim-lib-incremental",
       "sim-lib-lang-cl",
@@ -193,6 +213,7 @@
       "sim-lib-lang-islisp",
       "sim-lib-lang-javascript",
       "sim-lib-lang-julia",
+      "sim-lib-lang-jvm",
       "sim-lib-lang-lua",
       "sim-lib-lang-matrix",
       "sim-lib-lang-prolog",
@@ -202,6 +223,7 @@
       "sim-lib-lang-typed-lazy",
       "sim-lib-lang-typescript",
       "sim-lib-logic",
+      "sim-lib-machine",
       "sim-lib-mutation",
       "sim-lib-namespace",
       "sim-lib-pattern",
@@ -217,7 +239,7 @@
       "descriptor": "core/Ref",
       "file": "crates/sim-lib-control/src/model.rs",
       "kind": "handle",
-      "line": 3,
+      "line": 238,
       "reason": "live continuation capture handle; descriptor data is the continuation and capture refs"
     },
     {
@@ -225,7 +247,7 @@
       "descriptor": "core/Ref",
       "file": "crates/sim-lib-control/src/model.rs",
       "kind": "marker",
-      "line": 66,
+      "line": 301,
       "reason": "control result ref wrapper; canonical data is the referenced value"
     },
     {
@@ -349,11 +371,19 @@
       "reason": "transduced sequence adapter; reconstruct from the source sequence and transducer pipeline descriptor"
     }
   ],
-  "package_count": 29,
+  "package_count": 33,
   "packages": [
     {
       "crate_name": "sim_incremental_core",
-      "dependencies": [],
+      "dependencies": [
+        {
+          "kind": "dev",
+          "optional": false,
+          "package": "sim-lib-machine",
+          "rename": null,
+          "target": null
+        }
+      ],
       "description": "Dependency-light incremental query graph with memo cutoff and bounded snapshots.",
       "features": [],
       "group": "workspace",
@@ -363,7 +393,8 @@
       "root": "crates/sim-incremental-core",
       "rustdoc_summary": "Generic incremental query calculation for SIM runtime libraries.",
       "target_kinds": [
-        "lib"
+        "lib",
+        "test"
       ],
       "targets": [
         {
@@ -375,6 +406,36 @@
           ],
           "name": "sim_incremental_core",
           "src": "crates/sim-incremental-core/src/lib.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "definite_assignment_specimen",
+          "src": "crates/sim-incremental-core/tests/definite_assignment_specimen.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "ownership_guard",
+          "src": "crates/sim-incremental-core/tests/ownership_guard.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "range_analysis_specimen",
+          "src": "crates/sim-incremental-core/tests/range_analysis_specimen.rs"
         }
       ]
     },
@@ -417,12 +478,82 @@
       ]
     },
     {
+      "crate_name": "sim_lib_class",
+      "dependencies": [
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-gc-tracing",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-mutation",
+          "rename": null,
+          "target": null
+        }
+      ],
+      "description": "Checked class descriptors and inheritance semantics for SIM.",
+      "features": [],
+      "group": "workspace",
+      "manifest": "crates/sim-lib-class/Cargo.toml",
+      "name": "sim-lib-class",
+      "publish": "true",
+      "root": "crates/sim-lib-class",
+      "rustdoc_summary": "Concrete language-neutral class semantics for SIM.",
+      "target_kinds": [
+        "lib",
+        "test"
+      ],
+      "targets": [
+        {
+          "crate_types": [
+            "lib"
+          ],
+          "kind": [
+            "lib"
+          ],
+          "name": "sim_lib_class",
+          "src": "crates/sim-lib-class/src/lib.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "neutral_class_specimens",
+          "src": "crates/sim-lib-class/tests/neutral_class_specimens.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "ownership_guard",
+          "src": "crates/sim-lib-class/tests/ownership_guard.rs"
+        }
+      ]
+    },
+    {
       "crate_name": "sim_lib_control",
       "dependencies": [
         {
           "kind": "normal",
           "optional": false,
           "package": "sim-lib-core",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-mutation",
           "rename": null,
           "target": null
         }
@@ -437,7 +568,8 @@
       "rustdoc_summary": "Control behavior for the SIM runtime: async, backtracking, conditions.",
       "target_kinds": [
         "custom-build",
-        "lib"
+        "lib",
+        "test"
       ],
       "targets": [
         {
@@ -449,6 +581,16 @@
           ],
           "name": "sim_lib_control",
           "src": "crates/sim-lib-control/src/lib.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "exceptions3_carrier_ownership",
+          "src": "crates/sim-lib-control/tests/exceptions3_carrier_ownership.rs"
         },
         {
           "crate_types": [
@@ -573,6 +715,93 @@
           ],
           "name": "build-script-build",
           "src": "crates/sim-lib-exec/build.rs"
+        }
+      ]
+    },
+    {
+      "crate_name": "sim_lib_function",
+      "dependencies": [
+        {
+          "kind": "dev",
+          "optional": false,
+          "package": "sim-lib-gc-tracing",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-binding",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-dispatch",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-mutation",
+          "rename": null,
+          "target": null
+        }
+      ],
+      "description": "Language-neutral function plans and managed function instances for SIM.",
+      "features": [],
+      "group": "workspace",
+      "manifest": "crates/sim-lib-function/Cargo.toml",
+      "name": "sim-lib-function",
+      "publish": "true",
+      "root": "crates/sim-lib-function",
+      "rustdoc_summary": "Language-neutral immutable function plans.",
+      "target_kinds": [
+        "lib",
+        "test"
+      ],
+      "targets": [
+        {
+          "crate_types": [
+            "lib"
+          ],
+          "kind": [
+            "lib"
+          ],
+          "name": "sim_lib_function",
+          "src": "crates/sim-lib-function/src/lib.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "contract_shape",
+          "src": "crates/sim-lib-function/tests/contract_shape.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "neutral_language_specimen",
+          "src": "crates/sim-lib-function/tests/neutral_language_specimen.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "ownership_guard",
+          "src": "crates/sim-lib-function/tests/ownership_guard.rs"
         }
       ]
     },
@@ -966,6 +1195,13 @@
         {
           "kind": "normal",
           "optional": false,
+          "package": "sim-lib-function",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
           "package": "sim-lib-gc-tracing",
           "rename": null,
           "target": null
@@ -1016,7 +1252,8 @@
       "rustdoc_summary": "Thin, direct JavaScript core profile over lowered codec/javascript forms.",
       "target_kinds": [
         "custom-build",
-        "lib"
+        "lib",
+        "test"
       ],
       "targets": [
         {
@@ -1028,6 +1265,16 @@
           ],
           "name": "sim_lib_lang_javascript",
           "src": "crates/sim-lib-lang-javascript/src/lib.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "text_ownership_guard",
+          "src": "crates/sim-lib-lang-javascript/tests/text_ownership_guard.rs"
         },
         {
           "crate_types": [
@@ -1095,6 +1342,404 @@
       ]
     },
     {
+      "crate_name": "sim_lib_lang_jvm",
+      "dependencies": [
+        {
+          "kind": "dev",
+          "optional": false,
+          "package": "sim-lib-binding",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "dev",
+          "optional": false,
+          "package": "sim-lib-logic",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-incremental-core",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-class",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-control",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-core",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-function",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-gc-tracing",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-machine",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-mutation",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-standard-core",
+          "rename": null,
+          "target": null
+        }
+      ],
+      "description": "Manifest-frozen JVM runtime profile for SIM.",
+      "features": [],
+      "group": "workspace",
+      "manifest": "crates/sim-lib-lang-jvm/Cargo.toml",
+      "name": "sim-lib-lang-jvm",
+      "publish": "true",
+      "root": "crates/sim-lib-lang-jvm",
+      "rustdoc_summary": "Manifest-frozen JVM profile boundary.",
+      "target_kinds": [
+        "custom-build",
+        "example",
+        "lib",
+        "test"
+      ],
+      "targets": [
+        {
+          "crate_types": [
+            "lib"
+          ],
+          "kind": [
+            "lib"
+          ],
+          "name": "sim_lib_lang_jvm",
+          "src": "crates/sim-lib-lang-jvm/src/lib.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "example"
+          ],
+          "name": "bytecode_speed_baseline",
+          "src": "crates/sim-lib-lang-jvm/examples/bytecode_speed_baseline.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "baseline",
+          "src": "crates/sim-lib-lang-jvm/tests/baseline.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "class_initialization",
+          "src": "crates/sim-lib-lang-jvm/tests/class_initialization.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "constructor_state",
+          "src": "crates/sim-lib-lang-jvm/tests/constructor_state.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "control_execution",
+          "src": "crates/sim-lib-lang-jvm/tests/control_execution.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "corpus",
+          "src": "crates/sim-lib-lang-jvm/tests/corpus.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "entry_surface",
+          "src": "crates/sim-lib-lang-jvm/tests/entry_surface.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "exceptions",
+          "src": "crates/sim-lib-lang-jvm/tests/exceptions.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "frame_pool",
+          "src": "crates/sim-lib-lang-jvm/tests/frame_pool.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "hot_path_ownership",
+          "src": "crates/sim-lib-lang-jvm/tests/hot_path_ownership.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "intrinsics",
+          "src": "crates/sim-lib-lang-jvm/tests/intrinsics.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "lambda_scope",
+          "src": "crates/sim-lib-lang-jvm/tests/lambda_scope.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "managed_graph",
+          "src": "crates/sim-lib-lang-jvm/tests/managed_graph.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "monitors",
+          "src": "crates/sim-lib-lang-jvm/tests/monitors.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "numeric_execution",
+          "src": "crates/sim-lib-lang-jvm/tests/numeric_execution.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "ownership_guard",
+          "src": "crates/sim-lib-lang-jvm/tests/ownership_guard.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "prepared_code",
+          "src": "crates/sim-lib-lang-jvm/tests/prepared_code.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "prepared_dispatch",
+          "src": "crates/sim-lib-lang-jvm/tests/prepared_dispatch.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "product_preparation",
+          "src": "crates/sim-lib-lang-jvm/tests/product_preparation.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "product_specimen",
+          "src": "crates/sim-lib-lang-jvm/tests/product_specimen.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "published_performance",
+          "src": "crates/sim-lib-lang-jvm/tests/published_performance.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "semantic_equivalence",
+          "src": "crates/sim-lib-lang-jvm/tests/semantic_equivalence.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "sim_surface",
+          "src": "crates/sim-lib-lang-jvm/tests/sim_surface.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "storage_execution",
+          "src": "crates/sim-lib-lang-jvm/tests/storage_execution.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "superinstructions",
+          "src": "crates/sim-lib-lang-jvm/tests/superinstructions.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "values_and_failures",
+          "src": "crates/sim-lib-lang-jvm/tests/values_and_failures.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "verifier_scope",
+          "src": "crates/sim-lib-lang-jvm/tests/verifier_scope.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "work_regions",
+          "src": "crates/sim-lib-lang-jvm/tests/work_regions.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "custom-build"
+          ],
+          "name": "build-script-build",
+          "src": "crates/sim-lib-lang-jvm/build.rs"
+        }
+      ]
+    },
+    {
       "crate_name": "sim_lib_lang_lua",
       "dependencies": [
         {
@@ -1122,6 +1767,13 @@
           "kind": "normal",
           "optional": false,
           "package": "sim-lib-exec",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-function",
           "rename": null,
           "target": null
         },
@@ -1192,6 +1844,13 @@
     {
       "crate_name": "sim_lib_lang_matrix",
       "dependencies": [
+        {
+          "kind": "dev",
+          "optional": false,
+          "package": "sim-lib-control",
+          "rename": null,
+          "target": null
+        },
         {
           "kind": "dev",
           "optional": false,
@@ -1415,6 +2074,13 @@
         {
           "kind": "normal",
           "optional": false,
+          "package": "sim-lib-class",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
           "package": "sim-lib-control",
           "rename": null,
           "target": null
@@ -1430,6 +2096,13 @@
           "kind": "normal",
           "optional": false,
           "package": "sim-lib-dispatch",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-function",
           "rename": null,
           "target": null
         },
@@ -1812,6 +2485,159 @@
       ]
     },
     {
+      "crate_name": "sim_lib_machine",
+      "dependencies": [
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-control",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-lib-mutation",
+          "rename": null,
+          "target": null
+        }
+      ],
+      "description": "Neutral policy contracts for bounded decoded-instruction machines.",
+      "features": [],
+      "group": "workspace",
+      "manifest": "crates/sim-lib-machine/Cargo.toml",
+      "name": "sim-lib-machine",
+      "publish": "true",
+      "root": "crates/sim-lib-machine",
+      "rustdoc_summary": "Policy contracts for neutral, bounded decoded-instruction machines.",
+      "target_kinds": [
+        "lib",
+        "test"
+      ],
+      "targets": [
+        {
+          "crate_types": [
+            "lib"
+          ],
+          "kind": [
+            "lib"
+          ],
+          "name": "sim_lib_machine",
+          "src": "crates/sim-lib-machine/src/lib.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "admission",
+          "src": "crates/sim-lib-machine/tests/admission.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "control_resume",
+          "src": "crates/sim-lib-machine/tests/control_resume.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "frame_calls_conformance",
+          "src": "crates/sim-lib-machine/tests/frame_calls_conformance.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "iterative_driver",
+          "src": "crates/sim-lib-machine/tests/iterative_driver.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "located_code",
+          "src": "crates/sim-lib-machine/tests/located_code.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "managed_safepoints",
+          "src": "crates/sim-lib-machine/tests/managed_safepoints.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "neutral_machine_specimens",
+          "src": "crates/sim-lib-machine/tests/neutral_machine_specimens.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "neutrality",
+          "src": "crates/sim-lib-machine/tests/neutrality.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "ownership_guard",
+          "src": "crates/sim-lib-machine/tests/ownership_guard.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "shuffle_properties",
+          "src": "crates/sim-lib-machine/tests/shuffle_properties.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "storage_properties",
+          "src": "crates/sim-lib-machine/tests/storage_properties.rs"
+        }
+      ]
+    },
+    {
       "crate_name": "sim_lib_mutation",
       "dependencies": [
         {
@@ -1933,7 +2759,15 @@
     },
     {
       "crate_name": "sim_lib_pattern",
-      "dependencies": [],
+      "dependencies": [
+        {
+          "kind": "dev",
+          "optional": false,
+          "package": "sim-lib-standard-core",
+          "rename": null,
+          "target": null
+        }
+      ],
       "description": "Shape-based pattern matching and destructuring for SIM runtime values.",
       "features": [],
       "group": "workspace",
@@ -1944,7 +2778,8 @@
       "rustdoc_summary": "Pattern behavior for the SIM runtime over the kernel Shape protocol.",
       "target_kinds": [
         "custom-build",
-        "lib"
+        "lib",
+        "test"
       ],
       "targets": [
         {
@@ -1956,6 +2791,56 @@
           ],
           "name": "sim_lib_pattern",
           "src": "crates/sim-lib-pattern/src/lib.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "cross_dialect_safety",
+          "src": "crates/sim-lib-pattern/tests/cross_dialect_safety.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "cursor_domains",
+          "src": "crates/sim-lib-pattern/tests/cursor_domains.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "ir_contract",
+          "src": "crates/sim-lib-pattern/tests/ir_contract.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "legacy_lowering",
+          "src": "crates/sim-lib-pattern/tests/legacy_lowering.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "ownership_guard",
+          "src": "crates/sim-lib-pattern/tests/ownership_guard.rs"
         },
         {
           "crate_types": [
@@ -1982,7 +2867,8 @@
       "rustdoc_summary": "Sequence behavior for the SIM runtime: lazy, persistent, runtime-indexed, and transducer-backed collections.",
       "target_kinds": [
         "custom-build",
-        "lib"
+        "lib",
+        "test"
       ],
       "targets": [
         {
@@ -2000,6 +2886,16 @@
             "bin"
           ],
           "kind": [
+            "test"
+          ],
+          "name": "composition_ownership_guard",
+          "src": "crates/sim-lib-sequence/tests/composition_ownership_guard.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
             "custom-build"
           ],
           "name": "build-script-build",
@@ -2010,6 +2906,20 @@
     {
       "crate_name": "sim_lib_standard_core",
       "dependencies": [
+        {
+          "kind": "dev",
+          "optional": false,
+          "package": "sim-lib-control",
+          "rename": null,
+          "target": null
+        },
+        {
+          "kind": "dev",
+          "optional": false,
+          "package": "sim-lib-mutation",
+          "rename": null,
+          "target": null
+        },
         {
           "kind": "normal",
           "optional": false,
@@ -2108,10 +3018,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-16T00:13:38+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "3e5cfbcc6bb5d8eb2436ef3813de1fc75a6edfd7",
+    "git_commit": "d7c51879acf9b9afb1abb301e1f5a4d4813406bb",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "3e5cfbcc6bb5d8eb2436ef3813de1fc75a6edfd7",
+    "source_commit": "d7c51879acf9b9afb1abb301e1f5a4d4813406bb",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -2124,13 +3034,25 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "40bea8354fea094e",
+    "workspace_hash": "d89e040e91829f91",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 452,
+    "workspace_hash_input_count": 668,
     "workspace_hash_inputs": [
+      ".sim/class-ownership-guard/Cargo.toml",
+      ".sim/function-ownership-guard/Cargo.toml",
+      ".sim/ownership-guard/Cargo.toml",
+      ".sim/sup19-composition-guard/Cargo.toml",
       "Cargo.toml",
       "crates/sim-incremental-core/Cargo.toml",
       "crates/sim-incremental-core/src/budget.rs",
+      "crates/sim-incremental-core/src/dataflow/engine/contracts.rs",
+      "crates/sim-incremental-core/src/dataflow/engine/execution.rs",
+      "crates/sim-incremental-core/src/dataflow/engine/proof.rs",
+      "crates/sim-incremental-core/src/dataflow/engine/tests.rs",
+      "crates/sim-incremental-core/src/dataflow/engine.rs",
+      "crates/sim-incremental-core/src/dataflow/graph.rs",
+      "crates/sim-incremental-core/src/dataflow/lattice.rs",
+      "crates/sim-incremental-core/src/dataflow/mod.rs",
       "crates/sim-incremental-core/src/engine.rs",
       "crates/sim-incremental-core/src/error.rs",
       "crates/sim-incremental-core/src/fingerprint.rs",
@@ -2140,6 +3062,9 @@
       "crates/sim-incremental-core/src/snapshot.rs",
       "crates/sim-incremental-core/src/state.rs",
       "crates/sim-incremental-core/src/tests.rs",
+      "crates/sim-incremental-core/tests/definite_assignment_specimen.rs",
+      "crates/sim-incremental-core/tests/ownership_guard.rs",
+      "crates/sim-incremental-core/tests/range_analysis_specimen.rs",
       "crates/sim-lib-binding/Cargo.toml",
       "crates/sim-lib-binding/build.rs",
       "crates/sim-lib-binding/recipes/01-basics/let-square/recipe.toml",
@@ -2154,6 +3079,19 @@
       "crates/sim-lib-binding/src/modes.rs",
       "crates/sim-lib-binding/src/runtime.rs",
       "crates/sim-lib-binding/src/tests.rs",
+      "crates/sim-lib-class/Cargo.toml",
+      "crates/sim-lib-class/recipes/01-basics/neutral-class/recipe.toml",
+      "crates/sim-lib-class/recipes/book.toml",
+      "crates/sim-lib-class/src/cache.rs",
+      "crates/sim-lib-class/src/characterization.rs",
+      "crates/sim-lib-class/src/descriptor.rs",
+      "crates/sim-lib-class/src/inventory.rs",
+      "crates/sim-lib-class/src/lib.rs",
+      "crates/sim-lib-class/src/lineage.rs",
+      "crates/sim-lib-class/src/protocol.rs",
+      "crates/sim-lib-class/src/tests.rs",
+      "crates/sim-lib-class/tests/neutral_class_specimens.rs",
+      "crates/sim-lib-class/tests/ownership_guard.rs",
       "crates/sim-lib-control/Cargo.toml",
       "crates/sim-lib-control/build.rs",
       "crates/sim-lib-control/recipes/01-basics/if-branch/recipe.toml",
@@ -2167,10 +3105,12 @@
       "crates/sim-lib-control/src/conditional.rs",
       "crates/sim-lib-control/src/coroutine.rs",
       "crates/sim-lib-control/src/derivation_tests.rs",
+      "crates/sim-lib-control/src/exception.rs",
       "crates/sim-lib-control/src/frame_tests.rs",
       "crates/sim-lib-control/src/generator.rs",
       "crates/sim-lib-control/src/jobs.rs",
       "crates/sim-lib-control/src/lib.rs",
+      "crates/sim-lib-control/src/matching.rs",
       "crates/sim-lib-control/src/model.rs",
       "crates/sim-lib-control/src/nonlocal.rs",
       "crates/sim-lib-control/src/ops.rs",
@@ -2183,6 +3123,7 @@
       "crates/sim-lib-control/src/runtime.rs",
       "crates/sim-lib-control/src/tests.rs",
       "crates/sim-lib-control/src/unwind.rs",
+      "crates/sim-lib-control/tests/exceptions3_carrier_ownership.rs",
       "crates/sim-lib-core/Cargo.toml",
       "crates/sim-lib-core/build.rs",
       "crates/sim-lib-core/recipes/01-basics/quote-list-basics/recipe.toml",
@@ -2194,6 +3135,7 @@
       "crates/sim-lib-core/src/read_eval/ledger_tests.rs",
       "crates/sim-lib-core/src/read_eval/tests.rs",
       "crates/sim-lib-core/src/read_eval.rs",
+      "crates/sim-lib-core/src/source_authority_ownership_tests.rs",
       "crates/sim-lib-core/src/surface.rs",
       "crates/sim-lib-dispatch/Cargo.toml",
       "crates/sim-lib-dispatch/build.rs",
@@ -2216,21 +3158,38 @@
       "crates/sim-lib-exec/src/lib.rs",
       "crates/sim-lib-exec/src/tests.rs",
       "crates/sim-lib-exec/src/timeout.rs",
+      "crates/sim-lib-function/Cargo.toml",
+      "crates/sim-lib-function/recipes/01-basics/neutral-language/recipe.toml",
+      "crates/sim-lib-function/recipes/book.toml",
+      "crates/sim-lib-function/src/bind.rs",
+      "crates/sim-lib-function/src/callable.rs",
+      "crates/sim-lib-function/src/instance.rs",
+      "crates/sim-lib-function/src/lib.rs",
+      "crates/sim-lib-function/src/plan.rs",
+      "crates/sim-lib-function/tests/contract_shape.rs",
+      "crates/sim-lib-function/tests/neutral_language_specimen.rs",
+      "crates/sim-lib-function/tests/ownership_guard.rs",
       "crates/sim-lib-gc-tracing/Cargo.toml",
       "crates/sim-lib-gc-tracing/recipes/01-collection/bounded-cycle/recipe.toml",
+      "crates/sim-lib-gc-tracing/recipes/01-collection/managed-substrate/recipe.toml",
       "crates/sim-lib-gc-tracing/recipes/book.toml",
       "crates/sim-lib-gc-tracing/src/collector.rs",
       "crates/sim-lib-gc-tracing/src/correctness.rs",
       "crates/sim-lib-gc-tracing/src/finalization.rs",
+      "crates/sim-lib-gc-tracing/src/heap.rs",
       "crates/sim-lib-gc-tracing/src/lib.rs",
+      "crates/sim-lib-gc-tracing/src/tests/neutral_graph.rs",
       "crates/sim-lib-gc-tracing/src/tests.rs",
       "crates/sim-lib-incremental/Cargo.toml",
       "crates/sim-lib-incremental/build.rs",
+      "crates/sim-lib-incremental/recipes/01-basics/completed-analysis/recipe.toml",
       "crates/sim-lib-incremental/recipes/01-basics/query-family/recipe.toml",
       "crates/sim-lib-incremental/recipes/book.toml",
       "crates/sim-lib-incremental/src/cap.rs",
       "crates/sim-lib-incremental/src/claims.rs",
       "crates/sim-lib-incremental/src/lib.rs",
+      "crates/sim-lib-incremental/src/model/analysis_view.rs",
+      "crates/sim-lib-incremental/src/model/session.rs",
       "crates/sim-lib-incremental/src/model.rs",
       "crates/sim-lib-incremental/src/runtime.rs",
       "crates/sim-lib-incremental/src/shapes.rs",
@@ -2294,6 +3253,8 @@
       "crates/sim-lib-lang-islisp/src/tests.rs",
       "crates/sim-lib-lang-javascript/Cargo.toml",
       "crates/sim-lib-lang-javascript/build.rs",
+      "crates/sim-lib-lang-javascript/recipes/01-basics/collection-owner-composition/recipe.toml",
+      "crates/sim-lib-lang-javascript/recipes/01-basics/json-codec-composition/recipe.toml",
       "crates/sim-lib-lang-javascript/recipes/01-basics/source-core/recipe.toml",
       "crates/sim-lib-lang-javascript/recipes/book.toml",
       "crates/sim-lib-lang-javascript/src/collections.rs",
@@ -2304,11 +3265,15 @@
       "crates/sim-lib-lang-javascript/src/managed.rs",
       "crates/sim-lib-lang-javascript/src/matrix_row.rs",
       "crates/sim-lib-lang-javascript/src/modules.rs",
+      "crates/sim-lib-lang-javascript/src/objects/function.rs",
+      "crates/sim-lib-lang-javascript/src/objects/space.rs",
+      "crates/sim-lib-lang-javascript/src/objects/tests.rs",
       "crates/sim-lib-lang-javascript/src/objects.rs",
       "crates/sim-lib-lang-javascript/src/profile.rs",
       "crates/sim-lib-lang-javascript/src/regexp.rs",
       "crates/sim-lib-lang-javascript/src/runtime.rs",
       "crates/sim-lib-lang-javascript/src/text.rs",
+      "crates/sim-lib-lang-javascript/tests/text_ownership_guard.rs",
       "crates/sim-lib-lang-julia/Cargo.toml",
       "crates/sim-lib-lang-julia/build.rs",
       "crates/sim-lib-lang-julia/recipes/01-basics/matrix-row/recipe.toml",
@@ -2321,6 +3286,110 @@
       "crates/sim-lib-lang-julia/src/profile.rs",
       "crates/sim-lib-lang-julia/src/symbols.rs",
       "crates/sim-lib-lang-julia/src/tests.rs",
+      "crates/sim-lib-lang-jvm/Cargo.toml",
+      "crates/sim-lib-lang-jvm/build.rs",
+      "crates/sim-lib-lang-jvm/examples/bytecode_speed_baseline.rs",
+      "crates/sim-lib-lang-jvm/recipes/01-basics/authorized-static-call/recipe.toml",
+      "crates/sim-lib-lang-jvm/recipes/01-basics/java-lambda/recipe.toml",
+      "crates/sim-lib-lang-jvm/recipes/01-basics/method-reference/recipe.toml",
+      "crates/sim-lib-lang-jvm/recipes/01-basics/performance-evidence/recipe.toml",
+      "crates/sim-lib-lang-jvm/recipes/01-basics/sim-functional-interface/recipe.toml",
+      "crates/sim-lib-lang-jvm/recipes/book.toml",
+      "crates/sim-lib-lang-jvm/src/array.rs",
+      "crates/sim-lib-lang-jvm/src/benchmark.rs",
+      "crates/sim-lib-lang-jvm/src/cache.rs",
+      "crates/sim-lib-lang-jvm/src/class_metadata.rs",
+      "crates/sim-lib-lang-jvm/src/class_space/loader.rs",
+      "crates/sim-lib-lang-jvm/src/class_space/revision.rs",
+      "crates/sim-lib-lang-jvm/src/class_space/tests.rs",
+      "crates/sim-lib-lang-jvm/src/class_space.rs",
+      "crates/sim-lib-lang-jvm/src/code/model.rs",
+      "crates/sim-lib-lang-jvm/src/code/prepare.rs",
+      "crates/sim-lib-lang-jvm/src/code/tests.rs",
+      "crates/sim-lib-lang-jvm/src/code.rs",
+      "crates/sim-lib-lang-jvm/src/constructor.rs",
+      "crates/sim-lib-lang-jvm/src/control.rs",
+      "crates/sim-lib-lang-jvm/src/dispatch.rs",
+      "crates/sim-lib-lang-jvm/src/dynamic.rs",
+      "crates/sim-lib-lang-jvm/src/entry.rs",
+      "crates/sim-lib-lang-jvm/src/exception.rs",
+      "crates/sim-lib-lang-jvm/src/execution.rs",
+      "crates/sim-lib-lang-jvm/src/failure.rs",
+      "crates/sim-lib-lang-jvm/src/field.rs",
+      "crates/sim-lib-lang-jvm/src/frame_pool.rs",
+      "crates/sim-lib-lang-jvm/src/initialization.rs",
+      "crates/sim-lib-lang-jvm/src/inspection.rs",
+      "crates/sim-lib-lang-jvm/src/intrinsic.rs",
+      "crates/sim-lib-lang-jvm/src/invocation.rs",
+      "crates/sim-lib-lang-jvm/src/lib.rs",
+      "crates/sim-lib-lang-jvm/src/limits.rs",
+      "crates/sim-lib-lang-jvm/src/linker/adaptation.rs",
+      "crates/sim-lib-lang-jvm/src/linker/bootstrap_model.rs",
+      "crates/sim-lib-lang-jvm/src/linker/direct_handle.rs",
+      "crates/sim-lib-lang-jvm/src/linker/functional_interface.rs",
+      "crates/sim-lib-lang-jvm/src/linker/lambda_factory.rs",
+      "crates/sim-lib-lang-jvm/src/linker/linkage_cache.rs",
+      "crates/sim-lib-lang-jvm/src/linker/tests.rs",
+      "crates/sim-lib-lang-jvm/src/linker/tests_1.rs",
+      "crates/sim-lib-lang-jvm/src/linker/tests_2.rs",
+      "crates/sim-lib-lang-jvm/src/linker/tests_3.rs",
+      "crates/sim-lib-lang-jvm/src/linker.rs",
+      "crates/sim-lib-lang-jvm/src/managed.rs",
+      "crates/sim-lib-lang-jvm/src/monitor.rs",
+      "crates/sim-lib-lang-jvm/src/numeric.rs",
+      "crates/sim-lib-lang-jvm/src/regions.rs",
+      "crates/sim-lib-lang-jvm/src/resolution.rs",
+      "crates/sim-lib-lang-jvm/src/specimen.rs",
+      "crates/sim-lib-lang-jvm/src/superinstructions.rs",
+      "crates/sim-lib-lang-jvm/src/superinstructions_generated.rs",
+      "crates/sim-lib-lang-jvm/src/surface.rs",
+      "crates/sim-lib-lang-jvm/src/text.rs",
+      "crates/sim-lib-lang-jvm/src/value.rs",
+      "crates/sim-lib-lang-jvm/src/verifier/adversarial_tests.rs",
+      "crates/sim-lib-lang-jvm/src/verifier/class_proof.rs",
+      "crates/sim-lib-lang-jvm/src/verifier/environment.rs",
+      "crates/sim-lib-lang-jvm/src/verifier/environment_tests.rs",
+      "crates/sim-lib-lang-jvm/src/verifier/frame.rs",
+      "crates/sim-lib-lang-jvm/src/verifier/graph.rs",
+      "crates/sim-lib-lang-jvm/src/verifier/initialization.rs",
+      "crates/sim-lib-lang-jvm/src/verifier/invocation.rs",
+      "crates/sim-lib-lang-jvm/src/verifier/method_proof.rs",
+      "crates/sim-lib-lang-jvm/src/verifier/stack_map.rs",
+      "crates/sim-lib-lang-jvm/src/verifier/tests.rs",
+      "crates/sim-lib-lang-jvm/src/verifier/tests_1.rs",
+      "crates/sim-lib-lang-jvm/src/verifier/tests_2.rs",
+      "crates/sim-lib-lang-jvm/src/verifier/tests_3.rs",
+      "crates/sim-lib-lang-jvm/src/verifier/types.rs",
+      "crates/sim-lib-lang-jvm/src/verifier.rs",
+      "crates/sim-lib-lang-jvm/src/verifier_adversarial_tests.rs",
+      "crates/sim-lib-lang-jvm/src/verifier_rules_generated.rs",
+      "crates/sim-lib-lang-jvm/tests/baseline.rs",
+      "crates/sim-lib-lang-jvm/tests/class_initialization.rs",
+      "crates/sim-lib-lang-jvm/tests/constructor_state.rs",
+      "crates/sim-lib-lang-jvm/tests/control_execution.rs",
+      "crates/sim-lib-lang-jvm/tests/corpus.rs",
+      "crates/sim-lib-lang-jvm/tests/entry_surface.rs",
+      "crates/sim-lib-lang-jvm/tests/exceptions.rs",
+      "crates/sim-lib-lang-jvm/tests/frame_pool.rs",
+      "crates/sim-lib-lang-jvm/tests/hot_path_ownership.rs",
+      "crates/sim-lib-lang-jvm/tests/intrinsics.rs",
+      "crates/sim-lib-lang-jvm/tests/lambda_scope.rs",
+      "crates/sim-lib-lang-jvm/tests/managed_graph.rs",
+      "crates/sim-lib-lang-jvm/tests/monitors.rs",
+      "crates/sim-lib-lang-jvm/tests/numeric_execution.rs",
+      "crates/sim-lib-lang-jvm/tests/ownership_guard.rs",
+      "crates/sim-lib-lang-jvm/tests/prepared_code.rs",
+      "crates/sim-lib-lang-jvm/tests/prepared_dispatch.rs",
+      "crates/sim-lib-lang-jvm/tests/product_preparation.rs",
+      "crates/sim-lib-lang-jvm/tests/product_specimen.rs",
+      "crates/sim-lib-lang-jvm/tests/published_performance.rs",
+      "crates/sim-lib-lang-jvm/tests/semantic_equivalence.rs",
+      "crates/sim-lib-lang-jvm/tests/sim_surface.rs",
+      "crates/sim-lib-lang-jvm/tests/storage_execution.rs",
+      "crates/sim-lib-lang-jvm/tests/superinstructions.rs",
+      "crates/sim-lib-lang-jvm/tests/values_and_failures.rs",
+      "crates/sim-lib-lang-jvm/tests/verifier_scope.rs",
+      "crates/sim-lib-lang-jvm/tests/work_regions.rs",
       "crates/sim-lib-lang-lua/Cargo.toml",
       "crates/sim-lib-lang-lua/build.rs",
       "crates/sim-lib-lang-lua/recipes/01-basics/closure-upvalue/recipe.toml",
@@ -2368,9 +3437,11 @@
       "crates/sim-lib-lang-lua/src/value.rs",
       "crates/sim-lib-lang-matrix/Cargo.toml",
       "crates/sim-lib-lang-matrix/build.rs",
+      "crates/sim-lib-lang-matrix/recipes/01-basics/cross-language-callable/recipe.toml",
       "crates/sim-lib-lang-matrix/recipes/01-basics/runtime-language-matrix/recipe.toml",
       "crates/sim-lib-lang-matrix/recipes/book.toml",
       "crates/sim-lib-lang-matrix/src/closure_tests.rs",
+      "crates/sim-lib-lang-matrix/src/cross_language_specimen.rs",
       "crates/sim-lib-lang-matrix/src/lib.rs",
       "crates/sim-lib-lang-matrix/src/tests.rs",
       "crates/sim-lib-lang-prolog/Cargo.toml",
@@ -2391,6 +3462,7 @@
       "crates/sim-lib-lang-python/recipes/01-basics/source-core/recipe.toml",
       "crates/sim-lib-lang-python/recipes/book.toml",
       "crates/sim-lib-lang-python/src/fidelity.rs",
+      "crates/sim-lib-lang-python/src/function.rs",
       "crates/sim-lib-lang-python/src/lib.rs",
       "crates/sim-lib-lang-python/src/library_core.rs",
       "crates/sim-lib-lang-python/src/managed.rs",
@@ -2498,6 +3570,27 @@
       "crates/sim-lib-logic/src/tests/unify.rs",
       "crates/sim-lib-logic/src/tests.rs",
       "crates/sim-lib-logic/src/unify.rs",
+      "crates/sim-lib-machine/Cargo.toml",
+      "crates/sim-lib-machine/src/admission.rs",
+      "crates/sim-lib-machine/src/code.rs",
+      "crates/sim-lib-machine/src/driver.rs",
+      "crates/sim-lib-machine/src/frame.rs",
+      "crates/sim-lib-machine/src/lib.rs",
+      "crates/sim-lib-machine/src/managed.rs",
+      "crates/sim-lib-machine/src/shuffle.rs",
+      "crates/sim-lib-machine/src/slots.rs",
+      "crates/sim-lib-machine/src/stack.rs",
+      "crates/sim-lib-machine/tests/admission.rs",
+      "crates/sim-lib-machine/tests/control_resume.rs",
+      "crates/sim-lib-machine/tests/frame_calls_conformance.rs",
+      "crates/sim-lib-machine/tests/iterative_driver.rs",
+      "crates/sim-lib-machine/tests/located_code.rs",
+      "crates/sim-lib-machine/tests/managed_safepoints.rs",
+      "crates/sim-lib-machine/tests/neutral_machine_specimens.rs",
+      "crates/sim-lib-machine/tests/neutrality.rs",
+      "crates/sim-lib-machine/tests/ownership_guard.rs",
+      "crates/sim-lib-machine/tests/shuffle_properties.rs",
+      "crates/sim-lib-machine/tests/storage_properties.rs",
       "crates/sim-lib-mutation/Cargo.toml",
       "crates/sim-lib-mutation/build.rs",
       "crates/sim-lib-mutation/recipes/01-basics/mutable-state/recipe.toml",
@@ -2506,6 +3599,11 @@
       "crates/sim-lib-mutation/src/cell.rs",
       "crates/sim-lib-mutation/src/claims.rs",
       "crates/sim-lib-mutation/src/lib.rs",
+      "crates/sim-lib-mutation/src/managed/arena.rs",
+      "crates/sim-lib-mutation/src/managed/arena_model.rs",
+      "crates/sim-lib-mutation/src/managed/edges.rs",
+      "crates/sim-lib-mutation/src/managed/handles.rs",
+      "crates/sim-lib-mutation/src/managed/object.rs",
       "crates/sim-lib-mutation/src/managed.rs",
       "crates/sim-lib-mutation/src/managed_tests.rs",
       "crates/sim-lib-mutation/src/runtime_key.rs",
@@ -2519,9 +3617,14 @@
       "crates/sim-lib-namespace/recipes/book.toml",
       "crates/sim-lib-namespace/src/claims.rs",
       "crates/sim-lib-namespace/src/lib.rs",
+      "crates/sim-lib-namespace/src/module/tests/characterization.rs",
+      "crates/sim-lib-namespace/src/module/tests/concurrency.rs",
+      "crates/sim-lib-namespace/src/module/tests/lifecycle.rs",
+      "crates/sim-lib-namespace/src/module/tests/support.rs",
       "crates/sim-lib-namespace/src/module/tests.rs",
       "crates/sim-lib-namespace/src/module.rs",
       "crates/sim-lib-namespace/src/namespace.rs",
+      "crates/sim-lib-namespace/src/specifier.rs",
       "crates/sim-lib-namespace/src/tests.rs",
       "crates/sim-lib-pattern/Cargo.toml",
       "crates/sim-lib-pattern/build.rs",
@@ -2529,8 +3632,14 @@
       "crates/sim-lib-pattern/recipes/book.toml",
       "crates/sim-lib-pattern/src/adt.rs",
       "crates/sim-lib-pattern/src/claims.rs",
+      "crates/sim-lib-pattern/src/compile.rs",
+      "crates/sim-lib-pattern/src/cursor.rs",
       "crates/sim-lib-pattern/src/dialect.rs",
+      "crates/sim-lib-pattern/src/domain_execute.rs",
+      "crates/sim-lib-pattern/src/execute.rs",
+      "crates/sim-lib-pattern/src/extension.rs",
       "crates/sim-lib-pattern/src/glob_dialect.rs",
+      "crates/sim-lib-pattern/src/ir.rs",
       "crates/sim-lib-pattern/src/lib.rs",
       "crates/sim-lib-pattern/src/lua_dialect.rs",
       "crates/sim-lib-pattern/src/match_form.rs",
@@ -2540,6 +3649,11 @@
       "crates/sim-lib-pattern/src/tests.rs",
       "crates/sim-lib-pattern/src/text_tests.rs",
       "crates/sim-lib-pattern/src/text_vm.rs",
+      "crates/sim-lib-pattern/tests/cross_dialect_safety.rs",
+      "crates/sim-lib-pattern/tests/cursor_domains.rs",
+      "crates/sim-lib-pattern/tests/ir_contract.rs",
+      "crates/sim-lib-pattern/tests/legacy_lowering.rs",
+      "crates/sim-lib-pattern/tests/ownership_guard.rs",
       "crates/sim-lib-sequence/Cargo.toml",
       "crates/sim-lib-sequence/build.rs",
       "crates/sim-lib-sequence/recipes/01-basics/map-square/recipe.toml",
@@ -2547,17 +3661,26 @@
       "crates/sim-lib-sequence/src/claims.rs",
       "crates/sim-lib-sequence/src/lazy.rs",
       "crates/sim-lib-sequence/src/lib.rs",
+      "crates/sim-lib-sequence/src/mutable/ordered_set.rs",
+      "crates/sim-lib-sequence/src/mutable/ordered_table.rs",
+      "crates/sim-lib-sequence/src/mutable/sparse.rs",
+      "crates/sim-lib-sequence/src/mutable/tests.rs",
+      "crates/sim-lib-sequence/src/mutable.rs",
       "crates/sim-lib-sequence/src/persistent.rs",
       "crates/sim-lib-sequence/src/profile.rs",
       "crates/sim-lib-sequence/src/runtime.rs",
       "crates/sim-lib-sequence/src/runtime_iter.rs",
       "crates/sim-lib-sequence/src/tests.rs",
       "crates/sim-lib-sequence/src/transducer.rs",
+      "crates/sim-lib-sequence/tests/composition_ownership_guard.rs",
       "crates/sim-lib-standard-core/Cargo.toml",
       "crates/sim-lib-standard-core/build.rs",
+      "crates/sim-lib-standard-core/recipes/01-basics/characterize-migration/recipe.toml",
       "crates/sim-lib-standard-core/recipes/01-basics/profile-fidelity/recipe.toml",
       "crates/sim-lib-standard-core/recipes/book.toml",
       "crates/sim-lib-standard-core/src/cap.rs",
+      "crates/sim-lib-standard-core/src/capture.rs",
+      "crates/sim-lib-standard-core/src/characterization.rs",
       "crates/sim-lib-standard-core/src/claims.rs",
       "crates/sim-lib-standard-core/src/diff.rs",
       "crates/sim-lib-standard-core/src/fidelity.rs",
@@ -2573,16 +3696,19 @@
       "crates/sim-lib-standard-core/src/matrix_claims.rs",
       "crates/sim-lib-standard-core/src/matrix_tests.rs",
       "crates/sim-lib-standard-core/src/native.rs",
+      "crates/sim-lib-standard-core/src/neutral_characterization_tests.rs",
+      "crates/sim-lib-standard-core/src/observation.rs",
       "crates/sim-lib-standard-core/src/polyglot.rs",
       "crates/sim-lib-standard-core/src/profile.rs",
       "crates/sim-lib-standard-core/src/read_construct.rs",
       "crates/sim-lib-standard-core/src/registry.rs",
+      "crates/sim-lib-standard-core/src/scenario.rs",
       "crates/sim-lib-standard-core/src/tests.rs",
       "features.toml",
       "xtask/Cargo.toml"
     ]
   },
-  "recipe_book_count": 26,
+  "recipe_book_count": 29,
   "recipes": [
     {
       "book": "organ/binding",
@@ -2603,6 +3729,26 @@
       ],
       "summary": "Binding surface concepts shared by language profiles.",
       "title": "Binding Organ"
+    },
+    {
+      "book": "sim-lib-class",
+      "book_toml": "crates/sim-lib-class/recipes/book.toml",
+      "card_id": "cookbook/sim-lib-class",
+      "group": "workspace",
+      "package": "sim-lib-class",
+      "recipe_count": 1,
+      "recipes": [
+        {
+          "card_id": "sim-lib-class/01-basics/neutral-class",
+          "codec": "",
+          "id": "neutral-class",
+          "package": "sim-lib-class",
+          "recipe_toml": "crates/sim-lib-class/recipes/01-basics/neutral-class/recipe.toml",
+          "title": "Classes for a language that does not exist yet"
+        }
+      ],
+      "summary": "Language-neutral class lineage, browsing, read construction, and managed caches.",
+      "title": "Class organ recipes"
     },
     {
       "book": "control",
@@ -2693,12 +3839,32 @@
       "title": "Bounded Process Execution"
     },
     {
+      "book": "sim-lib-function",
+      "book_toml": "crates/sim-lib-function/recipes/book.toml",
+      "card_id": "cookbook/sim-lib-function",
+      "group": "workspace",
+      "package": "sim-lib-function",
+      "recipe_count": 1,
+      "recipes": [
+        {
+          "card_id": "sim-lib-function/01-basics/neutral-language",
+          "codec": "",
+          "id": "neutral-language",
+          "package": "sim-lib-function",
+          "recipe_toml": "crates/sim-lib-function/recipes/01-basics/neutral-language/recipe.toml",
+          "title": "A function for a language that does not exist yet"
+        }
+      ],
+      "summary": "Language-neutral typed functions, managed captures, and optional dispatch.",
+      "title": "Function organ recipes"
+    },
+    {
       "book": "gc-tracing",
       "book_toml": "crates/sim-lib-gc-tracing/recipes/book.toml",
       "card_id": "cookbook/gc-tracing",
       "group": "workspace",
       "package": "sim-lib-gc-tracing",
-      "recipe_count": 1,
+      "recipe_count": 2,
       "recipes": [
         {
           "card_id": "gc-tracing/01-collection/bounded-cycle",
@@ -2707,6 +3873,14 @@
           "package": "sim-lib-gc-tracing",
           "recipe_toml": "crates/sim-lib-gc-tracing/recipes/01-collection/bounded-cycle/recipe.toml",
           "title": "Reclaim an unreachable cycle"
+        },
+        {
+          "card_id": "gc-tracing/01-collection/managed-substrate",
+          "codec": "lisp",
+          "id": "managed-substrate",
+          "package": "sim-lib-gc-tracing",
+          "recipe_toml": "crates/sim-lib-gc-tracing/recipes/01-collection/managed-substrate/recipe.toml",
+          "title": "Share one managed graph substrate"
         }
       ],
       "summary": "Bound and audit managed-arena cycle collection.",
@@ -2718,8 +3892,16 @@
       "card_id": "cookbook/organ/incremental",
       "group": "workspace",
       "package": "sim-lib-incremental",
-      "recipe_count": 1,
+      "recipe_count": 2,
       "recipes": [
+        {
+          "card_id": "organ/incremental/01-basics/completed-analysis",
+          "codec": "lisp",
+          "id": "completed-analysis",
+          "package": "sim-lib-incremental",
+          "recipe_toml": "crates/sim-lib-incremental/recipes/01-basics/completed-analysis/recipe.toml",
+          "title": "Browse a completed dataflow analysis"
+        },
         {
           "card_id": "organ/incremental/01-basics/query-family",
           "codec": "lisp",
@@ -2729,7 +3911,7 @@
           "title": "Incremental query family descriptor"
         }
       ],
-      "summary": "Memoized expression queries with invalidation, missing observations, cutoff, snapshots, and metrics.",
+      "summary": "Memoized expression queries plus immutable, proof-backed dataflow analysis projections.",
       "title": "Incremental Query Organ"
     },
     {
@@ -2842,8 +4024,24 @@
       "card_id": "cookbook/lang/javascript",
       "group": "workspace",
       "package": "sim-lib-lang-javascript",
-      "recipe_count": 1,
+      "recipe_count": 3,
       "recipes": [
+        {
+          "card_id": "lang/javascript/01-basics/collection-owner-composition",
+          "codec": "javascript",
+          "id": "collection-owner-composition",
+          "package": "sim-lib-lang-javascript",
+          "recipe_toml": "crates/sim-lib-lang-javascript/recipes/01-basics/collection-owner-composition/recipe.toml",
+          "title": "Compose JavaScript collections with shared sequence storage"
+        },
+        {
+          "card_id": "lang/javascript/01-basics/json-codec-composition",
+          "codec": "javascript",
+          "id": "json-codec-composition",
+          "package": "sim-lib-lang-javascript",
+          "recipe_toml": "crates/sim-lib-lang-javascript/recipes/01-basics/json-codec-composition/recipe.toml",
+          "title": "Compose JavaScript JSON policy with the shared codec"
+        },
         {
           "card_id": "lang/javascript/01-basics/javascript-source-core",
           "codec": "javascript",
@@ -2883,6 +4081,58 @@
       ],
       "summary": "Julia core profile descriptors and dispatch behavior.",
       "title": "Julia Core Profile"
+    },
+    {
+      "book": "sim-lib-lang-jvm",
+      "book_toml": "crates/sim-lib-lang-jvm/recipes/book.toml",
+      "card_id": "cookbook/sim-lib-lang-jvm",
+      "group": "workspace",
+      "package": "sim-lib-lang-jvm",
+      "recipe_count": 5,
+      "recipes": [
+        {
+          "card_id": "sim-lib-lang-jvm/01-basics/authorized-static-call",
+          "codec": "",
+          "id": "authorized-static-call",
+          "package": "sim-lib-lang-jvm",
+          "recipe_toml": "crates/sim-lib-lang-jvm/recipes/01-basics/authorized-static-call/recipe.toml",
+          "title": "Define authorized class bytes and call a static method"
+        },
+        {
+          "card_id": "sim-lib-lang-jvm/01-basics/java-lambda",
+          "codec": "",
+          "id": "java-lambda",
+          "package": "sim-lib-lang-jvm",
+          "recipe_toml": "crates/sim-lib-lang-jvm/recipes/01-basics/java-lambda/recipe.toml",
+          "title": "Invoke a compiler-produced Java lambda from SIM"
+        },
+        {
+          "card_id": "sim-lib-lang-jvm/01-basics/method-reference",
+          "codec": "",
+          "id": "method-reference",
+          "package": "sim-lib-lang-jvm",
+          "recipe_toml": "crates/sim-lib-lang-jvm/recipes/01-basics/method-reference/recipe.toml",
+          "title": "Invoke a Java method reference from SIM"
+        },
+        {
+          "card_id": "sim-lib-lang-jvm/01-basics/performance-evidence",
+          "codec": "",
+          "id": "performance-evidence",
+          "package": "sim-lib-lang-jvm",
+          "recipe_toml": "crates/sim-lib-lang-jvm/recipes/01-basics/performance-evidence/recipe.toml",
+          "title": "Inspect prepared JVM performance evidence"
+        },
+        {
+          "card_id": "sim-lib-lang-jvm/01-basics/sim-functional-interface",
+          "codec": "",
+          "id": "sim-functional-interface",
+          "package": "sim-lib-lang-jvm",
+          "recipe_toml": "crates/sim-lib-lang-jvm/recipes/01-basics/sim-functional-interface/recipe.toml",
+          "title": "Pass an authorized SIM callable to Java"
+        }
+      ],
+      "summary": "",
+      "title": "JVM language profile"
     },
     {
       "book": "lang/lua",
@@ -2950,8 +4200,16 @@
       "card_id": "cookbook/lang/matrix",
       "group": "workspace",
       "package": "sim-lib-lang-matrix",
-      "recipe_count": 1,
+      "recipe_count": 2,
       "recipes": [
+        {
+          "card_id": "lang/matrix/01-basics/cross-language-callable",
+          "codec": "lisp",
+          "id": "cross-language-callable",
+          "package": "sim-lib-lang-matrix",
+          "recipe_toml": "crates/sim-lib-lang-matrix/recipes/01-basics/cross-language-callable/recipe.toml",
+          "title": "Browse and call three guest languages through one protocol"
+        },
         {
           "card_id": "lang/matrix/01-basics/runtime-language-matrix",
           "codec": "lisp",
@@ -3234,8 +4492,16 @@
       "card_id": "cookbook/standard/core",
       "group": "workspace",
       "package": "sim-lib-standard-core",
-      "recipe_count": 1,
+      "recipe_count": 2,
       "recipes": [
+        {
+          "card_id": "standard/core/01-basics/characterize-migration",
+          "codec": "lisp",
+          "id": "characterize-migration",
+          "package": "sim-lib-standard-core",
+          "recipe_toml": "crates/sim-lib-standard-core/recipes/01-basics/characterize-migration/recipe.toml",
+          "title": "Characterize a migration"
+        },
         {
           "card_id": "standard/core/01-basics/profile-fidelity",
           "codec": "lisp",
@@ -3245,7 +4511,7 @@
           "title": "Profile fidelity descriptor"
         }
       ],
-      "summary": "Language profiles, fidelity badges, and conformance helpers.",
+      "summary": "Language profiles, fidelity badges, conformance helpers, and strict migration characterization.",
       "title": "Standard Core"
     }
   ]

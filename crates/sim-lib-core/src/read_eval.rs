@@ -3,13 +3,13 @@
 mod config;
 mod decision;
 
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
 
 use sim_codec::{Input, decode_with_codec};
 use sim_kernel::{
-    AbiVersion, CapabilityName, CapabilitySet, Cx, Diagnostic, Error, Event, Export, Expr, Lib,
-    LibManifest, LibTarget, Linker, LoadCx, Object, ReadPolicy, Ref, Result, Shape, ShapeId,
-    Symbol, Value, Version, read_eval_capability,
+    AbiVersion, CapabilityName, CapabilitySet, Cx, Datum, Diagnostic, Error, Event, Export, Expr,
+    Lib, LibManifest, LibTarget, Linker, LoadCx, Object, ReadPolicy, Ref, Result, Shape, ShapeId,
+    Symbol, Value, Version, diminish, read_eval_capability,
 };
 use sim_shape::expected_shape_diagnostic;
 
@@ -81,6 +81,84 @@ pub enum ReadEvalSource {
     Expr(Expr),
 }
 
+/// Immutable host authority shared by requests that load or evaluate source.
+///
+/// Construction is deliberately available only from trusted Rust code. Source
+/// data has no decoder or read-constructor for this value, and its data
+/// projection omits the trusted read policy.
+#[derive(Clone, PartialEq, Eq)]
+pub struct SourceAuthority {
+    read_policy: ReadPolicy,
+    requires: Vec<CapabilityName>,
+    allow: CapabilitySet,
+}
+
+impl fmt::Debug for SourceAuthority {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("SourceAuthority")
+            .field("read_policy", &"<redacted>")
+            .field("requires", &self.requires)
+            .field("allow", &self.allow)
+            .finish()
+    }
+}
+
+impl SourceAuthority {
+    /// Builds authority after checking that its read policy admits explicit
+    /// evaluation. Required powers retain caller order; allowed powers retain
+    /// set semantics.
+    pub fn new(
+        read_policy: ReadPolicy,
+        requires: Vec<CapabilityName>,
+        allow: CapabilitySet,
+    ) -> Result<Self> {
+        read_policy.require(&read_eval_capability())?;
+        Ok(Self {
+            read_policy,
+            requires,
+            allow,
+        })
+    }
+
+    /// Returns the trusted policy governing source decoding.
+    pub fn read_policy(&self) -> &ReadPolicy {
+        &self.read_policy
+    }
+
+    /// Returns the caller powers required before source evaluation.
+    pub fn requires(&self) -> &[CapabilityName] {
+        &self.requires
+    }
+
+    /// Returns the maximum powers allowed during source evaluation.
+    pub fn allow(&self) -> &CapabilitySet {
+        &self.allow
+    }
+
+    /// Projects authority for decision data without exposing read-policy
+    /// trust or capability internals.
+    pub fn decision_datum(&self) -> Datum {
+        Datum::Node {
+            tag: Symbol::qualified("source", "authority"),
+            fields: vec![
+                (
+                    Symbol::new("requires"),
+                    capability_names_datum(self.requires()),
+                ),
+                (
+                    Symbol::new("allow"),
+                    capability_names_datum(self.allow().iter()),
+                ),
+                (
+                    Symbol::new("read-policy"),
+                    Datum::Symbol(Symbol::new("redacted")),
+                ),
+            ],
+        }
+    }
+}
+
 /// A single explicit, host-authorized read-eval admission request.
 pub struct ReadEvalRequest {
     /// Open origin data describing who asked for eval.
@@ -89,14 +167,29 @@ pub struct ReadEvalRequest {
     pub codec: Symbol,
     /// Source to decode and evaluate, or an already-decoded expression.
     pub source: ReadEvalSource,
-    /// Trusted host-built read policy; never derive this from request text.
-    pub read_policy: ReadPolicy,
-    /// Capabilities the caller must already hold before eval can run.
-    pub requires: Vec<CapabilityName>,
-    /// Maximum powers the request allows the eval body to run with.
-    pub allow: CapabilitySet,
+    /// Trusted host authority governing source admission and evaluation.
+    pub authority: SourceAuthority,
     /// Shape the evaluated result must satisfy before it is admitted.
     pub expected_shape: Arc<dyn Shape>,
+}
+
+impl ReadEvalRequest {
+    /// Builds a request whose source authority is explicit and indivisible.
+    pub fn new(
+        origin: RequestOrigin,
+        codec: Symbol,
+        source: ReadEvalSource,
+        authority: SourceAuthority,
+        expected_shape: Arc<dyn Shape>,
+    ) -> Self {
+        Self {
+            origin,
+            codec,
+            source,
+            authority,
+            expected_shape,
+        }
+    }
 }
 
 // sim-non-citizen(reason = "host admission gate object; explicit request data is not a read-constructor surface", kind = "runtime", descriptor = "")
@@ -104,6 +197,16 @@ pub struct ReadEvalRequest {
 #[derive(Clone, Default)]
 pub struct ReadEvalBroker {
     ledger: decision::ReadEvalLedger,
+}
+
+/// The value-or-error and the single ledger event produced by one admission.
+pub struct ReadEvalAdmission {
+    /// Evaluation result returned to the caller.
+    pub result: Result<Value>,
+    /// Decision recorded for this admission.
+    pub decision: ReadEvalDecision,
+    /// Exact event carrying `decision` in the broker ledger.
+    pub event: Event,
 }
 
 impl ReadEvalBroker {
@@ -114,72 +217,108 @@ impl ReadEvalBroker {
 
     /// Admits one explicit read-eval request or fails closed.
     pub fn admit(&self, cx: &mut Cx, request: ReadEvalRequest) -> Result<Value> {
-        if let Err(err) = request.read_policy.require(&read_eval_capability()) {
+        self.admit_with_event(cx, request)?.result
+    }
+
+    /// Admits one request and returns the exact decision event alongside its result.
+    pub fn admit_with_event(
+        &self,
+        cx: &mut Cx,
+        request: ReadEvalRequest,
+    ) -> Result<ReadEvalAdmission> {
+        if let Err(err) = request
+            .authority
+            .read_policy()
+            .require(&read_eval_capability())
+        {
             let outcome = match err {
                 Error::TrustDenied { .. } => ReadEvalOutcome::TrustDenied,
                 _ => ReadEvalOutcome::CapDenied,
             };
-            self.record(cx, &request, &CapabilitySet::new(), outcome)?;
-            return Err(err);
+            return self.admission(cx, &request, &CapabilitySet::new(), outcome, Err(err));
         }
-        if let Err(err) = cx.require_all(&request.requires) {
-            self.record(
+        if let Err(err) = cx.require_all(request.authority.requires()) {
+            return self.admission(
                 cx,
                 &request,
                 &CapabilitySet::new(),
                 ReadEvalOutcome::MissingPower,
-            )?;
-            return Err(err);
+                Err(err),
+            );
         }
 
-        let active = diminish_capabilities(cx.capabilities(), &request.allow);
+        let active = diminish(cx.capabilities(), request.authority.allow());
         let expr = match cx.with_capabilities(active.clone(), |cx| {
             decode_source(
                 cx,
                 &request.codec,
                 request.source.clone(),
-                request.read_policy.clone(),
+                request.authority.read_policy().clone(),
             )
         }) {
             Ok(expr) => expr,
             Err(err) => {
-                self.record(cx, &request, &active, ReadEvalOutcome::DecodeFailed)?;
-                return Err(err);
+                return self.admission(
+                    cx,
+                    &request,
+                    &active,
+                    ReadEvalOutcome::DecodeFailed,
+                    Err(err),
+                );
             }
         };
         let value = match cx.with_capabilities(active.clone(), |cx| cx.eval_expr(expr)) {
             Ok(value) => value,
             Err(err) => {
-                self.record(cx, &request, &active, ReadEvalOutcome::EvalFailed)?;
-                return Err(err);
+                return self.admission(
+                    cx,
+                    &request,
+                    &active,
+                    ReadEvalOutcome::EvalFailed,
+                    Err(err),
+                );
             }
         };
 
         let matched = match request.expected_shape.check_value(cx, value.clone()) {
             Ok(matched) => matched,
             Err(err) => {
-                self.record(cx, &request, &active, ReadEvalOutcome::ShapeError)?;
-                return Err(err);
+                return self.admission(
+                    cx,
+                    &request,
+                    &active,
+                    ReadEvalOutcome::ShapeError,
+                    Err(err),
+                );
             }
         };
         if matched.accepted {
-            self.record(cx, &request, &active, ReadEvalOutcome::Admitted)?;
-            return Ok(value);
+            return self.admission(cx, &request, &active, ReadEvalOutcome::Admitted, Ok(value));
         }
 
         let diagnostics =
             match shape_diagnostics(cx, request.expected_shape.as_ref(), matched.diagnostics) {
                 Ok(diagnostics) => diagnostics,
                 Err(err) => {
-                    self.record(cx, &request, &active, ReadEvalOutcome::ShapeError)?;
-                    return Err(err);
+                    return self.admission(
+                        cx,
+                        &request,
+                        &active,
+                        ReadEvalOutcome::ShapeError,
+                        Err(err),
+                    );
                 }
             };
-        self.record(cx, &request, &active, ReadEvalOutcome::ShapeDenied)?;
-        Err(Error::WrongShape {
-            expected: request.expected_shape.id().unwrap_or(ShapeId(0)),
-            diagnostics,
-        })
+        self.admission(
+            cx,
+            &request,
+            &active,
+            ReadEvalOutcome::ShapeDenied,
+            Err(Error::WrongShape {
+                expected: request.expected_shape.id().unwrap_or(ShapeId(0)),
+                diagnostics,
+            }),
+        )
     }
 
     /// Returns read-eval decisions recorded in the broker's default run.
@@ -197,15 +336,132 @@ impl ReadEvalBroker {
         self.ledger.events_for_run(run)
     }
 
-    fn record(
+    fn admission(
         &self,
         cx: &mut Cx,
         request: &ReadEvalRequest,
         active: &CapabilitySet,
         outcome: ReadEvalOutcome,
-    ) -> Result<Event> {
+        result: Result<Value>,
+    ) -> Result<ReadEvalAdmission> {
         let decision = decision::decision_from_request(request, active, outcome);
-        self.ledger.record(cx, &decision)
+        let event = self.ledger.record(cx, &decision)?;
+        Ok(ReadEvalAdmission {
+            result,
+            decision,
+            event,
+        })
+    }
+}
+
+/// Reusable policy for dynamic source evaluated through a named codec.
+///
+/// The policy fixes only the source provenance and codec. Authority and the
+/// expected result shape remain explicit inputs to every evaluation, so a
+/// guest-language wrapper cannot accidentally retain or widen either one.
+/// Callers that need origin detail must provide it in [`RequestOrigin`] when
+/// constructing the policy.
+#[derive(Clone)]
+pub struct DynamicSourcePolicy {
+    broker: ReadEvalBroker,
+    codec: Symbol,
+    origin: RequestOrigin,
+}
+
+impl DynamicSourcePolicy {
+    /// Builds a policy with its own decision ledger.
+    pub fn new(codec: Symbol, origin: RequestOrigin) -> Self {
+        Self::with_broker(ReadEvalBroker::new(), codec, origin)
+    }
+
+    /// Builds a policy over an existing broker.
+    ///
+    /// Cloned brokers share their ledger, allowing several origin/codec
+    /// policies to expose one ordered decision stream.
+    pub fn with_broker(broker: ReadEvalBroker, codec: Symbol, origin: RequestOrigin) -> Self {
+        Self {
+            broker,
+            codec,
+            origin,
+        }
+    }
+
+    /// Evaluates text decoded through this policy's codec.
+    pub fn evaluate_text(
+        &self,
+        cx: &mut Cx,
+        text: impl Into<String>,
+        authority: SourceAuthority,
+        expected_shape: Arc<dyn Shape>,
+    ) -> Result<Value> {
+        self.evaluate(
+            cx,
+            ReadEvalSource::Text(text.into()),
+            authority,
+            expected_shape,
+        )
+    }
+
+    /// Evaluates bytes decoded through this policy's codec.
+    pub fn evaluate_bytes(
+        &self,
+        cx: &mut Cx,
+        bytes: impl Into<Vec<u8>>,
+        authority: SourceAuthority,
+        expected_shape: Arc<dyn Shape>,
+    ) -> Result<Value> {
+        self.evaluate(
+            cx,
+            ReadEvalSource::Bytes(bytes.into()),
+            authority,
+            expected_shape,
+        )
+    }
+
+    /// Evaluates an already-decoded expression through the same admission gate.
+    pub fn evaluate_expr(
+        &self,
+        cx: &mut Cx,
+        expr: Expr,
+        authority: SourceAuthority,
+        expected_shape: Arc<dyn Shape>,
+    ) -> Result<Value> {
+        self.evaluate(cx, ReadEvalSource::Expr(expr), authority, expected_shape)
+    }
+
+    /// Evaluates any supported source form through the shared broker law.
+    pub fn evaluate(
+        &self,
+        cx: &mut Cx,
+        source: ReadEvalSource,
+        authority: SourceAuthority,
+        expected_shape: Arc<dyn Shape>,
+    ) -> Result<Value> {
+        self.broker.admit(
+            cx,
+            ReadEvalRequest::new(
+                self.origin.clone(),
+                self.codec.clone(),
+                source,
+                authority,
+                expected_shape,
+            ),
+        )
+    }
+
+    /// Returns decisions recorded in the policy's default run.
+    pub fn decisions(&self, cx: &Cx) -> Result<Vec<ReadEvalDecision>> {
+        self.broker.decisions(cx)
+    }
+
+    /// Returns decisions recorded for `run`.
+    pub fn decisions_for_run(&self, cx: &Cx, run: &Ref) -> Result<Vec<ReadEvalDecision>> {
+        self.broker.decisions_for_run(cx, run)
+    }
+
+    /// Returns raw ledger events recorded for `run`.
+    pub fn events_for_run(&self, run: &Ref) -> Result<Vec<Event>> {
+        self.broker.events_for_run(run)
     }
 }
 
@@ -285,12 +541,13 @@ fn decode_source(
     }
 }
 
-fn diminish_capabilities(current: &CapabilitySet, allowed: &CapabilitySet) -> CapabilitySet {
-    current
-        .iter()
-        .filter(|capability| allowed.contains(capability))
-        .cloned()
-        .fold(CapabilitySet::new(), CapabilitySet::grant)
+fn capability_names_datum<'a>(capabilities: impl IntoIterator<Item = &'a CapabilityName>) -> Datum {
+    Datum::Vector(
+        capabilities
+            .into_iter()
+            .map(|capability| Datum::String(capability.as_str().to_owned()))
+            .collect(),
+    )
 }
 
 fn shape_diagnostics(

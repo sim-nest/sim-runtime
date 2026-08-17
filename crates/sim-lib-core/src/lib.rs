@@ -5,10 +5,18 @@
 //! The kernel defines the `Lib`/`Registry`/`ExportRecord` contracts; this crate
 //! supplies the shared substrate for declaring exported value cards as data and
 //! installing them once, idempotently, into a registry.
+//!
+//! Source admission has one separate, deliberately indivisible product:
+//! [`SourceAuthority`] carries trusted host policy, caller requirements, and
+//! diminished allowed powers into [`ReadEvalRequest`] or [`DynamicSourcePolicy`].
+//! Guest libraries may add source syntax and semantic policy, but never another
+//! admission envelope. The host constructs authority; source data cannot.
 
 use sim_kernel::Symbol;
 
 mod read_eval;
+#[cfg(test)]
+mod source_authority_ownership_tests;
 pub mod surface;
 
 /// Recipes embedded at build time from this crate's `recipes/` tree.
@@ -16,10 +24,11 @@ pub static RECIPES: sim_cookbook::EmbeddedDir =
     include!(concat!(env!("OUT_DIR"), "/cookbook_recipes.rs"));
 
 pub use read_eval::{
-    ConfigEvalNode, HostConfigEvalOptIn, ReadEvalBroker, ReadEvalBrokerLib, ReadEvalDecision,
-    ReadEvalOutcome, ReadEvalRequest, ReadEvalSource, RequestOrigin, config_eval_node_symbol,
-    config_eval_origin_tag, install_read_eval_broker, parse_config_eval_node,
-    read_eval_broker_lib_id, read_eval_broker_symbol, read_eval_decision_run, realize_config_expr,
+    ConfigEvalNode, DynamicSourcePolicy, HostConfigEvalOptIn, ReadEvalAdmission, ReadEvalBroker,
+    ReadEvalBrokerLib, ReadEvalDecision, ReadEvalOutcome, ReadEvalRequest, ReadEvalSource,
+    RequestOrigin, SourceAuthority, config_eval_node_symbol, config_eval_origin_tag,
+    install_read_eval_broker, parse_config_eval_node, read_eval_broker_lib_id,
+    read_eval_broker_symbol, read_eval_decision_run, realize_config_expr,
 };
 pub use surface::{
     SurfaceField, SurfacePackLib, SurfacePackSpec, SurfaceValueSpec, card_expr, install_once,

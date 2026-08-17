@@ -56,6 +56,9 @@ the conformance harness.
 - `sim-lib-standard-core` -- the standard distribution core: capabilities,
   claims, diff, fidelity, harness, install, language profiles, the Lisp codec
   surface, polyglot/profile support, read/construct, and native export tests.
+  Its characterization recipe captures bounded canonical behavior before a
+  refactor and compares the same public contract afterward with content
+  identity and located, two-sided differences.
 
 ### Language profiles
 

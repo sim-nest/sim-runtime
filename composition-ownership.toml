@@ -1,0 +1,25 @@
+schema = "sim.composition-ownership/v1"
+guest_crate_prefix = "sim-lib-lang-"
+json_owner = "crate/sim-codec-json"
+sequence_owner = "crate/sim-lib-sequence"
+remediation = "Keep guest semantics in a policy wrapper and compose the canonical JSON codec and sequence storage owners."
+
+# These are structural pairs rather than banned words. A guest may retain its
+# policy-facing values and adapters, but not the mechanics identified by a pair.
+sparse_storage_fields = ["slots", "elements", "entries"]
+sparse_length_fields = ["logical_len", "array_len", "length"]
+ordered_storage_fields = ["entries", "rows", "buckets"]
+ordered_index_fields = ["key_index", "positions", "lookup"]
+json_driver_names = ["parse_json_text", "render_json_text", "parse_json_value", "write_json_value"]
+
+[[approved_relationship]]
+path = "crates/sim-lib-lang-javascript/src/json.rs"
+class = "policy-wrapper"
+owner = "crate/sim-codec-json"
+reason = "ECMAScript reviver, toJSON, replacer, property-order, undefined, and cycle policy wraps canonical JSON tree parsing and rendering."
+
+[[approved_relationship]]
+path = "crates/sim-lib-lang-javascript/src/collections.rs"
+class = "policy-wrapper"
+owner = "crate/sim-lib-sequence"
+reason = "ECMAScript holes, SameValueZero, symbols, and next-result shape wrap canonical sparse and insertion-ordered sequence storage."

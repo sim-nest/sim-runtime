@@ -1,6 +1,11 @@
-//! ECMAScript JSON policy over the canonical JSON representation.
+//! ECMAScript JSON policy composed over `sim-codec-json` text and tree mechanics.
 
 use std::collections::HashSet;
+
+use sim_codec_json::JsonTree;
+use sim_kernel::CodecId;
+
+const JSON_CODEC: CodecId = CodecId(0);
 
 /// JavaScript JSON-domain value. Objects retain insertion order until the
 /// ECMAScript property-order projection is applied.
@@ -44,17 +49,9 @@ pub fn parse_javascript_json(
     text: &str,
     mut reviver: Option<&mut JsonReviver<'_>>,
 ) -> Result<JavascriptJsonValue, JavascriptJsonError> {
-    let parsed: serde_json::Value =
-        serde_json::from_str(text).map_err(|e| JavascriptJsonError::Parse(e.to_string()))?;
-    let expr = sim_codec_json::project_json_to_expr(
-        &parsed,
-        sim_codec_json::JsonProjectionMode::UntaggedInterop,
-    );
-    let canonical = sim_codec_json::project_expr_to_json(
-        &expr,
-        sim_codec_json::JsonProjectionMode::UntaggedInterop,
-    );
-    let value = from_canonical(canonical);
+    let parsed = sim_codec_json::parse_json(JSON_CODEC, text)
+        .map_err(|error| JavascriptJsonError::Parse(codec_message(error)))?;
+    let value = from_json_tree(parsed)?;
     Ok(if let Some(callback) = reviver.as_mut() {
         walk_reviver("", value, *callback).unwrap_or(JavascriptJsonValue::Undefined)
     } else {
@@ -79,33 +76,32 @@ pub fn stringify_javascript_json(
     match projected {
         None | Some(JavascriptJsonValue::Undefined) => Ok(None),
         Some(value) => {
-            let json = to_canonical(value, false)?;
-            let expr = sim_codec_json::project_json_to_expr(
-                &json,
-                sim_codec_json::JsonProjectionMode::UntaggedInterop,
-            );
-            let canonical = sim_codec_json::project_expr_to_json(
-                &expr,
-                sim_codec_json::JsonProjectionMode::UntaggedInterop,
-            );
-            serde_json::to_string(&canonical)
+            let tree = to_json_tree(value, false)?;
+            sim_codec_json::render_json(JSON_CODEC, &tree)
                 .map(Some)
-                .map_err(|e| JavascriptJsonError::Parse(e.to_string()))
+                .map_err(|error| JavascriptJsonError::Parse(codec_message(error)))
         }
     }
 }
-fn from_canonical(v: serde_json::Value) -> JavascriptJsonValue {
+fn from_json_tree(v: JsonTree) -> Result<JavascriptJsonValue, JavascriptJsonError> {
     match v {
-        serde_json::Value::Null => JavascriptJsonValue::Null,
-        serde_json::Value::Bool(v) => JavascriptJsonValue::Bool(v),
-        serde_json::Value::Number(v) => JavascriptJsonValue::Number(v.as_f64().unwrap_or(f64::NAN)),
-        serde_json::Value::String(v) => JavascriptJsonValue::String(v),
-        serde_json::Value::Array(v) => {
-            JavascriptJsonValue::Array(v.into_iter().map(from_canonical).collect())
-        }
-        serde_json::Value::Object(v) => JavascriptJsonValue::Object(
-            v.into_iter().map(|(k, v)| (k, from_canonical(v))).collect(),
-        ),
+        JsonTree::Null => Ok(JavascriptJsonValue::Null),
+        JsonTree::Bool(v) => Ok(JavascriptJsonValue::Bool(v)),
+        number @ JsonTree::Number(_) => number
+            .number_as_f64(JSON_CODEC)
+            .map(JavascriptJsonValue::Number)
+            .map_err(|error| JavascriptJsonError::Parse(codec_message(error))),
+        JsonTree::String(v) => Ok(JavascriptJsonValue::String(v)),
+        JsonTree::Array(v) => v
+            .into_iter()
+            .map(from_json_tree)
+            .collect::<Result<_, _>>()
+            .map(JavascriptJsonValue::Array),
+        JsonTree::Object(v) => v
+            .into_iter()
+            .map(|(key, value)| Ok((key, from_json_tree(value)?)))
+            .collect::<Result<_, _>>()
+            .map(JavascriptJsonValue::Object),
     }
 }
 fn walk_reviver(
@@ -216,34 +212,43 @@ fn array_index(key: &str) -> Option<u32> {
     }
     Some(value)
 }
-fn to_canonical(
-    v: JavascriptJsonValue,
-    in_array: bool,
-) -> Result<serde_json::Value, JavascriptJsonError> {
+fn to_json_tree(v: JavascriptJsonValue, in_array: bool) -> Result<JsonTree, JavascriptJsonError> {
     Ok(match v {
-        JavascriptJsonValue::Null => serde_json::Value::Null,
-        JavascriptJsonValue::Bool(v) => serde_json::Value::Bool(v),
-        JavascriptJsonValue::Number(v) => serde_json::Number::from_f64(v)
-            .map(serde_json::Value::Number)
-            .ok_or(JavascriptJsonError::NonFinite)?,
-        JavascriptJsonValue::String(v) => serde_json::Value::String(v),
-        JavascriptJsonValue::Array(v) => serde_json::Value::Array(
+        JavascriptJsonValue::Null => JsonTree::Null,
+        JavascriptJsonValue::Bool(v) => JsonTree::Bool(v),
+        JavascriptJsonValue::Number(v) => {
+            JsonTree::number_from_f64(JSON_CODEC, v).map_err(|_| JavascriptJsonError::NonFinite)?
+        }
+        JavascriptJsonValue::String(v) => JsonTree::String(v),
+        JavascriptJsonValue::Array(v) => JsonTree::Array(
             v.into_iter()
-                .map(|v| to_canonical(v, true))
+                .map(|v| to_json_tree(v, true))
                 .collect::<Result<_, _>>()?,
         ),
         JavascriptJsonValue::Object(v) => {
-            let mut map = serde_json::Map::new();
+            let mut entries: Vec<(String, JsonTree)> = Vec::new();
             for (k, v) in v {
                 if !matches!(v, JavascriptJsonValue::Undefined) {
-                    map.insert(k, to_canonical(v, false)?);
+                    let value = to_json_tree(v, false)?;
+                    if let Some((_, existing)) = entries.iter_mut().find(|(key, _)| key == &k) {
+                        *existing = value;
+                    } else {
+                        entries.push((k, value));
+                    }
                 }
             }
-            serde_json::Value::Object(map)
+            JsonTree::Object(entries)
         }
-        JavascriptJsonValue::Undefined if in_array => serde_json::Value::Null,
-        JavascriptJsonValue::Undefined => serde_json::Value::Null,
+        JavascriptJsonValue::Undefined if in_array => JsonTree::Null,
+        JavascriptJsonValue::Undefined => JsonTree::Null,
     })
+}
+
+fn codec_message(error: sim_kernel::Error) -> String {
+    match error {
+        sim_kernel::Error::CodecError { message, .. } => message,
+        error => error.to_string(),
+    }
 }
 
 #[cfg(test)]
@@ -286,5 +291,102 @@ mod tests {
             stringify_javascript_json(&JavascriptJsonValue::Undefined, None, None).unwrap(),
             None
         );
+    }
+
+    #[test]
+    fn reviver_deletion_distinguishes_objects_arrays_and_root() {
+        let mut reviver = |key: &str, value| (key != "drop").then_some(value);
+        assert_eq!(
+            parse_javascript_json(r#"{"drop":1,"keep":[2]}"#, Some(&mut reviver)).unwrap(),
+            JavascriptJsonValue::Object(vec![(
+                "keep".into(),
+                JavascriptJsonValue::Array(vec![JavascriptJsonValue::Number(2.0)]),
+            )])
+        );
+
+        let mut array_reviver = |key: &str, value| (key != "0").then_some(value);
+        assert_eq!(
+            parse_javascript_json("[1]", Some(&mut array_reviver)).unwrap(),
+            JavascriptJsonValue::Array(vec![JavascriptJsonValue::Undefined])
+        );
+
+        let mut root_reviver = |key: &str, value| (!key.is_empty()).then_some(value);
+        assert_eq!(
+            parse_javascript_json("null", Some(&mut root_reviver)).unwrap(),
+            JavascriptJsonValue::Undefined
+        );
+    }
+
+    #[test]
+    fn to_json_precedes_replacer_at_every_level() {
+        use std::cell::RefCell;
+
+        let value = JavascriptJsonValue::Object(vec![(
+            "item".into(),
+            JavascriptJsonValue::String("before".into()),
+        )]);
+        let events = RefCell::new(Vec::new());
+        let mut hook = |key: &str, value: &JavascriptJsonValue| {
+            events.borrow_mut().push(format!("toJSON:{key}"));
+            Some(value.clone())
+        };
+        let mut replacer = |key: &str, value| {
+            events.borrow_mut().push(format!("replacer:{key}"));
+            Some(value)
+        };
+        assert_eq!(
+            stringify_javascript_json(&value, Some(&mut hook), Some(&mut replacer)).unwrap(),
+            Some(r#"{"item":"before"}"#.into())
+        );
+        assert_eq!(
+            events.into_inner(),
+            ["toJSON:", "replacer:", "toJSON:item", "replacer:item"]
+        );
+    }
+
+    #[test]
+    fn replacer_omits_object_members_nulls_array_cells_and_omits_root() {
+        let value = JavascriptJsonValue::Object(vec![
+            ("gone".into(), JavascriptJsonValue::Bool(true)),
+            (
+                "array".into(),
+                JavascriptJsonValue::Array(vec![JavascriptJsonValue::Bool(true)]),
+            ),
+        ]);
+        let mut replacer = |key: &str, value| (key != "gone" && key != "0").then_some(value);
+        assert_eq!(
+            stringify_javascript_json(&value, None, Some(&mut replacer)).unwrap(),
+            Some(r#"{"array":[null]}"#.into())
+        );
+        let mut root_replacer = |key: &str, value| (!key.is_empty()).then_some(value);
+        assert_eq!(
+            stringify_javascript_json(&value, None, Some(&mut root_replacer)).unwrap(),
+            None
+        );
+    }
+
+    #[test]
+    fn number_failures_duplicates_order_diagnostics_and_exact_text_are_stable() {
+        for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            assert_eq!(
+                stringify_javascript_json(&JavascriptJsonValue::Number(value), None, None),
+                Err(JavascriptJsonError::NonFinite)
+            );
+        }
+        let value = JavascriptJsonValue::Object(vec![
+            ("4294967295".into(), JavascriptJsonValue::Number(1.0)),
+            ("01".into(), JavascriptJsonValue::Number(2.0)),
+            ("2".into(), JavascriptJsonValue::Number(3.0)),
+            ("1".into(), JavascriptJsonValue::Number(4.0)),
+            ("01".into(), JavascriptJsonValue::Number(5.0)),
+        ]);
+        assert_eq!(
+            stringify_javascript_json(&value, None, None).unwrap(),
+            Some(r#"{"1":4.0,"2":3.0,"4294967295":1.0,"01":5.0}"#.into())
+        );
+        assert!(matches!(
+            parse_javascript_json("{]", None),
+            Err(JavascriptJsonError::Parse(message)) if message.contains("line 1 column 2")
+        ));
     }
 }

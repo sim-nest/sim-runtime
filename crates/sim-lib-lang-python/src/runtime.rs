@@ -11,19 +11,6 @@ pub struct Annotation {
     pub browse: Option<String>,
 }
 
-/// Directly interpreted Python function with captured lexical values.
-#[derive(Clone, Debug, PartialEq)]
-pub struct PythonFunction {
-    /// Parameters in declaration order.
-    pub params: Vec<String>,
-    /// Token body retained for direct evaluation.
-    pub body: Vec<String>,
-    /// Captured bindings.
-    pub captures: BTreeMap<String, PythonValue>,
-    /// Retained annotations.
-    pub annotations: BTreeMap<String, Annotation>,
-}
-
 /// Values in the declared Python scalar/container core.
 #[derive(Clone, Debug, PartialEq)]
 pub enum PythonValue {
@@ -39,8 +26,6 @@ pub enum PythonValue {
     String(String),
     /// Mutable/cyclic arena identity.
     Managed(sim_lib_mutation::ManagedHandle),
-    /// Direct Python function.
-    Function(PythonFunction),
 }
 
 /// Thin direct evaluator policy. Its profile evidence proves the codec entry and organ set.

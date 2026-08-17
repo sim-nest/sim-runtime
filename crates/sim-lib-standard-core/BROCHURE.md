@@ -11,7 +11,18 @@ This library gathers the everyday behaviors most people expect a working system 
 - Common needs are present from the start, not assembled by hand each time.
 - Comparing values and checking fidelity come ready, so results can be trusted.
 - Reading, constructing, and multi-language support all share one settled core.
+- Refactors can be guarded by immutable before-and-after behavioral captures;
+  strict comparison identifies the exact canonical field and both values when
+  a contract moves.
 
 ## Where it fits
 
 The kernel defines the capability, claim, codec, and export contracts; this crate supplies the standard-distribution behavior that fills them in. It covers capabilities and claims, diff and fidelity, the conformance harness, install, language-profile support, the Lisp codec surface, polyglot support, and read and construct. It is the assembled default layer other tools and surfaces expect to find beneath them across the runtime.
+
+## A migration contract, not an implementation snapshot
+
+Declare stable setup and input identities, explicit observation lanes, and hard
+bounds. Capture canonical behavior before the refactor and compare the same
+contract afterward. Content identity proves an unchanged capture; strict
+comparison returns located, two-sided differences. Host formatting and private
+internals never become evidence.

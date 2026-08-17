@@ -77,7 +77,10 @@ pub(crate) fn call_lua_gmatch_iterator(
         &iterator.ops,
         &iterator.subject,
         *cursor,
-        TextLimits { max_steps: 20_000 },
+        TextLimits {
+            max_steps: 20_000,
+            ..TextLimits::default()
+        },
     ) else {
         *cursor = iterator.subject.len() + 1;
         return Ok(vec![policy.kit().nil.clone()]);
@@ -112,7 +115,15 @@ pub(crate) fn lua_string_find(
         plain_find(&subject, &pattern, start)
     } else {
         let ops = compile_lua_pattern(&pattern)?;
-        run_text_pattern(&ops, &subject, start, TextLimits { max_steps: 20_000 })
+        run_text_pattern(
+            &ops,
+            &subject,
+            start,
+            TextLimits {
+                max_steps: 20_000,
+                ..TextLimits::default()
+            },
+        )
     }) else {
         return Ok(vec![policy.kit().nil.clone()]);
     };
@@ -174,7 +185,10 @@ pub(crate) fn lua_string_match(
         &ops,
         &subject,
         lua_start_offset(&subject, init),
-        TextLimits { max_steps: 20_000 },
+        TextLimits {
+            max_steps: 20_000,
+            ..TextLimits::default()
+        },
     ) else {
         return Ok(vec![policy.kit().nil.clone()]);
     };

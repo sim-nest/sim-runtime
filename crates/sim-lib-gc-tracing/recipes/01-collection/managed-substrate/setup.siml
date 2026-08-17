@@ -1,0 +1,6 @@
+(managed-substrate
+  (node-role open)
+  (edges strong weak ephemeron)
+  (edge-id monotonic-never-reused)
+  (trace-order edge-id)
+  (policy bounded-tracing))

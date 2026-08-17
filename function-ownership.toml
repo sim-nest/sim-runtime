@@ -1,0 +1,36 @@
+schema = "sim.function-ownership/v1"
+owner = "crates/sim-lib-function/src/plan.rs::FunctionPlan"
+remediation = "Compose sim-lib-function FunctionPlan and FunctionInstance<B>; retain only language-specific body, coroutine, traceback, and evaluation policy in the guest crate."
+guest_crate_prefix = "sim-lib-lang-"
+
+# A candidate is a public struct that combines one field from both structural
+# roles. Individual words are not violations, so language policy remains open.
+parameter_fields = ["params", "parameters", "parameter_names", "formal_parameters"]
+capture_fields = ["captures", "capture_slots", "upvalues", "free_variables"]
+
+# A guest-private environment graph is still a duplicate when it combines
+# lexical storage with an explicit parent/capture edge. This is separate from a
+# FunctionPlan copy so wrappers may retain one opaque managed environment id.
+private_graph_storage_fields = ["bindings", "cells", "slots", "values"]
+private_graph_edge_fields = ["parent", "outer", "captures", "upvalues", "free_variables"]
+
+[[approved_language_policy]]
+path = "crates/sim-lib-lang-lua/src/env.rs"
+reason = "Lua lexical scope nesting remains guest evaluation policy; values and cells live in sim-lib-binding, captures use FunctionInstance, and this frame records only the corresponding managed identities."
+
+# These language-owned records may compose adjacent function substrate, but
+# their identity is not callable. The guard rejects only an explicit adapter to
+# FunctionInstance, leaving the approved relationships available independently.
+[[non_participant]]
+model = "typeclass-dictionary"
+source_terms = ["typeclass", "dictionary"]
+mismatch_code = "dictionary-is-constraint-evidence-not-callable-identity"
+reason = "A typeclass dictionary is an evidence record mapping required methods to implementations; individual implementations may be callable, but the dictionary is not a function."
+approved_relationships = ["binding", "shape", "managed_edge"]
+
+[[non_participant]]
+model = "prolog-predicate"
+source_terms = ["prolog", "predicate", "relation", "clause"]
+mismatch_code = "predicate-is-clause-set-not-callable-identity"
+reason = "A Prolog predicate denotes the indexed set of logic-organ clauses resolved by unification and backtracking; it is not a generic or ordinary function."
+approved_relationships = ["binding", "shape"]

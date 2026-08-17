@@ -1,0 +1,22 @@
+[package]
+name = "sim-lib-machine"
+version = "0.1.0"
+edition = "2024"
+license = "MPL-2.0"
+description = "Neutral policy contracts for bounded decoded-instruction machines."
+readme = "README.md"
+publish = true
+repository = "https://github.com/sim-nest/sim-runtime"
+homepage = "https://github.com/sim-nest/sim-runtime"
+
+[lints]
+workspace = true
+
+[dependencies]
+sim-kernel = { version = "0.2.1" }
+sim-lib-control = { version = "0.1.6", path = "../sim-lib-control" }
+sim-lib-mutation = { version = "0.1.5", path = "../sim-lib-mutation" }
+sha2 = "0.10"
+
+[dev-dependencies]
+toml = "0.8"

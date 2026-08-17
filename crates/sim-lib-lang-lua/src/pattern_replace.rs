@@ -36,9 +36,15 @@ pub(crate) fn lua_gsub(
     let mut count = 0_i64;
     let max_count = limit.unwrap_or(i64::MAX);
     while cursor <= subject.len() && count < max_count {
-        let Some(matched) =
-            run_text_pattern(ops, subject, cursor, TextLimits { max_steps: 20_000 })
-        else {
+        let Some(matched) = run_text_pattern(
+            ops,
+            subject,
+            cursor,
+            TextLimits {
+                max_steps: 20_000,
+                ..TextLimits::default()
+            },
+        ) else {
             break;
         };
         if matched.start < cursor {

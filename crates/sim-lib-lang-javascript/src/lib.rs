@@ -30,7 +30,7 @@ pub use fidelity::{
     javascript_fidelity_dimensions, javascript_regression_cases,
 };
 pub use jobs::{
-    JavascriptAsyncFunction, JavascriptException, JavascriptGenerator, JavascriptJobClass,
+    JavascriptAsyncFunction, JavascriptExceptionRealm, JavascriptGenerator, JavascriptJobClass,
     JavascriptJobs, JavascriptPromise, JavascriptPromiseState,
 };
 pub use json::{
@@ -38,17 +38,18 @@ pub use json::{
     parse_javascript_json, stringify_javascript_json,
 };
 pub use managed::{
-    JavascriptHeap, JavascriptHeapPolicy, JavascriptManagedKind, JavascriptManagedObject,
+    JavascriptHeap, JavascriptHeapExt, JavascriptHeapPolicy, JavascriptManagedKind,
+    JavascriptManagedMutationError, JavascriptManagedObject,
 };
 pub use matrix_row::{javascript_core_matrix_row, javascript_core_source_cases};
 pub use modules::{
-    DynamicJavascript, JavascriptDynamicAdmission, JavascriptModuleAdmission,
-    JavascriptModulePolicy,
+    dynamic_javascript_policy, dynamic_javascript_policy_with_codec, javascript_module_policy,
+    javascript_module_policy_with_codec,
 };
 pub use objects::{
-    JavascriptFunction, JavascriptFunctionKind, JavascriptObjectError, JavascriptObjectGap,
-    JavascriptObjects, JavascriptPropertyKey, JavascriptThis,
-    javascript_callable_shape_constraints, javascript_object_gaps,
+    JavascriptCallError, JavascriptFunction, JavascriptFunctionKind, JavascriptFunctionPolicy,
+    JavascriptObjectError, JavascriptObjectGap, JavascriptObjects, JavascriptPropertyKey,
+    JavascriptThis, javascript_callable_shape_constraints, javascript_object_gaps,
 };
 pub use profile::{
     JavascriptIntrinsic, install_javascript_core_profile, javascript_core_profile,

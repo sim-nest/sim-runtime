@@ -1,10 +1,18 @@
 //! Python object policy over the language-neutral property store.
 
+use sim_kernel::{
+    ClassId, ClassRef, Cx, Expr, MatchScore, Shape, ShapeDoc, ShapeMatch, ShapeRef, Value,
+};
+use sim_lib_class::{
+    C3Policy, CacheError, ClassCache, ClassDescriptor, ClassDescriptorInput, ClassIdentity,
+    ClassRoot, DeclaredParent, LineageBudget,
+};
 use sim_lib_dispatch::{
     AccessContext, AccessError, AccessorDescriptor, DataDescriptor, Descriptor, PropertyHook,
     PropertyStore,
 };
-use std::collections::{BTreeMap, BTreeSet};
+use sim_lib_gc_tracing::{CollectionLimits, CollectionReceipt};
+use std::{collections::BTreeMap, sync::Arc};
 
 // conformance: Python object policy checks classes, descriptors, methods, and super.
 
@@ -41,23 +49,26 @@ pub struct DescriptorHook {
 }
 
 /// A declared Python class and its C3-linearized bases.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct PythonClass {
-    /// Stable class identity.
-    pub id: u64,
+    /// Runtime class identity. Python never substitutes an integer surrogate.
+    pub identity: ClassRef,
     /// Display name.
     pub name: String,
     /// Direct bases in declaration order.
-    pub bases: Vec<u64>,
+    pub descriptor: ClassDescriptor,
     /// C3 method resolution order, including this class.
-    pub mro: Vec<u64>,
+    pub mro: Vec<ClassRef>,
+    cache_root: ClassRoot,
 }
 
 /// Failure to construct a consistent class hierarchy.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ClassError {
     /// A base class is unknown.
-    UnknownBase(u64),
+    UnknownBase(ClassId),
+    /// The supplied value is not a class or its descriptor is malformed.
+    InvalidClass,
     /// The requested bases have no consistent C3 linearization.
     InconsistentMro,
 }
@@ -105,59 +116,192 @@ impl PropertyHook<u64, String, PythonObjectValue, DescriptorHook> for Hooks {
 }
 
 /// Python class and instance policy using shared property mechanics.
-#[derive(Default)]
 pub struct PythonObjectSpace {
-    classes: BTreeMap<u64, PythonClass>,
-    instances: BTreeMap<u64, u64>,
+    classes: BTreeMap<ClassId, PythonClass>,
+    cache_ids: BTreeMap<sim_lib_mutation::ManagedId, ClassId>,
+    cache: ClassCache<()>,
+    instances: BTreeMap<u64, ClassId>,
     properties: PropertyStore<u64, String, PythonObjectValue, DescriptorHook>,
     hooks: Hooks,
 }
 
+impl Default for PythonObjectSpace {
+    fn default() -> Self {
+        Self {
+            classes: BTreeMap::new(),
+            cache_ids: BTreeMap::new(),
+            cache: ClassCache::new(4096).expect("fixed positive Python class-cache capacity"),
+            instances: BTreeMap::new(),
+            properties: PropertyStore::default(),
+            hooks: Hooks::default(),
+        }
+    }
+}
+
+struct PythonAnyShape;
+impl Shape for PythonAnyShape {
+    fn check_value(&self, _: &mut Cx, _: Value) -> sim_kernel::Result<ShapeMatch> {
+        Ok(ShapeMatch::accept(MatchScore::exact(1)))
+    }
+    fn check_expr(&self, _: &mut Cx, _: &Expr) -> sim_kernel::Result<ShapeMatch> {
+        Ok(ShapeMatch::accept(MatchScore::exact(1)))
+    }
+    fn describe(&self, _: &mut Cx) -> sim_kernel::Result<ShapeDoc> {
+        Ok(ShapeDoc::new("python-object"))
+    }
+}
+
 impl PythonObjectSpace {
+    pub(crate) fn is_subclass(&self, class: ClassId, candidate: ClassId) -> bool {
+        self.classes.get(&class).is_some_and(|declared| {
+            declared.mro.iter().any(|entry| {
+                entry
+                    .object()
+                    .as_class()
+                    .is_some_and(|entry| entry.id() == candidate)
+            })
+        })
+    }
+
+    pub(crate) fn subclass_work(&self, class: ClassId, candidate: ClassId, limit: usize) -> usize {
+        let Some(declared) = self.classes.get(&class) else {
+            return 0;
+        };
+        let required = declared
+            .mro
+            .iter()
+            .position(|entry| {
+                entry
+                    .object()
+                    .as_class()
+                    .is_some_and(|entry| entry.id() == candidate)
+            })
+            .map_or(declared.mro.len(), |at| at + 1);
+        if required > limit {
+            limit.saturating_add(1)
+        } else {
+            required
+        }
+    }
+
     /// Declare a class and compute its C3 MRO.
     pub fn define_class(
         &mut self,
-        id: u64,
-        name: impl Into<String>,
-        bases: Vec<u64>,
+        cx: &Cx,
+        identity: ClassRef,
+        bases: Vec<ClassRef>,
     ) -> Result<(), ClassError> {
-        let mut sequences = Vec::new();
+        let class = identity
+            .object()
+            .as_class()
+            .ok_or(ClassError::InvalidClass)?;
+        let id = class.id();
+        let name = class.symbol().name.to_string();
+        let mut parent_roots = Vec::with_capacity(bases.len());
+        let mut parents = Vec::with_capacity(bases.len());
         for base in &bases {
-            sequences.push(
-                self.classes
-                    .get(base)
-                    .ok_or(ClassError::UnknownBase(*base))?
-                    .mro
-                    .clone(),
-            );
+            let parent = base.object().as_class().ok_or(ClassError::InvalidClass)?;
+            let stored = self
+                .classes
+                .get(&parent.id())
+                .ok_or(ClassError::UnknownBase(parent.id()))?;
+            parent_roots.push(stored.cache_root);
+            parents.push(DeclaredParent::resolved(
+                ClassIdentity::checked(parent.id(), parent.symbol().clone())
+                    .map_err(|_| ClassError::InvalidClass)?,
+                base.clone(),
+            ));
         }
-        sequences.push(bases.clone());
-        let mut mro = vec![id];
-        mro.extend(c3_merge(sequences)?);
+        let shape: ShapeRef = cx
+            .factory()
+            .opaque(Arc::new(PythonAnyShape))
+            .map_err(|_| ClassError::InvalidClass)?;
+        let descriptor = ClassDescriptor::new(ClassDescriptorInput {
+            identity: ClassIdentity::checked(id, class.symbol().clone())
+                .map_err(|_| ClassError::InvalidClass)?,
+            parents,
+            constructor_shape: shape.clone(),
+            instance_shape: shape,
+            members: Vec::new(),
+            read_construction: None,
+            metadata: Vec::new(),
+        })
+        .map_err(|_| ClassError::InconsistentMro)?;
+        let cache_root = self
+            .cache
+            .allocate_class(&parent_roots, Vec::new())
+            .map_err(map_cache_error)?;
+        self.cache_ids.insert(cache_root.id(), id);
+        let derived = match self.cache.derived(cache_root, &C3Policy, lineage_budget()) {
+            Ok(derived) => derived,
+            Err(error) => {
+                self.cache_ids.remove(&cache_root.id());
+                self.cache.release(cache_root).map_err(map_cache_error)?;
+                return Err(map_cache_error(error));
+            }
+        };
+        let mro = derived
+            .view
+            .linearization
+            .iter()
+            .map(|managed| {
+                let class_id = self.cache_ids[managed];
+                if class_id == id {
+                    identity.clone()
+                } else {
+                    self.classes[&class_id].identity.clone()
+                }
+            })
+            .collect();
         self.classes.insert(
             id,
             PythonClass {
-                id,
-                name: name.into(),
-                bases,
+                identity,
+                name,
+                descriptor,
                 mro,
+                cache_root,
             },
         );
         Ok(())
     }
 
     /// Allocate an instance of a known class.
-    pub fn instantiate(&mut self, object: u64, class: u64) -> Result<(), AttributeError> {
-        if !self.classes.contains_key(&class) {
-            return Err(AttributeError::UnknownClass(class));
+    pub fn instantiate(&mut self, object: u64, class: ClassRef) -> Result<(), AttributeError> {
+        let id = class
+            .object()
+            .as_class()
+            .ok_or(AttributeError::UnknownClass(u64::MAX))?
+            .id();
+        if !self.classes.contains_key(&id) {
+            return Err(AttributeError::UnknownClass(u64::from(id.0)));
         }
-        self.instances.insert(object, class);
+        self.instances.insert(object, id);
         Ok(())
     }
 
     /// Return a declared class.
-    pub fn class(&self, id: u64) -> Option<&PythonClass> {
+    pub fn class(&self, id: ClassId) -> Option<&PythonClass> {
         self.classes.get(&id)
+    }
+
+    /// Releases a declared class root so its shared derived MRO can be reclaimed.
+    pub fn release_class(&mut self, id: ClassId) -> Result<(), ClassError> {
+        let class = self
+            .classes
+            .remove(&id)
+            .ok_or(ClassError::UnknownBase(id))?;
+        self.cache
+            .release(class.cache_root)
+            .map_err(map_cache_error)
+    }
+
+    /// Collects unreachable class descriptors and ephemeron-owned derived MRO values.
+    pub fn collect_classes(
+        &mut self,
+        limits: CollectionLimits,
+    ) -> Result<CollectionReceipt, ClassError> {
+        self.cache.collect(limits).map_err(map_cache_error)
     }
 
     /// Define a plain instance or class attribute.
@@ -211,9 +355,11 @@ impl PythonObjectSpace {
         let mro = self
             .classes
             .get(&class)
-            .ok_or(AttributeError::UnknownClass(class))?
+            .ok_or(AttributeError::UnknownClass(u64::from(class.0)))?
             .mro
-            .clone();
+            .iter()
+            .map(class_id)
+            .collect::<Result<Vec<_>, _>>()?;
         let key = key.to_owned();
         let descriptor_owner = mro
             .iter()
@@ -248,11 +394,14 @@ impl PythonObjectSpace {
             .instances
             .get(&object)
             .ok_or(AttributeError::UnknownObject(object))?;
-        let mro = &self
+        let mro = self
             .classes
             .get(&class)
-            .ok_or(AttributeError::UnknownClass(class))?
-            .mro;
+            .ok_or(AttributeError::UnknownClass(u64::from(class.0)))?
+            .mro
+            .iter()
+            .map(class_id)
+            .collect::<Result<Vec<_>, _>>()?;
         let at = mro
             .iter()
             .position(|candidate| *candidate == current)
@@ -287,50 +436,61 @@ impl PythonObjectSpace {
     }
 }
 
-fn c3_merge(mut sequences: Vec<Vec<u64>>) -> Result<Vec<u64>, ClassError> {
-    let mut result = Vec::new();
-    loop {
-        sequences.retain(|sequence| !sequence.is_empty());
-        if sequences.is_empty() {
-            return Ok(result);
-        }
-        let candidate = sequences
-            .iter()
-            .map(|sequence| sequence[0])
-            .find(|candidate| {
-                sequences
-                    .iter()
-                    .all(|sequence| !sequence[1..].contains(candidate))
-            })
-            .ok_or(ClassError::InconsistentMro)?;
-        result.push(candidate);
-        for sequence in &mut sequences {
-            if sequence.first() == Some(&candidate) {
-                sequence.remove(0);
-            }
-        }
-        let unique: BTreeSet<_> = result.iter().copied().collect();
-        if unique.len() != result.len() {
-            return Err(ClassError::InconsistentMro);
-        }
+fn lineage_budget() -> LineageBudget {
+    LineageBudget {
+        nodes: 4096,
+        work: 1_000_000,
     }
+}
+fn map_cache_error(error: CacheError) -> ClassError {
+    match error {
+        CacheError::Lineage(_) => ClassError::InconsistentMro,
+        _ => ClassError::InvalidClass,
+    }
+}
+fn class_id(class: &ClassRef) -> Result<u64, AttributeError> {
+    class
+        .object()
+        .as_class()
+        .map(|class| u64::from(class.id().0))
+        .ok_or(AttributeError::Access)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sim_kernel::Symbol;
+    fn class(cx: &Cx, id: u32, name: &str) -> ClassRef {
+        cx.factory()
+            .class_stub(ClassId(id), Symbol::qualified("python", name))
+            .unwrap()
+    }
     fn value(value: i64) -> PythonObjectValue {
         PythonObjectValue::Int(value)
     }
     #[test]
     fn c3_descriptors_binding_and_super_share_property_mechanics() {
         let mut space = PythonObjectSpace::default();
-        space.define_class(1, "object", vec![]).unwrap();
-        space.define_class(2, "Left", vec![1]).unwrap();
-        space.define_class(3, "Right", vec![1]).unwrap();
-        space.define_class(4, "Diamond", vec![2, 3]).unwrap();
-        assert_eq!(space.class(4).unwrap().mro, vec![4, 2, 3, 1]);
-        space.instantiate(10, 4).unwrap();
+        let cx = sim_kernel::testing::bare_cx();
+        let object = class(&cx, 1, "object");
+        let left = class(&cx, 2, "Left");
+        let right = class(&cx, 3, "Right");
+        let diamond = class(&cx, 4, "Diamond");
+        space.define_class(&cx, object.clone(), vec![]).unwrap();
+        space
+            .define_class(&cx, left.clone(), vec![object.clone()])
+            .unwrap();
+        space
+            .define_class(&cx, right.clone(), vec![object.clone()])
+            .unwrap();
+        space
+            .define_class(&cx, diamond.clone(), vec![left.clone(), right.clone()])
+            .unwrap();
+        assert_eq!(
+            space.class(ClassId(4)).unwrap().mro,
+            vec![diamond.clone(), left, right, object]
+        );
+        space.instantiate(10, diamond).unwrap();
         space.define_descriptor(
             2,
             "data",
@@ -367,14 +527,51 @@ mod tests {
     #[test]
     fn inconsistent_c3_fails_explicitly() {
         let mut space = PythonObjectSpace::default();
-        space.define_class(1, "object", vec![]).unwrap();
-        space.define_class(2, "A", vec![1]).unwrap();
-        space.define_class(3, "B", vec![1]).unwrap();
-        space.define_class(4, "AB", vec![2, 3]).unwrap();
-        space.define_class(5, "BA", vec![3, 2]).unwrap();
+        let cx = sim_kernel::testing::bare_cx();
+        let object = class(&cx, 1, "object");
+        let a = class(&cx, 2, "A");
+        let b = class(&cx, 3, "B");
+        let ab = class(&cx, 4, "AB");
+        let ba = class(&cx, 5, "BA");
+        space.define_class(&cx, object.clone(), vec![]).unwrap();
+        space
+            .define_class(&cx, a.clone(), vec![object.clone()])
+            .unwrap();
+        space.define_class(&cx, b.clone(), vec![object]).unwrap();
+        space
+            .define_class(&cx, ab.clone(), vec![a.clone(), b.clone()])
+            .unwrap();
+        space.define_class(&cx, ba.clone(), vec![b, a]).unwrap();
         assert_eq!(
-            space.define_class(6, "Impossible", vec![4, 5]),
+            space.define_class(&cx, class(&cx, 6, "Impossible"), vec![ab, ba]),
             Err(ClassError::InconsistentMro)
         );
+
+        let cyclic = class(&cx, 7, "Cyclic");
+        assert_eq!(
+            space.define_class(&cx, cyclic.clone(), vec![cyclic]),
+            Err(ClassError::UnknownBase(ClassId(7)))
+        );
+    }
+
+    #[test]
+    fn unreachable_python_class_reclaims_ephemeron_owned_mro() {
+        let cx = sim_kernel::testing::bare_cx();
+        let mut space = PythonObjectSpace::default();
+        let class = class(&cx, 20, "Temporary");
+        space.define_class(&cx, class, vec![]).unwrap();
+        space.release_class(ClassId(20)).unwrap();
+        let receipt = space
+            .collect_classes(CollectionLimits {
+                objects: 16,
+                edges: 16,
+                stack: 16,
+                work: 128,
+                clears: 16,
+                finalizers: 0,
+            })
+            .unwrap();
+        assert_eq!(receipt.cleared_ephemerons.len(), 1);
+        assert_eq!(space.cache.managed_len(), 1);
     }
 }

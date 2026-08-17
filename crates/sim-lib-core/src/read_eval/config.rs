@@ -8,7 +8,7 @@ use sim_kernel::{
 };
 use sim_shape::{expected_shape_diagnostic, parse_shape_expr};
 
-use super::{ReadEvalBroker, ReadEvalRequest, ReadEvalSource, RequestOrigin};
+use super::{ReadEvalBroker, ReadEvalRequest, ReadEvalSource, RequestOrigin, SourceAuthority};
 
 /// Host-owned opt-in for realizing explicit config eval nodes.
 ///
@@ -58,15 +58,15 @@ pub struct ConfigEvalNode {
 
 impl ConfigEvalNode {
     fn into_request(self, read_policy: ReadPolicy, detail: Expr) -> ReadEvalRequest {
-        ReadEvalRequest {
-            origin: RequestOrigin::with_detail(config_eval_origin_tag(), detail),
-            codec: self.codec,
-            source: self.source,
-            read_policy,
-            requires: self.requires,
-            allow: self.allow,
-            expected_shape: self.expected_shape,
-        }
+        let authority = SourceAuthority::new(read_policy, self.requires, self.allow)
+            .expect("host config read policy was validated at opt-in construction");
+        ReadEvalRequest::new(
+            RequestOrigin::with_detail(config_eval_origin_tag(), detail),
+            self.codec,
+            self.source,
+            authority,
+            self.expected_shape,
+        )
     }
 }
 

@@ -1,0 +1,5 @@
+schema = "sim.bytecode-speed.acceptance-reference/v1"
+owner_repository = "sim-tooling"
+path = "benchmarks/bytecode-speed-4/acceptance.toml"
+scope = "BYTECODE_SPEED_4"
+final_proof_phase = "BYTECODESPEED4.14"

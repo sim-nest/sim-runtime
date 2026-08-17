@@ -1,0 +1,8 @@
+id = "cross-language-callable"
+title = "Browse and call three guest languages through one protocol"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 20
+tags = ["python", "javascript", "lua", "callable", "class", "content-identity"]
+requires = ["core", "standard", "lang/python-core/v1", "lang/javascript-core/v1", "lang/lua-core/v1"]

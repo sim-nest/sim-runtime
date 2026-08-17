@@ -31,16 +31,86 @@ fn trusted_read_eval_policy() -> ReadPolicy {
     )
 }
 
+#[test]
+fn source_authority_checks_policy_and_preserves_power_semantics() {
+    let first = CapabilityName::new("power.first");
+    let second = CapabilityName::new("power.second");
+    let allowed = CapabilitySet::new()
+        .grant(second.clone())
+        .grant(first.clone())
+        .grant(second.clone());
+
+    let authority = SourceAuthority::new(
+        trusted_read_eval_policy(),
+        vec![second.clone(), first.clone(), second.clone()],
+        allowed,
+    )
+    .unwrap();
+
+    assert_eq!(
+        authority.requires(),
+        &[second.clone(), first.clone(), second]
+    );
+    assert_eq!(authority.allow().iter().count(), 2);
+    assert!(authority.allow().contains(&first));
+
+    let untrusted = policy(
+        TrustLevel::Untrusted,
+        CapabilitySet::new().grant(read_eval_capability()),
+    );
+    assert!(matches!(
+        SourceAuthority::new(untrusted, Vec::new(), CapabilitySet::new()),
+        Err(Error::TrustDenied { .. })
+    ));
+    assert!(matches!(
+        SourceAuthority::new(
+            policy(TrustLevel::TrustedSource, CapabilitySet::new()),
+            Vec::new(),
+            CapabilitySet::new(),
+        ),
+        Err(Error::CapabilityDenied { .. })
+    ));
+}
+
+#[test]
+fn source_authority_projection_and_debug_redact_trusted_policy() {
+    let authority = SourceAuthority::new(
+        trusted_read_eval_policy(),
+        vec![CapabilityName::new("power.required")],
+        CapabilitySet::new().grant(CapabilityName::new("power.allowed")),
+    )
+    .unwrap();
+
+    let Datum::Node { tag, fields } = authority.decision_datum() else {
+        panic!("authority decision projection must be a datum node");
+    };
+    assert_eq!(tag, Symbol::qualified("source", "authority"));
+    assert_eq!(
+        fields
+            .iter()
+            .find(|(name, _)| name.name.as_ref() == "read-policy")
+            .map(|(_, value)| value),
+        Some(&Datum::Symbol(Symbol::new("redacted")))
+    );
+    let rendered = format!("{authority:?}");
+    assert!(rendered.contains("<redacted>"));
+    assert!(!rendered.contains("TrustedSource"));
+    assert!(!rendered.contains("read-eval"));
+}
+
 fn request_with(source: ReadEvalSource, expected_shape: Arc<dyn Shape>) -> ReadEvalRequest {
-    ReadEvalRequest {
-        origin: origin(),
-        codec: codec(),
+    ReadEvalRequest::new(
+        origin(),
+        codec(),
         source,
-        read_policy: trusted_read_eval_policy(),
-        requires: Vec::new(),
-        allow: CapabilitySet::new().grant(read_eval_capability()),
+        SourceAuthority::new(
+            trusted_read_eval_policy(),
+            Vec::new(),
+            CapabilitySet::new().grant(read_eval_capability()),
+        )
+        .unwrap(),
         expected_shape,
-    }
+    )
 }
 
 struct ActiveCapabilityPolicy {
@@ -91,15 +161,12 @@ fn install_registers_broker_value() {
 
 #[test]
 fn missing_read_eval_capability_is_denied() {
-    let (mut cx, seat) = probe_cx(read_eval_capability());
-    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
-    let mut request = request_with(
-        ReadEvalSource::Expr(Expr::Nil),
-        Arc::new(ExprKindShape::new(ExprKind::Bool)),
-    );
-    request.read_policy = policy(TrustLevel::TrustedSource, CapabilitySet::new());
-
-    let err = ReadEvalBroker::new().admit(&mut cx, request).unwrap_err();
+    let err = SourceAuthority::new(
+        policy(TrustLevel::TrustedSource, CapabilitySet::new()),
+        Vec::new(),
+        CapabilitySet::new(),
+    )
+    .unwrap_err();
 
     assert!(matches!(
         err,
@@ -109,18 +176,15 @@ fn missing_read_eval_capability_is_denied() {
 
 #[test]
 fn untrusted_read_eval_policy_is_denied() {
-    let (mut cx, seat) = probe_cx(read_eval_capability());
-    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
-    let mut request = request_with(
-        ReadEvalSource::Expr(Expr::Nil),
-        Arc::new(ExprKindShape::new(ExprKind::Bool)),
-    );
-    request.read_policy = policy(
-        TrustLevel::Untrusted,
-        CapabilitySet::new().grant(read_eval_capability()),
-    );
-
-    let err = ReadEvalBroker::new().admit(&mut cx, request).unwrap_err();
+    let err = SourceAuthority::new(
+        policy(
+            TrustLevel::Untrusted,
+            CapabilitySet::new().grant(read_eval_capability()),
+        ),
+        Vec::new(),
+        CapabilitySet::new(),
+    )
+    .unwrap_err();
 
     assert!(matches!(
         err,
@@ -138,7 +202,12 @@ fn required_capability_must_be_held_by_caller() {
         ReadEvalSource::Expr(Expr::Nil),
         Arc::new(ExprKindShape::new(ExprKind::Bool)),
     );
-    request.requires = vec![required.clone()];
+    request.authority = SourceAuthority::new(
+        trusted_read_eval_policy(),
+        vec![required.clone()],
+        CapabilitySet::new().grant(read_eval_capability()),
+    )
+    .unwrap();
 
     let err = ReadEvalBroker::new().admit(&mut cx, request).unwrap_err();
 
@@ -157,7 +226,12 @@ fn allowed_capability_absent_from_caller_is_not_active() {
         ReadEvalSource::Expr(Expr::Nil),
         Arc::new(ExprKindShape::new(ExprKind::Bool)),
     );
-    request.allow = CapabilitySet::new().grant(extra);
+    request.authority = SourceAuthority::new(
+        trusted_read_eval_policy(),
+        Vec::new(),
+        CapabilitySet::new().grant(extra),
+    )
+    .unwrap();
 
     let value = ReadEvalBroker::new().admit(&mut cx, request).unwrap();
 
@@ -226,4 +300,92 @@ fn bytes_source_decodes_through_named_codec() {
     let value = ReadEvalBroker::new().admit(&mut cx, request).unwrap();
 
     assert_eq!(value.object().as_expr(&mut cx).unwrap(), Expr::Nil);
+}
+
+#[test]
+fn dynamic_policies_share_broker_ledger_across_origins_and_codecs() {
+    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
+    cx.load_lib(&LispCodecLib::new(sim_kernel::CodecId(1)).unwrap())
+        .unwrap();
+    let broker = ReadEvalBroker::new();
+    let text_origin = RequestOrigin::with_detail(
+        Symbol::qualified("test", "dynamic-text"),
+        Expr::String("caller-supplied-detail".to_owned()),
+    );
+    let text = DynamicSourcePolicy::with_broker(
+        broker.clone(),
+        Symbol::qualified("codec", "lisp"),
+        text_origin.clone(),
+    );
+    let expr_origin = RequestOrigin::new(Symbol::qualified("test", "dynamic-expr"));
+    let expr = DynamicSourcePolicy::with_broker(
+        broker,
+        Symbol::qualified("codec", "alternate"),
+        expr_origin.clone(),
+    );
+
+    let text_value = text
+        .evaluate_text(
+            &mut cx,
+            "\"shared\"",
+            SourceAuthority::new(trusted_read_eval_policy(), Vec::new(), CapabilitySet::new())
+                .unwrap(),
+            Arc::new(ExprKindShape::new(ExprKind::String)),
+        )
+        .unwrap();
+    assert_eq!(
+        text_value.object().as_expr(&mut cx).unwrap(),
+        Expr::String("shared".to_owned())
+    );
+    expr.evaluate_expr(
+        &mut cx,
+        Expr::Nil,
+        SourceAuthority::new(trusted_read_eval_policy(), Vec::new(), CapabilitySet::new()).unwrap(),
+        Arc::new(AnyShape),
+    )
+    .unwrap();
+
+    let decisions = text.decisions(&cx).unwrap();
+    assert_eq!(decisions.len(), 2);
+    assert_eq!(decisions[0].origin, text_origin);
+    assert_eq!(decisions[0].codec, Symbol::qualified("codec", "lisp"));
+    assert_eq!(decisions[1].origin, expr_origin);
+    assert_eq!(decisions[1].codec, Symbol::qualified("codec", "alternate"));
+    assert!(
+        decisions
+            .iter()
+            .all(|decision| decision.outcome == ReadEvalOutcome::Admitted)
+    );
+    assert_eq!(
+        expr.events_for_run(&read_eval_decision_run())
+            .unwrap()
+            .len(),
+        2
+    );
+}
+
+#[test]
+fn dynamic_policy_bytes_use_the_same_gate_and_codec_failure_law() {
+    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    expect_granted!(seat.grant(&mut cx, read_eval_capability()));
+    let policy = DynamicSourcePolicy::new(
+        Symbol::qualified("codec", "missing"),
+        RequestOrigin::new(Symbol::qualified("test", "dynamic-bytes")),
+    );
+
+    policy
+        .evaluate_bytes(
+            &mut cx,
+            b"nil".to_vec(),
+            SourceAuthority::new(trusted_read_eval_policy(), Vec::new(), CapabilitySet::new())
+                .unwrap(),
+            Arc::new(AnyShape),
+        )
+        .unwrap_err();
+
+    assert_eq!(
+        policy.decisions(&cx).unwrap()[0].outcome,
+        ReadEvalOutcome::DecodeFailed
+    );
 }
