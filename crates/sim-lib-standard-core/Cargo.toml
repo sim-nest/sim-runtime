@@ -20,14 +20,14 @@ sim-cookbook = { version = "0.2.0" }
 indexmap = "2"
 sim-citizen = { version = "0.2.0" }
 sim-codec-binary = { version = "0.2.1", optional = true }
-sim-kernel = { version = "0.2.0" }
+sim-kernel = { version = "0.2.1" }
 sim-lib-core = { version = "0.2.0", path = "../sim-lib-core" }
 sim-value = { version = "0.2.0" }
 
 [dev-dependencies]
 sim-codec = { version = "0.1.0" }
 sim-codec-lisp = { version = "0.2.0" }
-sim-kernel = { version = "0.2.0", features = ["test-support"] }
+sim-kernel = { version = "0.2.1", features = ["test-support"] }
 sim-lib-control = { version = "0.1.5", path = "../sim-lib-control" }
 sim-lib-mutation = { version = "0.1.4", path = "../sim-lib-mutation" }
 

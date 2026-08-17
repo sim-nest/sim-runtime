@@ -13,10 +13,10 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 sim-cookbook = { version = "0.2.0" }
 sim-citizen = { version = "0.2.0" }
 sim-citizen-derive = { version = "0.2.0" }
-sim-kernel = { version = "0.2.0" }
+sim-kernel = { version = "0.2.1" }
 
 [dev-dependencies]
-sim-kernel = { version = "0.2.0", features = ["test-support"] }
+sim-kernel = { version = "0.2.1", features = ["test-support"] }
 sim-lib-sequence = { version = "0.1.3", path = "../sim-lib-sequence" }
 
 [lints]

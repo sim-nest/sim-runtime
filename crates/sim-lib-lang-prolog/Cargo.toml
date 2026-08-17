@@ -15,7 +15,7 @@ generated-coverage = ["dep:sim-lib-lang-genconf"]
 [dependencies]
 sim-codec = { version = "0.1.8" }
 sim-codec-lisp = { version = "0.2.1" }
-sim-kernel = { version = "0.2.0" }
+sim-kernel = { version = "0.2.1" }
 sim-lib-control = { version = "0.1.6", path = "../sim-lib-control" }
 sim-lib-core = { version = "0.2.0", path = "../sim-lib-core" }
 sim-lib-lang-genconf = { version = "0.1.4", path = "../sim-lib-lang-genconf", optional = true }
@@ -30,5 +30,5 @@ sim-lib-standard-core = { version = "0.1.5", path = "../sim-lib-standard-core" }
 workspace = true
 
 [dev-dependencies]
-sim-kernel = { version = "0.2.0", features = ["test-support"] }
+sim-kernel = { version = "0.2.1", features = ["test-support"] }
 sim-table-fs = { version = "0.1.0" }

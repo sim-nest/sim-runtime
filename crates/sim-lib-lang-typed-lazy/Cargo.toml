@@ -11,14 +11,14 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 
 [dependencies]
 sim-cookbook = { version = "0.2.0" }
-sim-kernel = { version = "0.2.0" }
+sim-kernel = { version = "0.2.1" }
 sim-lib-control = { version = "0.1.6", path = "../sim-lib-control" }
 sim-lib-pattern = { version = "0.2.0", path = "../sim-lib-pattern" }
 sim-lib-standard-core = { version = "0.1.5", path = "../sim-lib-standard-core" }
-sim-shape = { version = "0.2.1" }
+sim-shape = { version = "0.2.3" }
 
 [dev-dependencies]
-sim-kernel = { version = "0.2.0", features = ["test-support"] }
+sim-kernel = { version = "0.2.1", features = ["test-support"] }
 
 [build-dependencies]
 sim-cookbook = { version = "0.2.0" }

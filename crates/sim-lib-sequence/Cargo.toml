@@ -13,7 +13,7 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 sim-cookbook = { version = "0.2.0" }
 sim-citizen = { version = "0.2.0" }
 sim-citizen-derive = { version = "0.2.0" }
-sim-kernel = { version = "0.2.0" }
+sim-kernel = { version = "0.2.1" }
 
 [lints]
 workspace = true

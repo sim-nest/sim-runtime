@@ -10,7 +10,7 @@ repository = "https://github.com/sim-nest/sim-runtime"
 homepage = "https://github.com/sim-nest/sim-runtime"
 
 [dependencies]
-sim-kernel = { version = "0.2.0" }
+sim-kernel = { version = "0.2.1" }
 sim-lib-gc-tracing = { version = "0.1.1", path = "../sim-lib-gc-tracing" }
 sim-lib-mutation = { version = "0.1.5", path = "../sim-lib-mutation" }
 
