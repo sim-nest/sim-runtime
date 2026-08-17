@@ -136,19 +136,10 @@ fn first_line(item: &str) -> &str {
 }
 
 fn repository_root() -> PathBuf {
-    let source = PathBuf::from(file!());
-    let source = if source.is_absolute() {
-        source
-    } else {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .ancestors()
-            .map(|ancestor| ancestor.join(&source))
-            .find(|candidate| candidate.is_file())
-            .expect("ownership guard source path must exist below a manifest ancestor")
-    };
-    let mut path = source
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
         .canonicalize()
-        .expect("ownership guard source path must resolve");
+        .expect("incremental source directory must resolve");
     loop {
         if path.join("dataflow-ownership.toml").is_file() {
             return path;

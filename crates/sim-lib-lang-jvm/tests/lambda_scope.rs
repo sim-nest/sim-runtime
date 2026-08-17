@@ -170,8 +170,12 @@ fn frozen_javac_fixture_contains_all_lambda_shapes() {
 
 #[test]
 fn required_owner_organs_and_shared_consumers_are_present() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let ledger = std::fs::read_to_string(root.join("reuse-ledger.toml")).unwrap();
+    let source_root =
+        std::fs::canonicalize(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"))
+            .expect("JVM source directory must resolve");
+    let crate_root = source_root.parent().unwrap();
+    let repo_root = crate_root.ancestors().nth(2).unwrap();
+    let ledger = std::fs::read_to_string(crate_root.join("reuse-ledger.toml")).unwrap();
     for anchor in ["#FunctionPlan", "#FunctionInstance", "#ClassDescriptor"] {
         assert!(ledger.contains(anchor), "missing reuse owner {anchor}");
     }
@@ -180,7 +184,7 @@ fn required_owner_organs_and_shared_consumers_are_present() {
     for consumer in ["registry_consumer", "verifier_consumer"] {
         let anchor = scope[consumer].as_str().unwrap();
         let (path, symbol) = anchor.split_once('#').unwrap();
-        let source = std::fs::read_to_string(root.join("../..").join(path)).unwrap();
+        let source = std::fs::read_to_string(repo_root.join(path)).unwrap();
         assert!(source.contains(symbol), "missing {consumer} owner {anchor}");
     }
 }

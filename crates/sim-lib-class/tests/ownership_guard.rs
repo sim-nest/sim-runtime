@@ -3,7 +3,7 @@
 //! Structural source-fact guard for the declared-class semantic boundary.
 
 use std::{
-    env, fs,
+    fs,
     path::{Path, PathBuf},
 };
 
@@ -353,9 +353,12 @@ fn field_names(item: &str) -> Vec<String> {
         .collect()
 }
 fn repository_root() -> PathBuf {
-    let mut path = env::current_dir().unwrap();
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .canonicalize()
+        .expect("class source directory must resolve");
     while !path.join("class-ownership.toml").is_file() {
-        assert!(path.pop());
+        assert!(path.pop(), "class ownership policy repository not found");
     }
     path
 }

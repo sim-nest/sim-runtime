@@ -234,14 +234,18 @@ fn source_fact_guard_rejects_forked_carriers_and_admits_declared_guest_objects()
 
 #[test]
 fn runtime_sources_contain_no_undeclared_exception_carrier() {
-    let current = std::env::var_os("SIM_RUNTIME_ROOT")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| std::env::current_dir().unwrap());
-    let root = if current.join("exception-ownership.toml").is_file() {
-        current
-    } else {
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
-    };
+    let configured = std::env::var_os("SIM_RUNTIME_ROOT").map(std::path::PathBuf::from);
+    let mut root = configured
+        .filter(|path| path.join("exception-ownership.toml").is_file())
+        .unwrap_or_else(|| {
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("src")
+                .canonicalize()
+                .expect("control source directory must resolve")
+        });
+    while !root.join("exception-ownership.toml").is_file() {
+        assert!(root.pop(), "exception ownership repository not found");
+    }
     let mut findings = Vec::new();
     for crate_entry in std::fs::read_dir(root.join("crates")).unwrap() {
         let crate_path = crate_entry.unwrap().path();

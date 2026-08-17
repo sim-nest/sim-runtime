@@ -217,7 +217,10 @@ fn brace_delta(line: &str) -> i32 {
 }
 
 fn repository_root() -> PathBuf {
-    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .canonicalize()
+        .expect("sequence source directory must resolve");
     while !path.join("composition-ownership.toml").is_file() {
         assert!(path.pop(), "composition ownership repository not found");
     }

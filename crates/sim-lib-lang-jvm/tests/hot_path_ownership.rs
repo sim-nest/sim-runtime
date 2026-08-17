@@ -6,7 +6,9 @@ use toml::Value;
 
 #[test]
 fn every_hot_path_anchor_owner_and_fallback_resolves() {
-    let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let source_root = fs::canonicalize(Path::new(env!("CARGO_MANIFEST_DIR")).join("src"))
+        .expect("JVM source directory must resolve");
+    let crate_root = source_root.parent().unwrap();
     let repo_root = crate_root.ancestors().nth(2).unwrap();
     let ledger: Value = fs::read_to_string(crate_root.join("hot-path-ownership.toml"))
         .unwrap()

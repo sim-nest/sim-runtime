@@ -3,7 +3,7 @@
 //! Source-fact ownership guard for neutral function declarations and captures.
 
 use std::{
-    env, fs,
+    fs,
     path::{Path, PathBuf},
 };
 
@@ -256,7 +256,10 @@ fn brace_delta(line: &str) -> i32 {
 }
 
 fn repository_root() -> PathBuf {
-    let mut path = env::current_dir().expect("test working directory must exist");
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .canonicalize()
+        .expect("function source directory must resolve");
     loop {
         if path.join("function-ownership.toml").is_file() {
             return path;

@@ -108,7 +108,11 @@ fn function_calls_itself(source: &str, name: &str) -> bool {
 
 #[test]
 fn guest_machine_ownership_policy_rejects_machine_and_allows_instruction_semantics() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let mut root = fs::canonicalize(Path::new(env!("CARGO_MANIFEST_DIR")).join("src"))
+        .expect("machine source directory must resolve");
+    while !root.join("machine-ownership.toml").is_file() {
+        assert!(root.pop(), "machine ownership repository not found");
+    }
     let policy = Policy::load(&root);
 
     let bad = policy.findings(BAD_GUEST);

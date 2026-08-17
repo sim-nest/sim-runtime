@@ -202,9 +202,12 @@ fn is_public_diagnostic(line: &str) -> bool {
             .any(|term| lower.contains(term))
 }
 fn repository_root() -> PathBuf {
-    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .canonicalize()
+        .expect("pattern source directory must resolve");
     while !path.join("pattern-ownership.toml").is_file() {
-        assert!(path.pop());
+        assert!(path.pop(), "pattern ownership repository not found");
     }
     path
 }

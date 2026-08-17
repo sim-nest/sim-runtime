@@ -589,7 +589,10 @@ fn brace_delta(line: &str) -> i32 {
 }
 
 fn repository_root() -> PathBuf {
-    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .canonicalize()
+        .expect("sequence source directory must resolve");
     while !path.join("composition-ownership.toml").is_file() {
         assert!(path.pop(), "composition ownership repository not found");
     }
@@ -1231,7 +1234,7 @@ Source `crates/sim-lib-class/tests/ownership_guard.rs`:
 //! Structural source-fact guard for the declared-class semantic boundary.
 
 use std::{
-    env, fs,
+    fs,
     path::{Path, PathBuf},
 };
 
@@ -1581,9 +1584,12 @@ fn field_names(item: &str) -> Vec<String> {
         .collect()
 }
 fn repository_root() -> PathBuf {
-    let mut path = env::current_dir().unwrap();
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .canonicalize()
+        .expect("class source directory must resolve");
     while !path.join("class-ownership.toml").is_file() {
-        assert!(path.pop());
+        assert!(path.pop(), "class ownership policy repository not found");
     }
     path
 }
@@ -2947,19 +2953,10 @@ fn first_line(item: &str) -> &str {
 }
 
 fn repository_root() -> PathBuf {
-    let source = PathBuf::from(file!());
-    let source = if source.is_absolute() {
-        source
-    } else {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .ancestors()
-            .map(|ancestor| ancestor.join(&source))
-            .find(|candidate| candidate.is_file())
-            .expect("ownership guard source path must exist below a manifest ancestor")
-    };
-    let mut path = source
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
         .canonicalize()
-        .expect("ownership guard source path must resolve");
+        .expect("incremental source directory must resolve");
     loop {
         if path.join("dataflow-ownership.toml").is_file() {
             return path;
@@ -4328,9 +4325,12 @@ fn is_public_diagnostic(line: &str) -> bool {
             .any(|term| lower.contains(term))
 }
 fn repository_root() -> PathBuf {
-    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .canonicalize()
+        .expect("pattern source directory must resolve");
     while !path.join("pattern-ownership.toml").is_file() {
-        assert!(path.pop());
+        assert!(path.pop(), "pattern ownership repository not found");
     }
     path
 }
@@ -5650,7 +5650,7 @@ Source `crates/sim-lib-function/tests/ownership_guard.rs`:
 //! Source-fact ownership guard for neutral function declarations and captures.
 
 use std::{
-    env, fs,
+    fs,
     path::{Path, PathBuf},
 };
 
@@ -5903,7 +5903,10 @@ fn brace_delta(line: &str) -> i32 {
 }
 
 fn repository_root() -> PathBuf {
-    let mut path = env::current_dir().expect("test working directory must exist");
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .canonicalize()
+        .expect("function source directory must resolve");
     loop {
         if path.join("function-ownership.toml").is_file() {
             return path;
@@ -7925,7 +7928,11 @@ fn function_calls_itself(source: &str, name: &str) -> bool {
 
 #[test]
 fn guest_machine_ownership_policy_rejects_machine_and_allows_instruction_semantics() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let mut root = fs::canonicalize(Path::new(env!("CARGO_MANIFEST_DIR")).join("src"))
+        .expect("machine source directory must resolve");
+    while !root.join("machine-ownership.toml").is_file() {
+        assert!(root.pop(), "machine ownership repository not found");
+    }
     let policy = Policy::load(&root);
 
     let bad = policy.findings(BAD_GUEST);
