@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-lang-python"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 license = "MPL-2.0"
 description = "Thin Python core profile for the SIM expression runtime."
@@ -15,7 +15,7 @@ sim-kernel = { version = "0.2.1" }
 sim-lib-binding = { version = "0.1.4", path = "../sim-lib-binding" }
 sim-lib-control = { version = "0.1.6", path = "../sim-lib-control" }
 sim-lib-dispatch = { version = "0.1.4", path = "../sim-lib-dispatch" }
-sim-lib-gc-tracing = { version = "0.1.1", path = "../sim-lib-gc-tracing" }
+sim-lib-gc-tracing = { version = "0.1.2", path = "../sim-lib-gc-tracing" }
 sim-lib-class = { version = "0.1.0", path = "../sim-lib-class" }
 sim-lib-function = { version = "0.1.0", path = "../sim-lib-function" }
 sim-lib-core = { version = "0.2.0", path = "../sim-lib-core" }

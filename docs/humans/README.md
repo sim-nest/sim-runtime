@@ -12798,9 +12798,8 @@ use sim_lib_control::{
     FrameLimits, ManagedException, Raised, ResumableFrame, ResumePacket, ResumeResult,
     match_raised_class,
 };
-use sim_lib_mutation::{
-    ArenaError, HardCappedRetainPolicy, ManagedArena, ManagedHandle, StrongEdgeMutationError,
-};
+use sim_lib_gc_tracing::ManagedHeap;
+use sim_lib_mutation::{ArenaError, ManagedHandle, StrongEdgeMutationError};
 
 use crate::PythonObjectSpace;
 
@@ -12890,7 +12889,7 @@ impl ObjectCompat for PythonExceptionFace {}
 /// Python exception heap, class policy, chaining, grouping, and handler matching.
 pub struct PythonExceptions {
     classes: PythonObjectSpace,
-    arena: ManagedArena<ExceptionNode>,
+    heap: ManagedHeap<ExceptionNode>,
 }
 
 impl PythonExceptions {
@@ -12898,7 +12897,7 @@ impl PythonExceptions {
     pub fn new(max_objects: usize) -> Result<Self, PythonExceptionError> {
         Ok(Self {
             classes: PythonObjectSpace::default(),
-            arena: ManagedArena::new(HardCappedRetainPolicy::new(max_objects)?),
+            heap: ManagedHeap::retaining(max_objects)?,
         })
     }
 
@@ -12928,7 +12927,7 @@ impl PythonExceptions {
             return Err(PythonExceptionError::UnknownClass(id));
         }
         Ok(self
-            .arena
+            .heap
             .allocate(ManagedException::new(PythonExceptionData {
                 class,
                 message: message.into(),
@@ -12950,15 +12949,15 @@ impl PythonExceptions {
             return Err(PythonExceptionError::EmptyGroup);
         }
         for member in members {
-            self.arena.get(*member)?;
+            self.heap.get(*member)?;
         }
         let group_message = message.into();
         let group = self.allocate(class, group_message.clone(), origin)?;
-        let mut payload = self.arena.get(group)?.payload().clone();
+        let mut payload = self.heap.get(group)?.payload().clone();
         payload.group_message = Some(group_message);
-        self.arena.get_mut(group)?.replace_payload(payload);
+        self.heap.get_mut(group)?.replace_payload(payload);
         for (ordinal, member) in members.iter().enumerate() {
-            self.arena
+            self.heap
                 .get_mut(group)?
                 .insert_relation(PythonExceptionRelation::GroupMember(ordinal), member.id())?;
         }
@@ -12971,8 +12970,8 @@ impl PythonExceptions {
         error: PythonExceptionRef,
         cause: PythonExceptionRef,
     ) -> Result<(), PythonExceptionError> {
-        self.arena.get(cause)?;
-        let node = self.arena.get_mut(error)?;
+        self.heap.get(cause)?;
+        let node = self.heap.get_mut(error)?;
         node.insert_relation(PythonExceptionRelation::Cause, cause.id())?;
         let mut payload = node.payload().clone();
         payload.suppress_context = true;
@@ -12986,8 +12985,8 @@ impl PythonExceptions {
         error: PythonExceptionRef,
         context: PythonExceptionRef,
     ) -> Result<(), PythonExceptionError> {
-        self.arena.get(context)?;
-        self.arena
+        self.heap.get(context)?;
+        self.heap
             .get_mut(error)?
             .insert_relation(PythonExceptionRelation::Context, context.id())?;
         Ok(())
@@ -12999,7 +12998,7 @@ impl PythonExceptions {
         cx: &Cx,
         error: PythonExceptionRef,
     ) -> Result<Raised, PythonExceptionError> {
-        let payload = self.arena.get(error)?.payload();
+        let payload = self.heap.get(error)?.payload();
         let value = cx
             .factory()
             .opaque(Arc::new(PythonExceptionFace {
@@ -13070,17 +13069,17 @@ impl PythonExceptions {
         budget: ClassMatchBudget,
     ) -> Result<(Option<PythonExceptionRef>, Option<PythonExceptionRef>), PythonExceptionError>
     {
-        let data = self.arena.get(group)?.payload().clone();
+        let data = self.heap.get(group)?.payload().clone();
         let Some(message) = data.group_message.clone() else {
             return Err(PythonExceptionError::NotGroup);
         };
         let mut members = self
-            .arena
+            .heap
             .get(group)?
             .relations()
             .filter_map(|(_, role, id)| match role {
                 PythonExceptionRelation::GroupMember(ordinal) => {
-                    Some((*ordinal, self.arena.handle(id).ok()?))
+                    Some((*ordinal, self.heap.handle(id).ok()?))
                 }
                 _ => None,
             })
@@ -13124,7 +13123,7 @@ impl PythonExceptions {
         &self,
         error: PythonExceptionRef,
     ) -> Result<&PythonExceptionData, PythonExceptionError> {
-        Ok(self.arena.get(error)?.payload())
+        Ok(self.heap.get(error)?.payload())
     }
 
     /// Return ordered typed relations for diagnostics and subgroup derivation.
@@ -13133,13 +13132,13 @@ impl PythonExceptions {
         error: PythonExceptionRef,
     ) -> Result<Vec<(PythonExceptionRelation, PythonExceptionRef)>, PythonExceptionError> {
         Ok(self
-            .arena
+            .heap
             .get(error)?
             .relations()
             .map(|(_, role, id)| {
                 (
                     *role,
-                    self.arena
+                    self.heap
                         .handle(id)
                         .expect("managed relation targets a live object"),
                 )
