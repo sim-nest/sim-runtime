@@ -6,7 +6,8 @@ use std::{
 
 use sim_lib_binding::{BindingCell, LexicalEnv};
 use sim_lib_function::CapturedBinding;
-use sim_lib_mutation::{HardCappedRetainPolicy, ManagedArena, ManagedHandle, ManagedNode};
+use sim_lib_gc_tracing::ManagedHeap;
+use sim_lib_mutation::{ManagedHandle, ManagedNode};
 
 const LUA_BINDING_LIMIT: usize = 4096;
 
@@ -14,7 +15,7 @@ const LUA_BINDING_LIMIT: usize = 4096;
 #[derive(Clone)]
 pub struct LuaEnv {
     lexical: LexicalEnv,
-    managed: Arc<Mutex<ManagedArena<ManagedNode<()>>>>,
+    managed: Arc<Mutex<ManagedHeap<ManagedNode<()>>>>,
     handles: Arc<ManagedBindingFrame>,
 }
 
@@ -34,10 +35,10 @@ impl LuaEnv {
     pub fn new() -> Self {
         Self {
             lexical: LexicalEnv::new(),
-            managed: Arc::new(Mutex::new(ManagedArena::new(
-                HardCappedRetainPolicy::new(LUA_BINDING_LIMIT)
+            managed: Arc::new(Mutex::new(
+                ManagedHeap::retaining(LUA_BINDING_LIMIT)
                     .expect("the Lua binding limit is nonzero"),
-            ))),
+            )),
             handles: Arc::new(ManagedBindingFrame {
                 parent: None,
                 slots: Mutex::new(BTreeMap::new()),

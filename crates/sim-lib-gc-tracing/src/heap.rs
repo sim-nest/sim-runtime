@@ -1,6 +1,6 @@
 use sim_lib_mutation::{
-    ArenaError, HardCappedRetainPolicy, ManagedArena, ManagedHandle, ManagedObject, RootedHandle,
-    TeardownReceipt,
+    ArenaError, HardCappedRetainPolicy, ManagedArena, ManagedHandle, ManagedId, ManagedObject,
+    RootedHandle, TeardownReceipt,
 };
 
 use crate::{CollectionError, CollectionLimits, CollectionReceipt, collect};
@@ -53,6 +53,11 @@ impl<T: ManagedObject> ManagedHeap<T> {
     /// Returns a mutable value reference after validating its handle.
     pub fn get_mut(&mut self, handle: ManagedHandle) -> Result<&mut T, ArenaError> {
         self.arena.get_mut(handle)
+    }
+
+    /// Resolves a live managed identity to its generation-checked handle.
+    pub fn handle(&self, id: ManagedId) -> Result<ManagedHandle, ArenaError> {
+        self.arena.handle(id)
     }
 
     /// Registers a validated handle as a tracing root.
@@ -152,6 +157,7 @@ mod tests {
         let mut heap = ManagedHeap::tracing(8, limits()).unwrap();
         let first = heap.allocate(Node::default()).unwrap();
         let second = heap.allocate(Node::default()).unwrap();
+        assert_eq!(heap.handle(first.id()).unwrap(), first);
         heap.get_mut(first).unwrap().0.push(second.id());
         heap.get_mut(second).unwrap().0.push(first.id());
 
@@ -160,6 +166,9 @@ mod tests {
             [first.id(), second.id()]
         );
         assert!(matches!(heap.get(first), Err(ArenaError::StaleHandle(id)) if id == first.id()));
+        assert!(
+            matches!(heap.handle(first.id()), Err(ArenaError::StaleHandle(id)) if id == first.id())
+        );
         assert_eq!(heap.live_len(), 0);
     }
 
