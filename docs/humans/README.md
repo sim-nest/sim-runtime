@@ -17,7 +17,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 
 | Feature | Subject | Specimens | Summary |
 | --- | --- | ---: | --- |
-| `feature/sim-runtime/javascript-core-profile` | `crate/sim-lib-lang-javascript` | 4 | Run embedded, capability-scoped ECMAScript over SIM values with ordinary objects, exact UTF-16 strings, explicit drain-to-empty jobs, and JavaScript-named constructors for shared source-module and dynamic-source policies, with no private authority envelopes, Node, DOM, timers, ambient host IO, or implicit event loop. |
+| `feature/sim-runtime/javascript-core-profile` | `crate/sim-lib-lang-javascript` | 4 | Run embedded, capability-scoped ECMAScript over SIM values with one authoritative finite work budget, ordinary objects, exact UTF-16 strings, explicit drain-to-empty jobs, and JavaScript-named constructors for shared source-module and dynamic-source policies, with no private authority envelopes, Node, DOM, timers, ambient host IO, or implicit event loop. |
 | `feature/sim-runtime/typescript-notation-profile` | `crate/sim-lib-lang-typescript` | 1 | TypeScript notation; does not type-check. Load admitted notation by direct JavaScript erasure while retaining faithful, non-enforcing Shape metadata and explicit compiler gaps. |
 | `feature/sim-runtime/typed-lazy-typeclass-dictionaries` | `crate/sim-lib-lang-typed-lazy` | 1 | Represent a typeclass instance as an explicit language-owned evidence record mapping required method names to implementation symbols. |
 | `feature/sim-runtime/prolog-predicate-clause-store` | `crate/sim-lib-lang-prolog` | 1 | Keep each Prolog predicate language-owned as the indexed set of logic-organ clauses resolved through unification and backtracking. |
@@ -310,6 +310,7 @@ mod collections;
 mod fidelity;
 mod jobs;
 mod json;
+mod lowered;
 mod managed;
 mod matrix_row;
 mod modules;

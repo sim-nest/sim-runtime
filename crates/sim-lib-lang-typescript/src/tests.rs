@@ -15,7 +15,7 @@ fn token(text: &str) -> Expr {
     Expr::Call {
         operator: Box::new(Expr::Symbol(Symbol::qualified("javascript", "token"))),
         args: vec![
-            Expr::Symbol(Symbol::new("token")),
+            Expr::Symbol(Symbol::new("punctuator")),
             Expr::String(text.into()),
             Expr::Bool(true),
         ],

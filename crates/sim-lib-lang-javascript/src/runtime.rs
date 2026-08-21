@@ -74,50 +74,21 @@ impl JavascriptEvalPolicy {
     }
     /// Evaluate a codec-produced Script or Module lowering without an intermediate plan.
     pub fn eval_lowered(&self, lowered: &Expr, state: &mut JavascriptState) -> Result<Completion> {
-        let tokens = lowered_tokens(lowered)?;
+        let tokens = crate::lowered::tokens(lowered, self.max_steps)?;
+        let mut candidate = state.clone();
         let mut budget = StepBudget {
             remaining: self.max_steps,
         };
-        Parser {
+        let completion = Parser {
             tokens: &tokens,
             at: 0,
             budget: &mut budget,
-            state,
+            state: &mut candidate,
         }
-        .program()
+        .program()?;
+        *state = candidate;
+        Ok(completion)
     }
-}
-fn lowered_tokens(expr: &Expr) -> Result<Vec<String>> {
-    let Expr::Call { operator, args } = expr else {
-        return Err(Error::Eval(
-            "javascript evaluator accepts only codec/javascript lowered forms".into(),
-        ));
-    };
-    let Expr::Symbol(head) = operator.as_ref() else {
-        return Err(Error::Eval("malformed javascript lowering".into()));
-    };
-    if head.namespace.as_deref().map(AsRef::as_ref) != Some("javascript")
-        || !matches!(head.name.as_ref(), "script" | "module")
-    {
-        return Err(Error::Eval(
-            "javascript evaluator accepts only codec/javascript Script or Module forms".into(),
-        ));
-    }
-    let mut out = Vec::new();
-    for arg in args {
-        if let Expr::Call { operator, args } = arg
-            && matches!(operator.as_ref(), Expr::Symbol(s) if s.namespace.as_deref().map(AsRef::as_ref)==Some("javascript") && s.name.as_ref()=="token")
-        {
-            if let [Expr::Symbol(kind), Expr::String(text), Expr::Bool(_)] = args.as_slice() {
-                if !matches!(kind.name.as_ref(), "trivia" | "end") {
-                    out.push(text.clone());
-                }
-            } else {
-                return Err(Error::Eval("malformed javascript token".into()));
-            }
-        }
-    }
-    Ok(out)
 }
 struct StepBudget {
     remaining: usize,
@@ -385,7 +356,7 @@ impl Parser<'_, '_> {
                 .map(JavascriptValue::Number)
                 .map_err(|_| Error::Eval(format!("invalid javascript Number {t}"))),
             _ if t.starts_with(['\'', '"']) => {
-                Ok(JavascriptValue::String(t[1..t.len() - 1].to_owned()))
+                crate::lowered::quoted_string(&t).map(JavascriptValue::String)
             }
             _ => self
                 .state
@@ -439,6 +410,7 @@ impl Parser<'_, '_> {
         Ok(t)
     }
 }
+
 fn truthy(v: &JavascriptValue) -> bool {
     match v {
         JavascriptValue::Undefined | JavascriptValue::Null | JavascriptValue::Bool(false) => false,
