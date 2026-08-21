@@ -3,7 +3,9 @@ use std::sync::{Arc, Mutex};
 use sim_kernel::{
     Args, Callable, ClassRef, Cx, Error, Object, ObjectCompat, Result, Symbol, Value,
 };
-use sim_lib_pattern::{TextLimits, TextOp, compile_lua_pattern, run_text_pattern};
+use sim_lib_pattern::{
+    PatternSearchOutcome, TextLimits, TextMatch, TextOp, compile_lua_pattern, run_text_pattern,
+};
 use sim_lib_standard_core::Arity;
 
 use crate::{
@@ -73,7 +75,7 @@ pub(crate) fn call_lua_gmatch_iterator(
     if *cursor > iterator.subject.len() {
         return Ok(vec![policy.kit().nil.clone()]);
     }
-    let Some(matched) = run_text_pattern(
+    let Some(matched) = lua_pattern_match(run_text_pattern(
         &iterator.ops,
         &iterator.subject,
         *cursor,
@@ -81,7 +83,8 @@ pub(crate) fn call_lua_gmatch_iterator(
             max_steps: 20_000,
             ..TextLimits::default()
         },
-    ) else {
+    ))?
+    else {
         *cursor = iterator.subject.len() + 1;
         return Ok(vec![policy.kit().nil.clone()]);
     };
@@ -115,7 +118,7 @@ pub(crate) fn lua_string_find(
         plain_find(&subject, &pattern, start)
     } else {
         let ops = compile_lua_pattern(&pattern)?;
-        run_text_pattern(
+        lua_pattern_match(run_text_pattern(
             &ops,
             &subject,
             start,
@@ -123,7 +126,7 @@ pub(crate) fn lua_string_find(
                 max_steps: 20_000,
                 ..TextLimits::default()
             },
-        )
+        ))?
     }) else {
         return Ok(vec![policy.kit().nil.clone()]);
     };
@@ -181,7 +184,7 @@ pub(crate) fn lua_string_match(
         .transpose()?
         .unwrap_or(1);
     let ops = compile_lua_pattern(&pattern)?;
-    let Some(matched) = run_text_pattern(
+    let Some(matched) = lua_pattern_match(run_text_pattern(
         &ops,
         &subject,
         lua_start_offset(&subject, init),
@@ -189,10 +192,26 @@ pub(crate) fn lua_string_match(
             max_steps: 20_000,
             ..TextLimits::default()
         },
-    ) else {
+    ))?
+    else {
         return Ok(vec![policy.kit().nil.clone()]);
     };
     capture_or_match_values(cx, &subject, &matched)
+}
+
+pub(crate) fn lua_pattern_match(
+    outcome: PatternSearchOutcome<TextMatch>,
+) -> Result<Option<TextMatch>> {
+    match outcome {
+        PatternSearchOutcome::Match { matched, .. } => Ok(Some(matched)),
+        PatternSearchOutcome::NoMatch { .. } => Ok(None),
+        PatternSearchOutcome::Limit { limit, .. } => Err(Error::Eval(format!(
+            "Lua string pattern resource limit: {limit:?}"
+        ))),
+        PatternSearchOutcome::Unsupported { feature, .. } => Err(Error::Eval(format!(
+            "unsupported Lua string pattern feature: {feature:?}"
+        ))),
+    }
 }
 
 fn capture_or_match_values(

@@ -4,7 +4,8 @@
 
 use sim_lib_pattern::{
     Anchor, Automaton, CaptureId, CodeUnitDomain, DomainExecutionOutcome, EnginePolicy, IrNode,
-    PatternIr, RepeatBounds, TextLimits, TextMatch, compile, execute_code_units,
+    PatternIr, PatternSearchOutcome, RepeatBounds, TextLimits, TextMatch, compile,
+    search_code_units,
 };
 use sim_text::CodeUnitString;
 use std::collections::{BTreeMap, BTreeSet};
@@ -54,7 +55,6 @@ pub enum JavascriptRegExpError {
 pub struct JavascriptRegExp {
     source: String,
     automaton: Automaton<u16, CodeUnitClass>,
-    anchored_start: bool,
 }
 impl JavascriptRegExp {
     /// Compile the regular intersection, including alternation, groups,
@@ -70,7 +70,6 @@ impl JavascriptRegExp {
         Ok(Self {
             source: source.into(),
             automaton: compile(&ir),
-            anchored_start: source.starts_with('^'),
         })
     }
     /// Original source.
@@ -79,36 +78,45 @@ impl JavascriptRegExp {
     }
     /// Execute under an explicit shared-engine transition bound.
     /// Match and capture offsets are ECMAScript UTF-16 code-unit offsets.
-    pub fn find(&self, subject: &str, init: usize, max_steps: usize) -> Option<TextMatch> {
+    pub fn find(
+        &self,
+        subject: &str,
+        init: usize,
+        max_steps: usize,
+    ) -> PatternSearchOutcome<TextMatch> {
         let subject = CodeUnitString::from_scalar(subject);
-        let mut starts = if self.anchored_start {
-            (init == 0).then_some(0..=0)
-        } else {
-            Some(init..=subject.len())
-        }?;
-        starts.find_map(|start| {
-            let tail = CodeUnitString::from_code_units(subject.as_code_units()[start..].to_vec());
-            match execute_code_units(
-                &self.automaton,
-                &tail,
-                TextLimits {
-                    max_steps,
-                    ..TextLimits::default()
-                },
-                |class, unit| class.matches(*unit),
-            ) {
-                DomainExecutionOutcome::Match { matched, .. } => Some(TextMatch {
-                    start: start + matched.start.get(),
-                    end: start + matched.end.get(),
+        match search_code_units(
+            &self.automaton,
+            &subject,
+            init,
+            TextLimits {
+                max_steps,
+                ..TextLimits::default()
+            },
+            |class, unit| class.matches(*unit),
+        ) {
+            DomainExecutionOutcome::Match { matched, receipt } => PatternSearchOutcome::Match {
+                matched: TextMatch {
+                    start: matched.start.get(),
+                    end: matched.end.get(),
                     captures: matched
                         .captures
                         .values()
-                        .map(|span| (start + span.start.get(), start + span.end.get()))
+                        .map(|span| (span.start.get(), span.end.get()))
                         .collect(),
-                }),
-                _ => None,
+                },
+                receipt,
+            },
+            DomainExecutionOutcome::NoMatch { receipt } => {
+                PatternSearchOutcome::NoMatch { receipt }
             }
-        })
+            DomainExecutionOutcome::Limit { limit, receipt } => {
+                PatternSearchOutcome::Limit { limit, receipt }
+            }
+            DomainExecutionOutcome::Unsupported { feature, receipt } => {
+                PatternSearchOutcome::Unsupported { feature, receipt }
+            }
+        }
     }
 }
 fn syntax(offset: usize, reason: &'static str) -> JavascriptRegExpError {
@@ -498,6 +506,40 @@ mod tests {
         assert!(r.find("sim", 0, 1000).is_none());
     }
     #[test]
+    fn search_anchors_are_absolute_at_every_branch_depth() {
+        for (source, subject) in [("(^a)", "ba"), ("b|^a", "ca")] {
+            let outcome = JavascriptRegExp::compile(source, "")
+                .unwrap()
+                .find(subject, 0, 1_000);
+            assert!(
+                matches!(outcome, PatternSearchOutcome::NoMatch { .. }),
+                "{source}"
+            );
+        }
+        let last = JavascriptRegExp::compile("a?", "")
+            .unwrap()
+            .find("b", 1, 1_000)
+            .unwrap();
+        assert_eq!((last.start, last.end), (1, 1));
+    }
+
+    #[test]
+    fn search_work_is_global_and_scales_linearly() {
+        fn transitions(len: usize) -> usize {
+            let subject = "a".repeat(len);
+            match JavascriptRegExp::compile("[ab]*c", "")
+                .unwrap()
+                .find(&subject, 0, usize::MAX)
+            {
+                PatternSearchOutcome::NoMatch { receipt } => receipt.transitions,
+                other => panic!("unexpected search outcome: {other:?}"),
+            }
+        }
+        let small = transitions(1_000);
+        let large = transitions(4_000);
+        assert!(large < small * 6, "{small} -> {large}");
+    }
+    #[test]
     fn shared_regular_features_report_code_unit_spans() {
         let regexp = JavascriptRegExp::compile("^(?:ab|\u{1f600}){2,3}(c+?)$", "").unwrap();
         let matched = regexp.find("ab\u{1f600}cc", 0, 10_000).unwrap();
@@ -590,7 +632,7 @@ mod tests {
                     ("clause", "maximum VM steps".to_owned()),
                     (
                         "outcome",
-                        if limited.is_none() {
+                        if matches!(limited, PatternSearchOutcome::Limit { .. }) {
                             "refused"
                         } else {
                             "matched"

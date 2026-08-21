@@ -26,7 +26,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 | `feature/sim-runtime/incremental-query-organ` | `crate/sim-lib-incremental` | 1 | Expose incremental expression queries and immutable proof-backed dataflow analysis views as a loadable SIM organ. |
 | `feature/sim-runtime/capabilities-read-eval` | `crate/sim-lib-core` | 2 | Gate diminished read-eval and surface packing through explicit runtime libraries and capability checks. |
 | `feature/sim-runtime/organs` | `crate/sim-lib-binding` | 1 | Provide binding, function, control, logic, pattern, incremental, mutation, namespace, and sequence organs as reusable runtime behavior. |
-| `feature/sim-runtime/pattern-cursor-domains` | `crate/sim-lib-pattern` | 2 | Execute bounded patterns over byte, Unicode scalar, or exact UTF-16 code-unit subjects while retaining the offset domain in every match and capture position. |
+| `feature/sim-runtime/pattern-cursor-domains` | `crate/sim-lib-pattern` | 2 | Execute or search bounded patterns over byte, Unicode scalar, or exact UTF-16 code-unit subjects while retaining the offset domain in every match and capture position. |
 | `feature/sim-runtime/function-organ` | `crate/sim-lib-function` | 6 | Compose immutable function declarations with concrete guest body policies, collector-visible captures, kernel invocation, and optional dispatch methods. |
 | `feature/sim-runtime/binding-organ` | `crate/sim-lib-binding` | 1 | Bind declared calls and maintain lexical, dynamic, recursive, and live binding cells without guest-language ownership. |
 | `feature/sim-runtime/control-organ` | `crate/sim-lib-control` | 1 | Drive bounded resumable frames, cleanup-safe unwind, and explicitly checkpointed typed FIFO jobs. |

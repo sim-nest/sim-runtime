@@ -97,6 +97,7 @@ struct History {
 
 #[derive(Clone, Debug)]
 struct Thread {
+    start: usize,
     state: StateId,
     repeats: BTreeMap<StateId, usize>,
     history: History,
@@ -149,6 +150,41 @@ where
     )
 }
 
+/// Searches one subject from `init` with one absolute coordinate system and
+/// one shared resource budget.
+pub fn search_regular<S, E>(
+    automaton: &Automaton<S, E>,
+    subject: &[S],
+    init: usize,
+    limits: TextLimits,
+    extension_matches: impl Fn(&E, &S) -> bool,
+) -> ExecutionOutcome
+where
+    S: PartialEq,
+{
+    if init > subject.len() {
+        return ExecutionOutcome::NoMatch {
+            receipt: ExecutionReceipt {
+                state_count: automaton.evidence().state_count,
+                subject_symbols: subject.len(),
+                ..ExecutionReceipt::default()
+            },
+        };
+    }
+    search_spanning(
+        automaton,
+        subject,
+        init,
+        limits,
+        |extension, subject, position| {
+            subject
+                .get(position)
+                .filter(|symbol| extension_matches(extension, symbol))
+                .map(|_| position + 1)
+        },
+    )
+}
+
 /// Executes an automaton whose admitted extensions may consume any bounded
 /// subject span, including a zero-width span.
 ///
@@ -164,12 +200,32 @@ pub(crate) fn execute_spanning<S, E>(
 where
     S: PartialEq,
 {
-    execute_regular_inner(automaton, subject, limits, &extension_match)
+    execute_regular_inner(automaton, subject, 0..=0, limits, &extension_match)
+}
+
+pub(crate) fn search_spanning<S, E>(
+    automaton: &Automaton<S, E>,
+    subject: &[S],
+    init: usize,
+    limits: TextLimits,
+    extension_match: impl Fn(&E, &[S], usize) -> Option<usize>,
+) -> ExecutionOutcome
+where
+    S: PartialEq,
+{
+    execute_regular_inner(
+        automaton,
+        subject,
+        init..=subject.len(),
+        limits,
+        &extension_match,
+    )
 }
 
 fn execute_regular_inner<S, E>(
     automaton: &Automaton<S, E>,
     subject: &[S],
+    starts: std::ops::RangeInclusive<usize>,
     limits: TextLimits,
     extension_match: &SpanMatcher<'_, S, E>,
 ) -> ExecutionOutcome
@@ -188,14 +244,20 @@ where
         return limited(ExecutionLimit::Subject, receipt);
     }
 
-    let mut current = vec![(
-        0,
-        Thread {
-            state: automaton.start(),
-            repeats: BTreeMap::new(),
-            history: History::default(),
-        },
-    )];
+    let mut current = starts
+        .rev()
+        .map(|start| {
+            (
+                start,
+                Thread {
+                    start,
+                    state: automaton.start(),
+                    repeats: BTreeMap::new(),
+                    history: History::default(),
+                },
+            )
+        })
+        .collect::<Vec<_>>();
     let mut seen = BTreeSet::new();
     while let Some((position, thread)) = current.pop() {
         receipt.state_visits += 1;
@@ -211,7 +273,7 @@ where
             Instruction::Accept => {
                 return ExecutionOutcome::Match {
                     matched: ExecutionMatch {
-                        start: 0,
+                        start: thread.start,
                         end: position,
                         captures: thread.history.closed,
                     },
@@ -331,6 +393,7 @@ where
                     match execute_regular_inner(
                         program.automaton(),
                         window,
+                        0..=0,
                         remaining,
                         extension_match,
                     ) {

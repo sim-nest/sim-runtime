@@ -159,10 +159,10 @@ claims_specimens = [
 [[feature]]
 id = "feature/sim-runtime/pattern-cursor-domains"
 title = "Typed pattern cursor domains"
-summary = "Execute bounded patterns over byte, Unicode scalar, or exact UTF-16 code-unit subjects while retaining the offset domain in every match and capture position."
+summary = "Execute or search bounded patterns over byte, Unicode scalar, or exact UTF-16 code-unit subjects while retaining the offset domain in every match and capture position."
 owner = "crate/sim-lib-pattern"
 audiences = ["code", "framework"]
-guidance = "Use execute_bytes, execute_scalars, or execute_code_units according to the dialect's symbol semantics. The exact adapter composes sim-text CodeUnitString and its checked scalar/code-unit conversions; never cast an offset or decode a lone surrogate merely to match it."
+guidance = "Use execute_bytes, execute_scalars, or execute_code_units for anchored execution according to the dialect's symbol semantics. Use the shared search entry points for unanchored matching: they retain one absolute subject coordinate system, one global receipt and budget, typed limit or unsupported outcomes, and leftmost capture priority without copying suffixes. The exact adapter composes sim-text CodeUnitString and its checked scalar/code-unit conversions; never cast an offset or decode a lone surrogate merely to match it."
 claims_anchors = [
   "anchor/crate/sim-lib-pattern",
 ]

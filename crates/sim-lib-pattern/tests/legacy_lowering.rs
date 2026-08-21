@@ -3,6 +3,7 @@ use sim_lib_pattern::{TextLimits, compile_glob_pattern, compile_lua_pattern, run
 fn span(pattern: &str, subject: &str) -> Option<(usize, usize)> {
     let ops = compile_lua_pattern(pattern).unwrap();
     run_text_pattern(&ops, subject, 0, TextLimits::default())
+        .into_match()
         .map(|matched| (matched.start, matched.end))
 }
 
