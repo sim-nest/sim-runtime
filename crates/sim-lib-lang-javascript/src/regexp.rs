@@ -518,6 +518,17 @@ mod tests {
         );
     }
     #[test]
+    fn finite_counted_alternation_keeps_every_viable_thread() {
+        for (source, subject) in [("^(a|aa){2}$", "aaaa"), ("^(a|aa){2,3}$", "aaaaa")] {
+            let regexp = JavascriptRegExp::compile(source, "").unwrap();
+            let matched = regexp.find(subject, 0, TextLimits::default().max_steps);
+            assert_eq!(
+                matched.map(|found| (found.start, found.end)),
+                Some((0, subject.len()))
+            );
+        }
+    }
+    #[test]
     fn refused_clause_keeps_its_typed_diagnostic() {
         assert_eq!(
             JavascriptRegExp::compile(r"\bword", ""),
