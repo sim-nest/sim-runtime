@@ -429,22 +429,19 @@ impl<P> ExecutionPermit<'_, P> {
     pub fn target(&self) -> &EntryTarget {
         &self.prepared.verification.admission.resolved.target
     }
-}
 
-/// The sole JVM drive entry point. Revision identity is checked before `effect` can run.
-pub fn drive<P, T>(
-    permit: ExecutionPermit<'_, P>,
-    effect: impl FnOnce() -> T,
-) -> Result<T, EntryRefusal> {
-    let admission = &permit.prepared.verification.admission;
-    let current = admission.resolved.permit.loader.revision();
-    let admitted = admission.resolved.permit.revision;
-    if current != admitted {
-        return Err(EntryRefusal::StaleClassSpace {
-            class: admission.resolved.permit.class.id().clone(),
-            admitted,
-            current,
-        });
+    /// Refuses a stale class-space identity before a machine request can be assembled.
+    pub(crate) fn validate_current(&self) -> Result<(), EntryRefusal> {
+        let admission = &self.prepared.verification.admission;
+        let current = admission.resolved.permit.loader.revision();
+        let admitted = admission.resolved.permit.revision;
+        if current != admitted {
+            return Err(EntryRefusal::StaleClassSpace {
+                class: admission.resolved.permit.class.id().clone(),
+                admitted,
+                current,
+            });
+        }
+        Ok(())
     }
-    Ok(effect())
 }

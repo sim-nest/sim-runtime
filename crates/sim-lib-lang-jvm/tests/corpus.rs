@@ -80,9 +80,25 @@ fn retained_positive_and_differential_corpus_matches_exact_guest_values() {
     assert_eq!(
         surface
             .invoke_static_i32(&mut cx, "Minimal", "value", "()I", &[])
-            .unwrap_err()
-            .to_string(),
-        "JVM invocation admission refused: evaluation error: JVM callable subset refuses opcode Bipush"
+            .unwrap(),
+        42
+    );
+    let (preparation, execution) = surface.last_drive_receipts().unwrap();
+    assert_eq!(preparation.instructions, 2);
+    assert_eq!(execution.work.len(), 2);
+    assert!(execution.cleaned_up);
+    assert_eq!(surface.live_frame_leases(), 0);
+    let decoded = surface.decode_count();
+    assert_eq!(
+        surface
+            .invoke_static_i32(&mut cx, "Minimal", "value", "()I", &[])
+            .unwrap(),
+        42
+    );
+    assert_eq!(
+        surface.decode_count(),
+        decoded,
+        "prepared execution must not decode again"
     );
 }
 

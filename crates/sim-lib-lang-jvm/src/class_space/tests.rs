@@ -422,7 +422,7 @@ mod tests {
                 descriptor: target().1,
             },
         ] {
-            crate::drive(prepare(target), || {}).unwrap();
+            prepare(target).validate_current().unwrap();
         }
         let live = prepare(crate::EntryTarget::Method {
             name: target().0,
@@ -436,11 +436,9 @@ mod tests {
             (0, 0)
         );
         assert_eq!(live.fidelity(), crate::VerificationFidelity::StaticChecked);
-        crate::drive(live, || {
-            allocations.fetch_add(1, Ordering::SeqCst);
-            static_writes.fetch_add(1, Ordering::SeqCst);
-        })
-        .unwrap();
+        live.validate_current().unwrap();
+        allocations.fetch_add(1, Ordering::SeqCst);
+        static_writes.fetch_add(1, Ordering::SeqCst);
         assert_eq!(
             (
                 allocations.load(Ordering::SeqCst),
@@ -455,7 +453,7 @@ mod tests {
         });
         let admitted = loader.revision();
         loader.simulate_class_space_change();
-        let error = crate::drive(stale, || allocations.fetch_add(1, Ordering::SeqCst)).unwrap_err();
+        let error = stale.validate_current().unwrap_err();
         assert!(
             matches!(error, crate::EntryRefusal::StaleClassSpace { admitted: found, current, .. }
             if found == admitted && current != admitted)
@@ -559,7 +557,8 @@ mod tests {
         .unwrap();
         let permit = prepared.permit();
         assert_eq!(permit.fidelity(), crate::VerificationFidelity::Verified);
-        crate::drive(permit, || effects.fetch_add(1, Ordering::SeqCst)).unwrap();
+        permit.validate_current().unwrap();
+        effects.fetch_add(1, Ordering::SeqCst);
         assert_eq!(effects.load(Ordering::SeqCst), 1);
     }
 }

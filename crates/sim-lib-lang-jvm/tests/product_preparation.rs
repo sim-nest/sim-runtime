@@ -6,7 +6,10 @@ fn optimized_preparation_has_one_representation_one_drive_and_no_mode_switch() {
         include_str!("../src/code/model.rs"),
         include_str!("../src/code/prepare.rs"),
     );
-    let entry = include_str!("../src/entry.rs");
+    let entry = concat!(
+        include_str!("../src/entry.rs"),
+        include_str!("../src/driver.rs")
+    );
     let machine_driver = include_str!("../../sim-lib-machine/src/driver.rs");
 
     assert_eq!(
@@ -15,7 +18,7 @@ fn optimized_preparation_has_one_representation_one_drive_and_no_mode_switch() {
         "JVM preparation must retain one prepared representation family"
     );
     assert_eq!(
-        entry.matches("pub fn drive<").count(),
+        entry.matches("pub(crate) fn drive_i32<").count(),
         1,
         "JVM effects must retain one public drive entry"
     );

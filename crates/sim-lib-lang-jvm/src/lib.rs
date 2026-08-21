@@ -15,6 +15,7 @@ mod code;
 mod constructor;
 mod control;
 mod dispatch;
+mod driver;
 mod dynamic;
 mod entry;
 mod exception;
@@ -66,6 +67,7 @@ pub use control::{
     JvmControlError, JvmControlErrorKind, JvmControlOutcome, execute_control_instruction,
 };
 pub use dispatch::{PreparedDispatch, dispatch_prepared};
+pub use driver::{JvmDriveReceipt, JvmPreparationReceipt};
 pub use dynamic::{
     ConcatConstant, DynamicBootstrap, DynamicLinkCache, DynamicLinkError, LinkedStringConcat,
     STRING_CONCAT_BOOTSTRAP_DESCRIPTOR, STRING_CONCAT_BOOTSTRAP_NAME,
@@ -74,7 +76,7 @@ pub use dynamic::{
 pub use entry::{
     ClassVerifierProvider, ClassfilePermit, EntryRefusal, EntryTarget, ExecutionPermit, NoVerifier,
     PreparedEntry, ResolvedEntry, StaticEntryPermit, VerificationFidelity,
-    VerificationProofFailure, VerifierProvider, drive,
+    VerificationProofFailure, VerifierProvider,
 };
 pub use exception::{
     JavaHandlerEntry, JavaThrowError, JavaThrowSite, JavaThrowableHeap, JavaThrowableMutationError,

@@ -83,6 +83,15 @@ impl JvmFrameRecord {
         &mut self.operands
     }
 
+    pub(crate) fn execution_storage_mut(
+        &mut self,
+    ) -> (&mut SlotFile<JvmValueWidth>, &mut UnitStack<JvmValueWidth>) {
+        self.dirty_locals.fill(true);
+        self.operands_dirty = true;
+        self.root_map_certain = false;
+        (&mut self.locals, &mut self.operands)
+    }
+
     /// Returns the admitted operand depth for this record.
     pub const fn operand_limit(&self) -> usize {
         self.operand_limit

@@ -1,8 +1,14 @@
 //! Ordinary SIM-facing JVM callables, bounded browsing, and profile evidence.
 
-use std::sync::Arc;
+use std::{
+    collections::BTreeMap,
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicUsize, Ordering},
+    },
+};
 
-use sim_codec_classfile::{ByteReader, CodeAttribute, Constant, Opcode, decode_instructions};
+use sim_codec_classfile::{ByteReader, CodeAttribute, Constant, decode_instructions};
 use sim_kernel::{
     AbiVersion, Args, Callable, CapabilityName, ClassRef, Cx, Error, Export, Expr, Lib,
     LibManifest, LibTarget, Linker, Object, ObjectCompat, Result, ShapeRef, Symbol, Value, Version,
@@ -107,6 +113,9 @@ pub struct JvmBrowse {
 pub struct JvmSurface {
     loader: ClassLoader,
     frames: crate::JvmFramePool,
+    last_receipts: Mutex<Option<(crate::JvmPreparationReceipt, crate::JvmDriveReceipt)>>,
+    prepared: Mutex<BTreeMap<String, Arc<PreparedSurfaceMethod>>>,
+    decode_count: AtomicUsize,
     _lineage_budget: LineageBudget,
 }
 
@@ -131,6 +140,9 @@ impl JvmSurface {
                 slots: 4_096,
                 operands: 4_096,
             }),
+            last_receipts: Mutex::new(None),
+            prepared: Mutex::new(BTreeMap::new()),
+            decode_count: AtomicUsize::new(0),
             _lineage_budget: lineage_budget,
         }
     }
@@ -143,6 +155,21 @@ impl JvmSurface {
     /// Returns the number of execution frames currently held by live calls.
     pub fn live_frame_leases(&self) -> usize {
         self.frames.live_leases()
+    }
+
+    /// Returns the last completed preparation and execution evidence.
+    pub fn last_drive_receipts(
+        &self,
+    ) -> Option<(crate::JvmPreparationReceipt, crate::JvmDriveReceipt)> {
+        self.last_receipts
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
+
+    /// Returns the number of classfile method bodies decoded by this surface.
+    pub fn decode_count(&self) -> usize {
+        self.decode_count.load(Ordering::Relaxed)
     }
 
     /// Invokes a bounded integer-only static method through exact JVM selection.
@@ -167,7 +194,21 @@ impl JvmSurface {
             return Err(invocation_admission("selected member is not static"));
         }
         let descriptor = admit_i32_descriptor(descriptor, args.len())?;
-        execute_i32(&self.frames, &definition, name, &descriptor, args)
+        let (value, preparation, execution) = execute_prepared_i32(
+            &self.loader,
+            &self.frames,
+            &self.prepared,
+            &self.decode_count,
+            &definition,
+            name,
+            &descriptor,
+            args,
+        )?;
+        *self
+            .last_receipts
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some((preparation, execution));
+        Ok(value)
     }
 
     /// Invokes a bounded integer-only instance method after JVM virtual selection.
@@ -224,6 +265,14 @@ impl JvmSurface {
     }
 }
 
+struct PreparedSurfaceMethod {
+    code: sim_lib_machine::LocatedCode<crate::PreparedJvmPolicy>,
+    machine: sim_lib_machine::MachinePermit,
+    limits: sim_lib_machine::AdmissionLimits,
+    max_locals: usize,
+    max_stack: usize,
+}
+
 fn method_code_lengths(class: &ClassDefinition) -> Vec<usize> {
     class
         .shell()
@@ -267,34 +316,111 @@ fn code_attribute(
     Ok(None)
 }
 
-fn execute_i32(
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the typed request keeps each independently admitted method input explicit"
+)]
+fn execute_prepared_i32(
+    loader: &ClassLoader,
     frames: &crate::JvmFramePool,
-    class: &ClassDefinition,
+    cache: &Mutex<BTreeMap<String, Arc<PreparedSurfaceMethod>>>,
+    decode_count: &AtomicUsize,
+    class: &Arc<ClassDefinition>,
     name: &str,
     descriptor: &AdmittedI32Descriptor,
     args: &[i32],
-) -> std::result::Result<i32, JvmInvocationError> {
-    let index = class
-        .metadata()
-        .members()
-        .iter()
-        .filter(|m| matches!(m.kind(), crate::JavaMemberKind::Method))
-        .position(|m| m.name() == name && m.descriptor() == descriptor.text)
-        .ok_or_else(|| Error::Eval("selected JVM method body is missing".into()))?;
-    let method = class
-        .shell()
-        .methods
-        .get(index)
-        .ok_or_else(|| Error::Eval("selected JVM method shell is missing".into()))?;
-    let code = code_attribute(class, method)?
-        .ok_or_else(|| Error::Eval("selected JVM method has no Code attribute".into()))?;
-    let decoded = decode_instructions(
-        &code.code,
-        class.shell().major_version,
-        &class.shell().constant_pool,
-    )
-    .map_err(|e| Error::Eval(e.to_string()))?;
-    let mut lease = frames.acquire(usize::from(code.max_locals), usize::from(code.max_stack));
+) -> std::result::Result<
+    (i32, crate::JvmPreparationReceipt, crate::JvmDriveReceipt),
+    JvmInvocationError,
+> {
+    let cache_key = format!(
+        "{:?}:{}.{}{}",
+        loader.revision(),
+        class.id().binary_name(),
+        name,
+        descriptor.text
+    );
+    let cached = cache
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get(&cache_key)
+        .cloned();
+    let prepared_method = if let Some(cached) = cached {
+        cached
+    } else {
+        let index = class
+            .metadata()
+            .members()
+            .iter()
+            .filter(|m| matches!(m.kind(), crate::JavaMemberKind::Method))
+            .position(|m| m.name() == name && m.descriptor() == descriptor.text)
+            .ok_or_else(|| Error::Eval("selected JVM method body is missing".into()))?;
+        let method = class
+            .shell()
+            .methods
+            .get(index)
+            .ok_or_else(|| Error::Eval("selected JVM method shell is missing".into()))?;
+        let code = code_attribute(class, method)?
+            .ok_or_else(|| Error::Eval("selected JVM method has no Code attribute".into()))?;
+        let decoded = decode_instructions(
+            &code.code,
+            class.shell().major_version,
+            &class.shell().constant_pool,
+        )
+        .map_err(|e| Error::Eval(e.to_string()))?;
+        decode_count.fetch_add(1, Ordering::Relaxed);
+        let prepared = crate::prepare_code_bound::<crate::driver::SurfacePolicy>(
+            &decoded,
+            &code.code,
+            &code.exception_table,
+            sim_kernel::SourceId(format!(
+                "{}.{}{}",
+                class.id().binary_name(),
+                name,
+                descriptor.text
+            )),
+            loader.revision(),
+        )
+        .map_err(|e| invocation_admission(format!("method preparation: {e:?}")))?;
+        let limits = sim_lib_machine::AdmissionLimits {
+            instructions: prepared.len(),
+            operand_units: usize::from(code.max_stack).max(1),
+            slots: usize::from(code.max_locals).max(1),
+            frames: 1,
+            work: prepared.len(),
+        };
+        let description = sim_lib_machine::MachineDescription::new(&prepared, limits, &());
+        let machine =
+            sim_lib_machine::MachinePermit::admit::<_, _, crate::driver::SurfaceAdmission>(
+                &description,
+            )
+            .map_err(|e| invocation_admission(format!("machine admission: {e:?}")))?;
+        let prepared_method = Arc::new(PreparedSurfaceMethod {
+            code: prepared,
+            machine,
+            limits,
+            max_locals: usize::from(code.max_locals),
+            max_stack: usize::from(code.max_stack),
+        });
+        cache
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(cache_key, prepared_method.clone());
+        prepared_method
+    };
+    let target = crate::EntryTarget::Method {
+        name: name.into(),
+        descriptor: descriptor.text.clone(),
+    };
+    let permit = crate::ClassfilePermit::new(loader, class.clone())
+        .map_err(invocation_admission)?
+        .resolve(target)
+        .map_err(invocation_admission)?
+        .admit(&prepared_method.machine)
+        .verify(&crate::NoVerifier)
+        .map_err(invocation_admission)?
+        .permit();
+    let mut lease = frames.acquire(prepared_method.max_locals, prepared_method.max_stack);
     for (slot, value) in args.iter().copied().enumerate() {
         lease
             .frame_mut()
@@ -302,74 +428,13 @@ fn execute_i32(
             .store(slot, crate::JvmValue::Int(value))
             .map_err(|error| invocation_resource(format!("local initialization: {error:?}")))?;
     }
-    for instruction in decoded.instructions {
-        let opcode = instruction.instruction.opcode;
-        match opcode {
-            Opcode::Iload0 | Opcode::Iload1 | Opcode::Iload2 | Opcode::Iload3 => {
-                let slot = usize::from(opcode as u8 - Opcode::Iload0 as u8);
-                let crate::JvmValue::Int(value) = lease
-                    .frame()
-                    .locals()
-                    .load(slot)
-                    .map_err(|_| Error::Eval("JVM integer local missing".into()))?
-                else {
-                    return Err(Error::Eval("JVM integer local has wrong category".into()).into());
-                };
-                let value = *value;
-                lease
-                    .frame_mut()
-                    .operands_mut()
-                    .push(crate::JvmValue::Int(value))
-                    .map_err(|error| Error::Eval(format!("JVM operand push failed: {error:?}")))?;
-            }
-            Opcode::Istore0 | Opcode::Istore1 | Opcode::Istore2 | Opcode::Istore3 => {
-                let slot = usize::from(opcode as u8 - Opcode::Istore0 as u8);
-                let value = pop_i32(&mut lease)?;
-                lease
-                    .frame_mut()
-                    .locals_mut()
-                    .store(slot, crate::JvmValue::Int(value))
-                    .map_err(|_| Error::Eval("JVM integer local missing".into()))?;
-            }
-            Opcode::IconstM1
-            | Opcode::Iconst0
-            | Opcode::Iconst1
-            | Opcode::Iconst2
-            | Opcode::Iconst3
-            | Opcode::Iconst4
-            | Opcode::Iconst5 => lease
-                .frame_mut()
-                .operands_mut()
-                .push(crate::JvmValue::Int(opcode as i32 - Opcode::Iconst0 as i32))
-                .map_err(|error| Error::Eval(format!("JVM operand push failed: {error:?}")))?,
-            Opcode::Iadd | Opcode::Isub | Opcode::Imul => {
-                let right = pop_i32(&mut lease)?;
-                let left = pop_i32(&mut lease)?;
-                let value = match opcode {
-                    Opcode::Iadd => left.wrapping_add(right),
-                    Opcode::Isub => left.wrapping_sub(right),
-                    _ => left.wrapping_mul(right),
-                };
-                lease
-                    .frame_mut()
-                    .operands_mut()
-                    .push(crate::JvmValue::Int(value))
-                    .map_err(|error| Error::Eval(format!("JVM operand push failed: {error:?}")))?;
-            }
-            Opcode::Ireturn => {
-                let value = pop_i32(&mut lease)
-                    .map_err(|_| Error::Eval("JVM return operand missing".into()))?;
-                lease.complete();
-                return Ok(value);
-            }
-            other => {
-                return Err(
-                    Error::Eval(format!("JVM callable subset refuses opcode {other:?}")).into(),
-                );
-            }
-        }
-    }
-    Err(Error::Eval("JVM method completed without ireturn".into()).into())
+    crate::driver::drive_i32(
+        permit,
+        &prepared_method.code,
+        &prepared_method.machine,
+        prepared_method.limits,
+        lease,
+    )
 }
 
 struct AdmittedI32Descriptor {
@@ -409,18 +474,6 @@ fn invocation_admission(detail: impl std::fmt::Display) -> JvmInvocationError {
 
 fn invocation_resource(detail: impl std::fmt::Display) -> JvmInvocationError {
     JvmInvocationError::Resource(detail.to_string())
-}
-
-fn pop_i32(lease: &mut crate::JvmFrameLease) -> Result<i32> {
-    match lease
-        .frame_mut()
-        .operands_mut()
-        .pop()
-        .map_err(|_| Error::Eval("JVM operand underflow".into()))?
-    {
-        crate::JvmValue::Int(value) => Ok(value),
-        _ => Err(Error::Eval("JVM integer operand has wrong category".into())),
-    }
 }
 
 /// Loadable JVM language library.
