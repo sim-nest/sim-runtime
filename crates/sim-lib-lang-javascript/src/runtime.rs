@@ -75,10 +75,13 @@ impl JavascriptEvalPolicy {
     /// Evaluate a codec-produced Script or Module lowering without an intermediate plan.
     pub fn eval_lowered(&self, lowered: &Expr, state: &mut JavascriptState) -> Result<Completion> {
         let tokens = lowered_tokens(lowered)?;
+        let mut budget = StepBudget {
+            remaining: self.max_steps,
+        };
         Parser {
             tokens: &tokens,
             at: 0,
-            steps: self.max_steps,
+            budget: &mut budget,
             state,
         }
         .program()
@@ -116,27 +119,29 @@ fn lowered_tokens(expr: &Expr) -> Result<Vec<String>> {
     }
     Ok(out)
 }
-struct Parser<'a> {
-    tokens: &'a [String],
-    at: usize,
-    steps: usize,
-    state: &'a mut JavascriptState,
+struct StepBudget {
+    remaining: usize,
 }
-impl Parser<'_> {
+struct Parser<'tokens, 'eval> {
+    tokens: &'tokens [String],
+    at: usize,
+    budget: &'eval mut StepBudget,
+    state: &'eval mut JavascriptState,
+}
+impl Parser<'_, '_> {
     fn charge(&mut self) -> Result<()> {
-        if self.steps == 0 {
+        if self.budget.remaining == 0 {
             Err(Error::Eval(
                 "javascript direct evaluation step bound exhausted".into(),
             ))
         } else {
-            self.steps -= 1;
+            self.budget.remaining -= 1;
             Ok(())
         }
     }
     fn program(&mut self) -> Result<Completion> {
         let mut last = JavascriptValue::Undefined;
         while self.at < self.tokens.len() {
-            self.charge()?;
             match self.statement()? {
                 Completion::Normal(v) => last = v,
                 abrupt => return Ok(abrupt),
@@ -145,6 +150,7 @@ impl Parser<'_> {
         Ok(Completion::Normal(last))
     }
     fn statement(&mut self) -> Result<Completion> {
+        self.charge()?;
         if self.eat(";") {
             return Ok(Completion::Normal(JavascriptValue::Undefined));
         }
@@ -187,12 +193,10 @@ impl Parser<'_> {
                 let mut branch = Parser {
                     tokens: &self.tokens[start..end],
                     at: 0,
-                    steps: self.steps,
+                    budget: self.budget,
                     state: self.state,
                 };
-                let completion = branch.statement()?;
-                self.steps = branch.steps;
-                Ok(completion)
+                branch.statement()
             } else {
                 Ok(Completion::Normal(JavascriptValue::Undefined))
             };
@@ -293,14 +297,17 @@ impl Parser<'_> {
         let body_end = self.at;
         let mut last = JavascriptValue::Undefined;
         loop {
+            // The control transfer itself is evaluator work, independently of
+            // the expression and selected body statement it dispatches.
+            self.charge()?;
             let cond_tokens = &self.tokens[cond_start..cond_end];
-            let cond = Parser {
+            let mut condition = Parser {
                 tokens: cond_tokens,
                 at: 0,
-                steps: self.steps,
+                budget: self.budget,
                 state: self.state,
-            }
-            .expr(0)?;
+            };
+            let cond = condition.expr(0)?;
             if !truthy(&cond) {
                 break;
             }
@@ -308,7 +315,7 @@ impl Parser<'_> {
             let mut body = Parser {
                 tokens: body_tokens,
                 at: 0,
-                steps: self.steps,
+                budget: self.budget,
                 state: self.state,
             };
             match body.statement()? {
@@ -317,7 +324,6 @@ impl Parser<'_> {
                 Completion::Break => break,
                 c => return Ok(c),
             }
-            self.steps = body.steps;
         }
         Ok(Completion::Normal(last))
     }
@@ -605,6 +611,71 @@ mod tests {
                 .unwrap()
                 .eval_lowered(&Expr::Bool(true), &mut s)
                 .is_err()
+        );
+    }
+
+    #[test]
+    fn bounded_loop_child() {
+        let Ok(case) = std::env::var("SIM_JAVASCRIPT_BOUNDED_LOOP_CHILD") else {
+            return;
+        };
+        let tokens: &[&str] = match case.as_str() {
+            "empty-body" => &["while", "(", "true", ")", "{", "}"],
+            "continue" => &["while", "(", "true", ")", "{", "continue", ";", "}"],
+            "empty-branch" => &[
+                "while", "(", "true", ")", "{", "if", "(", "true", ")", "{", "}", "}",
+            ],
+            other => panic!("unknown bounded-loop child case {other}"),
+        };
+        let error = JavascriptEvalPolicy::new(32)
+            .unwrap()
+            .eval_lowered(&script(tokens), &mut JavascriptState::default())
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            Error::Eval(message) if message == "javascript direct evaluation step bound exhausted"
+        ));
+    }
+
+    #[test]
+    fn every_loop_shape_terminates_inside_the_shared_budget() {
+        use std::{
+            process::Command,
+            thread,
+            time::{Duration, Instant},
+        };
+
+        for case in ["empty-body", "continue", "empty-branch"] {
+            let mut child = Command::new(std::env::current_exe().unwrap())
+                .arg("bounded_loop_child")
+                .arg("--nocapture")
+                .env("SIM_JAVASCRIPT_BOUNDED_LOOP_CHILD", case)
+                .spawn()
+                .unwrap();
+            let deadline = Instant::now() + Duration::from_secs(5);
+            let status = loop {
+                if let Some(status) = child.try_wait().unwrap() {
+                    break status;
+                }
+                if Instant::now() >= deadline {
+                    child.kill().unwrap();
+                    panic!("JavaScript {case} loop outlived the subprocess failsafe");
+                }
+                thread::sleep(Duration::from_millis(10));
+            };
+            assert!(status.success(), "JavaScript {case} child failed: {status}");
+        }
+
+        let terminating = script(&[
+            "let", "x", "=", "0", ";", "while", "(", "x", "<", "3", ")", "{", "x", "+=", "1", ";",
+            "}", "x", ";",
+        ]);
+        assert_eq!(
+            JavascriptEvalPolicy::new(64)
+                .unwrap()
+                .eval_lowered(&terminating, &mut JavascriptState::default())
+                .unwrap(),
+            Completion::Normal(JavascriptValue::Number(3.0))
         );
     }
 }

@@ -108,6 +108,23 @@ fn erased_execution_has_identical_result_and_effects() {
     );
 }
 
+#[test]
+fn erased_execution_inherits_javascript_loop_exhaustion() {
+    let program = TypeScriptProgram {
+        javascript: erased(&["while", "(", "true", ")", "{", "continue", ";", "}"]),
+        annotations: Vec::new(),
+    };
+    let error = TypeScriptNotation::new(32)
+        .unwrap()
+        .eval(&program, &mut JavascriptState::default())
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        sim_kernel::Error::Eval(message)
+            if message == "javascript direct evaluation step bound exhausted"
+    ));
+}
+
 struct ConstantCallable;
 impl Object for ConstantCallable {
     fn display(&self, _cx: &mut Cx) -> Result<String> {
