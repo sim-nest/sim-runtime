@@ -82,8 +82,56 @@ fn retained_positive_and_differential_corpus_matches_exact_guest_values() {
             .invoke_static_i32(&mut cx, "Minimal", "value", "()I", &[])
             .unwrap_err()
             .to_string(),
-        "evaluation error: JVM callable subset refuses opcode Bipush"
+        "JVM invocation admission refused: evaluation error: JVM callable subset refuses opcode Bipush"
     );
+}
+
+#[test]
+fn integer_surface_admits_exact_arity_and_refuses_contradictions_before_frames() {
+    let mut cx = authorized_cx();
+    let surface = JvmSurface::new(16_384);
+    surface
+        .define(&mut cx, "StaticInt", JAVAC_STATIC_INT.to_vec())
+        .unwrap();
+
+    assert_eq!(
+        surface
+            .invoke_static_i32(&mut cx, "StaticInt", "wholePipeline", "(II)I", &[3, 4])
+            .unwrap(),
+        14
+    );
+    for (arguments, expected) in [
+        (&[3][..], "requires 2 arguments, received 1"),
+        (&[3, 4, 5][..], "requires 2 arguments, received 3"),
+    ] {
+        let error = surface
+            .invoke_static_i32(&mut cx, "StaticInt", "wholePipeline", "(II)I", arguments)
+            .unwrap_err();
+        assert!(matches!(
+            &error,
+            sim_lib_lang_jvm::JvmInvocationError::Admission(_)
+        ));
+        assert!(error.to_string().contains(expected), "{error}");
+        assert!(!error.to_string().contains("integer local missing"));
+        assert_eq!(surface.live_frame_leases(), 0);
+    }
+
+    for (name, descriptor, expected) in [
+        ("nonIntParameter", "(J)J", "non-int parameter"),
+        ("nonIntReturn", "(I)V", "does not return int"),
+    ] {
+        let error = surface
+            .invoke_static_i32(&mut cx, "StaticInt", name, descriptor, &[1])
+            .unwrap_err();
+        assert!(error.to_string().contains(expected), "{error}");
+        assert_eq!(surface.live_frame_leases(), 0);
+    }
+
+    let error = surface
+        .invoke_instance_i32(&mut cx, "StaticInt", "StaticInt", "instance", "(I)I", &[1])
+        .unwrap_err();
+    assert!(error.to_string().contains("surface-owned receiver object"));
+    assert_eq!(surface.live_frame_leases(), 0);
 }
 
 #[test]
@@ -112,6 +160,6 @@ fn runtime_negative_corpus_preserves_the_missing_method_refusal() {
         .unwrap_err();
     assert_eq!(
         error.to_string(),
-        "evaluation error: missing JVM method StaticInt.absent()I"
+        "JVM invocation admission refused: evaluation error: missing JVM method StaticInt.absent()I"
     );
 }

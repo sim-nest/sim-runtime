@@ -10,7 +10,52 @@ use sim_kernel::{
 use sim_lib_standard_core::{FidelityBadge, LanguageProfile, OrganUse};
 use sim_shape::AnyShape;
 
-use crate::{ClassDefinition, ClassLoader, InvocationKind, LineageBudget, select_invocation};
+use crate::{ClassDefinition, ClassLoader, LineageBudget};
+
+/// Typed completion lanes for an integer JVM invocation.
+#[derive(Clone, Debug)]
+pub enum JvmInvocationError {
+    /// The call contradicted the selected member or supported descriptor before effects.
+    Admission(String),
+    /// Admitted execution exhausted bounded machine storage.
+    Resource(String),
+    /// Guest execution completed exceptionally with a Java-owned condition.
+    JavaThrowable(Box<crate::JavaThrowable>),
+}
+
+impl std::fmt::Display for JvmInvocationError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Admission(detail) => {
+                write!(formatter, "JVM invocation admission refused: {detail}")
+            }
+            Self::Resource(detail) => {
+                write!(formatter, "JVM invocation resource exhausted: {detail}")
+            }
+            Self::JavaThrowable(throwable) => {
+                write!(
+                    formatter,
+                    "JVM invocation raised {:?}",
+                    throwable.condition()
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for JvmInvocationError {}
+
+impl From<Error> for JvmInvocationError {
+    fn from(error: Error) -> Self {
+        Self::Admission(error.to_string())
+    }
+}
+
+impl From<JvmInvocationError> for Error {
+    fn from(error: JvmInvocationError) -> Self {
+        Self::Eval(error.to_string())
+    }
+}
 
 /// The profile's declared absences, ordered before all positive fidelity claims.
 pub const JVM_DECLARED_ABSENCES: [&str; 3] =
@@ -56,15 +101,13 @@ pub struct JvmBrowse {
     pub methods: Vec<String>,
     /// Bytecode lengths paired with the corresponding methods.
     pub code_bytes: Vec<usize>,
-    /// Current heap object count. The public surface never exposes raw handles.
-    pub heap_objects: usize,
 }
 
 /// Shared state behind the loadable JVM callables.
 pub struct JvmSurface {
     loader: ClassLoader,
     frames: crate::JvmFramePool,
-    lineage_budget: LineageBudget,
+    _lineage_budget: LineageBudget,
 }
 
 impl JvmSurface {
@@ -88,13 +131,18 @@ impl JvmSurface {
                 slots: 4_096,
                 operands: 4_096,
             }),
-            lineage_budget,
+            _lineage_budget: lineage_budget,
         }
     }
 
     /// Defines caller-supplied bytes without consulting an ambient loader or transport.
     pub fn define(&self, cx: &mut Cx, name: &str, bytes: Vec<u8>) -> Result<Arc<ClassDefinition>> {
         self.loader.define_bytes(cx, name, bytes)
+    }
+
+    /// Returns the number of execution frames currently held by live calls.
+    pub fn live_frame_leases(&self) -> usize {
+        self.frames.live_leases()
     }
 
     /// Invokes a bounded integer-only static method through exact JVM selection.
@@ -105,7 +153,7 @@ impl JvmSurface {
         name: &str,
         descriptor: &str,
         args: &[i32],
-    ) -> Result<i32> {
+    ) -> std::result::Result<i32, JvmInvocationError> {
         cx.require(&jvm_invoke_capability())?;
         let definition = self
             .loader
@@ -116,11 +164,10 @@ impl JvmSurface {
             .select_method(name, descriptor)
             .ok_or_else(|| Error::Eval(format!("missing JVM method {class}.{name}{descriptor}")))?;
         if !member.is_static() {
-            return Err(Error::Eval(
-                "instance method passed to jvm/invoke-static".into(),
-            ));
+            return Err(invocation_admission("selected member is not static"));
         }
-        execute_i32(&self.frames, &definition, name, descriptor, args, 0)
+        let descriptor = admit_i32_descriptor(descriptor, args.len())?;
+        execute_i32(&self.frames, &definition, name, &descriptor, args)
     }
 
     /// Invokes a bounded integer-only instance method after JVM virtual selection.
@@ -132,34 +179,20 @@ impl JvmSurface {
         name: &str,
         descriptor: &str,
         args: &[i32],
-    ) -> Result<i32> {
+    ) -> std::result::Result<i32, JvmInvocationError> {
         cx.require(&jvm_invoke_capability())?;
-        let declared = self
+        let _declared = self
             .loader
             .loaded(declaring)?
             .ok_or_else(|| Error::Eval(format!("JVM class {declaring} is not defined")))?;
-        let resolved = crate::ConstantResolution {
-            kind: crate::ConstantResolutionKind::Method,
-            class: declared.id().clone(),
-            name: Some(name.into()),
-            descriptor: Some(descriptor.into()),
-        };
-        let selected = select_invocation(
-            &self.loader,
-            &resolved,
-            InvocationKind::Virtual,
-            Some(receiver),
-            self.lineage_budget,
-        )
-        .map_err(|error| Error::Eval(format!("JVM invocation failed: {error:?}")))?;
-        execute_i32(
-            &self.frames,
-            selected.declaring_class(),
+        let _ = (
+            receiver,
             name,
-            descriptor,
-            args,
-            1,
-        )
+            admit_i32_descriptor(descriptor, args.len())?,
+        );
+        Err(invocation_admission(
+            "instance invocation requires a surface-owned receiver object",
+        ))
     }
 
     /// Browses classes, methods, code sizes, and the opaque heap count under one bound.
@@ -185,7 +218,6 @@ impl JvmSurface {
                     class: class.id().binary_name().into(),
                     methods,
                     code_bytes,
-                    heap_objects: 0,
                 })
             })
             .collect()
@@ -239,16 +271,15 @@ fn execute_i32(
     frames: &crate::JvmFramePool,
     class: &ClassDefinition,
     name: &str,
-    descriptor: &str,
+    descriptor: &AdmittedI32Descriptor,
     args: &[i32],
-    local_offset: usize,
-) -> Result<i32> {
+) -> std::result::Result<i32, JvmInvocationError> {
     let index = class
         .metadata()
         .members()
         .iter()
         .filter(|m| matches!(m.kind(), crate::JavaMemberKind::Method))
-        .position(|m| m.name() == name && m.descriptor() == descriptor)
+        .position(|m| m.name() == name && m.descriptor() == descriptor.text)
         .ok_or_else(|| Error::Eval("selected JVM method body is missing".into()))?;
     let method = class
         .shell()
@@ -265,16 +296,11 @@ fn execute_i32(
     .map_err(|e| Error::Eval(e.to_string()))?;
     let mut lease = frames.acquire(usize::from(code.max_locals), usize::from(code.max_stack));
     for (slot, value) in args.iter().copied().enumerate() {
-        let slot = slot + local_offset;
-        if slot < lease.frame().locals().limit() {
-            lease
-                .frame_mut()
-                .locals_mut()
-                .store(slot, crate::JvmValue::Int(value))
-                .map_err(|error| {
-                    Error::Eval(format!("JVM local initialization failed: {error:?}"))
-                })?;
-        }
+        lease
+            .frame_mut()
+            .locals_mut()
+            .store(slot, crate::JvmValue::Int(value))
+            .map_err(|error| invocation_resource(format!("local initialization: {error:?}")))?;
     }
     for instruction in decoded.instructions {
         let opcode = instruction.instruction.opcode;
@@ -287,7 +313,7 @@ fn execute_i32(
                     .load(slot)
                     .map_err(|_| Error::Eval("JVM integer local missing".into()))?
                 else {
-                    return Err(Error::Eval("JVM integer local has wrong category".into()));
+                    return Err(Error::Eval("JVM integer local has wrong category".into()).into());
                 };
                 let value = *value;
                 lease
@@ -337,13 +363,52 @@ fn execute_i32(
                 return Ok(value);
             }
             other => {
-                return Err(Error::Eval(format!(
-                    "JVM callable subset refuses opcode {other:?}"
-                )));
+                return Err(
+                    Error::Eval(format!("JVM callable subset refuses opcode {other:?}")).into(),
+                );
             }
         }
     }
-    Err(Error::Eval("JVM method completed without ireturn".into()))
+    Err(Error::Eval("JVM method completed without ireturn".into()).into())
+}
+
+struct AdmittedI32Descriptor {
+    text: String,
+}
+
+fn admit_i32_descriptor(
+    descriptor: &str,
+    supplied: usize,
+) -> std::result::Result<AdmittedI32Descriptor, JvmInvocationError> {
+    let (parameters, result) = crate::linker::split_method_descriptor(descriptor)
+        .map_err(|_| invocation_admission(format!("malformed method descriptor {descriptor}")))?;
+    if parameters.iter().any(|parameter| parameter != "I") {
+        return Err(invocation_admission(format!(
+            "descriptor {descriptor} contains a non-int parameter"
+        )));
+    }
+    if result != "I" {
+        return Err(invocation_admission(format!(
+            "descriptor {descriptor} does not return int"
+        )));
+    }
+    if supplied != parameters.len() {
+        return Err(invocation_admission(format!(
+            "descriptor {descriptor} requires {} arguments, received {supplied}",
+            parameters.len()
+        )));
+    }
+    Ok(AdmittedI32Descriptor {
+        text: descriptor.into(),
+    })
+}
+
+fn invocation_admission(detail: impl std::fmt::Display) -> JvmInvocationError {
+    JvmInvocationError::Admission(detail.to_string())
+}
+
+fn invocation_resource(detail: impl std::fmt::Display) -> JvmInvocationError {
+    JvmInvocationError::Resource(detail.to_string())
 }
 
 fn pop_i32(lease: &mut crate::JvmFrameLease) -> Result<i32> {
@@ -499,7 +564,8 @@ impl JvmFunction {
                 let ints = rest.iter().map(as_i32).collect::<Result<Vec<_>>>()?;
                 let result = self
                     .surface
-                    .invoke_static_i32(cx, class, name, desc, &ints)?;
+                    .invoke_static_i32(cx, class, name, desc, &ints)
+                    .map_err(Error::from)?;
                 cx.factory()
                     .number_literal(Symbol::qualified("jvm", "int"), result.to_string())
             }
@@ -517,7 +583,8 @@ impl JvmFunction {
                 let ints = rest.iter().map(as_i32).collect::<Result<Vec<_>>>()?;
                 let result = self
                     .surface
-                    .invoke_instance_i32(cx, declaring, receiver, name, desc, &ints)?;
+                    .invoke_instance_i32(cx, declaring, receiver, name, desc, &ints)
+                    .map_err(Error::from)?;
                 cx.factory()
                     .number_literal(Symbol::qualified("jvm", "int"), result.to_string())
             }
@@ -542,7 +609,6 @@ impl JvmFunction {
                                         .map(|n| Expr::String(n.to_string()))
                                         .collect(),
                                 ),
-                                Expr::String(r.heap_objects.to_string()),
                             ])
                         })
                         .collect(),

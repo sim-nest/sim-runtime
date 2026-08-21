@@ -1,6 +1,9 @@
 //! Bounded reuse of JVM activation storage over the shared machine organs.
 
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{
+    Arc, Mutex, MutexGuard,
+    atomic::{AtomicUsize, Ordering},
+};
 
 use sim_lib_control::{AdmissionLimit, WorkLimit};
 use sim_lib_machine::{ManagedRootSource, SlotFile, UnitStack};
@@ -152,6 +155,7 @@ struct PoolState {
 struct PoolInner {
     policy: JvmFramePoolPolicy,
     state: Mutex<PoolState>,
+    live_leases: AtomicUsize,
 }
 
 /// A bounded pool whose records are visible to the complete managed-root enumerator.
@@ -169,6 +173,7 @@ impl JvmFramePool {
                 state: Mutex::new(PoolState {
                     retained: Vec::new(),
                 }),
+                live_leases: AtomicUsize::new(0),
             }),
         }
     }
@@ -184,6 +189,7 @@ impl JvmFramePool {
                 .map(|index| state.retained.swap_remove(index))
         }
         .unwrap_or_else(|| JvmFrameRecord::new(slots, operands));
+        self.inner.live_leases.fetch_add(1, Ordering::Relaxed);
         JvmFrameLease {
             pool: self.clone(),
             frame: Some(frame),
@@ -193,6 +199,11 @@ impl JvmFramePool {
     /// Returns the current number of sanitized retained records.
     pub fn retained_frames(&self) -> usize {
         self.state().retained.len()
+    }
+
+    /// Returns the number of frames currently held by live or interrupted leases.
+    pub fn live_leases(&self) -> usize {
+        self.inner.live_leases.load(Ordering::Relaxed)
     }
 
     fn state(&self) -> MutexGuard<'_, PoolState> {
@@ -255,7 +266,16 @@ impl JvmFrameLease {
     /// Sanitizes and conditionally retains a normally returned frame.
     pub fn complete(mut self) {
         let frame = self.frame.take().expect("live frame lease");
+        self.pool.inner.live_leases.fetch_sub(1, Ordering::Relaxed);
         self.pool.recycle(frame);
+    }
+}
+
+impl Drop for JvmFrameLease {
+    fn drop(&mut self) {
+        if self.frame.is_some() {
+            self.pool.inner.live_leases.fetch_sub(1, Ordering::Relaxed);
+        }
     }
 }
 
