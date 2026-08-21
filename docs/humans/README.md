@@ -46,7 +46,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 | `feature/sim-runtime/python-authorized-library-core` | `crate/sim-lib-lang-python` | 1 | Run embedded, capability-scoped, agent-authored Python over SIM values with ordered matching, supplied-root modules, and diminished eval/exec. |
 | `feature/sim-runtime/host-exec` | `crate/sim-lib-exec` | 1 | Expose bounded process execution as a capability-gated host primitive outside the kernel. |
 | `feature/sim-runtime/contract-emitter` | `crate/xtask` | 0 | Emit generated repository contract and index fragments for runtime crates. |
-| `feature/sim-runtime/jvm-loadable-profile` | `crate/sim-lib-lang-jvm` | 9 | Decode caller-authorized classfile bytes and execute bounded JVM calls, managed objects, arrays, exceptions, exact Java text, and bidirectional functional-interface adapters through one host-registered library, with exact whole-class proofs required by the verified fidelity tier. |
+| `feature/sim-runtime/jvm-loadable-profile` | `crate/sim-lib-lang-jvm` | 9 | Decode caller-authorized classfile bytes and execute caller-selected exact class, member, descriptor, and integer arguments with distinct value, throwable, and refusal outcomes, plus bounded managed objects, arrays, exact Java text, and bidirectional functional-interface adapters through one host-registered library. |
 
 ## Surfaces
 
@@ -6956,7 +6956,7 @@ fn million_deep_chain_exhausts_declared_budget_without_host_recursion() {
 }
 
 #[test]
-fn transfers_are_only_code_references_values_and_widths() {
+fn transfers_preserve_only_code_references_values_and_widths() {
     let packet = CallTransfer::new(vec![10_u64, 20], vec![1, 2], "code:sum")
         .expect("aligned nonzero widths");
     assert_eq!(packet.target, "code:sum");
@@ -6966,7 +6966,12 @@ fn transfers_are_only_code_references_values_and_widths() {
         CallTransfer::new(vec![10_u64], vec![], "code:bad"),
         Err(TransferError::WidthCountMismatch)
     );
+}
 
+#[test]
+fn frame_source_obeys_guest_vocabulary_hygiene() {
+    // This is deliberately a public-hygiene check, not evidence of runtime
+    // ownership or behavior. The transfer test above carries that proof.
     let source = include_str!("../src/frame.rs").to_ascii_lowercase();
     for forbidden in ["method", "signature", "class"] {
         assert!(
@@ -7795,6 +7800,8 @@ fn managed_root() -> ManagedId {
 
 #[test]
 fn specimens_import_only_neutral_machine_vocabulary() {
+    // This source scan is intentionally limited to public hygiene. The two
+    // executions above prove neutral behavior through distinct storage models.
     let source = include_str!("neutral_machine_specimens.rs").to_ascii_lowercase();
     for forbidden in [
         concat!("j", "vm"),
@@ -14093,40 +14100,8 @@ Source `crates/sim-lib-lang-jvm/tests/baseline.rs`:
 ```rust
 // conformance: the bounded JVM baseline exercises every shared ownership seam.
 
-use sim_codec_classfile::{ClassfileCodec, OPCODES, inspect_classfile};
+use sim_codec_classfile::{OPCODES, inspect_classfile};
 use sim_kernel::CodecId;
-use sim_lib_class::ClassDescriptor;
-use sim_lib_control::Raised;
-use sim_lib_core::SourceAuthority;
-use sim_lib_machine::{InstructionPolicy, LocatedCode};
-use sim_lib_mutation::ManagedNode;
-use sim_text::CodeUnitString;
-
-struct DependencyPolicy;
-
-impl InstructionPolicy for DependencyPolicy {
-    type Instruction = ();
-    type InstructionId = u8;
-
-    fn instruction_id(_: &Self::Instruction) -> Self::InstructionId {
-        0
-    }
-}
-
-#[test]
-fn all_composed_organs_are_reachable() {
-    fn reachable<T>() {
-        assert!(!std::any::type_name::<T>().is_empty());
-    }
-
-    reachable::<Raised>();
-    reachable::<ManagedNode<u64>>();
-    reachable::<ClassDescriptor>();
-    reachable::<SourceAuthority>();
-    reachable::<CodeUnitString>();
-    reachable::<LocatedCode<DependencyPolicy>>();
-    reachable::<ClassfileCodec>();
-}
 
 #[test]
 fn manifests_freeze_the_supported_baseline() {
@@ -14304,10 +14279,6 @@ fn published_coverage_is_complete_and_traceable_to_raw_samples() {
         Some("sim.jvm-performance-coverage/v1")
     );
     assert_eq!(sim_lib_lang_jvm::VERIFIER_COVERAGE.opcode_rows, 256);
-    let generated = include_str!("../src/superinstructions_generated.rs");
-    assert!(generated.contains("pub const FUSED_DEFINITIONS"));
-    assert!(generated.matches("FusedDefinition { handler:").count() > 0);
-
     let reports = coverage["benchmark"].as_array().unwrap();
     assert_eq!(reports.len(), 2);
     for report in reports {

@@ -74,5 +74,5 @@ fn main() {
         .map(|(name, value)| format!("\"{name}\":{value}"))
         .collect::<Vec<_>>()
         .join(",");
-    println!("{{{fields}}}");
+    println!("{{\"executed_iterations\":{iterations},{fields}}}");
 }
