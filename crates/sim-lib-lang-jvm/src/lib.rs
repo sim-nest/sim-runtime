@@ -141,9 +141,9 @@ pub use sim_lib_class::LineageBudget;
 pub use specimen::{JvmProductSpecimen, run_product_specimen};
 pub use superinstructions::{FusedHandler, PreparedFusion, prepare_fusions};
 pub use surface::{
-    JVM_DECLARED_ABSENCES, JvmBrowse, JvmEntryPolicy, JvmInvocationError, JvmLanguageLib,
-    JvmSurface, install_jvm_language_lib, jvm_browse_capability, jvm_invoke_capability,
-    jvm_language_profile,
+    JVM_DECLARED_ABSENCES, JvmBrowse, JvmEntryPolicy, JvmExecutionOutcome, JvmExecutionRequest,
+    JvmInvocationError, JvmLanguageLib, JvmSurface, install_jvm_language_lib,
+    jvm_browse_capability, jvm_invoke_capability, jvm_language_profile,
 };
 pub use text::{ADMITTED_CORE_MEMBERS, JavaClassMirror, JavaCoreMember, JavaString};
 pub use value::{JvmReference, JvmValue, JvmValueWidth, PrimitiveCategory, ReturnCategory};

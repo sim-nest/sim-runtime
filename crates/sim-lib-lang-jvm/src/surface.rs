@@ -34,6 +34,32 @@ pub enum JvmInvocationError {
     JavaThrowable(Box<crate::JavaThrowable>),
 }
 
+/// One caller-selected, bounded JVM invocation.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct JvmExecutionRequest {
+    /// Complete classfile bytes already selected by the caller's source authority.
+    pub classfile: Vec<u8>,
+    /// Exact binary class name claimed by the classfile.
+    pub class: String,
+    /// Exact static member name.
+    pub member: String,
+    /// Exact JVM descriptor.
+    pub descriptor: String,
+    /// Integer arguments in descriptor order.
+    pub arguments: Vec<i32>,
+}
+
+/// Disjoint completion lanes for the public caller-selected JVM route.
+#[derive(Debug)]
+pub enum JvmExecutionOutcome {
+    /// Java bytecode returned an integer value.
+    Value(i32),
+    /// Java bytecode completed abruptly with a Java throwable.
+    Throwable(Box<crate::JavaThrowable>),
+    /// Admission refused the request before successful execution.
+    Refusal(String),
+}
+
 impl std::fmt::Display for JvmInvocationError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -151,6 +177,26 @@ impl JvmSurface {
     /// Defines caller-supplied bytes without consulting an ambient loader or transport.
     pub fn define(&self, cx: &mut Cx, name: &str, bytes: Vec<u8>) -> Result<Arc<ClassDefinition>> {
         self.loader.define_bytes(cx, name, bytes)
+    }
+
+    /// Loads and invokes one caller-selected classfile without an ambient classpath.
+    pub fn execute_i32(&self, cx: &mut Cx, request: JvmExecutionRequest) -> JvmExecutionOutcome {
+        if let Err(error) = self.define(cx, &request.class, request.classfile) {
+            return JvmExecutionOutcome::Refusal(error.to_string());
+        }
+        match self.invoke_static_i32(
+            cx,
+            &request.class,
+            &request.member,
+            &request.descriptor,
+            &request.arguments,
+        ) {
+            Ok(value) => JvmExecutionOutcome::Value(value),
+            Err(JvmInvocationError::JavaThrowable(throwable)) => {
+                JvmExecutionOutcome::Throwable(throwable)
+            }
+            Err(error) => JvmExecutionOutcome::Refusal(error.to_string()),
+        }
     }
 
     /// Returns the number of execution frames currently held by live calls.
