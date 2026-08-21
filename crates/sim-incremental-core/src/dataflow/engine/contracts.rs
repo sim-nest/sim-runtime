@@ -208,7 +208,7 @@ pub struct DataflowSolution<N, E, C, S> {
 }
 
 /// Schema revision mixed into every completion-proof identity.
-pub const DATAFLOW_PROOF_SCHEMA_REVISION: u64 = 1;
+pub const DATAFLOW_PROOF_SCHEMA_REVISION: u64 = 2;
 
 /// An immutable witness that a precise set of dataflow inputs reached a fixpoint.
 ///

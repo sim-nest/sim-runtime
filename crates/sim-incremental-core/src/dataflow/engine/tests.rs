@@ -361,7 +361,7 @@ mod tests {
         .unwrap();
         let policy =
             AdmittedTransfer::admit(Identity, &[Facts(0), Facts(1), Facts(2), Facts(3)]).unwrap();
-        let budgets = QueryBudgets::default();
+        let budgets = QueryBudgets::default().with_explanation_causes(8);
         let original =
             FixpointEngine::solve_proven(&graph, &policy, Facts(0), [(0, Facts(1))], budgets)
                 .unwrap();
@@ -398,7 +398,76 @@ mod tests {
             .count();
         assert_eq!(visits, 25);
         assert_eq!(incremental.solution().usage().work, 74);
+        assert_eq!(incremental.solution().causes, clean.solution().causes);
+        assert_eq!(incremental.observations(), clean.observations());
+        assert_eq!(incremental.node_fingerprints(), clean.node_fingerprints());
         assert_eq!(incremental.identity(), clean.identity());
         assert_eq!(incremental.node_fingerprints(), clean.node_fingerprints());
+        assert_eq!(
+            incremental.solution().explain(&49, 8),
+            clean.solution().explain(&49, 8)
+        );
+    }
+
+    #[test]
+    fn proof_modes_have_canonical_bounded_explanations_after_seed_edits() {
+        let graph = DataflowGraph::build(
+            [node(0), node(1), node(2), node(3)],
+            [
+                edge(0, 0, 2, GraphDirection::Forward, EdgeClass::Data),
+                edge(1, 1, 2, GraphDirection::Forward, EdgeClass::Control),
+                edge(2, 2, 3, GraphDirection::Forward, EdgeClass::Data),
+            ],
+        )
+        .unwrap();
+        let policy = AdmittedTransfer::admit(Identity, &[Facts(0), Facts(1), Facts(2)]).unwrap();
+        let budgets = QueryBudgets::default().with_explanation_causes(1);
+        let original = FixpointEngine::solve_proven(
+            &graph,
+            &policy,
+            Facts(0),
+            [(0, Facts(1)), (1, Facts(2))],
+            budgets,
+        )
+        .unwrap();
+
+        let edited = [(0, Facts(1))];
+        let incremental = FixpointEngine::solve_incremental(
+            &original,
+            &graph,
+            &policy,
+            Facts(0),
+            edited.clone(),
+            budgets,
+        )
+        .unwrap();
+        let clean =
+            FixpointEngine::solve_proven(&graph, &policy, Facts(0), edited, budgets).unwrap();
+
+        assert_eq!(incremental.solution().causes, clean.solution().causes);
+        assert_eq!(incremental.observations(), clean.observations());
+        assert_eq!(incremental.node_fingerprints(), clean.node_fingerprints());
+        assert_eq!(incremental.identity(), clean.identity());
+        assert_eq!(incremental.solution().states, clean.solution().states);
+        for target in 0..=3 {
+            assert_eq!(
+                incremental.solution().explain(&target, 8),
+                clean.solution().explain(&target, 8)
+            );
+        }
+        assert_eq!(clean.solution().explain(&1, 8), None);
+        assert_eq!(clean.solution().explain(&2, 8).unwrap().omitted(), 0);
+
+        let wider = FixpointEngine::solve_proven(
+            &graph,
+            &policy,
+            Facts(0),
+            [(0, Facts(1)), (1, Facts(2))],
+            QueryBudgets::default().with_explanation_causes(2),
+        )
+        .unwrap();
+        assert_ne!(original.identity(), wider.identity());
+        assert_eq!(original.solution().explain(&2, 8).unwrap().omitted(), 1);
+        assert_eq!(wider.solution().explain(&2, 8).unwrap().omitted(), 0);
     }
 }

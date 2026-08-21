@@ -24,6 +24,8 @@ pub struct QueryBudgets {
     pub max_depth: usize,
     /// Maximum output units charged by query results or user code.
     pub max_output: usize,
+    /// Maximum causal predecessors retained for each explained node.
+    pub max_explanation_causes: usize,
 }
 
 impl QueryBudgets {
@@ -35,6 +37,7 @@ impl QueryBudgets {
             max_observations: usize::MAX,
             max_depth: usize::MAX,
             max_output: usize::MAX,
+            max_explanation_causes: usize::MAX,
         }
     }
 
@@ -51,7 +54,15 @@ impl QueryBudgets {
             max_observations,
             max_depth,
             max_output,
+            max_explanation_causes: usize::MAX,
         }
+    }
+
+    /// Returns these budgets with an explicit per-node explanation bound.
+    #[must_use]
+    pub const fn with_explanation_causes(mut self, max_explanation_causes: usize) -> Self {
+        self.max_explanation_causes = max_explanation_causes;
+        self
     }
 }
 

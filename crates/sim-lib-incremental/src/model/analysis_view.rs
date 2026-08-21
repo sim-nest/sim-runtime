@@ -103,7 +103,10 @@ impl DataflowAnalysisView {
             .states()
             .map(|(node, _)| {
                 let explanation = solution.explain(node, usize::MAX);
-                let predecessors = explanation
+                let Some(explanation) = explanation else {
+                    return Ok((Symbol::new(node.as_str()), cx.factory().nil()?));
+                };
+                let predecessors = Some(&explanation)
                     .as_ref()
                     .map(|value| {
                         value
@@ -121,7 +124,7 @@ impl DataflowAnalysisView {
                     })
                     .transpose()?
                     .unwrap_or_default();
-                let omitted = explanation.as_ref().map_or(0, |value| value.omitted());
+                let omitted = explanation.omitted();
                 let predecessors = list_value(cx, predecessors)?;
                 let omitted = number_value(cx, omitted)?;
                 Ok((
