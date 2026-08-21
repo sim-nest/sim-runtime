@@ -664,7 +664,9 @@ mod tests {
     }
 
     #[test]
-    fn invocation_source_has_no_generic_dispatch_path() {
+    fn invocation_source_obeys_dispatch_dependency_hygiene() {
+        // This scan enforces dependency vocabulary only. Behavioral invocation
+        // selection is covered by the tests above and is not inferred here.
         let source = include_str!("invocation.rs");
         assert!(!source.contains(concat!("sim_lib_", "dispatch")));
         assert!(!source.contains(concat!("sim-lib-", "dispatch")));

@@ -5,6 +5,8 @@ const PUBLIC_SURFACE: &str = concat!(
 
 #[test]
 fn public_surface_remains_neutral() {
+    // Source vocabulary is a public-hygiene constraint only. Runtime storage,
+    // driving, receipts, and roots are proven by the behavioral test suites.
     let banned_vocabulary = [
         ("guest container format", concat!("Class", "File")),
         ("guest constant table", concat!("Constant", "Pool")),

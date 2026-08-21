@@ -1,39 +1,7 @@
 // conformance: the bounded JVM baseline exercises every shared ownership seam.
 
-use sim_codec_classfile::{ClassfileCodec, OPCODES, inspect_classfile};
+use sim_codec_classfile::{OPCODES, inspect_classfile};
 use sim_kernel::CodecId;
-use sim_lib_class::ClassDescriptor;
-use sim_lib_control::Raised;
-use sim_lib_core::SourceAuthority;
-use sim_lib_machine::{InstructionPolicy, LocatedCode};
-use sim_lib_mutation::ManagedNode;
-use sim_text::CodeUnitString;
-
-struct DependencyPolicy;
-
-impl InstructionPolicy for DependencyPolicy {
-    type Instruction = ();
-    type InstructionId = u8;
-
-    fn instruction_id(_: &Self::Instruction) -> Self::InstructionId {
-        0
-    }
-}
-
-#[test]
-fn all_composed_organs_are_reachable() {
-    fn reachable<T>() {
-        assert!(!std::any::type_name::<T>().is_empty());
-    }
-
-    reachable::<Raised>();
-    reachable::<ManagedNode<u64>>();
-    reachable::<ClassDescriptor>();
-    reachable::<SourceAuthority>();
-    reachable::<CodeUnitString>();
-    reachable::<LocatedCode<DependencyPolicy>>();
-    reachable::<ClassfileCodec>();
-}
 
 #[test]
 fn manifests_freeze_the_supported_baseline() {
