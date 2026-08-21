@@ -111,8 +111,6 @@ guidance = "Use this row when a framework needs memoized expression calculation 
 claims_anchors = [
   "anchor/crate/sim-lib-incremental",
   "anchor/runtime-lib/sim-lib-incremental/incremental-lib",
-  "anchor/export/sim-lib-incremental/model/analysis_view.rs",
-  "anchor/export/sim-lib-incremental/model/session.rs",
   "anchor/card/cookbook/organ/incremental",
 ]
 claims_specimens = [
