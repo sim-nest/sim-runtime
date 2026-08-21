@@ -514,10 +514,10 @@ supports = [
 [[feature]]
 id = "feature/sim-runtime/host-exec"
 title = "Host exec primitive"
-summary = "Expose bounded process execution as a capability-gated host primitive outside the kernel."
+summary = "Expose bounded process policy through a capability-gated platform port outside the kernel."
 owner = "crate/sim-lib-exec"
 audiences = ["code", "framework"]
-guidance = "Use this row when a framework needs an explicit host process primitive."
+guidance = "Use this row when a framework needs bounded process execution. Supply a ProcessPort from a model or physical platform capsule; runtime checks capability, structured argv, explicit root, timeout, output budget, and diminished environment before dispatch. Shell strings and ambient host defaults are refused."
 claims_anchors = [
   "anchor/crate/sim-lib-exec",
 ]
@@ -531,7 +531,7 @@ title = "Runtime contract emitter"
 summary = "Emit generated repository contract and index fragments for runtime crates."
 owner = "crate/xtask"
 audiences = ["code"]
-guidance = "Use this row when refreshing generated runtime contract evidence."
+guidance = "Use this repository-tooling-only row when refreshing generated runtime contract evidence. xtask may invoke Cargo as a maintainer command, but it is not product runtime and must never supply or bypass ProcessPort."
 claims_anchors = [
   "anchor/crate/xtask",
 ]

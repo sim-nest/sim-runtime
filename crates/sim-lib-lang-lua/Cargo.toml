@@ -16,7 +16,6 @@ sim-kernel = { version = "0.2.1" }
 sim-lib-binding = { version = "0.1.4", path = "../sim-lib-binding" }
 sim-lib-control = { version = "0.1.6", path = "../sim-lib-control" }
 sim-lib-dispatch = { version = "0.1.4", path = "../sim-lib-dispatch" }
-sim-lib-exec = { version = "0.1.1", path = "../sim-lib-exec" }
 sim-lib-function = { version = "0.1.0", path = "../sim-lib-function" }
 sim-lib-gc-tracing = { version = "0.1.2", path = "../sim-lib-gc-tracing" }
 sim-lib-mutation = { version = "0.1.5", path = "../sim-lib-mutation" }

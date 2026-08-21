@@ -9,9 +9,11 @@
 //! byte cap. It is a host operation, not SIM evaluation.
 
 mod exec;
-mod timeout;
 
-pub use exec::{ExecOptions, ProcResult, exec, exec_capability, proc_result_symbol};
+pub use exec::{
+    ExecOptions, ProcResult, ProcessCancellation, ProcessError, ProcessPort, ProcessReceipt,
+    ProcessRequest, exec, exec_capability, proc_result_symbol,
+};
 
 /// Cookbook recipes for this lib, embedded at build time.
 pub static RECIPES: sim_cookbook::EmbeddedDir =

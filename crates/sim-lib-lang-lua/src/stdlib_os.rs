@@ -127,13 +127,12 @@ pub(crate) fn run_lua_os_function(
 }
 
 fn lua_os_execute(cx: &mut Cx, args: Vec<Value>) -> Result<Vec<Value>> {
-    let command = string_arg(cx, &args, 0, "os.execute command")?;
-    let argv = vec!["sh".to_owned(), "-c".to_owned(), command];
-    let opts = sim_lib_exec::ExecOptions::new(30_000, 64 * 1024);
-    let result = sim_lib_exec::exec(cx, &argv, &opts)?;
-    cx.factory()
-        .bool(result.exit_code == 0)
-        .map(|value| vec![value])
+    cx.require(&CapabilityName::new("exec"))?;
+    let _ = string_arg(cx, &args, 0, "os.execute command")?;
+    Err(Error::Eval(
+        "lua os.execute shell strings are refused; use a host-supplied structured ProcessPort request"
+            .to_owned(),
+    ))
 }
 
 fn lua_os_getenv(cx: &mut Cx, policy: &LuaEvalPolicy, args: Vec<Value>) -> Result<Vec<Value>> {
