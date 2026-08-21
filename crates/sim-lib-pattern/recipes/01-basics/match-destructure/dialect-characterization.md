@@ -1,10 +1,10 @@
-# Pattern dialect characterization baseline
+# Pattern dialect characterization
 
 This baseline reuses the landed `sim-lib-pattern` text VM and the
 `sim-lib-standard-core` characterization capture contract. It introduces no
 matcher, parser, cursor, diagnostic, or limit policy.
 
-| Concern | Existing owner reused | Frozen evidence |
+| Concern | Installed owner reused | Behavioral evidence |
 | --- | --- | --- |
 | Lua syntax | `LuaPatternDialect` | accepted spans and captures; malformed-clause refusals |
 | Glob syntax | `GlobPatternDialect` | anchored accepted and rejected matches; malformed-clause refusals |
@@ -16,5 +16,5 @@ matcher, parser, cursor, diagnostic, or limit policy.
 The captures project typed outcomes to canonical `Datum` records. Refusals use
 stable clause names rather than host `Debug` text. Public diagnostic details
 captured by the fixtures are checked to exclude roadmap-family names. The
-JavaScript gap slice remains intact so later work can remove only clauses whose
-behavior has actually landed.
+JavaScript gap slice remains intact; a clause is removed only when its behavior
+is installed and covered by a passing specimen.

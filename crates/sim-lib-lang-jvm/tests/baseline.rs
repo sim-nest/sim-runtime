@@ -57,35 +57,35 @@ fn manifests_freeze_the_supported_baseline() {
     }
 
     let ledger: toml::Value = sim_lib_lang_jvm::REUSE_LEDGER.parse().unwrap();
-    let products = ledger["organ"]
+    let capabilities = ledger["organ"]
         .as_array()
         .unwrap()
         .iter()
-        .map(|row| row["product"].as_str().unwrap())
+        .map(|row| row["capability"].as_str().unwrap())
         .collect::<Vec<_>>();
     assert_eq!(
-        products,
+        capabilities,
         [
-            "CHARACTERIZE_1",
-            "INDEX_9",
-            "MANAGED_2",
-            "UTF16_2",
-            "MACHINE_2",
-            "CLASSFILE_2",
-            "JVM_7",
-            "DATAFLOW_2",
-            "CLASS_2",
-            "FUNCTION_2",
+            "characterization",
+            "SIM Index",
+            "managed graph",
+            "UTF-16 text",
+            "bounded machine",
+            "classfile codec",
+            "JVM dynamic linkage",
+            "dataflow",
+            "class descriptors",
+            "function plans",
             "KERNEL",
             "DISPATCH",
             "CODECS",
-            "EXCEPTIONS_3",
+            "raised exceptions",
         ]
     );
 }
 
 #[test]
-fn final_proof_is_wired_to_the_single_frozen_acceptance_file() {
+fn performance_proof_is_wired_to_the_single_acceptance_file() {
     let reference: toml::Value = include_str!("../bytecode-speed-acceptance.toml")
         .parse()
         .unwrap();
@@ -95,8 +95,8 @@ fn final_proof_is_wired_to_the_single_frozen_acceptance_file() {
         Some("benchmarks/bytecode-speed-4/acceptance.toml")
     );
     assert_eq!(
-        reference["final_proof_phase"].as_str(),
-        Some("BYTECODESPEED4.14")
+        reference["proof"].as_str(),
+        Some("accepted benchmark report with distinct cold-preparation and warm-execution arms")
     );
 }
 

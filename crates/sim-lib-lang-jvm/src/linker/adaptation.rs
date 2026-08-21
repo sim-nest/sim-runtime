@@ -20,7 +20,7 @@ pub enum JavaLambdaCallOutcome {
 type JavaLambdaInvoker =
     dyn Fn(&mut Cx, Vec<JvmValue>) -> JavaLambdaCallOutcome + Send + Sync;
 
-/// A linked Java lambda projected through the kernel `FUNCTION_2` callable boundary.
+/// A linked Java lambda projected through the kernel `function organ` callable boundary.
 pub struct JavaLambdaCallable {
     argument_shapes: Vec<ShapeRef>,
     result_shape: Option<ShapeRef>,
@@ -166,7 +166,7 @@ pub fn adapt_sim_callable_as_functional_interface(
         .map_err(|error| FunctionalInterfaceError::InteropRefused(error.to_string()))?;
     if callable.object().as_callable().is_none() {
         return Err(FunctionalInterfaceError::InteropRefused(
-            "SIM value does not project FUNCTION_2 Callable".into(),
+            "SIM value does not project function organ Callable".into(),
         ));
     }
     let class = generate()?;

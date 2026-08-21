@@ -99,6 +99,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 - `crates/sim-lib-gc-tracing/recipes/01-collection/bounded-cycle/recipe.toml`
 - `crates/sim-lib-gc-tracing/recipes/01-collection/bounded-cycle/setup.siml`
 - `crates/sim-lib-gc-tracing/recipes/01-collection/chapter.toml`
+- `crates/sim-lib-gc-tracing/recipes/01-collection/managed-substrate/ownership.md`
 - `crates/sim-lib-gc-tracing/recipes/01-collection/managed-substrate/purpose.md`
 - `crates/sim-lib-gc-tracing/recipes/01-collection/managed-substrate/recipe.toml`
 - `crates/sim-lib-gc-tracing/recipes/01-collection/managed-substrate/setup.siml`
@@ -144,6 +145,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 - `crates/sim-lib-lang-javascript/recipes/01-basics/collection-owner-composition/purpose.md`
 - `crates/sim-lib-lang-javascript/recipes/01-basics/collection-owner-composition/recipe.toml`
 - `crates/sim-lib-lang-javascript/recipes/01-basics/collection-owner-composition/setup.js`
+- `crates/sim-lib-lang-javascript/recipes/01-basics/json-codec-composition/characterization.md`
 - `crates/sim-lib-lang-javascript/recipes/01-basics/json-codec-composition/purpose.md`
 - `crates/sim-lib-lang-javascript/recipes/01-basics/json-codec-composition/recipe.toml`
 - `crates/sim-lib-lang-javascript/recipes/01-basics/json-codec-composition/setup.js`
@@ -267,8 +269,10 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 - `crates/sim-lib-namespace/recipes/01-basics/namespace-ops/purpose.md`
 - `crates/sim-lib-namespace/recipes/01-basics/namespace-ops/recipe.toml`
 - `crates/sim-lib-namespace/recipes/01-basics/namespace-ops/setup.siml`
+- `crates/sim-lib-namespace/recipes/01-basics/namespace-ops/source-loading-authority.md`
 - `crates/sim-lib-namespace/recipes/book.toml`
 - `crates/sim-lib-pattern/recipes/01-basics/chapter.toml`
+- `crates/sim-lib-pattern/recipes/01-basics/match-destructure/dialect-characterization.md`
 - `crates/sim-lib-pattern/recipes/01-basics/match-destructure/purpose.md`
 - `crates/sim-lib-pattern/recipes/01-basics/match-destructure/recipe.toml`
 - `crates/sim-lib-pattern/recipes/01-basics/match-destructure/setup.siml`
@@ -12909,7 +12913,7 @@ impl PythonExceptions {
         })
     }
 
-    /// Declare an exception class through the Python class system delivered by CLASS_2.
+    /// Declare an exception class through the Python class system delivered by class organ.
     pub fn define_class(
         &mut self,
         cx: &Cx,
@@ -14157,35 +14161,35 @@ fn manifests_freeze_the_supported_baseline() {
     }
 
     let ledger: toml::Value = sim_lib_lang_jvm::REUSE_LEDGER.parse().unwrap();
-    let products = ledger["organ"]
+    let capabilities = ledger["organ"]
         .as_array()
         .unwrap()
         .iter()
-        .map(|row| row["product"].as_str().unwrap())
+        .map(|row| row["capability"].as_str().unwrap())
         .collect::<Vec<_>>();
     assert_eq!(
-        products,
+        capabilities,
         [
-            "CHARACTERIZE_1",
-            "INDEX_9",
-            "MANAGED_2",
-            "UTF16_2",
-            "MACHINE_2",
-            "CLASSFILE_2",
-            "JVM_7",
-            "DATAFLOW_2",
-            "CLASS_2",
-            "FUNCTION_2",
+            "characterization",
+            "SIM Index",
+            "managed graph",
+            "UTF-16 text",
+            "bounded machine",
+            "classfile codec",
+            "JVM dynamic linkage",
+            "dataflow",
+            "class descriptors",
+            "function plans",
             "KERNEL",
             "DISPATCH",
             "CODECS",
-            "EXCEPTIONS_3",
+            "raised exceptions",
         ]
     );
 }
 
 #[test]
-fn final_proof_is_wired_to_the_single_frozen_acceptance_file() {
+fn performance_proof_is_wired_to_the_single_acceptance_file() {
     let reference: toml::Value = include_str!("../bytecode-speed-acceptance.toml")
         .parse()
         .unwrap();
@@ -14195,8 +14199,8 @@ fn final_proof_is_wired_to_the_single_frozen_acceptance_file() {
         Some("benchmarks/bytecode-speed-4/acceptance.toml")
     );
     assert_eq!(
-        reference["final_proof_phase"].as_str(),
-        Some("BYTECODESPEED4.14")
+        reference["proof"].as_str(),
+        Some("accepted benchmark report with distinct cold-preparation and warm-execution arms")
     );
 }
 

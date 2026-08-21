@@ -8,7 +8,7 @@ use crate::space::ExprSpace;
 
 /// Checks the generated round-trip property for one expression and codec.
 ///
-/// The property is the ROUNDTRIP_4 path: encode an expression through the codec,
+/// The property is the round-trip contract path: encode an expression through the codec,
 /// read the rendered source back with the same codec, and compare the two
 /// expression graphs with canonical equality.
 pub fn check_round_trip(cx: &mut Cx, codec: &Symbol, expr: &Expr) -> ExprRoundTripObservation {

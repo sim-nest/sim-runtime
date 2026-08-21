@@ -1,5 +1,5 @@
 schema = "sim.jvm-performance-coverage/v1"
-source_roadmap = "BYTECODE_SPEED_4"
+subject = "JVM prepared-code performance"
 prepared_code = "crates/sim-lib-lang-jvm/src/code/prepare.rs::prepare_code"
 micro_ops = "crates/sim-lib-lang-jvm/src/code/model.rs::PreparedMicroOp"
 dispatch_table = "crates/sim-lib-lang-jvm/src/verifier_rules_generated.rs::PREPARED_DISPATCH"

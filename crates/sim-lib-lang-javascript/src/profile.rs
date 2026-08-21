@@ -5,7 +5,7 @@ use sim_lib_standard_core::{
 };
 use std::sync::Arc;
 
-/// One intrinsic admitted by this phase's checked scalar core.
+/// One intrinsic admitted by the checked scalar core.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct JavascriptIntrinsic {
     /// ECMAScript name.
@@ -16,11 +16,11 @@ pub struct JavascriptIntrinsic {
     pub backing: &'static str,
 }
 
-/// Intrinsics admitted by the thin core; later phases extend this manifest.
+/// Intrinsics installed by the thin core.
 pub const fn javascript_intrinsic_manifest() -> &'static [JavascriptIntrinsic] {
     include!(concat!(env!("OUT_DIR"), "/javascript_intrinsics.rs"))
 }
-/// Explicit unsupported surface for the current checked phase.
+/// Explicit unsupported surface for the current checked profile.
 pub const fn javascript_gap_catalog() -> &'static [&'static str] {
     &[
         "compiler-or-bytecode",

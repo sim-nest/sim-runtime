@@ -159,7 +159,7 @@ impl LocatedGraphAdapter for JvmVerificationAdapter<'_> {
     }
 }
 
-/// Adapts prepared JVM code and its ordered exception table to `DATAFLOW_2`.
+/// Adapts prepared JVM code and its ordered exception table to `dataflow organ`.
 pub fn build_verification_graph(
     code: &LocatedCode<PreparedJvmPolicy>,
 ) -> Result<VerificationGraph, VerificationGraphError> {

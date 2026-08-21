@@ -1,4 +1,4 @@
-//! JVM policy retained beside the language-neutral `CLASS_2` projection.
+//! JVM policy retained beside the language-neutral `class organ` projection.
 
 use std::sync::Arc;
 
@@ -267,7 +267,7 @@ impl JavaClassMetadata {
         })
     }
 
-    /// Neutral, browsable `CLASS_2` face.
+    /// Neutral, browsable `class organ` face.
     pub fn descriptor(&self) -> &ClassDescriptor {
         &self.descriptor
     }

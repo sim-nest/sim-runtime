@@ -1,4 +1,4 @@
-//! Structural guard for the BYTECODE_SPEED_4 landed-source ownership ledger.
+//! Structural guard for the installed JVM hot-path ownership ledger.
 
 use std::{collections::BTreeMap, fs, path::Path};
 
@@ -42,26 +42,29 @@ fn every_hot_path_anchor_owner_and_fallback_resolves() {
     }
 
     let optimizations = ledger["optimization"].as_array().unwrap();
-    assert_eq!(optimizations.len(), 8, "all optimization phases .04-.11");
+    assert_eq!(
+        optimizations.len(),
+        8,
+        "all installed optimization families"
+    );
     for row in optimizations {
-        let phase = required(row, "phase");
-        assert!(phase.starts_with("BYTECODESPEED4."));
+        let capability = required(row, "capability");
         assert!(!required(row, "proposal").is_empty());
         assert!(
             stages.contains_key(required(row, "owner_stage")),
-            "{phase} owner"
+            "{capability} owner"
         );
         assert!(
             stages.contains_key(required(row, "fallback_stage")),
-            "{phase} fallback"
+            "{capability} fallback"
         );
     }
 
     let contradictions = ledger["contradiction"].as_array().unwrap();
     assert!(!contradictions.is_empty());
     for row in contradictions {
-        assert!(!required(row, "predecessor_assumption").is_empty());
-        assert!(!required(row, "landed_source").is_empty());
+        assert!(!required(row, "constraint").is_empty());
+        assert!(!required(row, "installed_owner").is_empty());
         assert!(!required(row, "disposition").is_empty());
     }
 }

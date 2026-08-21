@@ -1,4 +1,4 @@
-# JavaScript JSON and collection characterization baseline
+# JavaScript JSON and collection characterization
 
 The machine-readable baseline is
 `fixtures/compose3-json-collections.toml`. Every scenario records a canonical
@@ -14,7 +14,7 @@ there is no general length setter. Array, set, and explicit iterator values are
 owned snapshots, so mutations after iterator construction are not observed.
 Map entry iteration borrows the map and therefore cannot overlap mutation.
 
-The baseline also preserves asymmetries that later composition must compare
+The characterization also preserves asymmetries that composition must compare
 rather than silently normalize: `map` checks its complete visit count before
 calling back, while `filter` may call back before reporting `Limit`; array
 iteration materializes holes as `Undefined`; deletion followed by reinsertion

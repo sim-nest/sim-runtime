@@ -16,7 +16,7 @@ contracts instead of copying them.
 | Authority | `sim-kernel::Cx` capability checks | Policy receives the call context; the plan stores no powers. |
 | Argument partition | `sim-lib-binding/src/call.rs::{CallSignature, BoundCall}` | Extend descriptors and delegate guest legality to policy. |
 | Captured bindings | `sim-lib-binding/src/cell.rs::BindingCell` | Reuse binding cells, not copied values or a second environment graph. |
-| Managed identity and edges | `sim-lib-mutation/src/managed.rs::{ManagedHandle, ManagedId, EdgeKind}` | Compose the MANAGED_2 node contract so cycles remain collectible. |
+| Managed identity and edges | `sim-lib-mutation/src/managed.rs::{ManagedHandle, ManagedId, EdgeKind}` | Compose the managed graph node contract so cycles remain collectible. |
 | Multiple dispatch | `sim-lib-dispatch/src/generic.rs::GenericFunction` | Optional composition only; never an ordinary-call dependency. |
 | Migration proof | `sim-lib-standard-core/src/harness.rs` characterization scenarios | Reuse the established capture/compare evidence owner. |
 | Index declarations | `features.toml` feature, relationship, route, specimen, and enforcement records | Author when implementation creates discoverable source anchors. |
@@ -64,7 +64,7 @@ to binding's `BoundCall`, then delegates defaults, keywords, receiver insertion,
 spread/rest semantics, evaluation, results, and diagnostics to `B`.
 
 Captured names resolve at the binding boundary. Instances retain managed binding
-cells and report their edges through the MANAGED_2 contract; they neither copy
+cells and report their edges through the managed graph contract; they neither copy
 captured values nor create a global environment/body table. Class identity is
 always supplied by the installing guest profile so callable identity remains
 neutral without flattening guest class behavior.

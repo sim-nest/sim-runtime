@@ -1,4 +1,4 @@
-//! Canonical `CHARACTERIZE_1` class-semantic scenarios.
+//! Canonical class-semantic characterization scenarios.
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum FailureMode {

@@ -115,11 +115,11 @@ pub const EXPLICIT_PROJECTION_FIELDS: &[ExplicitProjectionField] = &[
     },
 ];
 
-/// Two existing source cases frozen as parity fixtures for capture development.
+/// Two source cases retained as parity fixtures for characterization capture.
 ///
 /// The pair deliberately covers a successful typed lowering and a declared,
-/// coded gap. They preserve the pre-capture matrix behavior while later phases
-/// add scenario execution and observation projection around it.
+/// coded gap. They preserve the scalar lowering boundary alongside scenario
+/// execution and observation projection.
 pub fn characterization_source_fixtures() -> [SourceConformanceCase; 2] {
     [
         SourceConformanceCase {

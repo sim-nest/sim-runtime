@@ -115,7 +115,7 @@ impl PythonExceptions {
         })
     }
 
-    /// Declare an exception class through the Python class system delivered by CLASS_2.
+    /// Declare an exception class through the Python class system delivered by class organ.
     pub fn define_class(
         &mut self,
         cx: &Cx,

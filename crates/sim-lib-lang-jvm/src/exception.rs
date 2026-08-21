@@ -53,7 +53,7 @@ impl JavaThrowableHeap {
         })
     }
 
-    /// Allocates a VM-raised Java object whose `Raised` class is its CLASS_2 face.
+    /// Allocates a VM-raised Java object whose `Raised` class is its class organ face.
     pub fn allocate(&mut self, raised: Raised) -> Result<ManagedHandle, ArenaError> {
         self.heap
             .allocate(ManagedException::new(JavaThrowableState {
@@ -200,7 +200,7 @@ pub enum JavaThrowError {
     ExpectedReference,
     /// The thrown reference was null; the caller must allocate the VM NPE through this organ.
     NullReference,
-    /// A catch type could not be resolved to its CLASS_2 class.
+    /// A catch type could not be resolved to its class organ class.
     UnresolvedCatchType(u16),
     /// Shared bounded matching refused malformed, exhausted, or failed policy evidence.
     Match(ClassMatchOutcome),

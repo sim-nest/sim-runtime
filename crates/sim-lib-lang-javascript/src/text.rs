@@ -122,7 +122,7 @@ mod law_fixtures {
     }
 
     fn characterization_capture() -> (ScenarioSpec, CharacterizationCapture) {
-        let astral = JavascriptCodeUnitString::from_scalar("😀");
+        let astral = JavascriptCodeUnitString::from_code_units(vec![0xd83d, 0xde00]);
         let cases = vec![
             characterized_case("empty", JavascriptCodeUnitString::default()),
             characterized_case("astral-pair", astral.clone()),

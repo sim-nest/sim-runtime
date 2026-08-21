@@ -4,6 +4,6 @@
 shared by guest function implementations. The frozen boundary and migration
 ledger are in [CONTRACT.md](CONTRACT.md).
 
-This initial crate is deliberately contract-only. Later FUNCTION_2 phases add
+This initial crate is deliberately contract-only. Later function organ phases add
 the implementation after the neutral/policy boundary has been reviewed and
 checked.

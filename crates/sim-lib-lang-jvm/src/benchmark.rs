@@ -1,4 +1,4 @@
-//! Counter-only adapter for neutral BENCH_2 workloads.
+//! Counter-only adapter for neutral benchmark harness workloads.
 //!
 //! This module deliberately owns no clock, sampling, summary, or report. It
 //! exposes exact event counts at JVM boundaries so the neutral benchmark owner
@@ -61,7 +61,7 @@ impl JvmBenchmarkCounters {
         self.safepoint_polling += 1;
     }
 
-    /// Projects the exact BENCH_2 counter vocabulary in lexical order.
+    /// Projects the exact benchmark harness counter vocabulary in lexical order.
     pub fn as_map(&self) -> BTreeMap<&'static str, u64> {
         BTreeMap::from([
             ("allocation", self.allocation),

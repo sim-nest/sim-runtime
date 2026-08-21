@@ -40,6 +40,7 @@
 {"kind":"recipe","path":"crates/sim-lib-gc-tracing/recipes/01-collection/bounded-cycle/recipe.toml"}
 {"kind":"recipe","path":"crates/sim-lib-gc-tracing/recipes/01-collection/bounded-cycle/setup.siml"}
 {"kind":"recipe","path":"crates/sim-lib-gc-tracing/recipes/01-collection/chapter.toml"}
+{"kind":"recipe","path":"crates/sim-lib-gc-tracing/recipes/01-collection/managed-substrate/ownership.md"}
 {"kind":"recipe","path":"crates/sim-lib-gc-tracing/recipes/01-collection/managed-substrate/purpose.md"}
 {"kind":"recipe","path":"crates/sim-lib-gc-tracing/recipes/01-collection/managed-substrate/recipe.toml"}
 {"kind":"recipe","path":"crates/sim-lib-gc-tracing/recipes/01-collection/managed-substrate/setup.siml"}
@@ -85,6 +86,7 @@
 {"kind":"recipe","path":"crates/sim-lib-lang-javascript/recipes/01-basics/collection-owner-composition/purpose.md"}
 {"kind":"recipe","path":"crates/sim-lib-lang-javascript/recipes/01-basics/collection-owner-composition/recipe.toml"}
 {"kind":"recipe","path":"crates/sim-lib-lang-javascript/recipes/01-basics/collection-owner-composition/setup.js"}
+{"kind":"recipe","path":"crates/sim-lib-lang-javascript/recipes/01-basics/json-codec-composition/characterization.md"}
 {"kind":"recipe","path":"crates/sim-lib-lang-javascript/recipes/01-basics/json-codec-composition/purpose.md"}
 {"kind":"recipe","path":"crates/sim-lib-lang-javascript/recipes/01-basics/json-codec-composition/recipe.toml"}
 {"kind":"recipe","path":"crates/sim-lib-lang-javascript/recipes/01-basics/json-codec-composition/setup.js"}
@@ -208,8 +210,10 @@
 {"kind":"recipe","path":"crates/sim-lib-namespace/recipes/01-basics/namespace-ops/purpose.md"}
 {"kind":"recipe","path":"crates/sim-lib-namespace/recipes/01-basics/namespace-ops/recipe.toml"}
 {"kind":"recipe","path":"crates/sim-lib-namespace/recipes/01-basics/namespace-ops/setup.siml"}
+{"kind":"recipe","path":"crates/sim-lib-namespace/recipes/01-basics/namespace-ops/source-loading-authority.md"}
 {"kind":"recipe","path":"crates/sim-lib-namespace/recipes/book.toml"}
 {"kind":"recipe","path":"crates/sim-lib-pattern/recipes/01-basics/chapter.toml"}
+{"kind":"recipe","path":"crates/sim-lib-pattern/recipes/01-basics/match-destructure/dialect-characterization.md"}
 {"kind":"recipe","path":"crates/sim-lib-pattern/recipes/01-basics/match-destructure/purpose.md"}
 {"kind":"recipe","path":"crates/sim-lib-pattern/recipes/01-basics/match-destructure/recipe.toml"}
 {"kind":"recipe","path":"crates/sim-lib-pattern/recipes/01-basics/match-destructure/setup.siml"}
