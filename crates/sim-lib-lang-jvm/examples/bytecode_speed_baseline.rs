@@ -38,20 +38,33 @@ fn main() {
     let bytes = [Opcode::Iconst0 as u8, Opcode::Ireturn as u8];
     let decoded = decode_instructions(&bytes, 61, &pool).unwrap();
     let mut counters = JvmBenchmarkCounters::default();
-
-    for _ in 0..iterations {
-        let prepared = prepare_code::<CorpusPolicy>(
+    let warm_code = (phase == "warm-execution").then(|| {
+        prepare_code::<CorpusPolicy>(
             &decoded,
             bytes.len(),
             &[],
             SourceId("bench:Example.zero()I".into()),
         )
-        .unwrap();
+        .unwrap()
+    });
+    if warm_code.is_some() {
         counters.prepared(decoded.instructions.len() as u64);
+    }
+
+    for _ in 0..iterations {
         if phase == "cold-preparation" {
+            prepare_code::<CorpusPolicy>(
+                &decoded,
+                bytes.len(),
+                &[],
+                SourceId("bench:Example.zero()I".into()),
+            )
+            .unwrap();
+            counters.prepared(decoded.instructions.len() as u64);
             continue;
         }
 
+        let prepared = warm_code.as_ref().unwrap();
         counters.resolved();
         counters.allocated();
         let mut cursor = prepared.entry();
