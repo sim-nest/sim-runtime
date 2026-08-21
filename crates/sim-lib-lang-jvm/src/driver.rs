@@ -9,6 +9,7 @@ use sim_lib_machine::{
     StepOutcome,
 };
 use sim_lib_mutation::ManagedId;
+use std::sync::Mutex;
 
 use crate::{
     ExecutionError, ExecutionPermit, JvmControlOutcome, JvmFrameLease, JvmInstructionPolicy,
@@ -17,6 +18,32 @@ use crate::{
     dispatch_prepared, execute_control_instruction, execute_numeric_instruction,
     execute_storage_instruction,
 };
+
+impl From<sim_kernel::Error> for JvmInvocationError {
+    fn from(error: sim_kernel::Error) -> Self {
+        Self::Admission(error.to_string())
+    }
+}
+
+/// Preparation disposition for one row of the shared generated opcode inventory.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SurfaceOpcodeDisposition {
+    /// The production driver has an instruction policy and reachable family handler.
+    Handler(crate::verifier::PreparedDispatchFamily),
+    /// The production surface refuses the row during effect-free preparation.
+    PreparationRefusal,
+}
+
+/// Classifies a shared opcode row without duplicating its identity or mnemonic.
+pub fn surface_opcode_disposition(opcode: Opcode) -> SurfaceOpcodeDisposition {
+    match (
+        crate::verifier::PREPARED_DISPATCH[opcode as u8 as usize],
+        SurfacePolicy::semantics(opcode),
+    ) {
+        (Some(family), Some(_)) => SurfaceOpcodeDisposition::Handler(family),
+        _ => SurfaceOpcodeDisposition::PreparationRefusal,
+    }
+}
 
 const NONE: &[JvmSlotKind] = &[];
 const ONE: &[JvmSlotKind] = &[JvmSlotKind::CategoryOne];
@@ -54,6 +81,7 @@ impl JvmInstructionPolicy for SurfacePolicy {
         let (pops, pushes) = match opcode {
             Iload | Iload0 | Iload1 | Iload2 | Iload3 => (NONE, ONE),
             Istore | Istore0 | Istore1 | Istore2 | Istore3 => (ONE, NONE),
+            Iinc => (NONE, NONE),
             IconstM1 | Iconst0 | Iconst1 | Iconst2 | Iconst3 | Iconst4 | Iconst5 | Bipush
             | Sipush => (NONE, ONE),
             Iadd | Isub | Imul | Idiv | Irem => (TWO, ONE),
@@ -219,6 +247,7 @@ pub(crate) fn drive_i32<P>(
     machine: &MachinePermit,
     limits: AdmissionLimits,
     lease: JvmFrameLease,
+    heap: &Mutex<crate::JvmHeap>,
 ) -> Result<(i32, JvmPreparationReceipt, JvmDriveReceipt), JvmInvocationError> {
     permit
         .validate_current()
@@ -249,7 +278,11 @@ pub(crate) fn drive_i32<P>(
             |snapshot| {
                 safepoints += 1;
                 roots += snapshot.roots().len();
-                Ok::<_, ()>(())
+                heap.lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .collect_from(snapshot)
+                    .map(|_| ())
+                    .map_err(|_| ())
             },
         ) {
         Ok(outcome) => outcome,
@@ -305,5 +338,28 @@ fn interrupt_live_frame(frames: &mut FrameStack<DriveFrame>) {
         && let Some(lease) = frame.lease.take()
     {
         drop(lease.interrupt());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sim_codec_classfile::OPCODES;
+
+    use super::*;
+
+    #[test]
+    fn every_shared_opcode_row_has_a_driver_handler_or_preparation_refusal() {
+        let mut handlers = 0;
+        let mut refusals = 0;
+        for (byte, metadata) in OPCODES.iter().enumerate() {
+            assert_eq!(metadata.opcode as u8 as usize, byte);
+            match surface_opcode_disposition(metadata.opcode) {
+                SurfaceOpcodeDisposition::Handler(_) => handlers += 1,
+                SurfaceOpcodeDisposition::PreparationRefusal => refusals += 1,
+            }
+        }
+        assert_eq!(handlers + refusals, 256);
+        assert!(handlers > 0);
+        assert!(refusals > 0);
     }
 }

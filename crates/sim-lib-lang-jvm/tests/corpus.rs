@@ -7,6 +7,8 @@ use sim_lib_lang_jvm::{JvmSurface, class_load_capability, jvm_invoke_capability}
 const CORPUS: &str = include_str!("../fixtures/corpus.toml");
 const JAVAC_STATIC_INT: &[u8] = include_bytes!("../fixtures/javac/StaticInt.class");
 const HAND_BUILT_MINIMAL: &[u8] = include_bytes!("../fixtures/hand-built/Minimal.class");
+const DRIVER_BASELINE: &[u8] = include_bytes!("../fixtures/javac/DriverBaseline.class");
+const PUBLIC_FORMS: &[u8] = include_bytes!("../fixtures/javac/PublicForms.class");
 
 fn authorized_cx() -> Cx {
     let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
@@ -57,7 +59,7 @@ fn corpus_manifest_declares_every_normalization_at_the_scenario() {
             scenario["id"].as_str().unwrap()
         );
     }
-    assert_eq!(corpus["finding"].as_array().unwrap().len(), 2);
+    assert_eq!(corpus["finding"].as_array().unwrap().len(), 1);
 }
 
 #[test]
@@ -148,6 +150,61 @@ fn integer_surface_admits_exact_arity_and_refuses_contradictions_before_frames()
         .unwrap_err();
     assert!(error.to_string().contains("surface-owned receiver object"));
     assert_eq!(surface.live_frame_leases(), 0);
+}
+
+#[test]
+fn public_invocation_executes_branches_and_backward_loops_deterministically() {
+    let mut cx = authorized_cx();
+    let surface = JvmSurface::new(16_384);
+    surface
+        .define(&mut cx, "DriverBaseline", DRIVER_BASELINE.to_vec())
+        .unwrap();
+
+    for (argument, expected) in [(-1, 3), (0, 3), (1, 7)] {
+        assert_eq!(
+            surface
+                .invoke_static_i32(&mut cx, "DriverBaseline", "branch", "(I)I", &[argument])
+                .unwrap(),
+            expected
+        );
+    }
+    for (argument, expected) in [(0, 0), (1, 0), (5, 10), (10, 45)] {
+        assert_eq!(
+            surface
+                .invoke_static_i32(&mut cx, "DriverBaseline", "loop", "(I)I", &[argument])
+                .unwrap(),
+            expected
+        );
+    }
+}
+
+#[test]
+fn public_invocation_refuses_uninstalled_effect_families_before_a_frame_is_live() {
+    let mut cx = authorized_cx();
+    let surface = JvmSurface::new(16_384);
+    surface
+        .define(&mut cx, "PublicForms", PUBLIC_FORMS.to_vec())
+        .unwrap();
+
+    for (name, descriptor, args) in [
+        ("field", "()I", &[][..]),
+        ("array", "()I", &[][..]),
+        ("allocation", "()I", &[][..]),
+        ("call", "()I", &[][..]),
+        ("handler", "()I", &[][..]),
+        ("concat", "()I", &[][..]),
+        ("initialization", "()I", &[][..]),
+        ("monitor", "()I", &[][..]),
+    ] {
+        let error = surface
+            .invoke_static_i32(&mut cx, "PublicForms", name, descriptor, args)
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            sim_lib_lang_jvm::JvmInvocationError::Admission(_)
+        ));
+        assert_eq!(surface.live_frame_leases(), 0, "{name} acquired a frame");
+    }
 }
 
 #[test]

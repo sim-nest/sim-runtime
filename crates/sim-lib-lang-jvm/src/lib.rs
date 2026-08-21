@@ -68,6 +68,7 @@ pub use control::{
 };
 pub use dispatch::{PreparedDispatch, dispatch_prepared};
 pub use driver::{JvmDriveReceipt, JvmPreparationReceipt};
+pub use driver::{SurfaceOpcodeDisposition, surface_opcode_disposition};
 pub use dynamic::{
     ConcatConstant, DynamicBootstrap, DynamicLinkCache, DynamicLinkError, LinkedStringConcat,
     STRING_CONCAT_BOOTSTRAP_DESCRIPTOR, STRING_CONCAT_BOOTSTRAP_NAME,

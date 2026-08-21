@@ -90,3 +90,9 @@ impl RootSnapshot {
         &self.roots
     }
 }
+
+impl ManagedRootSource for RootSnapshot {
+    fn visit_managed_roots(&self, visit: &mut dyn FnMut(ManagedId) -> bool) -> bool {
+        self.roots.iter().copied().all(visit)
+    }
+}

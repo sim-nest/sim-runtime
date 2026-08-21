@@ -51,12 +51,6 @@ impl std::fmt::Display for JvmInvocationError {
 
 impl std::error::Error for JvmInvocationError {}
 
-impl From<Error> for JvmInvocationError {
-    fn from(error: Error) -> Self {
-        Self::Admission(error.to_string())
-    }
-}
-
 impl From<JvmInvocationError> for Error {
     fn from(error: JvmInvocationError) -> Self {
         Self::Eval(error.to_string())
@@ -112,6 +106,7 @@ pub struct JvmBrowse {
 /// Shared state behind the loadable JVM callables.
 pub struct JvmSurface {
     loader: ClassLoader,
+    heap: Mutex<crate::JvmHeap>,
     frames: crate::JvmFramePool,
     last_receipts: Mutex<Option<(crate::JvmPreparationReceipt, crate::JvmDriveReceipt)>>,
     prepared: Mutex<BTreeMap<String, Arc<PreparedSurfaceMethod>>>,
@@ -135,6 +130,7 @@ impl JvmSurface {
     pub fn with_lineage_budget(max_classfile_bytes: usize, lineage_budget: LineageBudget) -> Self {
         Self {
             loader: ClassLoader::new(max_classfile_bytes),
+            heap: Mutex::new(crate::JvmHeap::surface_default()),
             frames: crate::JvmFramePool::new(crate::JvmFramePoolPolicy {
                 frames: 64,
                 slots: 4_096,
@@ -196,6 +192,7 @@ impl JvmSurface {
         let descriptor = admit_i32_descriptor(descriptor, args.len())?;
         let (value, preparation, execution) = execute_prepared_i32(
             &self.loader,
+            &self.heap,
             &self.frames,
             &self.prepared,
             &self.decode_count,
@@ -322,6 +319,7 @@ fn code_attribute(
 )]
 fn execute_prepared_i32(
     loader: &ClassLoader,
+    heap: &Mutex<crate::JvmHeap>,
     frames: &crate::JvmFramePool,
     cache: &Mutex<BTreeMap<String, Arc<PreparedSurfaceMethod>>>,
     decode_count: &AtomicUsize,
@@ -387,7 +385,7 @@ fn execute_prepared_i32(
             operand_units: usize::from(code.max_stack).max(1),
             slots: usize::from(code.max_locals).max(1),
             frames: 1,
-            work: prepared.len(),
+            work: 65_536,
         };
         let description = sim_lib_machine::MachineDescription::new(&prepared, limits, &());
         let machine =
@@ -434,6 +432,7 @@ fn execute_prepared_i32(
         &prepared_method.machine,
         prepared_method.limits,
         lease,
+        heap,
     )
 }
 

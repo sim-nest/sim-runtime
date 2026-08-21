@@ -319,6 +319,7 @@ impl ManagedRootSource for InterruptedJvmFrame {
 
 #[cfg(test)]
 mod tests {
+    use sim_lib_gc_tracing::CollectionLimits;
     use sim_lib_mutation::{HardCappedRetainPolicy, ManagedArena, ManagedNode};
 
     use super::*;
@@ -385,5 +386,49 @@ mod tests {
         let _ = frame.safepoint_roots();
         frame.prepared_roots.clear();
         let _ = frame.safepoint_roots();
+    }
+
+    #[test]
+    fn object_reachable_only_from_a_live_frame_survives_collection() {
+        let limits = CollectionLimits {
+            objects: 8,
+            edges: 8,
+            stack: 8,
+            work: 32,
+            clears: 8,
+            finalizers: 0,
+        };
+        let mut heap = crate::JvmHeap::new(8, limits).unwrap();
+        let live = heap.allocate(crate::JvmRole::Object).unwrap();
+        let _garbage = heap.allocate(crate::JvmRole::Object).unwrap();
+        let pool = JvmFramePool::new(JvmFramePoolPolicy {
+            frames: 1,
+            slots: 1,
+            operands: 1,
+        });
+        let mut lease = pool.acquire(1, 1);
+        lease
+            .frame_mut()
+            .operands_mut()
+            .push(JvmValue::Reference(JvmReference::managed(live)))
+            .unwrap();
+
+        heap.collect_from(&lease).unwrap();
+        assert_eq!(heap.live_len(), 1, "the unrelated object must be reclaimed");
+        assert_eq!(
+            heap.allocate(crate::JvmRole::Object)
+                .unwrap()
+                .id()
+                .allocation_ordinal(),
+            2
+        );
+
+        lease.complete();
+        heap.collect_from(&pool).unwrap();
+        assert_eq!(
+            heap.live_len(),
+            0,
+            "sanitized retained frames publish no roots"
+        );
     }
 }
