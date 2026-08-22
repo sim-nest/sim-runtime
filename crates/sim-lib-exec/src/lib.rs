@@ -11,8 +11,10 @@
 mod exec;
 
 pub use exec::{
-    ExecOptions, ProcResult, ProcessCancellation, ProcessError, ProcessPort, ProcessReceipt,
-    ProcessRequest, exec, exec_capability, proc_result_symbol,
+    ArgAtom, BindingValue, DispatchEvidence, ExecOptions, PrivateArtifactRef, ProcResult,
+    ProcessAttempt, ProcessBudget, ProcessCancellation, ProcessPort, ProcessReceipt,
+    ProcessRefusal, ProcessRequest, ProgramRef, ProjectRootRef, SealedBindings, StopReceipt, exec,
+    exec_capability, proc_result_symbol,
 };
 
 /// Cookbook recipes for this lib, embedded at build time.

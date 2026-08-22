@@ -517,7 +517,7 @@ title = "Host exec primitive"
 summary = "Expose bounded process policy through a capability-gated platform port outside the kernel."
 owner = "crate/sim-lib-exec"
 audiences = ["code", "framework"]
-guidance = "Use this row when a framework needs bounded process execution. Supply a ProcessPort from a model or physical platform capsule; runtime checks capability, structured argv, explicit root, timeout, output budget, and diminished environment before dispatch. Shell strings and ambient host defaults are refused."
+guidance = "Use this row when a framework needs bounded process execution. Submit a boot-trusted ProgramRef, whole ArgAtom values, an opaque ProjectRootRef, explicit SealedBindings, declared PrivateArtifactRef values, and a bounded budget. The environment is empty by default and cannot inherit ambient data. Retry automatically only for ProcessAttempt::NotDispatched; completed, proven-stopped, and unknown-after-dispatch outcomes are not retryable."
 claims_anchors = [
   "anchor/crate/sim-lib-exec",
 ]
