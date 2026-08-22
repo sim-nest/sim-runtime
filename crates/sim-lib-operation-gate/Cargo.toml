@@ -1,0 +1,18 @@
+[package]
+name = "sim-lib-operation-gate"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Domain-neutral capability and exact-approval gate for effectful SIM operations."
+repository.workspace = true
+homepage.workspace = true
+publish = true
+
+[dependencies]
+sim-kernel = { version = "0.2.0" }
+
+[dev-dependencies]
+sim-kernel = { version = "0.2.0", features = ["test-support"] }
+
+[lints]
+workspace = true

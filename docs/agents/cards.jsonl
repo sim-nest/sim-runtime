@@ -212,6 +212,14 @@
 {"kind":"recipe","path":"crates/sim-lib-namespace/recipes/01-basics/namespace-ops/setup.siml"}
 {"kind":"recipe","path":"crates/sim-lib-namespace/recipes/01-basics/namespace-ops/source-loading-authority.md"}
 {"kind":"recipe","path":"crates/sim-lib-namespace/recipes/book.toml"}
+{"kind":"recipe","path":"crates/sim-lib-operation-gate/recipes/01-basics/chapter.toml"}
+{"kind":"recipe","path":"crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/Cargo.lock"}
+{"kind":"recipe","path":"crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/Cargo.toml"}
+{"kind":"recipe","path":"crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/README.md"}
+{"kind":"recipe","path":"crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/expected.txt"}
+{"kind":"recipe","path":"crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/recipe.toml"}
+{"kind":"recipe","path":"crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/src/main.rs"}
+{"kind":"recipe","path":"crates/sim-lib-operation-gate/recipes/book.toml"}
 {"kind":"recipe","path":"crates/sim-lib-pattern/recipes/01-basics/chapter.toml"}
 {"kind":"recipe","path":"crates/sim-lib-pattern/recipes/01-basics/match-destructure/dialect-characterization.md"}
 {"kind":"recipe","path":"crates/sim-lib-pattern/recipes/01-basics/match-destructure/purpose.md"}

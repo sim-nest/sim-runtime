@@ -162,6 +162,11 @@
     {
       "features": [],
       "group": "workspace",
+      "package": "sim-lib-operation-gate"
+    },
+    {
+      "features": [],
+      "group": "workspace",
       "package": "sim-lib-pattern"
     },
     {

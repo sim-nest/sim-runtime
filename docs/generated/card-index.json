@@ -1,5 +1,5 @@
 {
-  "card_count": 31,
+  "card_count": 32,
   "cards": [
     {
       "id": "browse/catalog",
@@ -173,6 +173,12 @@
       "id": "cookbook/sim-lib-lang-jvm",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-lang-jvm",
+      "summary": ""
+    },
+    {
+      "id": "cookbook/sim-lib-operation-gate",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-operation-gate",
       "summary": ""
     },
     {

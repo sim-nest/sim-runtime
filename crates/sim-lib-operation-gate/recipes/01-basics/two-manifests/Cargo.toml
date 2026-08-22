@@ -1,0 +1,12 @@
+[package]
+name = "sim-lib-operation-gate-recipe-two-manifests"
+version = "0.0.0"
+edition = "2024"
+license = "MPL-2.0"
+publish = false
+
+[dependencies]
+sim-kernel = "0.2.0"
+sim-lib-operation-gate = { path = "../../.." }
+
+[workspace]

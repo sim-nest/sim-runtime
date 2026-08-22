@@ -1,0 +1,13 @@
+id = "two-manifests"
+title = "Declare two unrelated guarded operations"
+codec = "rust"
+setup = "src/main.rs"
+purpose = "README.md"
+expected = "expected.txt"
+order = 10
+tags = ["operation", "gate", "manifest", "domain-neutral", "rust"]
+requires = ["sim-lib-operation-gate", "sim-kernel"]
+
+[[expect]]
+form = 0
+result = "warehouse mode: Recorded\nmicroscope mode: Reviewed\nautomotive assumptions: 0"

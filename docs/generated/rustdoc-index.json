@@ -205,6 +205,13 @@
       "summary": "Namespace records and capability-aware source module lifecycle for the SIM runtime."
     },
     {
+      "crate_name": "sim_lib_operation_gate",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-operation-gate/Cargo.toml",
+      "package": "sim-lib-operation-gate",
+      "summary": "Declaration-driven gate for capability-scoped operations."
+    },
+    {
       "crate_name": "sim_lib_pattern",
       "group": "workspace",
       "manifest": "crates/sim-lib-pattern/Cargo.toml",

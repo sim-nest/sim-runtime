@@ -820,3 +820,23 @@ audiences = ["code", "framework"]
 steps = [
   { feature = "feature/sim-runtime/host-exec", why = "The exec row keeps host process behavior in a loadable library." },
 ]
+
+[[feature]]
+id = "feature/sim-runtime/guarded-operations"
+title = "Declaration-driven guarded operations"
+summary = "Guard domain-neutral operations with explicit capability, execution mode, exact-subject approval, atomic approval use, effect replay, and auditable sink policy."
+owner = "crate/sim-lib-operation-gate"
+audiences = ["code", "framework"]
+guidance = "Declare every operation from canonical manifest fields; never infer policy from operation text. Put verification, atomic approval use, performance, and sink emission inside guard_operation so kernel cassette replay repeats none of them. Observation and Recorded are distinct labels, not reversibility claims; only Reviewed requires exact approval."
+claims_anchors = ["anchor/crate/sim-lib-operation-gate"]
+claims_specimens = ["recipe/sim-runtime/crates/sim-lib-operation-gate/01-basics/two-manifests"]
+composes = ["crate/sim-kernel"]
+
+[[route]]
+id = "route/guard-an-operation"
+task = "Guard and replay a capability-scoped operation"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/guarded-operations", why = "The generic gate owns explicit policy, exact approval, atomic use, records, and the performer boundary." },
+  { specimen = "recipe/sim-runtime/crates/sim-lib-operation-gate/01-basics/two-manifests", why = "Two unrelated fixture manifests prove the gate contains no automotive assumption." },
+]

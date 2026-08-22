@@ -48,6 +48,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 | `feature/sim-runtime/contract-emitter` | `crate/xtask` | 0 | Emit generated repository contract and index fragments for runtime crates. |
 | `feature/sim-runtime/guest-host-service-boundary` | `repo/sim-runtime` | 0 | Keep guest OS, source, import, native, and process surfaces behind explicit capabilities, supplied configuration, loader authority, and platform ports. |
 | `feature/sim-runtime/jvm-loadable-profile` | `crate/sim-lib-lang-jvm` | 9 | Decode caller-authorized classfile bytes and execute caller-selected exact class, member, descriptor, and integer arguments with distinct value, throwable, and refusal outcomes, plus bounded managed objects, arrays, exact Java text, and bidirectional functional-interface adapters through one host-registered library. |
+| `feature/sim-runtime/guarded-operations` | `crate/sim-lib-operation-gate` | 1 | Guard domain-neutral operations with explicit capability, execution mode, exact-subject approval, atomic approval use, effect replay, and auditable sink policy. |
 
 ## Surfaces
 
@@ -272,6 +273,14 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 - `crates/sim-lib-namespace/recipes/01-basics/namespace-ops/setup.siml`
 - `crates/sim-lib-namespace/recipes/01-basics/namespace-ops/source-loading-authority.md`
 - `crates/sim-lib-namespace/recipes/book.toml`
+- `crates/sim-lib-operation-gate/recipes/01-basics/chapter.toml`
+- `crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/Cargo.lock`
+- `crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/Cargo.toml`
+- `crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/README.md`
+- `crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/expected.txt`
+- `crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/recipe.toml`
+- `crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/src/main.rs`
+- `crates/sim-lib-operation-gate/recipes/book.toml`
 - `crates/sim-lib-pattern/recipes/01-basics/chapter.toml`
 - `crates/sim-lib-pattern/recipes/01-basics/match-destructure/dialect-characterization.md`
 - `crates/sim-lib-pattern/recipes/01-basics/match-destructure/purpose.md`
@@ -14192,4 +14201,26 @@ Source `crates/sim-lib-lang-jvm/recipes/01-basics/performance-evidence/recipe.to
 title = "Inspect prepared JVM performance evidence"
 kind = "lisp"
 entry = "setup.siml"
+```
+
+### `feature/sim-runtime/guarded-operations`
+
+Specimen `recipe/sim-runtime/crates/sim-lib-operation-gate/01-basics/two-manifests` is checked by `sh scripts/check-recipes.sh`.
+
+Source `crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/recipe.toml`:
+
+```toml
+id = "two-manifests"
+title = "Declare two unrelated guarded operations"
+codec = "rust"
+setup = "src/main.rs"
+purpose = "README.md"
+expected = "expected.txt"
+order = 10
+tags = ["operation", "gate", "manifest", "domain-neutral", "rust"]
+requires = ["sim-lib-operation-gate", "sim-kernel"]
+
+[[expect]]
+form = 0
+result = "warehouse mode: Recorded\nmicroscope mode: Reviewed\nautomotive assumptions: 0"
 ```
