@@ -26,4 +26,4 @@ sim-lib-dispatch = { version = "0.1.2", path = "../sim-lib-dispatch" }
 sim-lib-mutation = { version = "0.1.2", path = "../sim-lib-mutation" }
 
 [build-dependencies]
-sim-cookbook = { version = "0.2.0" }
+sim-cookbook-build = { version = "0.1.0" }

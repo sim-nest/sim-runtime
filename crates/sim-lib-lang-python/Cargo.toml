@@ -28,7 +28,7 @@ sim-lib-standard-core = { version = "0.1.5", path = "../sim-lib-standard-core" }
 sim-shape = { version = "0.2.3" }
 
 [build-dependencies]
-sim-cookbook = { version = "0.2.0" }
+sim-cookbook-build = { version = "0.1.0" }
 
 [dev-dependencies]
 sim-codec-lisp = { version = "0.2.0" }

@@ -33,4 +33,4 @@ sim-text = { version = "0.1.0" }
 sim-codec-lisp = { version = "0.2.0" }
 
 [build-dependencies]
-sim-cookbook = { version = "0.2.0" }
+sim-cookbook-build = { version = "0.1.0" }

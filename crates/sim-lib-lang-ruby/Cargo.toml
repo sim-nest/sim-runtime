@@ -20,4 +20,4 @@ sim-lib-standard-core = { version = "0.1.4", path = "../sim-lib-standard-core" }
 sim-kernel = { version = "0.2.0", features = ["test-support"] }
 
 [build-dependencies]
-sim-cookbook = { version = "0.2.0" }
+sim-cookbook-build = { version = "0.1.0" }
