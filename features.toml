@@ -539,6 +539,19 @@ supports = [
   "feature/sim-runtime/organs",
 ]
 
+[[feature]]
+id = "feature/sim-runtime/guest-host-service-boundary"
+title = "Explicit guest host-service boundary"
+summary = "Keep guest OS, source, import, native, and process surfaces behind explicit capabilities, supplied configuration, loader authority, and platform ports."
+owner = "repo/sim-runtime"
+audiences = ["code", "framework"]
+guidance = "Supply LuaRuntimeConfiguration as modeled data, Python SourceAuthority and Dir roots explicitly, JVM class bytes through its checked loader surface, and ProcessPort for structured execution. Missing authority or services fail closed. Guest product libraries never inspect the embedding environment, filesystem, process, classpath, or native loader; build scripts, examples, tests, and xtask are classified tooling rather than runtime services."
+supports = [
+  "feature/sim-runtime/host-exec",
+  "feature/sim-runtime/capabilities-read-eval",
+  "feature/sim-runtime/python-authorized-library-core",
+]
+
 [[route]]
 id = "route/add-language-neutral-class-semantics"
 task = "Add checked language-neutral class semantics"

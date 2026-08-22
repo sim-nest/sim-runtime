@@ -46,6 +46,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 | `feature/sim-runtime/python-authorized-library-core` | `crate/sim-lib-lang-python` | 1 | Run embedded, capability-scoped, agent-authored Python over SIM values with ordered matching, supplied-root modules, and diminished eval/exec. |
 | `feature/sim-runtime/host-exec` | `crate/sim-lib-exec` | 1 | Expose bounded process policy through a capability-gated platform port outside the kernel. |
 | `feature/sim-runtime/contract-emitter` | `crate/xtask` | 0 | Emit generated repository contract and index fragments for runtime crates. |
+| `feature/sim-runtime/guest-host-service-boundary` | `repo/sim-runtime` | 0 | Keep guest OS, source, import, native, and process surfaces behind explicit capabilities, supplied configuration, loader authority, and platform ports. |
 | `feature/sim-runtime/jvm-loadable-profile` | `crate/sim-lib-lang-jvm` | 9 | Decode caller-authorized classfile bytes and execute caller-selected exact class, member, descriptor, and integer arguments with distinct value, throwable, and refusal outcomes, plus bounded managed objects, arrays, exact Java text, and bidirectional functional-interface adapters through one host-registered library. |
 
 ## Surfaces
@@ -12169,7 +12170,7 @@ pub use conformance::{
     REUSE_LEDGER, ReuseLedgerEntry, run_lua_core_conformance_case, run_lua_core_matrix_row,
 };
 pub use env::LuaEnv;
-pub use eval::LuaEvalPolicy;
+pub use eval::{LuaEvalPolicy, LuaRuntimeConfiguration};
 pub use matrix_row::{lua_core_matrix_row, lua_core_source_cases};
 pub use metatable::{lua_get, lua_index_slot, lua_metamethod};
 pub use number::{LuaNumber, lua_float_value, lua_integer_value, lua_number_from_value};
