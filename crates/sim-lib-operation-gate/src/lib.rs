@@ -325,26 +325,134 @@ mod tests {
     }
 
     struct DeniedUse;
-    impl ApprovalUse for DeniedUse { fn consume(&self, _: &Approval) -> Result<()> { Err(Error::Eval("approval use denied".into())) } }
+    impl ApprovalUse for DeniedUse {
+        fn consume(&self, _: &Approval) -> Result<()> {
+            Err(Error::Eval("approval use denied".into()))
+        }
+    }
     struct FailingSink;
-    impl GateRecordSink for FailingSink { fn record(&self, _: GateRecord) -> Result<()> { Err(Error::Eval("sink failed".into())) } }
+    impl GateRecordSink for FailingSink {
+        fn record(&self, _: GateRecord) -> Result<()> {
+            Err(Error::Eval("sink failed".into()))
+        }
+    }
 
     #[test]
     fn capability_use_performer_and_sink_failures_are_observable() {
         let d = declaration(ExecutionMode::Recorded);
-        let mut cx = bare_cx(); let e = effect(&mut cx, &d); let uses = Uses::default(); let sink = Sink::default();
-        assert!(guard_operation(&mut cx, &d, e, GateContext { approval: None, verifier: &Verifier(true), approval_use: &uses, sink: &sink, sink_failure: SinkFailurePolicy::FailClosed }, |_, _| Ok(Ref::Symbol(Symbol::new("ok")))).unwrap_err().to_string().contains("capability"));
+        let mut cx = bare_cx();
+        let e = effect(&mut cx, &d);
+        let uses = Uses::default();
+        let sink = Sink::default();
+        assert!(
+            guard_operation(
+                &mut cx,
+                &d,
+                e,
+                GateContext {
+                    approval: None,
+                    verifier: &Verifier(true),
+                    approval_use: &uses,
+                    sink: &sink,
+                    sink_failure: SinkFailurePolicy::FailClosed
+                },
+                |_, _| Ok(Ref::Symbol(Symbol::new("ok")))
+            )
+            .unwrap_err()
+            .to_string()
+            .contains("capability")
+        );
 
-        let approval = Approval { id: "a".into(), subject: d.subject.clone(), decision: ApprovalDecision::Approve };
-        let reviewed = declaration(ExecutionMode::Reviewed); let mut cx = bare_cx(); cx.grant_named("fixture/run"); let e = effect(&mut cx, &reviewed);
-        assert!(guard_operation(&mut cx, &reviewed, e, GateContext { approval: Some(&approval), verifier: &Verifier(true), approval_use: &DeniedUse, sink: &sink, sink_failure: SinkFailurePolicy::FailClosed }, |_, _| Ok(Ref::Symbol(Symbol::new("ok")))).unwrap_err().to_string().contains("use denied"));
+        let approval = Approval {
+            id: "a".into(),
+            subject: d.subject.clone(),
+            decision: ApprovalDecision::Approve,
+        };
+        let reviewed = declaration(ExecutionMode::Reviewed);
+        let mut cx = bare_cx();
+        cx.grant_named("fixture/run");
+        let e = effect(&mut cx, &reviewed);
+        assert!(
+            guard_operation(
+                &mut cx,
+                &reviewed,
+                e,
+                GateContext {
+                    approval: Some(&approval),
+                    verifier: &Verifier(true),
+                    approval_use: &DeniedUse,
+                    sink: &sink,
+                    sink_failure: SinkFailurePolicy::FailClosed
+                },
+                |_, _| Ok(Ref::Symbol(Symbol::new("ok")))
+            )
+            .unwrap_err()
+            .to_string()
+            .contains("use denied")
+        );
 
-        let mut cx = bare_cx(); cx.grant_named("fixture/run"); let e = effect(&mut cx, &d);
-        assert!(guard_operation(&mut cx, &d, e, GateContext { approval: None, verifier: &Verifier(true), approval_use: &uses, sink: &sink, sink_failure: SinkFailurePolicy::FailClosed }, |_, _| Err(Error::Eval("performer failed".into()))).unwrap_err().to_string().contains("performer failed"));
+        let mut cx = bare_cx();
+        cx.grant_named("fixture/run");
+        let e = effect(&mut cx, &d);
+        assert!(
+            guard_operation(
+                &mut cx,
+                &d,
+                e,
+                GateContext {
+                    approval: None,
+                    verifier: &Verifier(true),
+                    approval_use: &uses,
+                    sink: &sink,
+                    sink_failure: SinkFailurePolicy::FailClosed
+                },
+                |_, _| Err(Error::Eval("performer failed".into()))
+            )
+            .unwrap_err()
+            .to_string()
+            .contains("performer failed")
+        );
 
-        let mut cx = bare_cx(); cx.grant_named("fixture/run"); let e = effect(&mut cx, &d);
-        assert!(guard_operation(&mut cx, &d, e, GateContext { approval: None, verifier: &Verifier(true), approval_use: &uses, sink: &FailingSink, sink_failure: SinkFailurePolicy::FailClosed }, |_, _| Ok(Ref::Symbol(Symbol::new("ok")))).unwrap_err().to_string().contains("sink failed"));
-        let mut cx = bare_cx(); cx.grant_named("fixture/run"); let e = effect(&mut cx, &d);
-        assert_eq!(guard_operation(&mut cx, &d, e, GateContext { approval: None, verifier: &Verifier(true), approval_use: &uses, sink: &FailingSink, sink_failure: SinkFailurePolicy::PreserveResult }, |_, _| Ok(Ref::Symbol(Symbol::new("ok")))).unwrap(), Ref::Symbol(Symbol::new("ok")));
+        let mut cx = bare_cx();
+        cx.grant_named("fixture/run");
+        let e = effect(&mut cx, &d);
+        assert!(
+            guard_operation(
+                &mut cx,
+                &d,
+                e,
+                GateContext {
+                    approval: None,
+                    verifier: &Verifier(true),
+                    approval_use: &uses,
+                    sink: &FailingSink,
+                    sink_failure: SinkFailurePolicy::FailClosed
+                },
+                |_, _| Ok(Ref::Symbol(Symbol::new("ok")))
+            )
+            .unwrap_err()
+            .to_string()
+            .contains("sink failed")
+        );
+        let mut cx = bare_cx();
+        cx.grant_named("fixture/run");
+        let e = effect(&mut cx, &d);
+        assert_eq!(
+            guard_operation(
+                &mut cx,
+                &d,
+                e,
+                GateContext {
+                    approval: None,
+                    verifier: &Verifier(true),
+                    approval_use: &uses,
+                    sink: &FailingSink,
+                    sink_failure: SinkFailurePolicy::PreserveResult
+                },
+                |_, _| Ok(Ref::Symbol(Symbol::new("ok")))
+            )
+            .unwrap(),
+            Ref::Symbol(Symbol::new("ok"))
+        );
     }
 }
