@@ -526,6 +526,17 @@ claims_specimens = [
 ]
 
 [[feature]]
+id = "feature/sim-runtime/sandbox-exec"
+title = "Auditable untrusted-process sandbox contract"
+summary = "Validate complete requested controls and require launcher evidence before an untrusted process result can be accepted."
+owner = "crate/sim-lib-exec"
+audiences = ["code", "framework"]
+guidance = "Use SandboxPolicy and SandboxRequest for untrusted work while retaining exec and ProcessPort for explicitly trusted commands. Register object-safe SandboxLauncher implementations at boot and dispatch by stable launcher identity. Every policy classifies network, mounts, root, environment, identity, CPU, memory, wall time, processes, files, bytes, output, stdin, and process-tree cleanup; sandbox_exec rejects a completion whose report cannot prove every required control."
+claims_anchors = ["anchor/crate/sim-lib-exec"]
+claims_specimens = ["spec-test/sim-runtime/crates/sim-lib-exec/src/sandbox"]
+supports = ["feature/sim-runtime/host-exec"]
+
+[[feature]]
 id = "feature/sim-runtime/contract-emitter"
 title = "Runtime contract emitter"
 summary = "Emit generated repository contract and index fragments for runtime crates."

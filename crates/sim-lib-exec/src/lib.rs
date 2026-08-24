@@ -9,12 +9,18 @@
 //! byte cap. It is a host operation, not SIM evaluation.
 
 mod exec;
+mod sandbox;
 
 pub use exec::{
     ArgAtom, BindingValue, DispatchEvidence, ExecOptions, PrivateArtifactRef, ProcResult,
     ProcessAttempt, ProcessBudget, ProcessCancellation, ProcessPort, ProcessReceipt,
     ProcessRefusal, ProcessRequest, ProgramRef, ProjectRootRef, SealedBindings, StopReceipt, exec,
     exec_capability, proc_result_symbol,
+};
+pub use sandbox::{
+    LauncherRegistry, MountAccess, SandboxAttempt, SandboxControl, SandboxEvidence,
+    SandboxLauncher, SandboxLimits, SandboxMount, SandboxPolicy, SandboxRefusal, SandboxReport,
+    SandboxRequest, SandboxRequirement, SandboxResult, sandbox_exec,
 };
 
 /// Cookbook recipes for this lib, embedded at build time.
