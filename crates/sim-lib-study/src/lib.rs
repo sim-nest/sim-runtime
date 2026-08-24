@@ -6,6 +6,8 @@
 
 #![forbid(unsafe_code)]
 
+pub mod design;
+
 use sha2::{Digest, Sha256};
 use sim_kernel::{ContentId, Datum, Symbol};
 use sim_lib_journal::{Journal, JournalBackend, JournalEntry, JournalError, JournalObject, Lease};
