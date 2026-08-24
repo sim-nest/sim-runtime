@@ -6,6 +6,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod decision;
 pub mod design;
 
 use sha2::{Digest, Sha256};
