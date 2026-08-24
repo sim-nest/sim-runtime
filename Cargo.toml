@@ -34,6 +34,7 @@ members = [
   "crates/sim-lib-operation-gate",
   "crates/sim-lib-pattern",
   "crates/sim-lib-sequence",
+  "crates/sim-lib-study",
   "crates/sim-lib-standard-core",
   "xtask",
 ]

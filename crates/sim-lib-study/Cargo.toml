@@ -1,0 +1,22 @@
+[package]
+name = "sim-lib-study"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Domain-neutral durable study lifecycle over sealed coordinates."
+repository.workspace = true
+homepage.workspace = true
+publish = true
+
+[package.metadata.sim-recipes]
+policy = "book"
+
+[dependencies]
+sha2 = "0.10"
+sim-kernel = { version = "0.2.1" }
+sim-lib-journal = { version = "0.1.0", path = "../../../sim-storage/crates/sim-lib-journal" }
+sim-study-core = { version = "0.1.0", path = "../../../sim-foundation/crates/sim-study-core" }
+thiserror = "2"
+
+[lints]
+workspace = true

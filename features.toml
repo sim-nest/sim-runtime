@@ -1,5 +1,19 @@
 schema = "sim.features"
 
+[[feature]]
+id = "feature/sim-runtime/domain-free-study-lifecycle"
+title = "Domain-free durable study lifecycle"
+summary = "Expand and seal exact study coordinates, then claim, execute, retry, cancel, resume, and replay them without owning domain or executor effects."
+owner = "crate/sim-lib-study"
+audiences = ["code", "framework"]
+guidance = "Use sim-lib-study when a domain needs a durable exact-coordinate lifecycle. Build explicit offline Selectors, seal the resulting coordinates with source cleanliness, bounds, closure identities, selection policy, and a canonical parsed invocation, then inject an object-safe StudyExecutor that owns all effects. The lifecycle composes sim-study-core identities and sim-lib-journal fencing; it executes outside journal transactions, revalidates closure identities on both sides of execution, retains late output as discarded attempts, and derives byte-stable projections only by replay. Do not place model, network, process, grader, or generic executor effects here, and do not add a second retry owner."
+claims_anchors = ["anchor/crate/sim-lib-study"]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-study/src/tests",
+  "recipe/sim-runtime/crates/sim-lib-study/complete-a-study",
+]
+composes = ["crate/sim-study-core", "crate/sim-lib-journal"]
+
 [enforcement.audience]
 framework = "strict"
 code = "strict"
