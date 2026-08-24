@@ -8,6 +8,7 @@
 
 pub mod decision;
 pub mod design;
+pub mod product;
 
 use sha2::{Digest, Sha256};
 use sim_kernel::{ContentId, Datum, Symbol};
