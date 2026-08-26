@@ -48,7 +48,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 | `feature/sim-runtime/host-exec` | `crate/sim-lib-exec` | 1 | Expose bounded process policy through a capability-gated platform port outside the kernel. |
 | `feature/sim-runtime/sandbox-exec` | `crate/sim-lib-exec` | 1 | Validate complete requested controls and require launcher evidence before an untrusted process result can be accepted. |
 | `feature/sim-runtime/contract-emitter` | `crate/xtask` | 0 | Emit generated repository contract and index fragments for runtime crates. |
-| `feature/sim-runtime/guest-host-service-boundary` | `repo/sim-runtime` | 0 | Keep guest OS, source, import, native, and process surfaces behind explicit capabilities, supplied configuration, loader authority, and platform ports. |
+| `feature/sim-runtime/guest-host-service-boundary` | `repo/sim-runtime` | 1 | Keep guest OS, source, import, native, and process surfaces behind explicit capabilities, supplied configuration, loader authority, and platform ports. |
 | `feature/sim-runtime/jvm-loadable-profile` | `crate/sim-lib-lang-jvm` | 9 | Decode caller-authorized classfile bytes and execute caller-selected exact class, member, descriptor, and integer arguments with distinct value, throwable, and refusal outcomes, plus bounded managed objects, arrays, exact Java text, and bidirectional functional-interface adapters through one host-registered library. |
 | `feature/sim-runtime/guarded-operations` | `crate/sim-lib-operation-gate` | 1 | Guard domain-neutral operations with explicit capability, execution mode, exact-subject approval, atomic approval use, effect replay, and auditable sink policy. |
 
@@ -14602,6 +14602,23 @@ mod tests {
     }
 }
 // conformance: sandbox policy tests prove sealed authority and fail-closed execution.
+```
+
+### `feature/sim-runtime/guest-host-service-boundary`
+
+Specimen `recipe/sim-runtime/crates/sim-lib-exec/01-basics/bounded-process` is checked by `sh scripts/check-recipes.sh`.
+
+Source `crates/sim-lib-exec/recipes/01-basics/bounded-process/recipe.toml`:
+
+```toml
+id = "bounded-process"
+title = "Bounded process descriptor"
+codec = "lisp"
+setup = "setup.siml"
+purpose = "purpose.md"
+order = 10
+tags = ["exec", "process", "capability", "host"]
+requires = ["core"]
 ```
 
 ### `feature/sim-runtime/jvm-loadable-profile`
