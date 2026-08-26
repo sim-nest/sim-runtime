@@ -661,7 +661,11 @@ mod tests {
                 browse: BoundedLane::Absent,
             },
         );
-        let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let mut cx = Cx::new(
+            Arc::new(NoopEvalPolicy),
+            Arc::new(DefaultFactory),
+            sim_kernel::HandleSeed::new(0x8cc0_ca82_65e1_7921),
+        );
         let first = publish_characterization_capture(&mut cx, &scenario, &capture).unwrap();
         let replay = publish_characterization_capture(&mut cx, &scenario, &capture).unwrap();
         assert!(matches!(first, Ref::Content(_)));

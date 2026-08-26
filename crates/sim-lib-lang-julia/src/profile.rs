@@ -53,7 +53,7 @@ pub fn julia_core_profile() -> LanguageProfile {
 /// use sim_lib_standard_core::ProfileRegistry;
 /// use sim_lib_lang_julia::install_julia_core_profile;
 ///
-/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x03d1_8e50_f733_f7d5));
 /// let mut registry = ProfileRegistry::new();
 /// let profile = install_julia_core_profile(&mut cx, &mut registry).unwrap();
 /// assert_eq!(profile.reader, Symbol::qualified("codec", "algol"));

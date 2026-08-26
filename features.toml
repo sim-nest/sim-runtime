@@ -7,10 +7,13 @@ summary = "Seal exact study coordinates and staged experimental designs, then pl
 owner = "crate/sim-lib-study"
 audiences = ["code", "framework"]
 guidance = "Use sim-lib-study when a domain needs a durable exact-coordinate lifecycle or a staged experimental design over a sealed pool. Seal subject/task identities, registered looks, controls, error and exposure ceilings, confirmation policy, retries, caller concurrency, and epoch inputs before execution. Smoke diagnoses route/contract readiness without a quality verdict; sequential screening and bounded expected-decision-change selection remain explicitly exploratory and replayable; a separate fixed confirmation matrix owns confirmatory evidence. Common task/sample blocks preserve pairings, conservative exposure checks stop incomplete before crossing the ceiling, and changed subject, task, price, environment, or drift inputs open an immutable epoch. The lifecycle composes sim-study-core identities and sim-lib-journal fencing; it executes outside journal transactions, revalidates closure identities on both sides of execution, retains late output as discarded attempts, and derives byte-stable projections only by replay. Keep statistics in sim-lib-numbers-stats and facts in sim-lib-journal. Do not place model, network, process, grader, endpoint concurrency, or generic executor effects here, and do not add a second retry or adaptive-scheduler owner."
-claims_anchors = ["anchor/crate/sim-lib-study"]
+claims_anchors = [
+  "anchor/crate/sim-lib-study",
+  "anchor/export/sim-lib-study/cli/main/study",
+  "anchor/runtime-lib/sim-lib-study/study-lib",
+]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-study/src/tests",
-  "recipe/sim-runtime/crates/sim-lib-study/complete-a-study",
 ]
 composes = ["crate/sim-study-core", "crate/sim-lib-journal"]
 
@@ -555,7 +558,6 @@ summary = "Validate complete requested controls and require launcher evidence be
 owner = "crate/sim-lib-exec"
 audiences = ["code", "framework"]
 guidance = "Use SandboxPolicy and SandboxRequest for untrusted work while retaining exec and ProcessPort for explicitly trusted commands. Register object-safe SandboxLauncher implementations at boot and dispatch by stable launcher identity. Every policy classifies network, mounts, root, environment, identity, CPU, memory, wall time, processes, files, bytes, output, stdin, and process-tree cleanup; sandbox_exec rejects a completion whose report cannot prove every required control."
-claims_anchors = ["anchor/crate/sim-lib-exec"]
 claims_specimens = ["spec-test/sim-runtime/crates/sim-lib-exec/src/sandbox"]
 supports = ["feature/sim-runtime/host-exec"]
 
@@ -580,10 +582,25 @@ summary = "Keep guest OS, source, import, native, and process surfaces behind ex
 owner = "repo/sim-runtime"
 audiences = ["code", "framework"]
 guidance = "Supply LuaRuntimeConfiguration as modeled data, Python SourceAuthority and Dir roots explicitly, JVM class bytes through its checked loader surface, and ProcessPort for structured execution. Missing authority or services fail closed. Guest product libraries never inspect the embedding environment, filesystem, process, classpath, or native loader; build scripts, examples, tests, and xtask are classified tooling rather than runtime services."
+claims_specimens = [
+  "recipe/sim-runtime/crates/sim-lib-exec/01-basics/bounded-process",
+]
 supports = [
   "feature/sim-runtime/host-exec",
   "feature/sim-runtime/capabilities-read-eval",
   "feature/sim-runtime/python-authorized-library-core",
+]
+
+[[route]]
+id = "route/supply-guest-host-services"
+task = "Supply explicit host services to a guest runtime"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/guest-host-service-boundary", why = "The boundary keeps source, import, process, class-loading, and runtime configuration explicit and fail-closed." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-exec/src/tests", why = "The execution specimen proves that process effects cross the structured caller-supplied ProcessPort boundary." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-lua/src/conformance", why = "The Lua conformance specimen exercises supplied runtime configuration without ambient host inspection." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-python/src/lib", why = "The Python specimen exercises source and module access through explicit SourceAuthority and roots." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/product_specimen", why = "The JVM product specimen loads authorized class bytes through the checked loader surface." },
 ]
 
 [[route]]

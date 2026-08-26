@@ -82,7 +82,11 @@ fn sample_profile() -> LanguageProfile {
 }
 
 fn test_cx() -> Cx {
-    Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory))
+    Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xe3a0_11a7_2301_6e21),
+    )
 }
 
 struct NilAndFalseFalsey;

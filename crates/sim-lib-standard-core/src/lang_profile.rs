@@ -364,7 +364,11 @@ mod tests {
 
         CALLS.with(|calls| calls.borrow_mut().clear());
 
-        let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let mut cx = Cx::new(
+            Arc::new(NoopEvalPolicy),
+            Arc::new(DefaultFactory),
+            sim_kernel::HandleSeed::new(0xe6c6_2d1c_d7bb_8e2e),
+        );
         let mut registry = ProfileRegistry::new();
         let profile = LanguageProfile::new(profile_symbol())
             .with_organ(crate::OrganUse::new(Symbol::qualified("organ", "one")))
@@ -406,7 +410,11 @@ mod tests {
             standard::standard_organ_predicate, standard::standard_profile_kind,
         };
 
-        let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let mut cx = Cx::new(
+            Arc::new(NoopEvalPolicy),
+            Arc::new(DefaultFactory),
+            sim_kernel::HandleSeed::new(0x4c82_c171_b176_e0cc),
+        );
         let mut registry = ProfileRegistry::new();
         let organ = Symbol::qualified("organ", "missing");
         let profile =

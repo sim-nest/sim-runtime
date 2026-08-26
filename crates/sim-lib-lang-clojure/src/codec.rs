@@ -63,7 +63,7 @@ impl TreeDecoder for ClojureEdnCodec {
 /// };
 /// use sim_lib_lang_clojure::{ClojureEdnCodecLib, clojure_edn_reader_symbol};
 ///
-/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x675d_5a63_abcd_fa55));
 /// let codec_id = cx.registry_mut().fresh_codec_id();
 /// cx.load_lib(&ClojureEdnCodecLib::new(codec_id))?;
 ///

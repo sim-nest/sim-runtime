@@ -33,7 +33,9 @@
 | `sim-lib-machine` | `workspace` | 0 | 0 |
 | `sim-lib-mutation` | `workspace` | 0 | 0 |
 | `sim-lib-namespace` | `workspace` | 0 | 0 |
+| `sim-lib-operation-gate` | `workspace` | 0 | 0 |
 | `sim-lib-pattern` | `workspace` | 0 | 0 |
 | `sim-lib-sequence` | `workspace` | 0 | 0 |
 | `sim-lib-standard-core` | `workspace` | 1 | 0 |
+| `sim-lib-study` | `workspace` | 0 | 0 |
 | `xtask` | `workspace` | 0 | 0 |

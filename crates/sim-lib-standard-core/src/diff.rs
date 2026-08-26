@@ -77,7 +77,7 @@ pub fn profile_diff_symbol() -> Symbol {
 /// use sim_kernel::{Cx, DefaultFactory, NoopEvalPolicy, Symbol};
 /// use sim_lib_standard_core::{LanguageProfile, standard_diff_capability, standard_diff_stub};
 ///
-/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x05e3_1524_f672_3f91));
 /// cx.grant(standard_diff_capability());
 ///
 /// let left = LanguageProfile::new(Symbol::qualified("lang", "a/v1"))

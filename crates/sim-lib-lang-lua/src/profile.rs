@@ -67,7 +67,7 @@ pub fn lua_core_profile() -> LanguageProfile {
 /// use sim_lib_standard_core::ProfileRegistry;
 /// use sim_lib_lang_lua::install_lua_core_profile;
 ///
-/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0xf2b5_062a_e929_865c));
 /// let mut registry = ProfileRegistry::new();
 /// let profile = install_lua_core_profile(&mut cx, &mut registry).unwrap();
 /// assert_eq!(profile.reader, Symbol::qualified("codec", "lua"));

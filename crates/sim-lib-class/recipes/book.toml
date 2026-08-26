@@ -1,3 +1,5 @@
-id = "cookbook/organ/class"
+book = "cookbook/organ/class"
 title = "Class organ recipes"
 summary = "Language-neutral class lineage, browsing, read construction, and managed caches."
+order = 10
+chapters = ["01-basics"]

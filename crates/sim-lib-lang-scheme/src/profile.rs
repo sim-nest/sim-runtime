@@ -60,7 +60,7 @@ pub fn r7rs_small_profile() -> LanguageProfile {
 /// use sim_lib_standard_core::ProfileRegistry;
 /// use sim_lib_lang_scheme::install_r7rs_small_profile;
 ///
-/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x95f4_8d4c_ccf1_47c1));
 /// let mut registry = ProfileRegistry::new();
 /// let profile = install_r7rs_small_profile(&mut cx, &mut registry).unwrap();
 /// assert!(!profile.unsupported_forms.is_empty());
@@ -125,7 +125,7 @@ pub fn diagnose_unsupported_forms(expr: &sim_kernel::Expr) -> Vec<Diagnostic> {
 /// use sim_kernel::{Cx, DefaultFactory, NoopEvalPolicy};
 /// use sim_lib_lang_scheme::run_r7rs_small_restricted;
 ///
-/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x0ca8_5521_19d5_cde9));
 /// assert!(run_r7rs_small_restricted(&mut cx, "(begin #t #f)").is_ok());
 /// assert!(run_r7rs_small_restricted(&mut cx, "(eval '(+ 1 2))").is_err());
 /// ```

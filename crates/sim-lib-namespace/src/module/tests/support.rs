@@ -118,7 +118,7 @@ impl Dir for MemoryDir {
 }
 
 fn context() -> Cx {
-    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0xb318_86f4_c62f_675d));
     seat.grant(&mut cx, module_load_capability()).unwrap();
     seat.grant(&mut cx, read_eval_capability()).unwrap();
     cx.load_lib(&LispCodecLib::new(sim_kernel::CodecId(31)).unwrap())

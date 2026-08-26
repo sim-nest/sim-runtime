@@ -10,7 +10,11 @@ use sim_lib_standard_core::ProfileRegistry;
 use crate::*;
 
 fn cx() -> Cx {
-    let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x39d6_1e6d_db98_cbd2),
+    );
     sim_lib_control::install_control_policy(&mut cx);
     cx
 }

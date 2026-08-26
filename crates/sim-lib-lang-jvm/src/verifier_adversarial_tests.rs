@@ -54,7 +54,7 @@ fn normative_oracle(cases: &[toml::Value]) -> LogicDb {
 }
 
 fn oracle_verdict(db: &LogicDb, id: &str) -> String {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x5af0_bd8b_a5e4_8044));
     let answers = query_all(
         &mut cx,
         db,

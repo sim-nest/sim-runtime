@@ -516,7 +516,11 @@ fn binding_live_claims_match_loaded_exports() {
 fn let_special_form_binds_parallel_in_child_scope() {
     use sim_kernel::{DefaultFactory, EagerPolicy};
 
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xe845_ab74_f06c_8ff2),
+    );
     install_binding_lib(&mut cx).unwrap();
 
     let sym = |name: &str| Expr::Symbol(Symbol::new(name));

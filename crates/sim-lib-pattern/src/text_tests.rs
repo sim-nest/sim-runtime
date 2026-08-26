@@ -43,7 +43,11 @@ fn capture(name: &str, cases: Vec<Datum>) -> (ScenarioSpec, CharacterizationCapt
 }
 
 fn test_cx() -> Cx {
-    Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory))
+    Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x242b_7d4d_b446_5e46),
+    )
 }
 
 fn assert_stable_capture(name: &str, cases: Vec<Datum>) {

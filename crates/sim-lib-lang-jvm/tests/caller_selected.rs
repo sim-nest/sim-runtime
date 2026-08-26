@@ -18,7 +18,11 @@ fn request(bytes: Vec<u8>, member: &str, arguments: Vec<i32>) -> JvmExecutionReq
 
 #[test]
 fn caller_selected_bytes_member_descriptor_and_arguments_drive_execution() {
-    let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x4a56_4d04),
+    );
     cx.grant(class_load_capability());
     cx.grant(jvm_invoke_capability());
     let bytes = include_bytes!("../fixtures/javac/StaticInt.class").to_vec();
@@ -30,7 +34,11 @@ fn caller_selected_bytes_member_descriptor_and_arguments_drive_execution() {
 #[test]
 fn public_route_distinguishes_refusal_cases() {
     let bytes = include_bytes!("../fixtures/javac/StaticInt.class").to_vec();
-    let mut denied = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut denied = Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x4a56_4d05),
+    );
     assert!(matches!(
         JvmSurface::new(1 << 20).execute_i32(
             &mut denied,
@@ -39,7 +47,11 @@ fn public_route_distinguishes_refusal_cases() {
         JvmExecutionOutcome::Refusal(_)
     ));
 
-    let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x4a56_4d06),
+    );
     for capability in [class_load_capability(), jvm_invoke_capability()] {
         cx.grant(capability);
     }

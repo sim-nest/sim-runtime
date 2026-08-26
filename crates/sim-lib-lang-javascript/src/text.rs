@@ -165,7 +165,11 @@ mod law_fixtures {
     }
 
     fn test_cx() -> Cx {
-        Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory))
+        Cx::new(
+            Arc::new(NoopEvalPolicy),
+            Arc::new(DefaultFactory),
+            sim_kernel::HandleSeed::new(0xb349_54a4_98f0_518b),
+        )
     }
 
     #[test]

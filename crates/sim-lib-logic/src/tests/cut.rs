@@ -7,7 +7,11 @@ use sim_kernel::{
 use crate::{LogicConfig, LogicDb, query::query_all};
 
 fn test_cx() -> Cx {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x1610_bf9d_91ce_85b0),
+    );
     sim_lib_control::install_control_policy(&mut cx);
     cx.grant(control_prompt_capability());
     cx

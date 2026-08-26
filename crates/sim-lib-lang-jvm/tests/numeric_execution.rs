@@ -36,7 +36,11 @@ fn run(opcode: Opcode, values: Vec<JvmValue>) -> Result<JvmValue, NumericExecuti
     Ok(stack.pop().unwrap())
 }
 fn arithmetic_throwable() -> JavaThrowable {
-    let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let cx = Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x848f_9eb3_b7b1_178c),
+    );
     let raised = Raised::new(
         cx.factory()
             .symbol(Symbol::new("java/lang/ArithmeticException"))

@@ -1,3 +1,5 @@
-id = "cookbook/organ/function"
+book = "cookbook/organ/function"
 title = "Function organ recipes"
 summary = "Language-neutral typed functions, managed captures, and optional dispatch."
+order = 10
+chapters = ["01-basics"]

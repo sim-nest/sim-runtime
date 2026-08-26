@@ -498,7 +498,11 @@ mod tests {
         key: u64,
         records: BTreeMap<u16, SymbolicConstant>,
     ) -> Arc<ClassDefinition> {
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(
+            Arc::new(NoopEvalPolicy),
+            Arc::new(DefaultFactory),
+            sim_kernel::HandleSeed::new(0xbdc4_902e_5168_b904),
+        );
         ClassDefinition::test(
             loader.id(),
             name,

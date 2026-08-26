@@ -145,12 +145,17 @@ fn probe_cx(capability: CapabilityName) -> (Cx, sim_kernel::GrantSeat) {
     Cx::new_seated(
         Arc::new(ActiveCapabilityPolicy { capability }),
         Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x5245_5401),
     )
 }
 
 #[test]
 fn install_registers_broker_value() {
-    let (mut cx, _seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let (mut cx, _seat) = Cx::new_seated(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x1fd1_a1cd_72de_cba7),
+    );
 
     assert!(install_read_eval_broker(&mut cx).unwrap());
     assert!(!install_read_eval_broker(&mut cx).unwrap());
@@ -272,7 +277,11 @@ fn happy_path_returns_value_and_restores_caller_capabilities() {
 
 #[test]
 fn text_source_decodes_through_named_codec() {
-    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let (mut cx, seat) = Cx::new_seated(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x27d5_9378_a796_9c44),
+    );
     expect_granted!(seat.grant(&mut cx, read_eval_capability()));
     let lib = LispCodecLib::new(sim_kernel::CodecId(1)).unwrap();
     cx.load_lib(&lib).unwrap();
@@ -291,7 +300,11 @@ fn text_source_decodes_through_named_codec() {
 
 #[test]
 fn bytes_source_decodes_through_named_codec() {
-    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let (mut cx, seat) = Cx::new_seated(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x920b_c283_de94_e335),
+    );
     expect_granted!(seat.grant(&mut cx, read_eval_capability()));
     let lib = LispCodecLib::new(sim_kernel::CodecId(1)).unwrap();
     cx.load_lib(&lib).unwrap();
@@ -304,7 +317,11 @@ fn bytes_source_decodes_through_named_codec() {
 
 #[test]
 fn dynamic_policies_share_broker_ledger_across_origins_and_codecs() {
-    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let (mut cx, seat) = Cx::new_seated(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x9511_f528_3236_c679),
+    );
     expect_granted!(seat.grant(&mut cx, read_eval_capability()));
     cx.load_lib(&LispCodecLib::new(sim_kernel::CodecId(1)).unwrap())
         .unwrap();
@@ -367,7 +384,11 @@ fn dynamic_policies_share_broker_ledger_across_origins_and_codecs() {
 
 #[test]
 fn dynamic_policy_bytes_use_the_same_gate_and_codec_failure_law() {
-    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let (mut cx, seat) = Cx::new_seated(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xd6eb_7034_e200_424e),
+    );
     expect_granted!(seat.grant(&mut cx, read_eval_capability()));
     let policy = DynamicSourcePolicy::new(
         Symbol::qualified("codec", "missing"),

@@ -216,6 +216,7 @@
     "crates/sim-lib-namespace/recipes/01-basics/namespace-ops/source-loading-authority.md",
     "crates/sim-lib-namespace/recipes/book.toml",
     "crates/sim-lib-operation-gate/recipes/01-basics/chapter.toml",
+    "crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/.gitignore",
     "crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/Cargo.lock",
     "crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/Cargo.toml",
     "crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/README.md",
@@ -241,6 +242,9 @@
     "crates/sim-lib-standard-core/recipes/01-basics/profile-fidelity/purpose.md",
     "crates/sim-lib-standard-core/recipes/01-basics/profile-fidelity/recipe.toml",
     "crates/sim-lib-standard-core/recipes/01-basics/profile-fidelity/setup.siml",
-    "crates/sim-lib-standard-core/recipes/book.toml"
+    "crates/sim-lib-standard-core/recipes/book.toml",
+    "crates/sim-lib-study/recipes/README.md",
+    "crates/sim-lib-study/recipes/book.toml",
+    "crates/sim-lib-study/recipes/complete-a-study.md"
   ]
 }

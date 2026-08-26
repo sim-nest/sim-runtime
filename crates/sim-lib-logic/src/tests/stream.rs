@@ -6,7 +6,11 @@ use crate::{LogicConfig, LogicDb, SearchStrategy, query::query, stream::LogicStr
 
 #[test]
 fn stream_next_and_close_are_stable() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x20e7_3904_9d33_14b2),
+    );
     let stream = LogicStream::new(
         vec![
             ShapeMatch::accept(MatchScore::exact(1)),
@@ -45,7 +49,11 @@ fn lazy_sequence_engine_does_not_pre_collect_beyond_force_bound() {
     ]))
     .unwrap();
 
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x0ee6_383b_b4a5_56e3),
+    );
     let config = LogicConfig {
         strategy: SearchStrategy::Bfs,
         stream_buffer: 1,

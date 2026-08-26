@@ -61,7 +61,7 @@ pub fn dispatch_op_keys() -> Vec<OpKey> {
 /// use sim_kernel::{Cx, DefaultFactory, NoopEvalPolicy};
 /// use sim_lib_dispatch::publish_dispatch_organ_claims;
 ///
-/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x14a5_3863_5200_166a));
 /// publish_dispatch_organ_claims(&mut cx).unwrap();
 /// ```
 pub fn publish_dispatch_organ_claims(cx: &mut Cx) -> Result<()> {

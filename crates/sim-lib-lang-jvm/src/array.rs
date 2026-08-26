@@ -372,7 +372,11 @@ mod tests {
     }
 
     fn throwable(condition: FailureCondition) -> JavaThrowable {
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(
+            Arc::new(NoopEvalPolicy),
+            Arc::new(DefaultFactory),
+            sim_kernel::HandleSeed::new(0xe821_3eab_0286_bddb),
+        );
         let class = condition.java_class().unwrap();
         let raised = Raised::new(
             cx.factory().symbol(Symbol::new(class)).unwrap(),
@@ -390,7 +394,11 @@ mod tests {
     }
 
     fn class(name: &str, parents: &[&str]) -> Arc<JavaClassMetadata> {
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(
+            Arc::new(NoopEvalPolicy),
+            Arc::new(DefaultFactory),
+            sim_kernel::HandleSeed::new(0x49a7_6d54_63f2_604c),
+        );
         Arc::new(JavaClassMetadata::test_identity(&cx, name, parents))
     }
 
@@ -437,7 +445,8 @@ mod tests {
                 .object()
                 .display(&mut Cx::new(
                     Arc::new(NoopEvalPolicy),
-                    Arc::new(DefaultFactory)
+                    Arc::new(DefaultFactory),
+                    sim_kernel::HandleSeed::new(0x1234_d0c5_7bd1_20e1)
                 ))
                 .unwrap(),
             "java/lang/ArrayStoreException"

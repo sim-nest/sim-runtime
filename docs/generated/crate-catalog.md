@@ -35,7 +35,9 @@ Generated from Cargo metadata by `xtask crate-catalog v1`.
 | `sim-lib-machine` | `true` | `lib, test` | Neutral policy contracts for bounded decoded-instruction machines. |
 | `sim-lib-mutation` | `true` | `custom-build, lib` | Tracked mutation containers and bounded managed-object storage for SIM runtimes. |
 | `sim-lib-namespace` | `true` | `custom-build, lib` | Namespace records and capability-aware source module lifecycle for SIM libraries. |
+| `sim-lib-operation-gate` | `true` | `lib` | Domain-neutral capability and exact-approval gate for effectful SIM operations. |
 | `sim-lib-pattern` | `true` | `custom-build, lib, test` | Shape-based pattern matching and destructuring for SIM runtime values. |
 | `sim-lib-sequence` | `true` | `custom-build, lib, test` | Sequence operations, lazy streams, and collection transforms for SIM. |
 | `sim-lib-standard-core` | `true` | `cdylib, custom-build, rlib` | Standard distribution core for SIM capabilities, claims, tests, and profiles. |
+| `sim-lib-study` | `true` | `lib` | Domain-neutral durable study lifecycle over sealed coordinates. |
 | `xtask` | `false` | `bin, lib` | Repository maintenance tasks for sim-runtime. |

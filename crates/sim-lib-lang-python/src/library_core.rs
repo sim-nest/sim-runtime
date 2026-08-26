@@ -210,7 +210,11 @@ mod tests {
     use super::*;
 
     fn context() -> (Cx, sim_kernel::GrantSeat) {
-        let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+        let (mut cx, seat) = Cx::new_seated(
+            Arc::new(EagerPolicy),
+            Arc::new(DefaultFactory),
+            sim_kernel::HandleSeed::new(0x11fa_d8b4_5b60_8844),
+        );
         cx.load_lib(&LispCodecLib::new(CodecId(93)).unwrap())
             .unwrap();
         (cx, seat)

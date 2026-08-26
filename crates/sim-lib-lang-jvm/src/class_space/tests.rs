@@ -103,7 +103,7 @@ mod tests {
     }
 
     fn context(grant_load: bool) -> Cx {
-        let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+        let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0xc2e4_6d45_0902_47a7));
         seat.grant(&mut cx, read_eval_capability()).unwrap();
         if grant_load {
             seat.grant(&mut cx, class_load_capability()).unwrap();

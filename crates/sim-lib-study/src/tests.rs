@@ -317,3 +317,4 @@ fn closure_drift_quarantines_before_executor_and_terminal_admission() {
         CoordinateState::Quarantined
     );
 }
+// conformance: study tests prove lifecycle execution, retries, replay, and evidence closure.

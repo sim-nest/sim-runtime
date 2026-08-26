@@ -213,6 +213,7 @@
 {"kind":"recipe","path":"crates/sim-lib-namespace/recipes/01-basics/namespace-ops/source-loading-authority.md"}
 {"kind":"recipe","path":"crates/sim-lib-namespace/recipes/book.toml"}
 {"kind":"recipe","path":"crates/sim-lib-operation-gate/recipes/01-basics/chapter.toml"}
+{"kind":"recipe","path":"crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/.gitignore"}
 {"kind":"recipe","path":"crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/Cargo.lock"}
 {"kind":"recipe","path":"crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/Cargo.toml"}
 {"kind":"recipe","path":"crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/README.md"}
@@ -239,3 +240,6 @@
 {"kind":"recipe","path":"crates/sim-lib-standard-core/recipes/01-basics/profile-fidelity/recipe.toml"}
 {"kind":"recipe","path":"crates/sim-lib-standard-core/recipes/01-basics/profile-fidelity/setup.siml"}
 {"kind":"recipe","path":"crates/sim-lib-standard-core/recipes/book.toml"}
+{"kind":"recipe","path":"crates/sim-lib-study/recipes/README.md"}
+{"kind":"recipe","path":"crates/sim-lib-study/recipes/book.toml"}
+{"kind":"recipe","path":"crates/sim-lib-study/recipes/complete-a-study.md"}

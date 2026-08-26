@@ -190,7 +190,11 @@ mod tests {
         let row = crate::LanguageRowBuilder::new(Symbol::new("characterize"), profile)
             .with_cases([pass, gap])
             .build();
-        let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let mut cx = Cx::new(
+            Arc::new(NoopEvalPolicy),
+            Arc::new(DefaultFactory),
+            sim_kernel::HandleSeed::new(0xa493_9546_945e_cee8),
+        );
         let report = MatrixRunner::run_source_row(&mut cx, &row, |_cx, case| {
             Ok(match &case.expectation {
                 SourceExpectation::LowersTo(value) => SourceObservation::LowersTo(value.clone()),

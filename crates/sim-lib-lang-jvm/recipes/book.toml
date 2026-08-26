@@ -1,2 +1,5 @@
+book = "lang/jvm"
 title = "JVM language profile"
+summary = "Load and evaluate bounded JVM language forms."
+order = 10
 chapters = ["01-basics"]

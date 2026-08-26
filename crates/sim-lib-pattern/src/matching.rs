@@ -111,7 +111,7 @@ impl PatternMatch {
 ///     AlgebraicDataType, MatchArm, VariantDeclaration, match_value,
 /// };
 ///
-/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x85eb_86e5_fe16_0509));
 /// let maybe = AlgebraicDataType::new(
 ///     Symbol::qualified("adt", "Maybe"),
 ///     vec![

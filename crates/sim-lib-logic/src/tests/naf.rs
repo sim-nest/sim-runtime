@@ -5,7 +5,11 @@ use sim_kernel::{Cx, DefaultFactory, EagerPolicy, Expr, Symbol};
 use crate::{LogicConfig, LogicDb, query::query_all};
 
 fn test_cx() -> Cx {
-    Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory))
+    Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x4d60_90d1_9184_e77a),
+    )
 }
 
 fn call(name: &str, args: Vec<Expr>) -> Expr {

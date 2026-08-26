@@ -215,7 +215,11 @@ fn pattern_live_claims_match_loaded_exports() {
 fn match_special_form_binds_and_destructures() {
     use sim_kernel::{Args, Cx, DefaultFactory, EagerPolicy, Error, NumberLiteral};
 
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x28c4_40cc_328e_72cd),
+    );
     install_pattern_lib(&mut cx).unwrap();
 
     let sym = |name: &str| Expr::Symbol(Symbol::new(name));

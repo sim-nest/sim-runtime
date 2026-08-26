@@ -75,7 +75,11 @@ impl Callable for GuestFunction {
 }
 
 fn specimen_cx() -> Cx {
-    Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory))
+    Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x4d41_5402),
+    )
 }
 
 fn class(cx: &Cx, id: u32, language: &str, name: &str) -> ClassRef {

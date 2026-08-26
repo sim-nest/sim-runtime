@@ -26,7 +26,11 @@ fn sample_db() -> LogicDb {
 
 #[test]
 fn indexed_lookup_returns_same_answers_as_linear_scan() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x164f_b67e_012e_1ba9),
+    );
     let db = sample_db();
     let goal = Expr::List(vec![
         Expr::Symbol(Symbol::new("parent")),
@@ -49,7 +53,11 @@ fn indexed_lookup_returns_same_answers_as_linear_scan() {
 
 #[test]
 fn fair_mode_finds_answer_hidden_behind_recursive_branch() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xfc10_1b7f_2f3c_bd1c),
+    );
     let mut db = LogicDb::new();
     db.assert_clause_expr(Expr::List(vec![
         Expr::Symbol(Symbol::new("rule")),

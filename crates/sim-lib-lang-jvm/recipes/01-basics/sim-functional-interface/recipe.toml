@@ -1,3 +1,4 @@
 title = "Pass an authorized SIM callable to Java"
 kind = "lisp"
 entry = "setup.siml"
+purpose = "purpose.md"

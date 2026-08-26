@@ -377,7 +377,11 @@ mod raised_tests {
 
     #[test]
     fn checked_constructor_rejects_a_raised_payload() {
-        let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let mut cx = Cx::new(
+            Arc::new(NoopEvalPolicy),
+            Arc::new(DefaultFactory),
+            sim_kernel::HandleSeed::new(0xb175_bf24_46ff_bd43),
+        );
         let inner = fixture(&mut cx, "inner");
         let inner = cx.factory().opaque(Arc::new(inner)).unwrap();
         let error = Raised::new(
@@ -397,7 +401,11 @@ mod raised_tests {
 
     #[test]
     fn api_shape_has_exactly_four_non_recursive_fields() {
-        let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let mut cx = Cx::new(
+            Arc::new(NoopEvalPolicy),
+            Arc::new(DefaultFactory),
+            sim_kernel::HandleSeed::new(0x3840_e8a1_fcf9_beb5),
+        );
         let Raised {
             class,
             payload,
@@ -412,7 +420,11 @@ mod raised_tests {
 
     #[test]
     fn browse_and_shape_report_budget_truncation_and_read_construct() {
-        let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let mut cx = Cx::new(
+            Arc::new(NoopEvalPolicy),
+            Arc::new(DefaultFactory),
+            sim_kernel::HandleSeed::new(0xb01e_ca58_1170_8e1b),
+        );
         let raised = fixture(&mut cx, "abcdefgh");
         assert_eq!(
             raised
@@ -432,7 +444,11 @@ mod raised_tests {
 
     #[test]
     fn raised_unwinds_two_cleanups_then_resumes_with_stable_receipts() {
-        let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let mut cx = Cx::new(
+            Arc::new(NoopEvalPolicy),
+            Arc::new(DefaultFactory),
+            sim_kernel::HandleSeed::new(0x617e_4f42_7d11_19e6),
+        );
         let receipts = Arc::new(Mutex::new(Vec::new()));
         let mut cleanups: CleanupStack<RaisedUnwind<(), (), ()>> = CleanupStack::new();
         for name in ["outer", "inner"] {

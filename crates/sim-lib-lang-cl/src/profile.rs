@@ -86,7 +86,7 @@ pub fn cl_lite_profile() -> LanguageProfile {
 /// use sim_lib_standard_core::ProfileRegistry;
 /// use sim_lib_lang_cl::install_cl_lite_profile;
 ///
-/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0xa36a_a9eb_698b_a7ae));
 /// let mut registry = ProfileRegistry::new();
 /// let profile = install_cl_lite_profile(&mut cx, &mut registry).unwrap();
 /// assert!(registry.profile(&profile.symbol).is_some());

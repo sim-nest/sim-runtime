@@ -29,7 +29,7 @@ pub type Multimethod = GenericFunction;
 /// use sim_lib_dispatch::{DispatchMethod, GenericFunction, MethodRole};
 /// use sim_shape::{AnyShape, ExprKindShape};
 ///
-/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x4056_f871_d352_107f));
 /// let mut generic = GenericFunction::new(Symbol::qualified("demo", "describe"));
 ///
 /// // A broad fallback and a more specific string method.

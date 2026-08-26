@@ -572,7 +572,11 @@ fn binding_badge_symbol() -> Symbol {
 }
 
 fn test_cx() -> Cx {
-    Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory))
+    Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x8a93_90c8_d1d3_33e3),
+    )
 }
 
 fn table_value<'a>(expr: &'a Expr, key: &str) -> Option<&'a Expr> {

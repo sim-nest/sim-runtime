@@ -8,7 +8,11 @@ use sim_kernel::{
 use super::*;
 
 fn cx() -> (Cx, sim_kernel::GrantSeat) {
-    Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory))
+    Cx::new_seated(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x9702_9f3b_80f9_1597),
+    )
 }
 
 fn key(name: &str) -> Expr {
@@ -175,6 +179,7 @@ fn capability_probe_cx(capability: CapabilityName) -> (Cx, sim_kernel::GrantSeat
     Cx::new_seated(
         Arc::new(ActiveCapabilityPolicy { capability }),
         Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x5245_4301),
     )
 }
 

@@ -99,6 +99,7 @@ pub struct SandboxPolicy {
     limits: SandboxLimits,
 }
 impl SandboxPolicy {
+    /// Validates a complete control classification, mount set, and limit set.
     pub fn new(
         requirements: impl IntoIterator<Item = (SandboxControl, SandboxRequirement)>,
         mounts: Vec<SandboxMount>,
@@ -244,6 +245,7 @@ impl SandboxReport {
         })
     }
 }
+/// Bounded process output paired with launcher-supplied sandbox evidence.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SandboxResult {
     /// Bounded standard output.
@@ -255,6 +257,7 @@ pub struct SandboxResult {
     /// Auditable control and resource evidence.
     pub report: SandboxReport,
 }
+/// A fail-closed refusal or unprovable launch outcome.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SandboxRefusal {
     /// Selected launcher identity.
@@ -264,6 +267,7 @@ pub struct SandboxRefusal {
     /// Partial evidence, only when execution reached control realization.
     pub report: Option<SandboxReport>,
 }
+/// Exhaustive result of asking a sandbox launcher to execute a request.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SandboxAttempt {
     /// Completed with a report.
@@ -278,7 +282,9 @@ pub enum SandboxAttempt {
 
 /// Replaceable object-safe untrusted-process authority boundary.
 pub trait SandboxLauncher: Send + Sync {
+    /// Returns the stable boot-registered launcher identity.
     fn id(&self) -> &str;
+    /// Attempts the request and reports a complete, refusal, stop, or unknown outcome.
     fn launch(
         &self,
         request: &SandboxRequest,
@@ -526,3 +532,4 @@ mod tests {
         );
     }
 }
+// conformance: sandbox policy tests prove sealed authority and fail-closed execution.

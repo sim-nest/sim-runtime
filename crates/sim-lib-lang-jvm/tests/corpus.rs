@@ -11,7 +11,11 @@ const DRIVER_BASELINE: &[u8] = include_bytes!("../fixtures/javac/DriverBaseline.
 const PUBLIC_FORMS: &[u8] = include_bytes!("../fixtures/javac/PublicForms.class");
 
 fn authorized_cx() -> Cx {
-    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let (mut cx, seat) = Cx::new_seated(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x4a56_4d03),
+    );
     for capability in [class_load_capability(), jvm_invoke_capability()] {
         seat.grant(&mut cx, capability).unwrap();
     }

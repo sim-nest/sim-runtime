@@ -233,6 +233,13 @@
       "summary": "Standard distribution core for SIM capabilities, claims, tests, and profiles."
     },
     {
+      "crate_name": "sim_lib_study",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-study/Cargo.toml",
+      "package": "sim-lib-study",
+      "summary": "Durable, domain-neutral study coordination."
+    },
+    {
       "crate_name": "xtask",
       "group": "workspace",
       "manifest": "xtask/Cargo.toml",

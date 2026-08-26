@@ -62,7 +62,7 @@ impl Lib for ControlLib {
 /// use sim_kernel::{Cx, DefaultFactory, NoopEvalPolicy};
 /// use sim_lib_control::install_control_lib;
 ///
-/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x4fef_49df_2d8d_699d));
 /// install_control_lib(&mut cx).expect("install control organ");
 /// // Idempotent: installing twice is a no-op on the second call.
 /// install_control_lib(&mut cx).expect("reinstall is idempotent");

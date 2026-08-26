@@ -60,7 +60,7 @@ pub fn ruby_dsl_profile() -> LanguageProfile {
 /// use sim_lib_standard_core::ProfileRegistry;
 /// use sim_lib_lang_ruby::install_ruby_dsl_profile;
 ///
-/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x9ce1_2337_857a_8a99));
 /// let mut registry = ProfileRegistry::new();
 /// let profile = install_ruby_dsl_profile(&mut cx, &mut registry).unwrap();
 /// assert_eq!(profile.reader, Symbol::qualified("codec", "algol"));

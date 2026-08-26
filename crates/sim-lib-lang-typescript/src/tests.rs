@@ -147,7 +147,11 @@ impl Callable for ConstantCallable {
 
 #[test]
 fn browse_signature_attaches_projection_without_dynamic_guard() {
-    let mut cx = Cx::new(Arc::new(HybridPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(HybridPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x3432_7605_bc6b_2880),
+    );
     let callable = cx.factory().opaque(Arc::new(ConstantCallable)).unwrap();
     let wrapped = attach_browse_signature(
         &mut cx,

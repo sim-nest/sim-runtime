@@ -190,6 +190,11 @@
     {
       "features": [],
       "group": "workspace",
+      "package": "sim-lib-study"
+    },
+    {
+      "features": [],
+      "group": "workspace",
       "package": "xtask"
     }
   ]

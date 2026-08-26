@@ -41,7 +41,7 @@ pub fn standard_install_op_key() -> OpKey {
 ///     LanguageProfile, ProfileRegistry, install_profile_stub, standard_install_capability,
 /// };
 ///
-/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0xc2a8_4c3c_2430_bf7f));
 /// cx.grant(standard_install_capability());
 /// let mut registry = ProfileRegistry::new();
 ///

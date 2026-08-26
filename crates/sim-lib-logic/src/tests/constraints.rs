@@ -16,7 +16,11 @@ fn number(text: &str) -> Expr {
 
 #[test]
 fn between_generates_bounded_answers() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x2fdf_d670_1a57_955a),
+    );
     let answers = query_all(
         &mut cx,
         &LogicDb::new(),
@@ -35,7 +39,11 @@ fn between_generates_bounded_answers() {
 
 #[test]
 fn plus_solves_one_unknown() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x1e9b_bef7_8071_71f4),
+    );
     let answers = query_all(
         &mut cx,
         &LogicDb::new(),
@@ -115,7 +123,11 @@ fn clp_constraint_residual_is_recorded_as_suspended_demand() {
 
 #[test]
 fn clp_constraint_requires_control_prompt_capability() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xec5d_09db_339a_70ce),
+    );
     sim_lib_control::install_control_policy(&mut cx);
     let denied = query_all(
         &mut cx,
@@ -139,7 +151,11 @@ fn clp_constraint_requires_control_prompt_capability() {
 
 #[test]
 fn tool_call_requires_capability_and_unifies_result() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xac47_180d_8b33_51c8),
+    );
     let tool = cx.factory().opaque(Arc::new(EchoTool)).unwrap();
     cx.env_mut().define(Symbol::new("echo-tool"), tool);
     let denied = query_all(
@@ -178,7 +194,11 @@ fn tool_call_requires_capability_and_unifies_result() {
 }
 
 fn control_cx() -> Cx {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x9b99_cf53_40d8_64c3),
+    );
     sim_lib_control::install_control_policy(&mut cx);
     cx.grant(control_prompt_capability());
     cx

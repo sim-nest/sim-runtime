@@ -12,7 +12,11 @@ use crate::{
 fn tabling_is_just_a_registry_entry_no_resolver_change() {
     let db = left_recursive_path_db();
     let config = config_with_depth(16);
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x2a4e_2e5b_162a_10d9),
+    );
 
     let plain = query_all(
         &mut cx,

@@ -83,7 +83,7 @@ pub fn binding_op_keys() -> Vec<OpKey> {
 /// use sim_kernel::{Cx, DefaultFactory, NoopEvalPolicy};
 /// use sim_lib_binding::publish_binding_organ_claims;
 ///
-/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0xe6d6_c680_6b98_15b2));
 /// publish_binding_organ_claims(&mut cx).unwrap();
 /// ```
 pub fn publish_binding_organ_claims(cx: &mut Cx) -> Result<()> {

@@ -1,3 +1,4 @@
 title = "Inspect prepared JVM performance evidence"
 kind = "lisp"
 entry = "setup.siml"
+purpose = "purpose.md"

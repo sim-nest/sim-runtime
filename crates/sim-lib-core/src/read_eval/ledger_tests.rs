@@ -77,6 +77,7 @@ fn probe_cx(capability: CapabilityName) -> (Cx, sim_kernel::GrantSeat) {
     Cx::new_seated(
         Arc::new(ActiveCapabilityPolicy { capability }),
         Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x5245_4c01),
     )
 }
 
@@ -193,7 +194,11 @@ fn denied_request_records_trace_decision_with_diminished_caps() {
 
 #[test]
 fn malformed_source_records_decode_failure() {
-    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let (mut cx, seat) = Cx::new_seated(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xa53e_2a50_273a_9fdd),
+    );
     expect_granted!(seat.grant(&mut cx, read_eval_capability()));
     let lib = LispCodecLib::new(sim_kernel::CodecId(1)).unwrap();
     cx.load_lib(&lib).unwrap();
@@ -218,6 +223,7 @@ fn eval_failure_records_eval_failed_outcome() {
             error: Error::Eval("eval failed".to_owned()),
         }),
         Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x5245_4c02),
     );
     expect_granted!(seat.grant(&mut cx, read_eval_capability()));
     let broker = ReadEvalBroker::new();
@@ -244,6 +250,7 @@ fn eval_time_capability_denial_records_eval_failed_outcome() {
             },
         }),
         Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x5245_4c03),
     );
     expect_granted!(seat.grant(&mut cx, read_eval_capability()));
     expect_granted!(seat.grant(&mut cx, denied.clone()));
@@ -267,7 +274,11 @@ fn eval_time_capability_denial_records_eval_failed_outcome() {
 
 #[test]
 fn shape_check_error_records_shape_error_outcome() {
-    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let (mut cx, seat) = Cx::new_seated(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xd856_e053_faf9_0e05),
+    );
     expect_granted!(seat.grant(&mut cx, read_eval_capability()));
     let broker = ReadEvalBroker::new();
     let request = request_with(

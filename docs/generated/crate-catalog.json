@@ -1,6 +1,6 @@
 {
   "generator": "xtask crate-catalog v1",
-  "package_count": 33,
+  "package_count": 35,
   "packages": [
     {
       "description": "Dependency-light incremental query graph with memo cutoff and bounded snapshots.",
@@ -382,6 +382,18 @@
       ]
     },
     {
+      "description": "Domain-neutral capability and exact-approval gate for effectful SIM operations.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-operation-gate/Cargo.toml",
+      "name": "sim-lib-operation-gate",
+      "publish": "true",
+      "readme": "crates/sim-lib-operation-gate/README.md",
+      "root": "crates/sim-lib-operation-gate",
+      "target_kinds": [
+        "lib"
+      ]
+    },
+    {
       "description": "Shape-based pattern matching and destructuring for SIM runtime values.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-pattern/Cargo.toml",
@@ -421,6 +433,18 @@
         "cdylib",
         "custom-build",
         "rlib"
+      ]
+    },
+    {
+      "description": "Domain-neutral durable study lifecycle over sealed coordinates.",
+      "generated_readme": false,
+      "manifest": "crates/sim-lib-study/Cargo.toml",
+      "name": "sim-lib-study",
+      "publish": "true",
+      "readme": "crates/sim-lib-study/README.md",
+      "root": "crates/sim-lib-study",
+      "target_kinds": [
+        "lib"
       ]
     },
     {

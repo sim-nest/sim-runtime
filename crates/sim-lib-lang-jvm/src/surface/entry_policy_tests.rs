@@ -3,7 +3,7 @@ mod entry_policy_tests {
     use sim_kernel::{DefaultFactory, EagerPolicy};
 
     fn context() -> Cx {
-        let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+        let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x47e1_c894_71f0_cdfa));
         seat.grant(&mut cx, crate::class_load_capability()).unwrap();
         seat.grant(&mut cx, jvm_invoke_capability()).unwrap();
         cx

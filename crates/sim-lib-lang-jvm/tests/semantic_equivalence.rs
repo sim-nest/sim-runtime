@@ -236,7 +236,11 @@ fn compare(
 
 #[test]
 fn every_performance_program_has_a_frozen_content_identified_capture() {
-    let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xcd55_53ed_c598_0d61),
+    );
     for (name, bytes) in PROGRAMS {
         let first = capture(name, bytes, PreparedVariant { work_bias: 0 });
         let replay = capture(name, bytes, PreparedVariant { work_bias: 0 });

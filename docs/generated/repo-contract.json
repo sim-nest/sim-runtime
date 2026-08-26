@@ -1,5 +1,5 @@
 {
-  "card_count": 32,
+  "card_count": 33,
   "cards": [
     {
       "id": "browse/catalog",
@@ -12,6 +12,18 @@
       "kind": "cookbook-recipe",
       "owner": "sim-lib-control",
       "summary": "Prompt, capture, abort, and resume surfaces."
+    },
+    {
+      "id": "cookbook/cookbook/organ/class",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-class",
+      "summary": "Language-neutral class lineage, browsing, read construction, and managed caches."
+    },
+    {
+      "id": "cookbook/cookbook/organ/function",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-function",
+      "summary": "Language-neutral typed functions, managed captures, and optional dispatch."
     },
     {
       "id": "cookbook/core",
@@ -62,6 +74,12 @@
       "summary": "Julia core profile descriptors and dispatch behavior."
     },
     {
+      "id": "cookbook/lang/jvm",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-lang-jvm",
+      "summary": "Load and evaluate bounded JVM language forms."
+    },
+    {
       "id": "cookbook/lang/lua",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-lang-lua",
@@ -108,6 +126,12 @@
       "kind": "cookbook-recipe",
       "owner": "sim-lib-logic",
       "summary": "Logic database, assertion, and query surfaces."
+    },
+    {
+      "id": "cookbook/operation/gate",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-operation-gate",
+      "summary": "Authorize and ledger capability-gated operations."
     },
     {
       "id": "cookbook/organ/binding",
@@ -158,34 +182,16 @@
       "summary": "Permission-gated host process runs with time and output limits."
     },
     {
-      "id": "cookbook/sim-lib-class",
-      "kind": "cookbook-recipe",
-      "owner": "sim-lib-class",
-      "summary": "Language-neutral class lineage, browsing, read construction, and managed caches."
-    },
-    {
-      "id": "cookbook/sim-lib-function",
-      "kind": "cookbook-recipe",
-      "owner": "sim-lib-function",
-      "summary": "Language-neutral typed functions, managed captures, and optional dispatch."
-    },
-    {
-      "id": "cookbook/sim-lib-lang-jvm",
-      "kind": "cookbook-recipe",
-      "owner": "sim-lib-lang-jvm",
-      "summary": ""
-    },
-    {
-      "id": "cookbook/sim-lib-operation-gate",
-      "kind": "cookbook-recipe",
-      "owner": "sim-lib-operation-gate",
-      "summary": ""
-    },
-    {
       "id": "cookbook/standard/core",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-standard-core",
       "summary": "Language profiles, fidelity badges, conformance helpers, and strict migration characterization."
+    },
+    {
+      "id": "cookbook/study",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-study",
+      "summary": "Seal, schedule, execute, and reconstruct bounded domain-neutral studies."
     },
     {
       "id": "registry/catalog",
@@ -236,6 +242,7 @@
       "sim-lib-pattern",
       "sim-lib-sequence",
       "sim-lib-standard-core",
+      "sim-lib-study",
       "xtask"
     ]
   },
@@ -378,7 +385,7 @@
       "reason": "transduced sequence adapter; reconstruct from the source sequence and transducer pipeline descriptor"
     }
   ],
-  "package_count": 34,
+  "package_count": 35,
   "packages": [
     {
       "crate_name": "sim_incremental_core",
@@ -2999,6 +3006,33 @@
       ]
     },
     {
+      "crate_name": "sim_lib_study",
+      "dependencies": [],
+      "description": "Domain-neutral durable study lifecycle over sealed coordinates.",
+      "features": [],
+      "group": "workspace",
+      "manifest": "crates/sim-lib-study/Cargo.toml",
+      "name": "sim-lib-study",
+      "publish": "true",
+      "root": "crates/sim-lib-study",
+      "rustdoc_summary": "Durable, domain-neutral study coordination.",
+      "target_kinds": [
+        "lib"
+      ],
+      "targets": [
+        {
+          "crate_types": [
+            "lib"
+          ],
+          "kind": [
+            "lib"
+          ],
+          "name": "sim_lib_study",
+          "src": "crates/sim-lib-study/src/lib.rs"
+        }
+      ]
+    },
+    {
       "crate_name": "xtask",
       "dependencies": [],
       "description": "Repository maintenance tasks for sim-runtime.",
@@ -3042,10 +3076,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-16T00:13:38+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "20c3270e5adf71d4f35e526dc516947a1b17288e",
+    "git_commit": "7c21a47b4ac036db6d4a7c8d40e826beb0c0b0f0",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "20c3270e5adf71d4f35e526dc516947a1b17288e",
+    "source_commit": "7c21a47b4ac036db6d4a7c8d40e826beb0c0b0f0",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -3058,9 +3092,9 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "a668c10a5e043561",
+    "workspace_hash": "f9e5adade4dea60b",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 673,
+    "workspace_hash_input_count": 687,
     "workspace_hash_inputs": [
       "Cargo.toml",
       "crates/sim-incremental-core/Cargo.toml",
@@ -3176,6 +3210,7 @@
       "crates/sim-lib-exec/recipes/book.toml",
       "crates/sim-lib-exec/src/exec.rs",
       "crates/sim-lib-exec/src/lib.rs",
+      "crates/sim-lib-exec/src/sandbox.rs",
       "crates/sim-lib-exec/src/tests.rs",
       "crates/sim-lib-function/Cargo.toml",
       "crates/sim-lib-function/recipes/01-basics/neutral-language/recipe.toml",
@@ -3655,6 +3690,7 @@
       "crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/src/main.rs",
       "crates/sim-lib-operation-gate/recipes/book.toml",
       "crates/sim-lib-operation-gate/src/lib.rs",
+      "crates/sim-lib-operation-gate/src/tests.rs",
       "crates/sim-lib-pattern/Cargo.toml",
       "crates/sim-lib-pattern/build.rs",
       "crates/sim-lib-pattern/recipes/01-basics/match-destructure/recipe.toml",
@@ -3733,11 +3769,23 @@
       "crates/sim-lib-standard-core/src/registry.rs",
       "crates/sim-lib-standard-core/src/scenario.rs",
       "crates/sim-lib-standard-core/src/tests.rs",
+      "crates/sim-lib-study/Cargo.toml",
+      "crates/sim-lib-study/recipes/book.toml",
+      "crates/sim-lib-study/src/decision/selection.rs",
+      "crates/sim-lib-study/src/decision/tests.rs",
+      "crates/sim-lib-study/src/decision.rs",
+      "crates/sim-lib-study/src/design/tests.rs",
+      "crates/sim-lib-study/src/design.rs",
+      "crates/sim-lib-study/src/lib.rs",
+      "crates/sim-lib-study/src/lifecycle/wire.rs",
+      "crates/sim-lib-study/src/lifecycle.rs",
+      "crates/sim-lib-study/src/product.rs",
+      "crates/sim-lib-study/src/tests.rs",
       "features.toml",
       "xtask/Cargo.toml"
     ]
   },
-  "recipe_book_count": 30,
+  "recipe_book_count": 31,
   "recipes": [
     {
       "book": "organ/binding",
@@ -3760,15 +3808,15 @@
       "title": "Binding Organ"
     },
     {
-      "book": "sim-lib-class",
+      "book": "cookbook/organ/class",
       "book_toml": "crates/sim-lib-class/recipes/book.toml",
-      "card_id": "cookbook/sim-lib-class",
+      "card_id": "cookbook/cookbook/organ/class",
       "group": "workspace",
       "package": "sim-lib-class",
       "recipe_count": 1,
       "recipes": [
         {
-          "card_id": "sim-lib-class/01-basics/neutral-class",
+          "card_id": "cookbook/organ/class/01-basics/neutral-class",
           "codec": "",
           "id": "neutral-class",
           "package": "sim-lib-class",
@@ -3868,15 +3916,15 @@
       "title": "Bounded Process Execution"
     },
     {
-      "book": "sim-lib-function",
+      "book": "cookbook/organ/function",
       "book_toml": "crates/sim-lib-function/recipes/book.toml",
-      "card_id": "cookbook/sim-lib-function",
+      "card_id": "cookbook/cookbook/organ/function",
       "group": "workspace",
       "package": "sim-lib-function",
       "recipe_count": 1,
       "recipes": [
         {
-          "card_id": "sim-lib-function/01-basics/neutral-language",
+          "card_id": "cookbook/organ/function/01-basics/neutral-language",
           "codec": "",
           "id": "neutral-language",
           "package": "sim-lib-function",
@@ -4112,15 +4160,15 @@
       "title": "Julia Core Profile"
     },
     {
-      "book": "sim-lib-lang-jvm",
+      "book": "lang/jvm",
       "book_toml": "crates/sim-lib-lang-jvm/recipes/book.toml",
-      "card_id": "cookbook/sim-lib-lang-jvm",
+      "card_id": "cookbook/lang/jvm",
       "group": "workspace",
       "package": "sim-lib-lang-jvm",
       "recipe_count": 5,
       "recipes": [
         {
-          "card_id": "sim-lib-lang-jvm/01-basics/authorized-static-call",
+          "card_id": "lang/jvm/01-basics/authorized-static-call",
           "codec": "",
           "id": "authorized-static-call",
           "package": "sim-lib-lang-jvm",
@@ -4128,7 +4176,7 @@
           "title": "Define authorized class bytes and call a static method"
         },
         {
-          "card_id": "sim-lib-lang-jvm/01-basics/java-lambda",
+          "card_id": "lang/jvm/01-basics/java-lambda",
           "codec": "",
           "id": "java-lambda",
           "package": "sim-lib-lang-jvm",
@@ -4136,7 +4184,7 @@
           "title": "Invoke a compiler-produced Java lambda from SIM"
         },
         {
-          "card_id": "sim-lib-lang-jvm/01-basics/method-reference",
+          "card_id": "lang/jvm/01-basics/method-reference",
           "codec": "",
           "id": "method-reference",
           "package": "sim-lib-lang-jvm",
@@ -4144,7 +4192,7 @@
           "title": "Invoke a Java method reference from SIM"
         },
         {
-          "card_id": "sim-lib-lang-jvm/01-basics/performance-evidence",
+          "card_id": "lang/jvm/01-basics/performance-evidence",
           "codec": "",
           "id": "performance-evidence",
           "package": "sim-lib-lang-jvm",
@@ -4152,7 +4200,7 @@
           "title": "Inspect prepared JVM performance evidence"
         },
         {
-          "card_id": "sim-lib-lang-jvm/01-basics/sim-functional-interface",
+          "card_id": "lang/jvm/01-basics/sim-functional-interface",
           "codec": "",
           "id": "sim-functional-interface",
           "package": "sim-lib-lang-jvm",
@@ -4160,7 +4208,7 @@
           "title": "Pass an authorized SIM callable to Java"
         }
       ],
-      "summary": "",
+      "summary": "Load and evaluate bounded JVM language forms.",
       "title": "JVM language profile"
     },
     {
@@ -4476,15 +4524,15 @@
       "title": "Namespace Organ"
     },
     {
-      "book": "sim-lib-operation-gate",
+      "book": "operation/gate",
       "book_toml": "crates/sim-lib-operation-gate/recipes/book.toml",
-      "card_id": "cookbook/sim-lib-operation-gate",
+      "card_id": "cookbook/operation/gate",
       "group": "workspace",
       "package": "sim-lib-operation-gate",
       "recipe_count": 1,
       "recipes": [
         {
-          "card_id": "sim-lib-operation-gate/01-basics/two-manifests",
+          "card_id": "operation/gate/01-basics/two-manifests",
           "codec": "rust",
           "id": "two-manifests",
           "package": "sim-lib-operation-gate",
@@ -4492,7 +4540,7 @@
           "title": "Declare two unrelated guarded operations"
         }
       ],
-      "summary": "",
+      "summary": "Authorize and ledger capability-gated operations.",
       "title": "Guarded operations"
     },
     {
@@ -4562,6 +4610,17 @@
       ],
       "summary": "Language profiles, fidelity badges, conformance helpers, and strict migration characterization.",
       "title": "Standard Core"
+    },
+    {
+      "book": "study",
+      "book_toml": "crates/sim-lib-study/recipes/book.toml",
+      "card_id": "cookbook/study",
+      "group": "workspace",
+      "package": "sim-lib-study",
+      "recipe_count": 0,
+      "recipes": [],
+      "summary": "Seal, schedule, execute, and reconstruct bounded domain-neutral studies.",
+      "title": "Durable Studies"
     }
   ]
 }

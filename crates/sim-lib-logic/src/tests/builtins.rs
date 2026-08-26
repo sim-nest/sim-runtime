@@ -58,7 +58,11 @@ fn standard_table_lists_is_and_findall_with_organs() {
 
 #[test]
 fn standard_table_routes_existing_constraint_bindings() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xb367_8140_ad7f_530d),
+    );
     let answers = query_all(
         &mut cx,
         &LogicDb::new(),
@@ -102,7 +106,11 @@ fn registering_a_new_key_resolves_without_resolver_change() {
         }),
     });
 
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x8e4c_8a06_a100_3c9e),
+    );
     let answers = query_all_with_builtins(
         &mut cx,
         &LogicDb::new(),

@@ -472,7 +472,11 @@ mod tests {
 
     #[test]
     fn maximally_specific_default_wins_over_inherited_abstract() {
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(
+            Arc::new(NoopEvalPolicy),
+            Arc::new(DefaultFactory),
+            sim_kernel::HandleSeed::new(0x45e0_5aee_12b8_633e),
+        );
         let loader = ClassLoader::new(1024);
         insert(&cx, &loader, "java.lang.Object", &[], 0x0001, &[]);
         let base = insert(
@@ -514,7 +518,11 @@ mod tests {
 
     #[test]
     fn unrelated_defaults_report_the_specified_conflict() {
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(
+            Arc::new(NoopEvalPolicy),
+            Arc::new(DefaultFactory),
+            sim_kernel::HandleSeed::new(0x7c09_aa02_9e99_ab6e),
+        );
         let loader = ClassLoader::new(1024);
         insert(&cx, &loader, "java.lang.Object", &[], 0x0001, &[]);
         let left = insert(
@@ -565,7 +573,11 @@ mod tests {
 
     #[test]
     fn bridge_is_selected_normally_and_all_transfer_forms_are_width_exact() {
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(
+            Arc::new(NoopEvalPolicy),
+            Arc::new(DefaultFactory),
+            sim_kernel::HandleSeed::new(0xc0ef_c0bb_fbdc_2213),
+        );
         let loader = ClassLoader::new(1024);
         let class = insert(
             &cx,
@@ -633,7 +645,11 @@ mod tests {
 
     #[test]
     fn invocation_refuses_a_hierarchy_outside_its_lineage_budget() {
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(
+            Arc::new(NoopEvalPolicy),
+            Arc::new(DefaultFactory),
+            sim_kernel::HandleSeed::new(0x4cf9_6a08_eb06_42a6),
+        );
         let loader = ClassLoader::new(1024);
         let base = insert(
             &cx,

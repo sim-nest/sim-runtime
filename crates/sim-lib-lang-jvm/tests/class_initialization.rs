@@ -9,7 +9,11 @@ use sim_lib_lang_jvm::{
 };
 
 fn raised(label: &str) -> Raised {
-    let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let cx = Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x4109_f5b0_b714_8cad),
+    );
     Raised::new(
         cx.factory()
             .symbol(Symbol::new("java/lang/Throwable"))

@@ -367,7 +367,11 @@ fn left_recursive_path_db() -> Result<LogicDb> {
 }
 
 pub(crate) fn prolog_case_cx() -> Result<Cx> {
-    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let (mut cx, seat) = Cx::new_seated(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x5052_4f4c),
+    );
     cx.load_lib(&sim_lib_numbers_arith::NumbersArithmeticLib::new())?;
     cx.load_lib(&sim_lib_numbers_i64::I64NumbersLib::new())?;
     cx.load_lib(&sim_lib_numbers_f64::F64NumbersLib::new())?;

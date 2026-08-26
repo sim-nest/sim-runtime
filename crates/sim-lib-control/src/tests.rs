@@ -18,7 +18,11 @@ use sim_kernel::{
 use super::*;
 
 fn cx() -> Cx {
-    let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xd642_e662_e8bb_4e08),
+    );
     install_control_policy(&mut cx);
     cx
 }
@@ -144,7 +148,11 @@ fn one_shot_resume_consumes_continuation() {
 
 #[test]
 fn control_lib_registers_public_ops_and_claims() {
-    let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x7521_10ff_e9e0_ed3e),
+    );
 
     install_control_lib(&mut cx).unwrap();
     install_control_lib(&mut cx).unwrap();
@@ -176,7 +184,11 @@ fn control_lib_registers_public_ops_and_claims() {
 
 #[test]
 fn physical_sensing_trace_returns_evaluated_descriptor() {
-    let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x7897_484b_7f6d_8765),
+    );
 
     install_control_lib(&mut cx).unwrap();
     let function = cx
@@ -205,7 +217,11 @@ fn physical_sensing_trace_returns_evaluated_descriptor() {
 
 #[test]
 fn control_lib_claims_unload_and_reload() {
-    let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x39ff_75e0_f144_b6c3),
+    );
 
     install_control_lib(&mut cx).unwrap();
     let lib_id = cx.registry().lib(&manifest_name()).unwrap().id;
@@ -360,7 +376,11 @@ fn effects_are_recorded_before_policy_execution() {
         }
     }
 
-    let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xaef4_5de2_a4c7_dba5),
+    );
     cx.set_control_policy(Arc::new(LedgerCheckingPolicy));
     cx.grant(control_capture_capability());
     let capture_fn = ControlFunction::capture();
@@ -382,7 +402,11 @@ fn effects_are_recorded_before_policy_execution() {
 
 #[test]
 fn segmented_policy_prototype_delegates_one_shot_behavior() {
-    let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xc487_8394_f32d_6369),
+    );
     cx.set_control_policy(segmented_control_policy(symbol_ref("segment", "root")));
     cx.grant(control_prompt_capability());
 
@@ -439,7 +463,11 @@ fn control_organ_kind_claims(cx: &Cx) -> Vec<sim_kernel::Claim> {
 fn if_special_form_selects_branch_and_is_lazy() {
     use sim_kernel::{EagerPolicy, Expr};
 
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x20ad_3d0d_e086_99a2),
+    );
     crate::install_control_lib(&mut cx).unwrap();
 
     let if_call = |args: Vec<Expr>| Expr::Call {

@@ -204,3 +204,4 @@ fn portable_crate_contains_no_host_binding() {
         assert!(!source.contains(forbidden), "runtime retained {forbidden}")
     }
 }
+// conformance: execution tests prove bounded launch, cancellation, and retained evidence.
