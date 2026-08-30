@@ -14,7 +14,7 @@ policy = "book"
 
 [dependencies]
 sha2 = "0.10"
-sim-kernel = { version = "0.2.1" }
+sim-kernel = { version = "0.3.0" }
 sim-lib-journal = { version = "0.1.0" }
 sim-study-core = { version = "0.1.0" }
 thiserror = "2"

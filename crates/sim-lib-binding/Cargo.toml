@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-binding"
-version = "0.1.4"
+version = "0.2.0"
 edition = "2024"
 license = "MPL-2.0"
 description = "Binding forms and scoped name resolution for SIM runtime evaluation."
@@ -10,8 +10,8 @@ repository = "https://github.com/sim-nest/sim-runtime"
 homepage = "https://github.com/sim-nest/sim-runtime"
 
 [dependencies]
-sim-cookbook = { version = "0.2.0" }
-sim-kernel = { version = "0.2.0" }
+sim-cookbook = { version = "0.3.0" }
+sim-kernel = { version = "0.3.0" }
 
 [build-dependencies]
 sim-cookbook-build = { version = "0.1.0" }

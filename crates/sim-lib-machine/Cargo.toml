@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-machine"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "MPL-2.0"
 description = "Neutral policy contracts for bounded decoded-instruction machines."
@@ -13,9 +13,9 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 workspace = true
 
 [dependencies]
-sim-kernel = { version = "0.2.1" }
-sim-lib-control = { version = "0.1.6", path = "../sim-lib-control" }
-sim-lib-mutation = { version = "0.1.5", path = "../sim-lib-mutation" }
+sim-kernel = { version = "0.3.0" }
+sim-lib-control = { version = "0.2.0", path = "../sim-lib-control" }
+sim-lib-mutation = { version = "0.2.0", path = "../sim-lib-mutation" }
 sha2 = "0.10"
 
 [dev-dependencies]
