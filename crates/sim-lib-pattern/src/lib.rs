@@ -44,11 +44,11 @@ pub use cursor::{
 pub use dialect::PatternDialect;
 pub use domain_execute::{
     DomainCaptureSpan, DomainExecutionOutcome, DomainMatch, execute_bytes, execute_code_units,
-    execute_scalars, require_code_unit_offset,
+    execute_scalars, require_code_unit_offset, search_code_units,
 };
 pub use execute::{
     CaptureSpan, ExecutionLimit, ExecutionMatch, ExecutionOutcome, ExecutionReceipt,
-    UnsupportedFeature, execute_regular,
+    UnsupportedFeature, execute_regular, search_regular,
 };
 pub use extension::{
     BoundedExtension, ExtensionKind, ExtensionLimits, ExtensionOutcome, ExtensionReceipt,
@@ -66,7 +66,9 @@ pub use matching::{
 };
 pub use runtime::{PatternLib, install_pattern_lib, manifest_name, pattern_exports};
 pub use shapes::{AdtShape, VariantShape};
-pub use text_vm::{TextClass, TextLimits, TextMatch, TextOp, run_text_pattern};
+pub use text_vm::{
+    PatternSearchOutcome, TextClass, TextLimits, TextMatch, TextOp, run_text_pattern,
+};
 
 /// Cookbook recipes for this lib, embedded at build time.
 pub static RECIPES: sim_cookbook::EmbeddedDir =

@@ -464,5 +464,9 @@ fn node_field<'a>(fields: &'a [(Symbol, Datum)], name: &str) -> Option<&'a Datum
 }
 
 fn test_cx() -> Cx {
-    Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory))
+    Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xc27f_2c82_815b_84c2),
+    )
 }

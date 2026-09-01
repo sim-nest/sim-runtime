@@ -74,69 +74,45 @@ impl JavascriptEvalPolicy {
     }
     /// Evaluate a codec-produced Script or Module lowering without an intermediate plan.
     pub fn eval_lowered(&self, lowered: &Expr, state: &mut JavascriptState) -> Result<Completion> {
-        let tokens = lowered_tokens(lowered)?;
-        Parser {
+        let tokens = crate::lowered::tokens(lowered, self.max_steps)?;
+        let mut candidate = state.clone();
+        let mut budget = StepBudget {
+            remaining: self.max_steps,
+        };
+        let completion = Parser {
             tokens: &tokens,
             at: 0,
-            steps: self.max_steps,
-            state,
+            budget: &mut budget,
+            state: &mut candidate,
         }
-        .program()
+        .program()?;
+        *state = candidate;
+        Ok(completion)
     }
 }
-fn lowered_tokens(expr: &Expr) -> Result<Vec<String>> {
-    let Expr::Call { operator, args } = expr else {
-        return Err(Error::Eval(
-            "javascript evaluator accepts only codec/javascript lowered forms".into(),
-        ));
-    };
-    let Expr::Symbol(head) = operator.as_ref() else {
-        return Err(Error::Eval("malformed javascript lowering".into()));
-    };
-    if head.namespace.as_deref().map(AsRef::as_ref) != Some("javascript")
-        || !matches!(head.name.as_ref(), "script" | "module")
-    {
-        return Err(Error::Eval(
-            "javascript evaluator accepts only codec/javascript Script or Module forms".into(),
-        ));
-    }
-    let mut out = Vec::new();
-    for arg in args {
-        if let Expr::Call { operator, args } = arg
-            && matches!(operator.as_ref(), Expr::Symbol(s) if s.namespace.as_deref().map(AsRef::as_ref)==Some("javascript") && s.name.as_ref()=="token")
-        {
-            if let [Expr::Symbol(kind), Expr::String(text), Expr::Bool(_)] = args.as_slice() {
-                if !matches!(kind.name.as_ref(), "trivia" | "end") {
-                    out.push(text.clone());
-                }
-            } else {
-                return Err(Error::Eval("malformed javascript token".into()));
-            }
-        }
-    }
-    Ok(out)
+struct StepBudget {
+    remaining: usize,
 }
-struct Parser<'a> {
-    tokens: &'a [String],
+struct Parser<'tokens, 'eval> {
+    tokens: &'tokens [String],
     at: usize,
-    steps: usize,
-    state: &'a mut JavascriptState,
+    budget: &'eval mut StepBudget,
+    state: &'eval mut JavascriptState,
 }
-impl Parser<'_> {
+impl Parser<'_, '_> {
     fn charge(&mut self) -> Result<()> {
-        if self.steps == 0 {
+        if self.budget.remaining == 0 {
             Err(Error::Eval(
                 "javascript direct evaluation step bound exhausted".into(),
             ))
         } else {
-            self.steps -= 1;
+            self.budget.remaining -= 1;
             Ok(())
         }
     }
     fn program(&mut self) -> Result<Completion> {
         let mut last = JavascriptValue::Undefined;
         while self.at < self.tokens.len() {
-            self.charge()?;
             match self.statement()? {
                 Completion::Normal(v) => last = v,
                 abrupt => return Ok(abrupt),
@@ -145,6 +121,7 @@ impl Parser<'_> {
         Ok(Completion::Normal(last))
     }
     fn statement(&mut self) -> Result<Completion> {
+        self.charge()?;
         if self.eat(";") {
             return Ok(Completion::Normal(JavascriptValue::Undefined));
         }
@@ -187,12 +164,10 @@ impl Parser<'_> {
                 let mut branch = Parser {
                     tokens: &self.tokens[start..end],
                     at: 0,
-                    steps: self.steps,
+                    budget: self.budget,
                     state: self.state,
                 };
-                let completion = branch.statement()?;
-                self.steps = branch.steps;
-                Ok(completion)
+                branch.statement()
             } else {
                 Ok(Completion::Normal(JavascriptValue::Undefined))
             };
@@ -293,14 +268,17 @@ impl Parser<'_> {
         let body_end = self.at;
         let mut last = JavascriptValue::Undefined;
         loop {
+            // The control transfer itself is evaluator work, independently of
+            // the expression and selected body statement it dispatches.
+            self.charge()?;
             let cond_tokens = &self.tokens[cond_start..cond_end];
-            let cond = Parser {
+            let mut condition = Parser {
                 tokens: cond_tokens,
                 at: 0,
-                steps: self.steps,
+                budget: self.budget,
                 state: self.state,
-            }
-            .expr(0)?;
+            };
+            let cond = condition.expr(0)?;
             if !truthy(&cond) {
                 break;
             }
@@ -308,7 +286,7 @@ impl Parser<'_> {
             let mut body = Parser {
                 tokens: body_tokens,
                 at: 0,
-                steps: self.steps,
+                budget: self.budget,
                 state: self.state,
             };
             match body.statement()? {
@@ -317,7 +295,6 @@ impl Parser<'_> {
                 Completion::Break => break,
                 c => return Ok(c),
             }
-            self.steps = body.steps;
         }
         Ok(Completion::Normal(last))
     }
@@ -379,7 +356,7 @@ impl Parser<'_> {
                 .map(JavascriptValue::Number)
                 .map_err(|_| Error::Eval(format!("invalid javascript Number {t}"))),
             _ if t.starts_with(['\'', '"']) => {
-                Ok(JavascriptValue::String(t[1..t.len() - 1].to_owned()))
+                crate::lowered::quoted_string(&t).map(JavascriptValue::String)
             }
             _ => self
                 .state
@@ -433,6 +410,7 @@ impl Parser<'_> {
         Ok(t)
     }
 }
+
 fn truthy(v: &JavascriptValue) -> bool {
     match v {
         JavascriptValue::Undefined | JavascriptValue::Null | JavascriptValue::Bool(false) => false,
@@ -605,6 +583,71 @@ mod tests {
                 .unwrap()
                 .eval_lowered(&Expr::Bool(true), &mut s)
                 .is_err()
+        );
+    }
+
+    #[test]
+    fn bounded_loop_child() {
+        let Ok(case) = std::env::var("SIM_JAVASCRIPT_BOUNDED_LOOP_CHILD") else {
+            return;
+        };
+        let tokens: &[&str] = match case.as_str() {
+            "empty-body" => &["while", "(", "true", ")", "{", "}"],
+            "continue" => &["while", "(", "true", ")", "{", "continue", ";", "}"],
+            "empty-branch" => &[
+                "while", "(", "true", ")", "{", "if", "(", "true", ")", "{", "}", "}",
+            ],
+            other => panic!("unknown bounded-loop child case {other}"),
+        };
+        let error = JavascriptEvalPolicy::new(32)
+            .unwrap()
+            .eval_lowered(&script(tokens), &mut JavascriptState::default())
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            Error::Eval(message) if message == "javascript direct evaluation step bound exhausted"
+        ));
+    }
+
+    #[test]
+    fn every_loop_shape_terminates_inside_the_shared_budget() {
+        use std::{
+            process::Command,
+            thread,
+            time::{Duration, Instant},
+        };
+
+        for case in ["empty-body", "continue", "empty-branch"] {
+            let mut child = Command::new(std::env::current_exe().unwrap())
+                .arg("bounded_loop_child")
+                .arg("--nocapture")
+                .env("SIM_JAVASCRIPT_BOUNDED_LOOP_CHILD", case)
+                .spawn()
+                .unwrap();
+            let deadline = Instant::now() + Duration::from_secs(5);
+            let status = loop {
+                if let Some(status) = child.try_wait().unwrap() {
+                    break status;
+                }
+                if Instant::now() >= deadline {
+                    child.kill().unwrap();
+                    panic!("JavaScript {case} loop outlived the subprocess failsafe");
+                }
+                thread::sleep(Duration::from_millis(10));
+            };
+            assert!(status.success(), "JavaScript {case} child failed: {status}");
+        }
+
+        let terminating = script(&[
+            "let", "x", "=", "0", ";", "while", "(", "x", "<", "3", ")", "{", "x", "+=", "1", ";",
+            "}", "x", ";",
+        ]);
+        assert_eq!(
+            JavascriptEvalPolicy::new(64)
+                .unwrap()
+                .eval_lowered(&terminating, &mut JavascriptState::default())
+                .unwrap(),
+            Completion::Normal(JavascriptValue::Number(3.0))
         );
     }
 }

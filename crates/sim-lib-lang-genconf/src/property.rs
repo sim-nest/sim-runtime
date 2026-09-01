@@ -8,7 +8,7 @@ use crate::space::ExprSpace;
 
 /// Checks the generated round-trip property for one expression and codec.
 ///
-/// The property is the ROUNDTRIP_4 path: encode an expression through the codec,
+/// The property is the round-trip contract path: encode an expression through the codec,
 /// read the rendered source back with the same codec, and compare the two
 /// expression graphs with canonical equality.
 pub fn check_round_trip(cx: &mut Cx, codec: &Symbol, expr: &Expr) -> ExprRoundTripObservation {
@@ -113,7 +113,11 @@ mod tests {
     use super::*;
 
     fn property_cx() -> Cx {
-        let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+        let mut cx = Cx::new(
+            Arc::new(EagerPolicy),
+            Arc::new(DefaultFactory),
+            sim_kernel::HandleSeed::new(0xc7ce_34f0_6983_e90a),
+        );
         sim_test_support::register_core_classes(&mut cx);
         sim_test_support::register_f64_number_domain(&mut cx);
         cx

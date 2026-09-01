@@ -97,9 +97,28 @@ struct History {
 
 #[derive(Clone, Debug)]
 struct Thread {
+    start: usize,
     state: StateId,
     repeats: BTreeMap<StateId, usize>,
     history: History,
+}
+
+fn repeat_identity<S, E>(automaton: &Automaton<S, E>, thread: &Thread) -> Vec<(StateId, usize)> {
+    thread
+        .repeats
+        .iter()
+        .filter_map(|(state, count)| {
+            let Instruction::Repeat { min, max, .. } =
+                &automaton.states().get(state.0 as usize)?.instruction
+            else {
+                return None;
+            };
+            // A finite maximum makes every count future-affecting. Once an
+            // unbounded repeat has met its minimum, larger counts have exactly
+            // the same available transitions and collapse to one identity.
+            Some((*state, max.map_or((*count).min(*min), |_| *count)))
+        })
+        .collect()
 }
 
 type SpanMatcher<'a, S, E> = dyn Fn(&E, &[S], usize) -> Option<usize> + 'a;
@@ -131,6 +150,41 @@ where
     )
 }
 
+/// Searches one subject from `init` with one absolute coordinate system and
+/// one shared resource budget.
+pub fn search_regular<S, E>(
+    automaton: &Automaton<S, E>,
+    subject: &[S],
+    init: usize,
+    limits: TextLimits,
+    extension_matches: impl Fn(&E, &S) -> bool,
+) -> ExecutionOutcome
+where
+    S: PartialEq,
+{
+    if init > subject.len() {
+        return ExecutionOutcome::NoMatch {
+            receipt: ExecutionReceipt {
+                state_count: automaton.evidence().state_count,
+                subject_symbols: subject.len(),
+                ..ExecutionReceipt::default()
+            },
+        };
+    }
+    search_spanning(
+        automaton,
+        subject,
+        init,
+        limits,
+        |extension, subject, position| {
+            subject
+                .get(position)
+                .filter(|symbol| extension_matches(extension, symbol))
+                .map(|_| position + 1)
+        },
+    )
+}
+
 /// Executes an automaton whose admitted extensions may consume any bounded
 /// subject span, including a zero-width span.
 ///
@@ -146,12 +200,32 @@ pub(crate) fn execute_spanning<S, E>(
 where
     S: PartialEq,
 {
-    execute_regular_inner(automaton, subject, limits, &extension_match)
+    execute_regular_inner(automaton, subject, 0..=0, limits, &extension_match)
+}
+
+pub(crate) fn search_spanning<S, E>(
+    automaton: &Automaton<S, E>,
+    subject: &[S],
+    init: usize,
+    limits: TextLimits,
+    extension_match: impl Fn(&E, &[S], usize) -> Option<usize>,
+) -> ExecutionOutcome
+where
+    S: PartialEq,
+{
+    execute_regular_inner(
+        automaton,
+        subject,
+        init..=subject.len(),
+        limits,
+        &extension_match,
+    )
 }
 
 fn execute_regular_inner<S, E>(
     automaton: &Automaton<S, E>,
     subject: &[S],
+    starts: std::ops::RangeInclusive<usize>,
     limits: TextLimits,
     extension_match: &SpanMatcher<'_, S, E>,
 ) -> ExecutionOutcome
@@ -170,20 +244,26 @@ where
         return limited(ExecutionLimit::Subject, receipt);
     }
 
-    let mut current = vec![(
-        0,
-        Thread {
-            state: automaton.start(),
-            repeats: BTreeMap::new(),
-            history: History::default(),
-        },
-    )];
+    let mut current = starts
+        .rev()
+        .map(|start| {
+            (
+                start,
+                Thread {
+                    start,
+                    state: automaton.start(),
+                    repeats: BTreeMap::new(),
+                    history: History::default(),
+                },
+            )
+        })
+        .collect::<Vec<_>>();
     let mut seen = BTreeSet::new();
     while let Some((position, thread)) = current.pop() {
         receipt.state_visits += 1;
         // Thompson state-set execution retains the first (priority-ordered)
         // history reaching a state at a subject position.
-        if !seen.insert((position, thread.state)) {
+        if !seen.insert((position, thread.state, repeat_identity(automaton, &thread))) {
             continue;
         }
         let Some(state) = automaton.states().get(thread.state.0 as usize) else {
@@ -193,7 +273,7 @@ where
             Instruction::Accept => {
                 return ExecutionOutcome::Match {
                     matched: ExecutionMatch {
-                        start: 0,
+                        start: thread.start,
                         end: position,
                         captures: thread.history.closed,
                     },
@@ -272,10 +352,20 @@ where
                 let can_exit = count >= *min;
                 let mut body_thread = thread.clone();
                 body_thread.repeats.insert(thread.state, count + 1);
+                let mut exit_thread = thread;
+                // A later visit through an outer repeat begins a new invocation
+                // rather than inheriting the completed invocation's counter.
+                exit_thread.repeats.remove(&exit_thread.state);
                 let choices = if *greedy {
-                    [(can_exit, *exit, thread), (can_repeat, *body, body_thread)]
+                    [
+                        (can_exit, *exit, exit_thread),
+                        (can_repeat, *body, body_thread),
+                    ]
                 } else {
-                    [(can_repeat, *body, body_thread), (can_exit, *exit, thread)]
+                    [
+                        (can_repeat, *body, body_thread),
+                        (can_exit, *exit, exit_thread),
+                    ]
                 };
                 for (enabled, next, thread) in choices {
                     if enabled {
@@ -303,6 +393,7 @@ where
                     match execute_regular_inner(
                         program.automaton(),
                         window,
+                        0..=0,
                         remaining,
                         extension_match,
                     ) {
@@ -355,6 +446,105 @@ mod tests {
         let ir = PatternIr::<ByteDomain, ()>::new(root, BTreeMap::new(), &EnginePolicy::new([]))
             .unwrap();
         execute_regular(&compile(&ir), subject, limits, |_, _| false)
+    }
+
+    fn assert_span(root: IrNode<u8, ()>, subject: &[u8], end: usize) -> ExecutionMatch {
+        let ExecutionOutcome::Match { matched, .. } = run(root, subject, TextLimits::default())
+        else {
+            panic!("expected a match");
+        };
+        assert_eq!((matched.start, matched.end), (0, end));
+        matched
+    }
+
+    #[test]
+    fn finite_repeat_counts_are_part_of_thread_identity() {
+        let ambiguous = || {
+            IrNode::Alternation(vec![
+                IrNode::Symbol(b'a'),
+                IrNode::Concat(vec![IrNode::Symbol(b'a'), IrNode::Symbol(b'a')]),
+            ])
+        };
+        for (bounds, subject, greedy) in [
+            (
+                RepeatBounds::new(2, Some(2)).unwrap(),
+                b"aaaa".as_slice(),
+                true,
+            ),
+            (
+                RepeatBounds::new(2, Some(3)).unwrap(),
+                b"aaaaa".as_slice(),
+                true,
+            ),
+            (
+                RepeatBounds::new(2, Some(3)).unwrap(),
+                b"aaaaa".as_slice(),
+                false,
+            ),
+        ] {
+            let pattern = IrNode::Concat(vec![
+                IrNode::Repeat {
+                    node: Box::new(ambiguous()),
+                    bounds,
+                    greedy,
+                },
+                IrNode::Anchor(Anchor::SubjectEnd),
+            ]);
+            assert_span(pattern, subject, subject.len());
+        }
+    }
+
+    #[test]
+    fn nested_finite_repeats_reset_inner_counts_and_keep_captures() {
+        let capture = CaptureId(7);
+        let inner = IrNode::Repeat {
+            node: Box::new(IrNode::Capture {
+                id: capture,
+                node: Box::new(IrNode::Symbol(b'a')),
+            }),
+            bounds: RepeatBounds::new(2, Some(2)).unwrap(),
+            greedy: true,
+        };
+        let matched = assert_span(
+            IrNode::Repeat {
+                node: Box::new(inner),
+                bounds: RepeatBounds::new(2, Some(2)).unwrap(),
+                greedy: true,
+            },
+            b"aaaa",
+            4,
+        );
+        assert_eq!(
+            matched.captures.get(&capture),
+            Some(&CaptureSpan { start: 3, end: 4 })
+        );
+    }
+
+    #[test]
+    fn hostile_finite_repeat_exhausts_a_typed_work_limit() {
+        let pattern = IrNode::Repeat {
+            node: Box::new(IrNode::Alternation(vec![
+                IrNode::Symbol(b'a'),
+                IrNode::Concat(vec![IrNode::Symbol(b'a'), IrNode::Symbol(b'a')]),
+            ])),
+            bounds: RepeatBounds::new(1, Some(usize::MAX)).unwrap(),
+            greedy: true,
+        };
+        let outcome = run(
+            pattern,
+            &[b'a'; 128],
+            TextLimits {
+                max_steps: 64,
+                ..TextLimits::default()
+            },
+        );
+        assert!(matches!(
+            outcome,
+            ExecutionOutcome::Limit {
+                limit: ExecutionLimit::Transitions,
+                ..
+            }
+        ));
     }
 
     #[test]

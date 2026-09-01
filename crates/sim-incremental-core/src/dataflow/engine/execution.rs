@@ -132,22 +132,50 @@ impl FixpointEngine {
         }
 
         let mut states = previous.solution.states.clone();
+        let mut causes = previous
+            .solution
+            .causes
+            .iter()
+            .filter(|(node, _)| !affected.contains(*node))
+            .map(|(node, causes)| (node.clone(), causes.clone()))
+            .collect::<BTreeMap<_, _>>();
         for node in &affected {
             states.insert(node.clone(), bottom.clone());
         }
         for node in &affected {
             let mut state = seeds.get(node).cloned().unwrap_or_else(|| bottom.clone());
+            if state != bottom {
+                record_cause(
+                    &mut causes,
+                    node.clone(),
+                    CausalPredecessor { node: node.clone(), edge: None },
+                    budgets.max_explanation_causes,
+                );
+            }
             for edge_id in graph.predecessors(node).expect("graph node has an index") {
                 let edge = graph.edge(edge_id).expect("graph edge has an index");
                 let (source, _) = edge.predecessor_and_successor();
                 if !affected.contains(source) {
-                    state = state.join(&transfer.transfer(&states[source]));
+                    let joined = state.join(&transfer.transfer(&states[source]));
+                    if joined != state {
+                        record_cause(
+                            &mut causes,
+                            node.clone(),
+                            CausalPredecessor { node: source.clone(), edge: Some(edge_id.clone()) },
+                            budgets.max_explanation_causes,
+                        );
+                    }
+                    state = joined;
                 }
             }
             states.insert(node.clone(), state);
         }
 
-        let mut pending = affected.clone();
+        let mut pending = affected
+            .iter()
+            .filter(|node| states[*node] != bottom)
+            .cloned()
+            .collect::<BTreeSet<_>>();
         let mut events = previous
             .solution
             .events
@@ -234,6 +262,12 @@ impl FixpointEngine {
                 if joined != states[target] {
                     states.insert(target.clone(), joined);
                     pending.insert(target.clone());
+                    record_cause(
+                        &mut causes,
+                        target.clone(),
+                        CausalPredecessor { node: node.clone(), edge: Some(edge_id.clone()) },
+                        budgets.max_explanation_causes,
+                    );
                 }
             }
         }
@@ -258,7 +292,7 @@ impl FixpointEngine {
             states,
             events,
             usage,
-            causes: BTreeMap::new(),
+            causes,
         };
         Ok(mint_completion_proof(
             graph, transfer, &bottom, &seeds, budgets, solution,
@@ -359,7 +393,7 @@ impl FixpointEngine {
                         node: node_id,
                         edge: None,
                     },
-                    0,
+                    budgets.max_explanation_causes,
                 );
             }
         }
@@ -443,7 +477,7 @@ impl FixpointEngine {
                             node: node_id.clone(),
                             edge: Some(edge_id.clone()),
                         },
-                        0,
+                        budgets.max_explanation_causes,
                     );
                 }
             }

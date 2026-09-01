@@ -1,4 +1,15 @@
-This recipe records a host process run as a bounded operation: a caller supplies
-argv, a working directory root, a timeout, an output limit, and optional stdin.
-The host captures stdout and stderr separately and reports the exit code without
-treating the child process as SIM evaluation.
+This recipe records a sealed host process run: a caller supplies a boot-trusted
+program reference, whole arguments, an opaque project-root reference, exact
+bindings, a timeout, an output limit, and optional stdin. The child environment
+is empty unless a value is explicitly declared; neither callers nor receipts
+expose a host path.
+
+Retry table:
+
+| attempt | automatic retry |
+| --- | --- |
+| `NotDispatched` | yes |
+| `Completed` (including non-zero exit) | no |
+| `StoppedAfterTimeout` | no |
+| `StoppedAfterCancel` | no |
+| `UnknownAfterDispatch` | no |

@@ -15,7 +15,7 @@ fn token(text: &str) -> Expr {
     Expr::Call {
         operator: Box::new(Expr::Symbol(Symbol::qualified("javascript", "token"))),
         args: vec![
-            Expr::Symbol(Symbol::new("token")),
+            Expr::Symbol(Symbol::new("punctuator")),
             Expr::String(text.into()),
             Expr::Bool(true),
         ],
@@ -108,6 +108,23 @@ fn erased_execution_has_identical_result_and_effects() {
     );
 }
 
+#[test]
+fn erased_execution_inherits_javascript_loop_exhaustion() {
+    let program = TypeScriptProgram {
+        javascript: erased(&["while", "(", "true", ")", "{", "continue", ";", "}"]),
+        annotations: Vec::new(),
+    };
+    let error = TypeScriptNotation::new(32)
+        .unwrap()
+        .eval(&program, &mut JavascriptState::default())
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        sim_kernel::Error::Eval(message)
+            if message == "javascript direct evaluation step bound exhausted"
+    ));
+}
+
 struct ConstantCallable;
 impl Object for ConstantCallable {
     fn display(&self, _cx: &mut Cx) -> Result<String> {
@@ -130,7 +147,11 @@ impl Callable for ConstantCallable {
 
 #[test]
 fn browse_signature_attaches_projection_without_dynamic_guard() {
-    let mut cx = Cx::new(Arc::new(HybridPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(HybridPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x3432_7605_bc6b_2880),
+    );
     let callable = cx.factory().opaque(Arc::new(ConstantCallable)).unwrap();
     let wrapped = attach_browse_signature(
         &mut cx,

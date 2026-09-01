@@ -14,10 +14,6 @@ fn published_coverage_is_complete_and_traceable_to_raw_samples() {
         Some("sim.jvm-performance-coverage/v1")
     );
     assert_eq!(sim_lib_lang_jvm::VERIFIER_COVERAGE.opcode_rows, 256);
-    let generated = include_str!("../src/superinstructions_generated.rs");
-    assert!(generated.contains("pub const FUSED_DEFINITIONS"));
-    assert!(generated.matches("FusedDefinition { handler:").count() > 0);
-
     let reports = coverage["benchmark"].as_array().unwrap();
     assert_eq!(reports.len(), 2);
     for report in reports {

@@ -1,5 +1,5 @@
 {
-  "card_count": 31,
+  "card_count": 33,
   "cards": [
     {
       "id": "browse/catalog",
@@ -12,6 +12,18 @@
       "kind": "cookbook-recipe",
       "owner": "sim-lib-control",
       "summary": "Prompt, capture, abort, and resume surfaces."
+    },
+    {
+      "id": "cookbook/cookbook/organ/class",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-class",
+      "summary": "Language-neutral class lineage, browsing, read construction, and managed caches."
+    },
+    {
+      "id": "cookbook/cookbook/organ/function",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-function",
+      "summary": "Language-neutral typed functions, managed captures, and optional dispatch."
     },
     {
       "id": "cookbook/core",
@@ -62,6 +74,12 @@
       "summary": "Julia core profile descriptors and dispatch behavior."
     },
     {
+      "id": "cookbook/lang/jvm",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-lang-jvm",
+      "summary": "Load and evaluate bounded JVM language forms."
+    },
+    {
       "id": "cookbook/lang/lua",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-lang-lua",
@@ -108,6 +126,12 @@
       "kind": "cookbook-recipe",
       "owner": "sim-lib-logic",
       "summary": "Logic database, assertion, and query surfaces."
+    },
+    {
+      "id": "cookbook/operation/gate",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-operation-gate",
+      "summary": "Authorize and ledger capability-gated operations."
     },
     {
       "id": "cookbook/organ/binding",
@@ -158,28 +182,16 @@
       "summary": "Permission-gated host process runs with time and output limits."
     },
     {
-      "id": "cookbook/sim-lib-class",
-      "kind": "cookbook-recipe",
-      "owner": "sim-lib-class",
-      "summary": "Language-neutral class lineage, browsing, read construction, and managed caches."
-    },
-    {
-      "id": "cookbook/sim-lib-function",
-      "kind": "cookbook-recipe",
-      "owner": "sim-lib-function",
-      "summary": "Language-neutral typed functions, managed captures, and optional dispatch."
-    },
-    {
-      "id": "cookbook/sim-lib-lang-jvm",
-      "kind": "cookbook-recipe",
-      "owner": "sim-lib-lang-jvm",
-      "summary": ""
-    },
-    {
       "id": "cookbook/standard/core",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-standard-core",
       "summary": "Language profiles, fidelity badges, conformance helpers, and strict migration characterization."
+    },
+    {
+      "id": "cookbook/study",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-study",
+      "summary": "Seal, schedule, execute, and reconstruct bounded domain-neutral studies."
     },
     {
       "id": "registry/catalog",

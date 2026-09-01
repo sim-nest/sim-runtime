@@ -22,7 +22,7 @@ pub struct ClassMatchEvidence {
     pub performed_work: usize,
 }
 
-/// Exact result supplied by a bounded class-relation provider such as CLASS_2.
+/// Exact result supplied by a bounded class-relation provider such as class organ.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BoundedSubclassOutcome {
     /// Positive subclass evidence.

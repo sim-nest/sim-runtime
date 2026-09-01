@@ -15,7 +15,11 @@ use crate::{
 };
 
 fn cx_with_number_tower() -> Cx {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xe5e8_7c41_68ed_e4c8),
+    );
     cx.load_lib(&sim_lib_numbers_arith::NumbersArithmeticLib::new())
         .unwrap();
     cx.load_lib(&sim_lib_numbers_i64::I64NumbersLib::new())
@@ -111,7 +115,11 @@ fn is_widens_overflowing_integer_terms_through_number_tower() {
 
 #[test]
 fn findall_collects_answers_forced_from_sequence_engine() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x67fb_0420_d419_d05c),
+    );
     let db = color_db();
     let config = LogicConfig::default();
     let forced = Arc::new(AtomicUsize::new(0));
@@ -153,7 +161,11 @@ fn findall_collects_answers_forced_from_sequence_engine() {
 
 #[test]
 fn findall_query_projects_answer_template() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xc023_60c8_a87b_fab4),
+    );
     let answers = query_all(
         &mut cx,
         &color_db(),

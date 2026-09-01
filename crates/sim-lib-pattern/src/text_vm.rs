@@ -1,8 +1,8 @@
 //! Legacy text-program compatibility lowering into the shared pattern engine.
 
 use crate::{
-    Anchor, CaptureId, EnginePolicy, ExecutionOutcome, IrNode, PatternIr, RepeatBounds,
-    ScalarDomain, compile, execute::execute_spanning,
+    Anchor, CaptureId, EnginePolicy, ExecutionLimit, ExecutionOutcome, ExecutionReceipt, IrNode,
+    PatternIr, RepeatBounds, ScalarDomain, UnsupportedFeature, compile, execute::search_spanning,
 };
 use std::collections::BTreeMap;
 
@@ -184,6 +184,68 @@ enum TextExtension {
     Frontier(TextClass),
 }
 
+/// Typed outcome of one globally bounded pattern search.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PatternSearchOutcome<M> {
+    /// The leftmost admitted match.
+    Match {
+        /// Match value in the adapter's coordinate domain.
+        matched: M,
+        /// Work consumed by the complete search.
+        receipt: ExecutionReceipt,
+    },
+    /// Definitive rejection after examining every admitted start.
+    NoMatch {
+        /// Work consumed by the complete search.
+        receipt: ExecutionReceipt,
+    },
+    /// A configured resource boundary stopped the search.
+    Limit {
+        /// Exhausted resource.
+        limit: ExecutionLimit,
+        /// Work consumed before stopping.
+        receipt: ExecutionReceipt,
+    },
+    /// A construct outside the regular engine was encountered.
+    Unsupported {
+        /// Exact unsupported construct.
+        feature: UnsupportedFeature,
+        /// Work consumed before discovering it.
+        receipt: ExecutionReceipt,
+    },
+}
+
+impl<M> PatternSearchOutcome<M> {
+    /// Returns the match while deliberately discarding the receipt.
+    pub fn into_match(self) -> Option<M> {
+        match self {
+            Self::Match { matched, .. } => Some(matched),
+            _ => None,
+        }
+    }
+
+    /// Reports whether this outcome contains a match.
+    pub fn is_some(&self) -> bool {
+        matches!(self, Self::Match { .. })
+    }
+
+    /// Reports whether this outcome is a definitive no-match.
+    pub fn is_none(&self) -> bool {
+        matches!(self, Self::NoMatch { .. })
+    }
+
+    /// Returns the match, panicking when the outcome is not a match.
+    pub fn unwrap(self) -> M {
+        self.into_match()
+            .expect("pattern search outcome was not a match")
+    }
+
+    /// Applies a function to a match and deliberately discards other outcomes.
+    pub fn map<T>(self, f: impl FnOnce(M) -> T) -> Option<T> {
+        self.into_match().map(f)
+    }
+}
+
 /// Runs a compiled text pattern over `subject` starting at byte offset `init`.
 ///
 /// Unanchored programs search forward from `init`; programs beginning with
@@ -194,62 +256,70 @@ pub fn run_text_pattern(
     subject: &str,
     init: usize,
     limits: TextLimits,
-) -> Option<TextMatch> {
-    let anchored = matches!(ops.first(), Some(TextOp::AnchorStart));
-    let ir = lower_text_program(ops)?;
+) -> PatternSearchOutcome<TextMatch> {
+    let Some(ir) = lower_text_program(ops) else {
+        return PatternSearchOutcome::NoMatch {
+            receipt: ExecutionReceipt::default(),
+        };
+    };
     let automaton = compile(&ir);
     let text = CursorText::new(subject);
-    let init_cursor = text.cursor_for_byte(init)?;
-    let starts: Box<dyn Iterator<Item = usize>> = if anchored {
-        Box::new(std::iter::once(init_cursor).filter(|cursor| *cursor == 0))
-    } else {
-        Box::new(init_cursor..=text.chars.len())
+    let Some(init_cursor) = text.cursor_for_byte(init) else {
+        return PatternSearchOutcome::NoMatch {
+            receipt: ExecutionReceipt::default(),
+        };
     };
-
-    for start_cursor in starts {
-        let slice = &text.chars[start_cursor..];
-        let outcome =
-            execute_spanning(
-                &automaton,
-                slice,
-                limits,
-                |extension, _, position| match extension {
-                    TextExtension::Class(class) => slice
-                        .get(position)
-                        .is_some_and(|ch| class.matches(*ch))
-                        .then_some(position + 1),
-                    TextExtension::Balanced { open, close } => {
-                        match_balanced(slice, position, *open, *close)
-                    }
-                    TextExtension::Frontier(class) => {
-                        let absolute = start_cursor + position;
-                        let previous = absolute.checked_sub(1).and_then(|i| text.chars.get(i));
-                        let current = text.chars.get(absolute);
-                        (!previous.is_some_and(|ch| class.matches(*ch))
-                            && current.is_some_and(|ch| class.matches(*ch)))
-                        .then_some(position)
-                    }
-                },
-            );
-        if let ExecutionOutcome::Match { matched, .. } = outcome {
+    let outcome = search_spanning(
+        &automaton,
+        &text.chars,
+        init_cursor,
+        limits,
+        |extension, subject, position| match extension {
+            TextExtension::Class(class) => subject
+                .get(position)
+                .is_some_and(|ch| class.matches(*ch))
+                .then_some(position + 1),
+            TextExtension::Balanced { open, close } => {
+                match_balanced(subject, position, *open, *close)
+            }
+            TextExtension::Frontier(class) => {
+                let previous = position.checked_sub(1).and_then(|i| subject.get(i));
+                let current = subject.get(position);
+                (!previous.is_some_and(|ch| class.matches(*ch))
+                    && current.is_some_and(|ch| class.matches(*ch)))
+                .then_some(position)
+            }
+        },
+    );
+    match outcome {
+        ExecutionOutcome::Match { matched, receipt } => {
             let captures = matched
                 .captures
                 .values()
                 .map(|span| {
                     (
-                        text.byte_for_cursor(start_cursor + span.start),
-                        text.byte_for_cursor(start_cursor + span.end),
+                        text.byte_for_cursor(span.start),
+                        text.byte_for_cursor(span.end),
                     )
                 })
                 .collect();
-            return Some(TextMatch {
-                start: text.byte_for_cursor(start_cursor),
-                end: text.byte_for_cursor(start_cursor + matched.end),
-                captures,
-            });
+            PatternSearchOutcome::Match {
+                matched: TextMatch {
+                    start: text.byte_for_cursor(matched.start),
+                    end: text.byte_for_cursor(matched.end),
+                    captures,
+                },
+                receipt,
+            }
+        }
+        ExecutionOutcome::NoMatch { receipt } => PatternSearchOutcome::NoMatch { receipt },
+        ExecutionOutcome::Limit { limit, receipt } => {
+            PatternSearchOutcome::Limit { limit, receipt }
+        }
+        ExecutionOutcome::Unsupported { feature, receipt } => {
+            PatternSearchOutcome::Unsupported { feature, receipt }
         }
     }
-    None
 }
 
 fn lower_text_program(ops: &[TextOp]) -> Option<PatternIr<ScalarDomain, TextExtension>> {

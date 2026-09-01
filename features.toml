@@ -1,5 +1,31 @@
 schema = "sim.features"
 
+[[feature]]
+id = "feature/sim-runtime/domain-free-study-lifecycle"
+title = "Domain-free durable study lifecycle"
+summary = "Seal exact study coordinates and staged experimental designs, then plan, screen, confirm, claim, execute, retry, cancel, resume, verify, report, decide, select, export, and replay them through one evidence graph without owning domain, statistics, or executor effects."
+owner = "crate/sim-lib-study"
+audiences = ["code", "framework"]
+guidance = "Use sim-lib-study when a domain needs a durable exact-coordinate lifecycle or a staged experimental design over a sealed pool. Seal subject/task identities, registered looks, controls, error and exposure ceilings, confirmation policy, retries, caller concurrency, and epoch inputs before execution. Smoke diagnoses route/contract readiness without a quality verdict; sequential screening and bounded expected-decision-change selection remain explicitly exploratory and replayable; a separate fixed confirmation matrix owns confirmatory evidence. Common task/sample blocks preserve pairings, conservative exposure checks stop incomplete before crossing the ceiling, and changed subject, task, price, environment, or drift inputs open an immutable epoch. The lifecycle composes sim-study-core identities and sim-lib-journal fencing; it executes outside journal transactions, revalidates closure identities on both sides of execution, retains late output as discarded attempts, and derives byte-stable projections only by replay. Keep statistics in sim-lib-numbers-stats and facts in sim-lib-journal. Do not place model, network, process, grader, endpoint concurrency, or generic executor effects here, and do not add a second retry or adaptive-scheduler owner."
+claims_anchors = [
+  "anchor/crate/sim-lib-study",
+  "anchor/export/sim-lib-study/cli/main/study",
+  "anchor/runtime-lib/sim-lib-study/study-lib",
+]
+claims_specimens = [
+  "spec-test/sim-runtime/crates/sim-lib-study/src/tests",
+]
+composes = ["crate/sim-study-core", "crate/sim-lib-journal"]
+
+[[route]]
+id = "route/run-generic-study"
+task = "Run and decide a deterministic evidence-backed study"
+audiences = ["user", "code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/domain-free-study-lifecycle", why = "The study product owns the one sealed lifecycle, staged design, report graph, selection, and effect boundary." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-study/src/design", why = "The checked deterministic fixture covers smoke, screening, fixed confirmation, budget refusal, and selection evidence." },
+]
+
 [enforcement.audience]
 framework = "strict"
 code = "strict"
@@ -16,10 +42,10 @@ frameworks = "advisory"
 [[feature]]
 id = "feature/sim-runtime/javascript-core-profile"
 title = "Embedded capability-scoped ECMAScript profile"
-summary = "Run embedded, capability-scoped ECMAScript over SIM values with ordinary objects, exact UTF-16 strings, explicit drain-to-empty jobs, and JavaScript-named constructors for shared source-module and dynamic-source policies, with no private authority envelopes, Node, DOM, timers, ambient host IO, or implicit event loop."
+summary = "Run embedded, capability-scoped ECMAScript over SIM values with one authoritative finite work budget, ordinary objects, exact UTF-16 strings, explicit drain-to-empty jobs, and JavaScript-named constructors for shared source-module and dynamic-source policies, with no private authority envelopes, Node, DOM, timers, ambient host IO, or implicit event loop."
 owner = "crate/sim-lib-lang-javascript"
 audiences = ["code", "framework"]
-guidance = "Use this checked profile as the end of the add-guest-language route for embedded, capability-scoped ECMAScript over SIM values, never as a Node replacement. Enter through codec/javascript and compose shared function plans and exact capture cells, binding, descriptor dispatch, managed identity, sequence, pattern, JSON codec, tracing, resumable-frame, typed-job, diminished read-eval, and source-module mechanics. Keep ordinary-versus-arrow receiver selection, constructor legality, positional default/rest binding, async and generator state, realm identity, and error origins in JavaScript policy; prototype chains and private brands remain exclusively in the property/object subsystem. Carry every thrown JavaScript value through the shared Raised envelope using its realm class identity; Error cause and AggregateError errors remain ordinary descriptor-backed JavaScript properties. JavaScript allocations are ManagedNode values with only an open JavascriptManagedKind role label; allocate them through the generic ManagedHeap and use its checked strong, weak, and ephemeron operations rather than introducing guest graph storage or policy. Generators and async functions exchange shared ResumePacket values; promises, async continuations, and dynamic imports enter the JavaScript language-microtask FIFO and run only at an explicit drain-to-empty checkpoint. Collector finalization has a distinct queue class and checkpoint. ESM resolution is confined to supplied Dir roots and inherits canonical identities, live binding cells, cycle/failure receipts, and installed-codec evaluation from sim-lib-namespace; dynamic source likewise enters only through ReadEvalBroker with host-authored diminished authority. The generated intrinsic manifest covers sparse arrays, iterators, Map, Set, Symbol, exact UTF-16 code units, and JSON reviver/toJSON/replacer/property-order/cycle policy. Ownership audit: keep symbol allocation and the Symbol.for/keyFor registry as the small JavaScript policy anchored at crates/sim-lib-lang-javascript/src/collections.rs::JavascriptSymbolRegistry; sim-kernel/src/id.rs::Symbol is a textual namespace/name value and cannot express fresh identity, description-independent equality, or a realm-local string-keyed registry. Compose iterator storage and insertion-order traversal from crates/sim-lib-sequence/src/mutable/ordered_table.rs::OrderedTableIter and crates/sim-lib-sequence/src/mutable/ordered_set.rs::OrderedSetIter, with only the ECMAScript next-result adapter anchored at crates/sim-lib-lang-javascript/src/collections.rs::JavascriptIterator::next_result; the shared sequence owner already expresses live ordered traversal, while JavaScript policy supplies array-hole materialization and the { value, done } result shape. RegExp syntax and flags remain guest policy, but admitted syntax lowers into the bounded pattern organ; unsupported clauses fail closed. The pattern-ownership.toml Index enforcement policy rejects a guest-owned NFA, backtracking driver, or roadmap-family diagnostic while explicitly classifying syntax parsers and policy adapters. Node, CommonJS, npm, DOM, fetch, timers, filesystem, processes, network, ambient host IO, and an implicit event loop are deliberately absent. Callable browse Shapes remain neutral, and Proxy and exotic-object invariants are explicit gaps; do not add an engine, VM, Realm, scheduler, event loop, matcher, private managed substrate, private module cache, TypeScript policy, or foreign runtime."
+guidance = "Use this checked profile as the end of the add-guest-language route for embedded, capability-scoped ECMAScript over SIM values, never as a Node replacement. Enter through codec/javascript and compose shared function plans and exact capture cells, binding, descriptor dispatch, managed identity, sequence, pattern, JSON codec, tracing, resumable-frame, typed-job, diminished read-eval, and source-module mechanics. Every admitted evaluator action, including loop control, empty statements, blocks, selected branches, and nested statements, borrows the evaluator's one finite work budget; TypeScript erasure delegates to that same policy rather than creating a second bound. Keep ordinary-versus-arrow receiver selection, constructor legality, positional default/rest binding, async and generator state, realm identity, and error origins in JavaScript policy; prototype chains and private brands remain exclusively in the property/object subsystem. Carry every thrown JavaScript value through the shared Raised envelope using its realm class identity; Error cause and AggregateError errors remain ordinary descriptor-backed JavaScript properties. JavaScript allocations are ManagedNode values with only an open JavascriptManagedKind role label; allocate them through the generic ManagedHeap and use its checked strong, weak, and ephemeron operations rather than introducing guest graph storage or policy. Generators and async functions exchange shared ResumePacket values; promises, async continuations, and dynamic imports enter the JavaScript language-microtask FIFO and run only at an explicit drain-to-empty checkpoint. Collector finalization has a distinct queue class and checkpoint. ESM resolution is confined to supplied Dir roots and inherits canonical identities, live binding cells, cycle/failure receipts, and installed-codec evaluation from sim-lib-namespace; dynamic source likewise enters only through ReadEvalBroker with host-authored diminished authority. The generated intrinsic manifest covers sparse arrays, iterators, Map, Set, Symbol, exact UTF-16 code units, and JSON reviver/toJSON/replacer/property-order/cycle policy. JavaScript arrays reuse SparseSequence's u32::MAX logical-length bound; every public constructor or mutator reports an invalid caller-controlled length or index as JavascriptCollectionError::Index without clamping, unwinding, or partially mutating the array. Ownership audit: keep symbol allocation and the Symbol.for/keyFor registry as the small JavaScript policy anchored at crates/sim-lib-lang-javascript/src/collections.rs::JavascriptSymbolRegistry; sim-kernel/src/id.rs::Symbol is a textual namespace/name value and cannot express fresh identity, description-independent equality, or a realm-local string-keyed registry. Compose iterator storage and insertion-order traversal from crates/sim-lib-sequence/src/mutable/ordered_table.rs::OrderedTableIter and crates/sim-lib-sequence/src/mutable/ordered_set.rs::OrderedSetIter, with only the ECMAScript next-result adapter anchored at crates/sim-lib-lang-javascript/src/collections.rs::JavascriptIterator::next_result; the shared sequence owner already expresses live ordered traversal, while JavaScript policy supplies array-hole materialization and the { value, done } result shape. RegExp syntax and flags remain guest policy, but admitted syntax lowers into the bounded pattern organ; unsupported clauses fail closed. The pattern-ownership.toml Index enforcement policy rejects a guest-owned NFA, backtracking driver, or roadmap-family diagnostic while explicitly classifying syntax parsers and policy adapters. Node, CommonJS, npm, DOM, fetch, timers, filesystem, processes, network, ambient host IO, and an implicit event loop are deliberately absent. Callable browse Shapes remain neutral, and Proxy and exotic-object invariants are explicit gaps; do not add an engine, VM, Realm, scheduler, event loop, matcher, private managed substrate, private module cache, TypeScript policy, or foreign runtime."
 claims_anchors = ["anchor/crate/sim-lib-lang-javascript"]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-lang-javascript/src/lib",
@@ -36,7 +62,7 @@ title = "TypeScript notation over JavaScript evaluation"
 summary = "TypeScript notation; does not type-check. Load admitted notation by direct JavaScript erasure while retaining faithful, non-enforcing Shape metadata and explicit compiler gaps."
 owner = "crate/sim-lib-lang-typescript"
 audiences = ["code", "framework"]
-guidance = "Use codec/typescript to produce an erased JavaScript graph and annotation provenance, then install language/typescript-notation. The profile delegates evaluation unchanged to the JavaScript direct-eval policy and uses sim-shape's neutral BrowseSignature only for observational callable metadata. It performs no binding, inference, narrowing, assignability, source preflight, compiler diagnostics, emit, runtime type guard, object model, module cache, or independent evaluation."
+guidance = "Use codec/typescript to produce an erased JavaScript graph and annotation provenance, then install language/typescript-notation. The profile delegates evaluation unchanged, including total validation of the erased lowering as untrusted input, to the JavaScript direct-eval policy and uses sim-shape's neutral BrowseSignature only for observational callable metadata. It performs no binding, inference, narrowing, assignability, source preflight, compiler diagnostics, emit, runtime type guard, object model, module cache, or independent evaluation."
 claims_anchors = ["anchor/crate/sim-lib-lang-typescript"]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-lang-typescript/src/lib",
@@ -71,7 +97,7 @@ title = "Language-neutral declared class semantics"
 summary = "Own checked declared-parent class descriptors projected onto the kernel Class protocol, with bounded lineage policies and managed, non-retaining caches for linearizations and derived member views."
 owner = "crate/sim-lib-class"
 audiences = ["code", "framework"]
-guidance = "Use sim-lib-class for language-neutral declared superclass graphs. DescriptorClass delegates construction while projecting checked constructor, instance, member, and read-construction metadata through the existing kernel Class, Shape, table, and read-constructor hooks; its subclass query returns bounded traversal evidence. Reuse the kernel Class protocol and compose the C3 algorithm characterized from the Python profile. Use ClassCache for revision-checked linearizations and root-first member views: it composes MANAGED_2 strong parent edges and ephemerons so cached values remain live exactly while its class key is reachable. The class-ownership.toml Index enforcement policy is the machine-readable semantic boundary: it rejects copied descriptors, unbounded lineage walkers, and adapters that recast an excluded edge as declared parents. Its exclusion rows mirror exclusion_ledger mismatch codes, so adding a classified exclusion extends the guard without checker code. JavaScript prototypes, Lua metatables, typeclass dictionaries, Prolog relations, generic dispatch specificity, and JVM defining-loader identity remain with their owners. Do not infer class ancestry from property lookup, metamethod delegation, constraint evidence, predicate names, method applicability, or loader namespaces."
+guidance = "Use sim-lib-class for language-neutral declared superclass graphs. DescriptorClass delegates construction while projecting checked constructor, instance, member, and read-construction metadata through the existing kernel Class, Shape, table, and read-constructor hooks; its subclass query returns bounded traversal evidence. Reuse the kernel Class protocol and compose the C3 algorithm characterized from the Python profile. Use ClassCache for revision-checked linearizations and root-first member views: it composes managed graph strong parent edges and ephemerons so cached values remain live exactly while its class key is reachable. The class-ownership.toml Index enforcement policy is the machine-readable semantic boundary: it rejects copied descriptors, unbounded lineage walkers, and adapters that recast an excluded edge as declared parents. Its exclusion rows mirror exclusion_ledger mismatch codes, so adding a classified exclusion extends the guard without checker code. JavaScript prototypes, Lua metatables, typeclass dictionaries, Prolog relations, generic dispatch specificity, and JVM defining-loader identity remain with their owners. Do not infer class ancestry from property lookup, metamethod delegation, constraint evidence, predicate names, method applicability, or loader namespaces."
 claims_anchors = ["anchor/crate/sim-lib-class"]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-class/tests/neutral_class_specimens",
@@ -111,8 +137,6 @@ guidance = "Use this row when a framework needs memoized expression calculation 
 claims_anchors = [
   "anchor/crate/sim-lib-incremental",
   "anchor/runtime-lib/sim-lib-incremental/incremental-lib",
-  "anchor/export/sim-lib-incremental/model/analysis_view.rs",
-  "anchor/export/sim-lib-incremental/model/session.rs",
   "anchor/card/cookbook/organ/incremental",
 ]
 claims_specimens = [
@@ -159,10 +183,10 @@ claims_specimens = [
 [[feature]]
 id = "feature/sim-runtime/pattern-cursor-domains"
 title = "Typed pattern cursor domains"
-summary = "Execute bounded patterns over byte, Unicode scalar, or exact UTF-16 code-unit subjects while retaining the offset domain in every match and capture position."
+summary = "Execute or search bounded patterns over byte, Unicode scalar, or exact UTF-16 code-unit subjects while retaining the offset domain in every match and capture position."
 owner = "crate/sim-lib-pattern"
 audiences = ["code", "framework"]
-guidance = "Use execute_bytes, execute_scalars, or execute_code_units according to the dialect's symbol semantics. The exact adapter composes sim-text CodeUnitString and its checked scalar/code-unit conversions; never cast an offset or decode a lone surrogate merely to match it."
+guidance = "Use execute_bytes, execute_scalars, or execute_code_units for anchored execution according to the dialect's symbol semantics. Use the shared search entry points for unanchored matching: they retain one absolute subject coordinate system, one global receipt and budget, typed limit or unsupported outcomes, and leftmost capture priority without copying suffixes. The exact adapter composes sim-text CodeUnitString and its checked scalar/code-unit conversions; never cast an offset or decode a lone surrogate merely to match it."
 claims_anchors = [
   "anchor/crate/sim-lib-pattern",
 ]
@@ -500,7 +524,7 @@ title = "Capability-gated Python library core"
 summary = "Run embedded, capability-scoped, agent-authored Python over SIM values with ordered matching, supplied-root modules, and diminished eval/exec."
 owner = "crate/sim-lib-lang-python"
 audiences = ["code", "framework"]
-guidance = "Start here for embedded Python scripting, not CPython replacement compatibility. Source enters through codec/python; build eval and exec entries with dynamic_python_policy and pass host-authored diminished SourceAuthority directly. Use match_expr only for Shape-represented ordered cases, build imports with python_module_policy and a caller-supplied Dir, and inspect PYTHON_FIDELITY and python_library_manifest before claiming behavior. Python owns no authority envelope or generic source policy; its named constructors return the shared policies. Explicit absences never fall back to CPython or host access."
+guidance = "Start here for embedded Python scripting, not CPython replacement compatibility. Source enters through codec/python; the direct evaluator treats every ordinary lowered Expr as untrusted, validates the complete bounded node and token vocabulary before evaluation, and commits binding changes only after success. Build eval and exec entries with dynamic_python_policy and pass host-authored diminished SourceAuthority directly. Use match_expr only for Shape-represented ordered cases, build imports with python_module_policy and a caller-supplied Dir, and inspect PYTHON_FIDELITY and python_library_manifest before claiming behavior. Python owns no authority envelope or generic source policy; its named constructors return the shared policies. Explicit absences never fall back to CPython or host access."
 claims_anchors = [
   "anchor/crate/sim-lib-lang-python",
 ]
@@ -516,10 +540,10 @@ supports = [
 [[feature]]
 id = "feature/sim-runtime/host-exec"
 title = "Host exec primitive"
-summary = "Expose bounded process execution as a capability-gated host primitive outside the kernel."
+summary = "Expose bounded process policy through a capability-gated platform port outside the kernel."
 owner = "crate/sim-lib-exec"
 audiences = ["code", "framework"]
-guidance = "Use this row when a framework needs an explicit host process primitive."
+guidance = "Use this row when a framework needs bounded process execution. Submit a boot-trusted ProgramRef, whole ArgAtom values, an opaque ProjectRootRef, explicit SealedBindings, declared PrivateArtifactRef values, and a bounded budget. The environment is empty by default and cannot inherit ambient data. Retry automatically only for ProcessAttempt::NotDispatched; completed, proven-stopped, and unknown-after-dispatch outcomes are not retryable."
 claims_anchors = [
   "anchor/crate/sim-lib-exec",
 ]
@@ -528,17 +552,55 @@ claims_specimens = [
 ]
 
 [[feature]]
+id = "feature/sim-runtime/sandbox-exec"
+title = "Auditable untrusted-process sandbox contract"
+summary = "Validate complete requested controls and require launcher evidence before an untrusted process result can be accepted."
+owner = "crate/sim-lib-exec"
+audiences = ["code", "framework"]
+guidance = "Use SandboxPolicy and SandboxRequest for untrusted work while retaining exec and ProcessPort for explicitly trusted commands. Register object-safe SandboxLauncher implementations at boot and dispatch by stable launcher identity. Every policy classifies network, mounts, root, environment, identity, CPU, memory, wall time, processes, files, bytes, output, stdin, and process-tree cleanup; sandbox_exec rejects a completion whose report cannot prove every required control."
+claims_specimens = ["spec-test/sim-runtime/crates/sim-lib-exec/src/sandbox"]
+supports = ["feature/sim-runtime/host-exec"]
+
+[[feature]]
 id = "feature/sim-runtime/contract-emitter"
 title = "Runtime contract emitter"
 summary = "Emit generated repository contract and index fragments for runtime crates."
 owner = "crate/xtask"
 audiences = ["code"]
-guidance = "Use this row when refreshing generated runtime contract evidence."
+guidance = "Use this repository-tooling-only row when refreshing generated runtime contract evidence. xtask may invoke Cargo as a maintainer command, but it is not product runtime and must never supply or bypass ProcessPort."
 claims_anchors = [
   "anchor/crate/xtask",
 ]
 supports = [
   "feature/sim-runtime/organs",
+]
+
+[[feature]]
+id = "feature/sim-runtime/guest-host-service-boundary"
+title = "Explicit guest host-service boundary"
+summary = "Keep guest OS, source, import, native, and process surfaces behind explicit capabilities, supplied configuration, loader authority, and platform ports."
+owner = "repo/sim-runtime"
+audiences = ["code", "framework"]
+guidance = "Supply LuaRuntimeConfiguration as modeled data, Python SourceAuthority and Dir roots explicitly, JVM class bytes through its checked loader surface, and ProcessPort for structured execution. Missing authority or services fail closed. Guest product libraries never inspect the embedding environment, filesystem, process, classpath, or native loader; build scripts, examples, tests, and xtask are classified tooling rather than runtime services."
+claims_specimens = [
+  "recipe/sim-runtime/crates/sim-lib-exec/01-basics/bounded-process",
+]
+supports = [
+  "feature/sim-runtime/host-exec",
+  "feature/sim-runtime/capabilities-read-eval",
+  "feature/sim-runtime/python-authorized-library-core",
+]
+
+[[route]]
+id = "route/supply-guest-host-services"
+task = "Supply explicit host services to a guest runtime"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/guest-host-service-boundary", why = "The boundary keeps source, import, process, class-loading, and runtime configuration explicit and fail-closed." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-exec/src/tests", why = "The execution specimen proves that process effects cross the structured caller-supplied ProcessPort boundary." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-lua/src/conformance", why = "The Lua conformance specimen exercises supplied runtime configuration without ambient host inspection." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-python/src/lib", why = "The Python specimen exercises source and module access through explicit SourceAuthority and roots." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/product_specimen", why = "The JVM product specimen loads authorized class bytes through the checked loader surface." },
 ]
 
 [[route]]
@@ -741,10 +803,10 @@ steps = [
 [[feature]]
 id = "feature/sim-runtime/jvm-loadable-profile"
 title = "Loadable bounded JVM profile"
-summary = "Decode caller-authorized classfile bytes and execute bounded JVM calls, managed objects, arrays, exceptions, exact Java text, and bidirectional functional-interface adapters through one host-registered library, with exact whole-class proofs required by the verified fidelity tier."
+summary = "Decode caller-authorized classfile bytes and execute caller-selected exact class, member, descriptor, and integer arguments with distinct value, throwable, and refusal outcomes, plus bounded managed objects, arrays, exact Java text, and bidirectional functional-interface adapters through one host-registered library."
 owner = "crate/sim-lib-lang-jvm"
 audiences = ["user", "code", "framework"]
-guidance = "Load JvmLanguageLib through the standard bootloader or enable the SDK standard-jvm feature. Supply bytes explicitly under jvm.class.load and invoke only under jvm.invoke. Project linked Java lambdas through JavaLambdaCallable; admit a SIM FUNCTION_2 Callable as a managed Java SAM only under jvm.functional-adapter, after Shape and descriptor validation and before generated-class construction. Both directions preserve shared roots, JVM continuation ownership, and Java-facing failures. Select static-checked fidelity with NoVerifier, or install ClassVerifierProvider for verified fidelity: it refuses preparation unless one complete proof exactly matches class content, loader revision, verifier policy, structural input, and the selected method. Inspect only bounded immutable ClassVerificationView, MethodVerificationView, VerificationFrameView, and VerificationExplanation projections; none can mint verification state. Both tiers use the same PreparedEntry, ExecutionPermit, and drive path. Reuse JVM activation storage through JvmFramePool: it pools the shared machine SlotFile and UnitStack organs, sanitizes references only after explicit completion, bounds retained shapes and count, and keeps interrupted leases exclusively live until resume. Prepare work batching through PreparedWorkRegions: it aggregates only straight-line regions between safepoints, control transfers, and handler boundaries, and its execution window falls back to exact stepping whenever remaining work cannot admit the whole region or interruption is pending. Individual JvmWorkReceipt records remain the observable evidence. Use JvmBenchmarkCounters only as the counter-only adapter for neutral BENCH_2 workloads; it owns no clock, statistics, sampling, or report. Inspect `docs/jvm-bytecode-performance.md` and the performance-evidence recipe for prepared-code, micro-op, fusion, fidelity, and raw-sample provenance; the canonical BENCH_2 artifacts remain with sim-tooling. The generated VERIFIER_COVERAGE and opcode rule table consume sim-codec-classfile's complete manifest table, and the intrinsic table is generated directly from intrinsics.toml. The jvm-ownership.toml Index enforcement policy rejects raw decode in the drive loop, duplicate opcode or fusion tables, unchecked specialization, strong global caches, private statistics, alternate interpreters, unmapped fused operations, verifier byte parsers, private worklists or control-flow graphs, boolean verified flags, classfile parsers, opcode lists, private stacks or frames, raw Vec<u16> strings, shadow managed graphs, ambient classpaths, string-based class matching, unwind payload records, and alternate method-entry or drive paths. Never construct a second Cx or a JVM-owned copy of shared machine, managed, control, source-authority, classfile-decoder, class, namespace, text, or statistics policy."
+guidance = "Load JvmLanguageLib through the standard bootloader or enable the SDK standard-jvm feature. Supply bytes explicitly under jvm.class.load and invoke only under jvm.invoke. Project linked Java lambdas through JavaLambdaCallable; admit a SIM function organ Callable as a managed Java SAM only under jvm.functional-adapter, after Shape and descriptor validation and before generated-class construction. Both directions preserve shared roots, JVM continuation ownership, and Java-facing failures. Select static-checked fidelity with NoVerifier, or install ClassVerifierProvider for verified fidelity: it refuses preparation unless one complete proof exactly matches class content, loader revision, verifier policy, structural input, and the selected method. Inspect only bounded immutable ClassVerificationView, MethodVerificationView, VerificationFrameView, and VerificationExplanation projections; none can mint verification state. Both tiers use the same PreparedEntry, ExecutionPermit, and drive path. Reuse JVM activation storage through JvmFramePool: it pools the shared machine SlotFile and UnitStack organs, sanitizes references only after explicit completion, bounds retained shapes and count, and keeps interrupted leases exclusively live until resume. Prepare work batching through PreparedWorkRegions: it aggregates only straight-line regions between safepoints, control transfers, and handler boundaries, and its execution window falls back to exact stepping whenever remaining work cannot admit the whole region or interruption is pending. Individual JvmWorkReceipt records remain the observable evidence. Use JvmBenchmarkCounters only as the counter-only adapter for neutral benchmark harness workloads; it owns no clock, statistics, sampling, or report. The JVM baseline example obeys the neutral adapter receipt by echoing BENCH's exact SIM_BENCH_ITERATIONS count as executed_iterations. Inspect `docs/jvm-bytecode-performance.md` and the performance-evidence recipe for prepared-code, micro-op, fusion, fidelity, and raw-sample provenance; the canonical benchmark harness artifacts remain with sim-tooling. The generated VERIFIER_COVERAGE and opcode rule table consume sim-codec-classfile's complete manifest table, and the intrinsic table is generated directly from intrinsics.toml. The jvm-ownership.toml Index enforcement policy rejects raw decode in the drive loop, duplicate opcode or fusion tables, unchecked specialization, strong global caches, private statistics, alternate interpreters, unmapped fused operations, verifier byte parsers, private worklists or control-flow graphs, boolean verified flags, classfile parsers, opcode lists, private stacks or frames, raw Vec<u16> strings, shadow managed graphs, ambient classpaths, string-based class matching, unwind payload records, and alternate method-entry or drive paths. Never construct a second Cx or a JVM-owned copy of shared machine, managed, control, source-authority, classfile-decoder, class, namespace, text, or statistics policy."
 claims_anchors = [
   "anchor/crate/sim-lib-lang-jvm",
   "anchor/runtime-lib/sim-lib-lang-jvm/jvm-language-lib",
@@ -769,7 +831,7 @@ task = "Inspect JVM prepared-execution performance evidence"
 audiences = ["user", "code", "framework"]
 steps = [
   { feature = "feature/sim-runtime/jvm-loadable-profile", why = "The JVM profile publishes prepared-code, verified micro-op, and generated fusion coverage without owning benchmark statistics." },
-  { specimen = "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/performance-evidence", why = "The recipe maps every fidelity and performance claim to generated coverage and canonical BENCH_2 raw samples." },
+  { specimen = "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/performance-evidence", why = "The recipe maps every fidelity and performance claim to generated coverage and canonical benchmark harness raw samples." },
   { specimen = "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/published_performance", why = "The checked publication fixture keeps raw report identities, summaries, generated coverage, and ownership guards connected." },
 ]
 
@@ -808,4 +870,24 @@ task = "Add a host exec primitive"
 audiences = ["code", "framework"]
 steps = [
   { feature = "feature/sim-runtime/host-exec", why = "The exec row keeps host process behavior in a loadable library." },
+]
+
+[[feature]]
+id = "feature/sim-runtime/guarded-operations"
+title = "Declaration-driven guarded operations"
+summary = "Guard domain-neutral operations with explicit capability, execution mode, exact-subject approval, atomic approval use, effect replay, and auditable sink policy."
+owner = "crate/sim-lib-operation-gate"
+audiences = ["code", "framework"]
+guidance = "Declare every operation from canonical manifest fields; never infer policy from operation text. Put verification, atomic approval use, performance, and sink emission inside guard_operation so kernel cassette replay repeats none of them. Observation and Recorded are distinct labels, not reversibility claims; only Reviewed requires exact approval."
+claims_anchors = ["anchor/crate/sim-lib-operation-gate"]
+claims_specimens = ["recipe/sim-runtime/crates/sim-lib-operation-gate/01-basics/two-manifests"]
+composes = ["crate/sim-kernel"]
+
+[[route]]
+id = "route/guard-an-operation"
+task = "Guard and replay a capability-scoped operation"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/guarded-operations", why = "The generic gate owns explicit policy, exact approval, atomic use, records, and the performer boundary." },
+  { specimen = "recipe/sim-runtime/crates/sim-lib-operation-gate/01-basics/two-manifests", why = "Two unrelated fixture manifests prove the gate contains no automotive assumption." },
 ]

@@ -1,3 +1,7 @@
 (exec
-  ("env" "printf" "SIM")
-  (:cwd "." :timeout-ms 1000 :max-output-bytes 1024))
+  (:program "tool/printf"
+   :args ("SIM")
+   :project-root "project/current"
+   :bindings ()
+   :timeout-ms 1000
+   :max-output-bytes 1024))

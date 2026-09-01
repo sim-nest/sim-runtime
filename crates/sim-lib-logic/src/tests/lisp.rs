@@ -34,7 +34,11 @@ fn fact(name: &str, args: Vec<Expr>) -> Expr {
 }
 
 fn logic_cx() -> Cx {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xca07_7452_2b50_87b3),
+    );
     let lisp = LispCodecLib::new(cx.registry_mut().fresh_codec_id()).unwrap();
     cx.load_lib(&lisp).unwrap();
     install_logic_lib(&mut cx).unwrap();

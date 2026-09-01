@@ -79,11 +79,3 @@ fn manifest_refusal_is_typed_during_preparation() {
         }
     );
 }
-
-#[test]
-fn drive_source_has_no_decode_or_manifest_lookup() {
-    let source = include_str!("../src/dispatch.rs");
-    assert!(!source.contains(concat!("decode_", "instructions(")));
-    assert!(!source.contains(concat!(".meta", "data()")));
-    assert!(!source.contains(concat!("OP", "CODES")));
-}

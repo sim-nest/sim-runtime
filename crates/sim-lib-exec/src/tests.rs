@@ -1,315 +1,207 @@
-use std::{
-    fs,
-    path::PathBuf,
-    process::Command,
-    thread,
-    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
-};
-
-// conformance: host exec primitive runs only through explicit capability checks.
-
+use crate::*;
 use sim_kernel::{Error, Expr, Symbol, testing::bare_cx};
+use std::sync::Mutex;
 
-use crate::{ExecOptions, ProcResult, exec, exec_capability, proc_result_symbol};
-
-fn argv(items: &[&str]) -> Vec<String> {
-    items.iter().map(|item| (*item).to_owned()).collect()
+#[derive(Default)]
+struct RecordingPort {
+    requests: Mutex<Vec<ProcessRequest>>,
+    outcome: Mutex<Option<ProcessAttempt>>,
 }
-
+impl ProcessPort for RecordingPort {
+    fn run(&self, request: &ProcessRequest, _: &ProcessCancellation) -> ProcessAttempt {
+        self.requests.lock().unwrap().push(request.clone());
+        self.outcome
+            .lock()
+            .unwrap()
+            .take()
+            .unwrap_or_else(|| ProcessAttempt::Completed {
+                receipt: ProcessReceipt {
+                    provider: "model".into(),
+                    elapsed_mono_ns: 7,
+                    result: ProcResult {
+                        stdout: "out".into(),
+                        stderr: String::new(),
+                        exit_code: 0,
+                        truncated: false,
+                    },
+                },
+            })
+    }
+}
 fn options() -> ExecOptions {
-    ExecOptions::new(1_000, 1_024)
+    ExecOptions::new(
+        ProgramRef::new("printf").unwrap(),
+        ProjectRootRef::new("project").unwrap(),
+        100,
+        16,
+    )
+}
+fn argv() -> Vec<String> {
+    vec!["hello world".into()]
 }
 
 #[test]
-fn denied_capability_refuses_before_spawn() {
+fn capability_and_policy_precede_dispatch() {
+    let port = RecordingPort::default();
     let mut cx = bare_cx();
-    let err = exec(
+    let denied = exec(
         &mut cx,
-        &argv(&["sim-lib-exec-definitely-missing-command"]),
+        &port,
+        &argv(),
         &options(),
+        &ProcessCancellation::default(),
     )
     .unwrap_err();
-
-    assert!(matches!(
-        err,
-        Error::CapabilityDenied { capability } if capability == exec_capability()
-    ));
+    assert!(matches!(denied,Error::CapabilityDenied{capability} if capability==exec_capability()));
+    cx.grant(exec_capability());
+    for mut opts in [options(), options()] {
+        if opts.budget.timeout_ms == 100 {
+            opts.budget.timeout_ms = 0
+        } else {
+            opts.budget.max_output_bytes = 0
+        }
+        assert!(
+            exec(
+                &mut cx,
+                &port,
+                &argv(),
+                &opts,
+                &ProcessCancellation::default()
+            )
+            .is_err()
+        )
+    }
+    assert!(port.requests.lock().unwrap().is_empty())
 }
 
 #[test]
-fn empty_argv_is_rejected_before_spawn() {
+fn request_is_opaque_whole_atom_and_empty_by_default() {
+    let port = RecordingPort::default();
     let mut cx = bare_cx();
     cx.grant(exec_capability());
-
-    let err = exec(&mut cx, &[], &options()).unwrap_err();
-
-    assert!(matches!(err, Error::Eval(message) if message.contains("non-empty argv")));
-}
-
-#[test]
-fn exit_code_stdout_and_stderr_are_surfaced() {
-    let mut cx = bare_cx();
-    cx.grant(exec_capability());
-
-    let result = exec(
+    exec(
         &mut cx,
-        &argv(&["env", "sh", "-c", "printf out; printf err >&2; exit 7"]),
-        &options(),
+        &port,
+        &argv(),
+        &options().with_stdin(b"input".to_vec()),
+        &ProcessCancellation::default(),
     )
     .unwrap();
-
-    assert_eq!(result.stdout, "out");
-    assert_eq!(result.stderr, "err");
-    assert_eq!(result.exit_code, 7);
-    assert!(!result.truncated);
+    let requests = port.requests.lock().unwrap();
+    let request = &requests[0];
+    assert_eq!(request.program.as_str(), "printf");
+    assert_eq!(request.root.as_str(), "project");
+    assert_eq!(request.argv[0].as_str(), "hello world");
+    assert_eq!(request.environment.iter().count(), 0)
 }
 
 #[test]
-fn output_cap_truncates_and_flags() {
-    let mut cx = bare_cx();
-    cx.grant(exec_capability());
-
-    let result = exec(
-        &mut cx,
-        &argv(&["env", "printf", "1234567890"]),
-        &ExecOptions::new(1_000, 4),
-    )
-    .unwrap();
-
-    assert_eq!(result.stdout, "1234");
-    assert_eq!(result.stderr, "");
-    assert_eq!(result.exit_code, 0);
-    assert!(result.truncated);
-}
-
-#[test]
-fn timeout_kills_and_reports() {
-    let mut cx = bare_cx();
-    cx.grant(exec_capability());
-
-    let err = exec(
-        &mut cx,
-        &argv(&["env", "sleep", "2"]),
-        &ExecOptions::new(50, 1_024),
-    )
-    .unwrap_err();
-
-    assert!(matches!(err, Error::HostError(message) if message.contains("timed out")));
-}
-
-#[test]
-fn timeout_also_bounds_inherited_output_pipes() {
-    let pid_dir = temp_dir("inherited-pipe");
-    let pid_file = pid_dir.join("child.pid");
-
-    let mut cx = bare_cx();
-    cx.grant(exec_capability());
-
-    let started = Instant::now();
-    let err = exec(
-        &mut cx,
-        &argv(&[
-            "env",
-            "sh",
-            "-c",
-            "sleep 5 & echo $! > \"$1\"; printf done",
-            "sh",
-            pid_file.to_str().unwrap(),
-        ]),
-        &ExecOptions::new(50, 1_024),
-    )
-    .unwrap_err();
-
-    assert!(matches!(err, Error::HostError(message) if message.contains("timed out")));
-    assert!(started.elapsed() < Duration::from_millis(500));
-
-    let pid = wait_for_pid(&pid_file);
-    assert_process_stops(pid);
-    let _ = fs::remove_dir_all(pid_dir);
-}
-
-#[cfg(unix)]
-#[test]
-fn timeout_kills_background_children_in_the_same_process_group() {
-    let pid_dir = temp_dir("timeout-group");
-    let pid_file = pid_dir.join("child.pid");
-
-    let mut cx = bare_cx();
-    cx.grant(exec_capability());
-
-    let err = exec(
-        &mut cx,
-        &argv(&[
-            "env",
-            "sh",
-            "-c",
-            "sleep 5 & echo $! > \"$1\"; wait",
-            "sh",
-            pid_file.to_str().unwrap(),
-        ]),
-        &ExecOptions::new(100, 1_024),
-    )
-    .unwrap_err();
-
-    assert!(matches!(err, Error::HostError(message) if message.contains("timed out")));
-
-    let pid = wait_for_pid(&pid_file);
-    assert_process_stops(pid);
-
-    let _ = fs::remove_dir_all(pid_dir);
-}
-
-#[test]
-fn cwd_is_confined_to_root() {
-    let root = temp_dir("root");
-    let child = root.join("child");
-    let outside = temp_dir("outside");
-    fs::create_dir_all(&child).unwrap();
-
-    let mut cx = bare_cx();
-    cx.grant(exec_capability());
-
-    let result = exec(
-        &mut cx,
-        &argv(&["env", "pwd"]),
-        &ExecOptions::new(1_000, 1_024).with_cwd(&child, &root),
-    )
-    .unwrap();
-    assert_eq!(
-        PathBuf::from(result.stdout.trim()),
-        child.canonicalize().unwrap()
+fn sealed_bindings_validate_names_nul_duplicates_bounds_and_kinds() {
+    assert!(
+        SealedBindings::try_from_entries([("BAD=NAME".into(), BindingValue::Literal("x".into()))])
+            .is_err()
     );
-
-    let err = exec(
-        &mut cx,
-        &argv(&["env", "pwd"]),
-        &ExecOptions::new(1_000, 1_024).with_cwd(&outside, &root),
-    )
-    .unwrap_err();
-    assert!(matches!(err, Error::HostError(message) if message.contains("escapes root")));
-
-    let _ = fs::remove_dir_all(root);
-    let _ = fs::remove_dir_all(outside);
+    assert!(SealedBindings::literals([("A".into(), "x\0y".into())]).is_err());
+    assert!(
+        SealedBindings::try_from_entries([
+            ("A".into(), BindingValue::Literal("1".into())),
+            ("A".into(), BindingValue::Literal("2".into()))
+        ])
+        .is_err()
+    );
+    let huge = "x".repeat(65 * 1024);
+    assert!(SealedBindings::literals([("A".into(), huge)]).is_err());
+    let bindings = SealedBindings::try_from_entries([
+        (
+            "ROOT".into(),
+            BindingValue::ProjectRoot(ProjectRootRef::new("project").unwrap()),
+        ),
+        (
+            "SECRET".into(),
+            BindingValue::PrivateArtifact(PrivateArtifactRef::new("token").unwrap()),
+        ),
+    ])
+    .unwrap();
+    assert_eq!(bindings.iter().count(), 2)
 }
 
+#[test]
+fn only_not_dispatched_is_retryable() {
+    let attempts = [
+        ProcessAttempt::NotDispatched {
+            refusal: ProcessRefusal::SpawnFailed("missing".into()),
+        },
+        ProcessAttempt::Completed {
+            receipt: ProcessReceipt {
+                provider: "m".into(),
+                elapsed_mono_ns: 0,
+                result: ProcResult {
+                    stdout: String::new(),
+                    stderr: String::new(),
+                    exit_code: 7,
+                    truncated: false,
+                },
+            },
+        },
+        ProcessAttempt::StoppedAfterTimeout {
+            receipt: StopReceipt {
+                provider: "m".into(),
+                elapsed_mono_ns: 1,
+                cleanup: "reaped".into(),
+            },
+        },
+        ProcessAttempt::StoppedAfterCancel {
+            receipt: StopReceipt {
+                provider: "m".into(),
+                elapsed_mono_ns: 1,
+                cleanup: "reaped".into(),
+            },
+        },
+        ProcessAttempt::UnknownAfterDispatch {
+            evidence: DispatchEvidence {
+                provider: "m".into(),
+                stage: "reap".into(),
+                detail: "unknown".into(),
+            },
+        },
+    ];
+    assert!(attempts[0].automatically_retryable());
+    assert!(attempts[1..].iter().all(|v| !v.automatically_retryable()))
+}
+
+#[test]
+fn cancellation_token_is_shareable() {
+    let token = ProcessCancellation::default();
+    let other = token.clone();
+    token.cancel();
+    assert!(other.is_cancelled())
+}
 #[test]
 fn proc_result_encodes_constructor_form() {
     let result = ProcResult {
-        stdout: "out".to_owned(),
-        stderr: "err".to_owned(),
+        stdout: "out".into(),
+        stderr: "err".into(),
         exit_code: 7,
         truncated: true,
     };
-
     let Expr::Call { operator, args } = result.to_constructor_expr() else {
-        panic!("expected constructor call");
+        panic!()
     };
-    assert_eq!(*operator, Expr::Symbol(proc_result_symbol()));
-    assert_eq!(args[0], Expr::String("out".to_owned()));
-    assert_eq!(args[1], Expr::String("err".to_owned()));
-    assert_eq!(args[3], Expr::Bool(true));
-    assert_eq!(proc_result_symbol(), Symbol::new("ProcResult"));
+    assert_eq!(*operator, Expr::Symbol(Symbol::new("ProcResult")));
+    assert_eq!(args[3], Expr::Bool(true))
 }
-
-fn temp_dir(label: &str) -> PathBuf {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let path = std::env::temp_dir().join(format!(
-        "sim-lib-exec-{label}-{}-{nanos}",
-        std::process::id()
-    ));
-    fs::create_dir_all(&path).unwrap();
-    path
-}
-
-#[cfg(unix)]
-fn wait_for_pid(path: &PathBuf) -> u32 {
-    let deadline = Instant::now() + Duration::from_secs(1);
-    loop {
-        if let Ok(contents) = fs::read_to_string(path) {
-            return contents.trim().parse().unwrap();
-        }
-        if Instant::now() >= deadline {
-            panic!("timed out waiting for pid file {}", path.display());
-        }
-        thread::sleep(Duration::from_millis(10));
-    }
-}
-
-#[cfg(unix)]
-fn assert_process_stops(pid: u32) {
-    let deadline = Instant::now() + Duration::from_secs(1);
-    while process_is_running(pid) && Instant::now() < deadline {
-        thread::sleep(Duration::from_millis(10));
-    }
-
-    if process_is_running(pid) {
-        force_kill(pid);
-        panic!("background child {pid} survived exec timeout");
-    }
-}
-
-#[cfg(unix)]
-fn process_is_running(pid: u32) -> bool {
-    let exists = Command::new("env")
-        .args([
-            "sh",
-            "-c",
-            "kill -0 \"$1\" >/dev/null 2>&1",
-            "sh",
-            &pid.to_string(),
-        ])
-        .status()
-        .unwrap()
-        .success();
-    if !exists {
-        return false;
-    }
-
-    #[cfg(target_os = "linux")]
-    if let Ok(stat) = fs::read_to_string(format!("/proc/{pid}/stat"))
-        && matches!(linux_process_state(&stat), Some('Z') | Some('X'))
-    {
-        return false;
-    }
-
-    true
-}
-
-#[cfg(target_os = "linux")]
-fn linux_process_state(stat: &str) -> Option<char> {
-    stat.rsplit_once(')')?
-        .1
-        .split_whitespace()
-        .next()?
-        .chars()
-        .next()
-}
-
-#[cfg(target_os = "linux")]
 #[test]
-fn linux_process_state_distinguishes_running_and_zombie_children() {
-    assert_eq!(
-        linux_process_state("42 (worker with ) punctuation) R 1 2 3"),
-        Some('R')
-    );
-    assert_eq!(
-        linux_process_state("43 (finished worker) Z 1 2 3"),
-        Some('Z')
-    );
+fn portable_crate_contains_no_host_binding() {
+    let source = include_str!("exec.rs");
+    for forbidden in [
+        "PathBuf",
+        "std::path",
+        "std::process",
+        "std::env",
+        "Instant::now",
+        "Command::new",
+    ] {
+        assert!(!source.contains(forbidden), "runtime retained {forbidden}")
+    }
 }
-
-#[cfg(unix)]
-fn force_kill(pid: u32) {
-    let _ = Command::new("env")
-        .args([
-            "sh",
-            "-c",
-            "kill -KILL \"$1\" >/dev/null 2>&1 || true",
-            "sh",
-            &pid.to_string(),
-        ])
-        .status();
-}
+// conformance: execution tests prove bounded launch, cancellation, and retained evidence.

@@ -94,7 +94,7 @@ fn raised(cx: &mut Cx, id: u32, name: &'static str) -> Raised {
         .unwrap();
     assert!(
         class.object().as_class().is_some(),
-        "throwable class must have a CLASS_2 face"
+        "throwable class must have a class organ face"
     );
     Raised::new(
         class,

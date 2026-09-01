@@ -50,6 +50,7 @@ where
             budgets.max_observations,
             budgets.max_depth,
             budgets.max_output,
+            budgets.max_explanation_causes,
         )
             .incremental_fingerprint(),
         dependencies: seeds.incremental_fingerprint(),
@@ -114,6 +115,7 @@ where
         inputs.dependencies,
         &observations,
         &node_fingerprints,
+        &solution.causes,
     )
         .incremental_fingerprint();
     DataflowCompletionProof {

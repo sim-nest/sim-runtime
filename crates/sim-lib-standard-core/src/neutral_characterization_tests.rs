@@ -277,5 +277,9 @@ fn strict_projection() -> CaptureComparisonProjection {
 }
 
 fn test_cx() -> Cx {
-    Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory))
+    Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xacbd_e9e9_ae71_48ec),
+    )
 }

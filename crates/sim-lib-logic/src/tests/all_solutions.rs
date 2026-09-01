@@ -5,7 +5,11 @@ use sim_kernel::{Cx, DefaultFactory, EagerPolicy, Expr, ShapeMatch, Symbol};
 use crate::{LogicConfig, LogicDb, builtins::BuiltinTable, query::query_all};
 
 fn test_cx() -> Cx {
-    Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory))
+    Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xa8e0_0825_e0a1_7251),
+    )
 }
 
 fn capture<'a>(answer: &'a ShapeMatch, name: &str) -> &'a Expr {

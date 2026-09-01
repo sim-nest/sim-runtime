@@ -1,6 +1,6 @@
     fn fixture() -> (SiteKey, ClassLoader) {
         let loader = ClassLoader::new(4096);
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0xbbb9_3d44_80c3_ddfb));
         let class = crate::ClassDefinition::test(
             loader.id(),
             "Example",
@@ -41,7 +41,7 @@
 
     #[test]
     fn invalid_sam_discovery_stage_rejects_object_method_before_generation() {
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x90ef_6859_ced2_fa10));
         let classes = BTreeMap::from([(
             "example.EqualsOnly".into(),
             interface(
@@ -61,7 +61,7 @@
 
     #[test]
     fn unrelated_abstract_methods_are_both_named() {
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x26a0_f200_9e18_d0f6));
         let classes = BTreeMap::from([(
             "example.Pair".into(),
             interface(
@@ -81,7 +81,7 @@
 
     #[test]
     fn recursive_sam_discovery_work_limit_stage_precedes_generation() {
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x4878_00da_093a_b222));
         let classes = BTreeMap::from([
             (
                 "example.Child".into(),
@@ -106,7 +106,7 @@
 
     #[test]
     fn inaccessible_handle_and_invalid_sam_stage_precede_generation() {
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x9329_8e8d_857a_9a93));
         let classes = BTreeMap::from([
             (
                 "example.Function".into(),

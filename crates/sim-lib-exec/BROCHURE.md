@@ -4,12 +4,13 @@ In one line: It lets a trusted host run a specific outside process with clear pe
 
 ## What it gives you
 
-Some useful work belongs outside the runtime: a formatter, a compiler, a small command-line helper, or another tool the host already trusts. This crate gives that work a narrow gate. The caller names the exact program and arguments, the host checks permission first, and the run is bounded by a working directory root, a timeout, and a byte limit on captured output.
+Some useful work belongs outside the runtime: a formatter, a compiler, a small command-line helper, or another tool the host already trusts. This crate gives that work a narrow gate. The caller supplies a boot-trusted program reference, whole arguments, an opaque project root, and an empty-by-default sealed environment. The physical capsule resolves native resources; portable callers never receive a host path.
 
 ## Why you will be glad
 
 - A process run is explicit about what starts and what authority allows it.
-- Output, errors, and exit status come back in one predictable record.
+- Typed attempt truth distinguishes work that never spawned, completed work (including non-zero exit), proven cleanup after timeout or cancellation, and ambiguous post-spawn failure.
+- Only a definitely not-dispatched attempt is safe to retry automatically.
 - Time and output limits keep helper tools from taking over the session.
 
 ## Where it fits

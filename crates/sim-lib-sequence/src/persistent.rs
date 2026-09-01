@@ -137,7 +137,7 @@ pub fn persistent_list_push(cx: &mut Cx, list: &Value, item: Value) -> Result<Va
 /// use sim_kernel::{Cx, DefaultFactory, NoopEvalPolicy, Symbol};
 /// use sim_lib_sequence::{persistent_vector, persistent_vector_push};
 ///
-/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x6a5d_1549_03a8_c069));
 /// let one = cx.factory().number_literal(Symbol::qualified("test", "u64"), "1".into())?;
 /// let two = cx.factory().number_literal(Symbol::qualified("test", "u64"), "2".into())?;
 ///

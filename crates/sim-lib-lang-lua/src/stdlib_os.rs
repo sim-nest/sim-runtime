@@ -122,26 +122,32 @@ pub(crate) fn run_lua_os_function(
     match kind {
         LuaOsKind::Execute => lua_os_execute(cx, args),
         LuaOsKind::Getenv => lua_os_getenv(cx, policy, args),
-        LuaOsKind::Clock => lua_float_value(cx, 0.0).map(|value| vec![value]),
+        LuaOsKind::Clock => lua_float_value(
+            cx,
+            policy.configuration()?.cpu_clock_millis() as f64 / 1_000.0,
+        )
+        .map(|value| vec![value]),
     }
 }
 
 fn lua_os_execute(cx: &mut Cx, args: Vec<Value>) -> Result<Vec<Value>> {
-    let command = string_arg(cx, &args, 0, "os.execute command")?;
-    let argv = vec!["sh".to_owned(), "-c".to_owned(), command];
-    let opts = sim_lib_exec::ExecOptions::new(30_000, 64 * 1024);
-    let result = sim_lib_exec::exec(cx, &argv, &opts)?;
-    cx.factory()
-        .bool(result.exit_code == 0)
-        .map(|value| vec![value])
+    cx.require(&CapabilityName::new("exec"))?;
+    let _ = string_arg(cx, &args, 0, "os.execute command")?;
+    Err(Error::Eval(
+        "lua os.execute shell strings are refused; use a host-supplied structured ProcessPort request"
+            .to_owned(),
+    ))
 }
 
 fn lua_os_getenv(cx: &mut Cx, policy: &LuaEvalPolicy, args: Vec<Value>) -> Result<Vec<Value>> {
     cx.require(&env_read_capability())?;
     let name = string_arg(cx, &args, 0, "os.getenv name")?;
-    match std::env::var(name) {
-        Ok(value) => cx.factory().string(value).map(|value| vec![value]),
-        Err(_) => Ok(vec![policy.kit().nil.clone()]),
+    match policy.configuration()?.environment(&name) {
+        Some(value) => cx
+            .factory()
+            .string(value.to_owned())
+            .map(|value| vec![value]),
+        None => Ok(vec![policy.kit().nil.clone()]),
     }
 }
 

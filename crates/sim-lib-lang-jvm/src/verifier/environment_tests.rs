@@ -74,7 +74,7 @@ mod environment_tests {
 
     #[test]
     fn class_proofs_are_exact_incremental_and_collectible() {
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x15ea_20cd_4dcf_225c));
         let loader = ClassLoader::new(4096);
         insert(&cx, &loader, "Base", &[], &[]);
         insert(
@@ -203,7 +203,7 @@ mod environment_tests {
 
     #[test]
     fn verification_environment_is_read_only_and_records_exact_lineage() {
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x7cd3_2bf4_b7c9_a587));
         let loader = ClassLoader::new(4096);
         insert(
             &cx,
@@ -270,7 +270,7 @@ mod environment_tests {
 
     #[test]
     fn verification_environment_refuses_loading_and_bounds_every_walk() {
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x32c3_12ff_11ac_c13e));
         let loader = ClassLoader::new(4096);
         insert(&cx, &loader, "Child", &["Parent"], &[]);
         insert(&cx, &loader, "Parent", &[], &[]);
@@ -288,7 +288,7 @@ mod environment_tests {
 
     #[test]
     fn assignability_and_join_apply_bounded_jvms_reference_rules() {
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0xe051_f1df_d81b_1c46));
         let loader = ClassLoader::new(4096);
         insert_with_flags(&cx, &loader, "Left", &[], 0x0200, &[]);
         insert_with_flags(&cx, &loader, "Right", &[], 0x0200, &[]);
@@ -324,7 +324,7 @@ mod environment_tests {
 
     #[test]
     fn join_refuses_unresolved_hierarchy_and_exhausts_hostile_depth() {
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0xe63d_b656_e744_3598));
         let loader = ClassLoader::new(4096);
         insert(&cx, &loader, "Broken", &["Missing"], &[]);
         insert(&cx, &loader, "Other", &[], &[]);

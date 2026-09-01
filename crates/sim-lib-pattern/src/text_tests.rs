@@ -1,5 +1,6 @@
 use crate::{
-    TextLimits, TextMatch, TextOp, compile_glob_pattern, compile_lua_pattern, run_text_pattern,
+    ExecutionLimit, PatternSearchOutcome, TextLimits, TextMatch, TextOp, compile_glob_pattern,
+    compile_lua_pattern, run_text_pattern,
 };
 use std::sync::Arc;
 
@@ -42,7 +43,11 @@ fn capture(name: &str, cases: Vec<Datum>) -> (ScenarioSpec, CharacterizationCapt
 }
 
 fn test_cx() -> Cx {
-    Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory))
+    Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x242b_7d4d_b446_5e46),
+    )
 }
 
 fn assert_stable_capture(name: &str, cases: Vec<Datum>) {
@@ -63,6 +68,7 @@ fn text_match(ops: &[TextOp], subject: &str) -> Option<TextMatch> {
             ..TextLimits::default()
         },
     )
+    .into_match()
 }
 
 fn text_span(ops: &[TextOp], subject: &str) -> Option<(usize, usize)> {
@@ -147,7 +153,7 @@ fn lua_dialect_preserves_captures_and_budget_limits() {
     assert_eq!(matched.captures, vec![(0, 0), (3, 3)]);
 
     let bounded = compile_lua_pattern("a*b").unwrap();
-    assert!(
+    assert!(matches!(
         run_text_pattern(
             &bounded,
             "aaab",
@@ -156,10 +162,25 @@ fn lua_dialect_preserves_captures_and_budget_limits() {
                 max_steps: 1,
                 ..TextLimits::default()
             }
-        )
-        .is_none()
-    );
+        ),
+        PatternSearchOutcome::Limit {
+            limit: ExecutionLimit::Transitions,
+            ..
+        }
+    ));
     assert_eq!(text_span(&bounded, "aaab"), Some((0, 4)));
+}
+
+#[test]
+fn scalar_search_keeps_anchors_absolute_and_admits_terminal_empty_matches() {
+    let nested_anchor = compile_lua_pattern("(^a)").unwrap();
+    assert!(matches!(
+        run_text_pattern(&nested_anchor, "ba", 0, TextLimits::default()),
+        PatternSearchOutcome::NoMatch { .. }
+    ));
+    let optional = compile_lua_pattern("a-").unwrap();
+    let terminal = run_text_pattern(&optional, "b", 1, TextLimits::default()).unwrap();
+    assert_eq!((terminal.start, terminal.end), (1, 1));
 }
 
 #[test]
@@ -314,7 +335,7 @@ fn glob_current_behavior_is_a_stable_characterization_capture() {
             &[
                 (
                     "outcome",
-                    if limited.is_none() {
+                    if matches!(limited, PatternSearchOutcome::Limit { .. }) {
                         "refused"
                     } else {
                         "matched"

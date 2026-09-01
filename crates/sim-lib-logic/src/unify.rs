@@ -24,7 +24,7 @@ use crate::{
 /// use sim_kernel::{Cx, DefaultFactory, EagerPolicy, Expr, Symbol};
 /// use sim_lib_logic::{LogicConfig, unify_exprs};
 ///
-/// let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x6ff1_1611_07d9_17d4));
 /// let left = Expr::List(vec![
 ///     Expr::Symbol(Symbol::new("point")),
 ///     Expr::Local(Symbol::new("x")),

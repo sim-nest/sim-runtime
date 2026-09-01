@@ -1,6 +1,9 @@
 //! Bounded reuse of JVM activation storage over the shared machine organs.
 
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{
+    Arc, Mutex, MutexGuard,
+    atomic::{AtomicUsize, Ordering},
+};
 
 use sim_lib_control::{AdmissionLimit, WorkLimit};
 use sim_lib_machine::{ManagedRootSource, SlotFile, UnitStack};
@@ -80,6 +83,15 @@ impl JvmFrameRecord {
         &mut self.operands
     }
 
+    pub(crate) fn execution_storage_mut(
+        &mut self,
+    ) -> (&mut SlotFile<JvmValueWidth>, &mut UnitStack<JvmValueWidth>) {
+        self.dirty_locals.fill(true);
+        self.operands_dirty = true;
+        self.root_map_certain = false;
+        (&mut self.locals, &mut self.operands)
+    }
+
     /// Returns the admitted operand depth for this record.
     pub const fn operand_limit(&self) -> usize {
         self.operand_limit
@@ -152,6 +164,7 @@ struct PoolState {
 struct PoolInner {
     policy: JvmFramePoolPolicy,
     state: Mutex<PoolState>,
+    live_leases: AtomicUsize,
 }
 
 /// A bounded pool whose records are visible to the complete managed-root enumerator.
@@ -169,6 +182,7 @@ impl JvmFramePool {
                 state: Mutex::new(PoolState {
                     retained: Vec::new(),
                 }),
+                live_leases: AtomicUsize::new(0),
             }),
         }
     }
@@ -184,6 +198,7 @@ impl JvmFramePool {
                 .map(|index| state.retained.swap_remove(index))
         }
         .unwrap_or_else(|| JvmFrameRecord::new(slots, operands));
+        self.inner.live_leases.fetch_add(1, Ordering::Relaxed);
         JvmFrameLease {
             pool: self.clone(),
             frame: Some(frame),
@@ -193,6 +208,11 @@ impl JvmFramePool {
     /// Returns the current number of sanitized retained records.
     pub fn retained_frames(&self) -> usize {
         self.state().retained.len()
+    }
+
+    /// Returns the number of frames currently held by live or interrupted leases.
+    pub fn live_leases(&self) -> usize {
+        self.inner.live_leases.load(Ordering::Relaxed)
     }
 
     fn state(&self) -> MutexGuard<'_, PoolState> {
@@ -255,7 +275,16 @@ impl JvmFrameLease {
     /// Sanitizes and conditionally retains a normally returned frame.
     pub fn complete(mut self) {
         let frame = self.frame.take().expect("live frame lease");
+        self.pool.inner.live_leases.fetch_sub(1, Ordering::Relaxed);
         self.pool.recycle(frame);
+    }
+}
+
+impl Drop for JvmFrameLease {
+    fn drop(&mut self) {
+        if self.frame.is_some() {
+            self.pool.inner.live_leases.fetch_sub(1, Ordering::Relaxed);
+        }
     }
 }
 
@@ -290,6 +319,7 @@ impl ManagedRootSource for InterruptedJvmFrame {
 
 #[cfg(test)]
 mod tests {
+    use sim_lib_gc_tracing::CollectionLimits;
     use sim_lib_mutation::{HardCappedRetainPolicy, ManagedArena, ManagedNode};
 
     use super::*;
@@ -356,5 +386,49 @@ mod tests {
         let _ = frame.safepoint_roots();
         frame.prepared_roots.clear();
         let _ = frame.safepoint_roots();
+    }
+
+    #[test]
+    fn object_reachable_only_from_a_live_frame_survives_collection() {
+        let limits = CollectionLimits {
+            objects: 8,
+            edges: 8,
+            stack: 8,
+            work: 32,
+            clears: 8,
+            finalizers: 0,
+        };
+        let mut heap = crate::JvmHeap::new(8, limits).unwrap();
+        let live = heap.allocate(crate::JvmRole::Object).unwrap();
+        let _garbage = heap.allocate(crate::JvmRole::Object).unwrap();
+        let pool = JvmFramePool::new(JvmFramePoolPolicy {
+            frames: 1,
+            slots: 1,
+            operands: 1,
+        });
+        let mut lease = pool.acquire(1, 1);
+        lease
+            .frame_mut()
+            .operands_mut()
+            .push(JvmValue::Reference(JvmReference::managed(live)))
+            .unwrap();
+
+        heap.collect_from(&lease).unwrap();
+        assert_eq!(heap.live_len(), 1, "the unrelated object must be reclaimed");
+        assert_eq!(
+            heap.allocate(crate::JvmRole::Object)
+                .unwrap()
+                .id()
+                .allocation_ordinal(),
+            2
+        );
+
+        lease.complete();
+        heap.collect_from(&pool).unwrap();
+        assert_eq!(
+            heap.live_len(),
+            0,
+            "sanitized retained frames publish no roots"
+        );
     }
 }

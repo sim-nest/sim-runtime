@@ -351,7 +351,11 @@ fn sample_profile() -> LanguageProfile {
 }
 
 fn test_cx() -> Cx {
-    Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory))
+    Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xcff5_0bf9_cfe2_943e),
+    )
 }
 
 fn expr_values(cx: &mut Cx, exprs: Vec<Expr>) -> Vec<sim_kernel::Value> {

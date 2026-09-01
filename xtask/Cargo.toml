@@ -7,6 +7,10 @@ description = "Repository maintenance tasks for sim-runtime."
 readme = "README.md"
 publish = false
 
+[package.metadata.sim]
+role = "repository-tooling"
+host_process_policy = "tooling-only-not-runtime"
+
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

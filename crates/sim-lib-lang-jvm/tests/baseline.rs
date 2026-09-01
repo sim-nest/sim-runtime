@@ -1,39 +1,7 @@
 // conformance: the bounded JVM baseline exercises every shared ownership seam.
 
-use sim_codec_classfile::{ClassfileCodec, OPCODES, inspect_classfile};
+use sim_codec_classfile::{OPCODES, inspect_classfile};
 use sim_kernel::CodecId;
-use sim_lib_class::ClassDescriptor;
-use sim_lib_control::Raised;
-use sim_lib_core::SourceAuthority;
-use sim_lib_machine::{InstructionPolicy, LocatedCode};
-use sim_lib_mutation::ManagedNode;
-use sim_text::CodeUnitString;
-
-struct DependencyPolicy;
-
-impl InstructionPolicy for DependencyPolicy {
-    type Instruction = ();
-    type InstructionId = u8;
-
-    fn instruction_id(_: &Self::Instruction) -> Self::InstructionId {
-        0
-    }
-}
-
-#[test]
-fn all_composed_organs_are_reachable() {
-    fn reachable<T>() {
-        assert!(!std::any::type_name::<T>().is_empty());
-    }
-
-    reachable::<Raised>();
-    reachable::<ManagedNode<u64>>();
-    reachable::<ClassDescriptor>();
-    reachable::<SourceAuthority>();
-    reachable::<CodeUnitString>();
-    reachable::<LocatedCode<DependencyPolicy>>();
-    reachable::<ClassfileCodec>();
-}
 
 #[test]
 fn manifests_freeze_the_supported_baseline() {
@@ -89,35 +57,35 @@ fn manifests_freeze_the_supported_baseline() {
     }
 
     let ledger: toml::Value = sim_lib_lang_jvm::REUSE_LEDGER.parse().unwrap();
-    let products = ledger["organ"]
+    let capabilities = ledger["organ"]
         .as_array()
         .unwrap()
         .iter()
-        .map(|row| row["product"].as_str().unwrap())
+        .map(|row| row["capability"].as_str().unwrap())
         .collect::<Vec<_>>();
     assert_eq!(
-        products,
+        capabilities,
         [
-            "CHARACTERIZE_1",
-            "INDEX_9",
-            "MANAGED_2",
-            "UTF16_2",
-            "MACHINE_2",
-            "CLASSFILE_2",
-            "JVM_7",
-            "DATAFLOW_2",
-            "CLASS_2",
-            "FUNCTION_2",
+            "characterization",
+            "SIM Index",
+            "managed graph",
+            "UTF-16 text",
+            "bounded machine",
+            "classfile codec",
+            "JVM dynamic linkage",
+            "dataflow",
+            "class descriptors",
+            "function plans",
             "KERNEL",
             "DISPATCH",
             "CODECS",
-            "EXCEPTIONS_3",
+            "raised exceptions",
         ]
     );
 }
 
 #[test]
-fn final_proof_is_wired_to_the_single_frozen_acceptance_file() {
+fn performance_proof_is_wired_to_the_single_acceptance_file() {
     let reference: toml::Value = include_str!("../bytecode-speed-acceptance.toml")
         .parse()
         .unwrap();
@@ -127,8 +95,8 @@ fn final_proof_is_wired_to_the_single_frozen_acceptance_file() {
         Some("benchmarks/bytecode-speed-4/acceptance.toml")
     );
     assert_eq!(
-        reference["final_proof_phase"].as_str(),
-        Some("BYTECODESPEED4.14")
+        reference["proof"].as_str(),
+        Some("accepted benchmark report with distinct cold-preparation and warm-execution arms")
     );
 }
 

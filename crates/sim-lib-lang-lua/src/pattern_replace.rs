@@ -4,6 +4,7 @@ use sim_lib_standard_core::Arity;
 
 use crate::{
     LuaEvalPolicy, call::call_lua_value, lua_rawget, lua_table_value, stdlib_string::lua_to_string,
+    stdlib_string_pattern::lua_pattern_match,
 };
 
 pub(crate) enum LuaReplacement {
@@ -36,7 +37,7 @@ pub(crate) fn lua_gsub(
     let mut count = 0_i64;
     let max_count = limit.unwrap_or(i64::MAX);
     while cursor <= subject.len() && count < max_count {
-        let Some(matched) = run_text_pattern(
+        let Some(matched) = lua_pattern_match(run_text_pattern(
             ops,
             subject,
             cursor,
@@ -44,7 +45,8 @@ pub(crate) fn lua_gsub(
                 max_steps: 20_000,
                 ..TextLimits::default()
             },
-        ) else {
+        ))?
+        else {
             break;
         };
         if matched.start < cursor {

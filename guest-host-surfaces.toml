@@ -1,0 +1,31 @@
+schema = "sim.guest-host-surfaces/v1"
+owner = "repo/sim-runtime"
+rule = "Guest product libraries receive host facts and effects only through explicit configuration, SourceAuthority, LoaderPort, or ProcessPort."
+
+[[surface]]
+guest = "lua"
+anchor = "crates/sim-lib-lang-lua/src/stdlib_os.rs"
+configuration = "crates/sim-lib-lang-lua/src/eval.rs::LuaRuntimeConfiguration"
+fidelity = "Lua 5.3 OS names remain present; execute shell strings remain an explicit gap; getenv and clock consume modeled facts only."
+
+[[surface]]
+guest = "python"
+anchor = "crates/sim-lib-lang-python/src/library_core.rs"
+configuration = "crates/sim-lib-lang-python/src/fidelity.rs::PYTHON_FIDELITY"
+fidelity = "Imports use caller-supplied Dir roots and dynamic source uses SourceAuthority; ambient CPython modules remain absent."
+
+[[surface]]
+guest = "jvm"
+anchor = "crates/sim-lib-lang-jvm/src/surface.rs"
+configuration = "crates/sim-lib-lang-jvm/supported-runtime.toml"
+fidelity = "Class bytes, verifier evidence, and native gaps are explicit; no host JVM or classpath is consulted."
+
+[[target_class]]
+kind = "product"
+roots = ["crates/*/src"]
+ambient_host_apis = "forbidden"
+
+[[target_class]]
+kind = "tooling"
+roots = ["xtask", "crates/*/build.rs", "crates/*/tests", "crates/*/examples"]
+ambient_host_apis = "allowed-for-build-and-proof-only"

@@ -96,7 +96,11 @@ fn eval_policy_can_route_one_fact_query_to_logic_resolver() {
     db.assert_clause_expr(parent_fact()).unwrap();
 
     let policy = Arc::new(ProbeLogicPolicy::new(db, Arc::clone(&answers)));
-    let mut cx = Cx::new(policy, Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        policy,
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x4aa7_9614_99c4_0429),
+    );
     cx.eval_expr(parent_query()).unwrap();
 
     let answers = answers.lock().unwrap();
@@ -123,7 +127,11 @@ fn logic_policy_eval_returns_first_answer_bindings() {
             .len(),
         1
     );
-    let mut cx = Cx::new(policy, Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        policy,
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x1bf5_03b0_761e_ce2e),
+    );
     let result = cx.eval_expr(parent_query()).unwrap();
 
     let table = result

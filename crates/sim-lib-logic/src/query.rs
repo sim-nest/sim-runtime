@@ -43,7 +43,7 @@ pub struct LogicQuery {
 /// use sim_kernel::{Cx, DefaultFactory, EagerPolicy, Expr, Symbol};
 /// use sim_lib_logic::{LogicConfig, LogicDb, query};
 ///
-/// let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0xb983_5a01_8b5f_ccae));
 /// let mut db = LogicDb::new();
 /// db.assert_clause_expr(Expr::List(vec![
 ///     Expr::Symbol(Symbol::new("fact")),

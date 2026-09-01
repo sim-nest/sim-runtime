@@ -1,7 +1,7 @@
-# Managed graph migration baseline
+# Managed graph ownership characterization
 
-This note freezes the pre-migration managed-graph seams. It is an inventory,
-not a second contract: the Rust APIs named below remain authoritative.
+This note records the installed managed-graph seams. It is an inventory, not a
+second contract: the Rust APIs named below remain authoritative.
 
 ## Existing owners and dependency direction
 
@@ -30,9 +30,8 @@ then sweeps, returning each category in that order. `CollectionReceipt`
 preserves allocation order for marked and swept identities and visitation order
 for clear receipts.
 
-The replacement node must keep stable edge identities. The guest forks below
-currently derive `EdgeId` from `Vec` position, so removing an entry renumbers
-later evidence and cannot be preserved as the future mutation API.
+Stable edge identities are required. Guest adapters must not derive `EdgeId`
+from `Vec` position because removing an entry would renumber later evidence.
 
 ## Exact guest forks
 
@@ -52,7 +51,7 @@ The JavaScript and Python `managed.rs` modules duplicate the same mechanics:
 The names and role variants differ; the payload, trait body, wrapper behavior,
 and dependency shape do not.
 
-## Migration sites requiring checked replacement
+## Sites covered by the shared owner
 
 The complete direct managed-edge field-mutation inventory is:
 

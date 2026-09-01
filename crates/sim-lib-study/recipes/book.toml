@@ -1,0 +1,5 @@
+book = "study"
+title = "Durable Studies"
+summary = "Seal, schedule, execute, and reconstruct bounded domain-neutral studies."
+order = 330
+chapters = ["01-basics"]

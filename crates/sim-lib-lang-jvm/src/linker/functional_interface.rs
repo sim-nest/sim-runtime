@@ -223,7 +223,9 @@ fn object_method(name: &str, descriptor: &str) -> bool {
     )
 }
 
-fn split_method_descriptor(value: &str) -> Result<(Vec<String>, String), FunctionalInterfaceError> {
+pub(crate) fn split_method_descriptor(
+    value: &str,
+) -> Result<(Vec<String>, String), FunctionalInterfaceError> {
     if !valid_method_descriptor(value) {
         return Err(FunctionalInterfaceError::InvalidDescriptor(value.into()));
     }

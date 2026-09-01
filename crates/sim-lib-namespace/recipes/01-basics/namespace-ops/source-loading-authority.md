@@ -1,7 +1,7 @@
-# Source-loading authority baseline
+# Source-loading authority contract
 
-This baseline freezes the authority split before the common source-loading
-authority value is introduced. JavaScript and Python already reuse the
+This contract records the installed common source-loading authority boundary.
+JavaScript and Python reuse the
 `ReadEvalBroker`, `ModuleLoader`, decision ledger, module receipts, and their
 characterization tests. No complete common authority owner exists: each
 language constructs an authority-bearing request from a language-owned
@@ -45,7 +45,7 @@ in `ModuleLoader`, `DynamicJavascript`, and `DynamicPython` are private and none
 of those three owners projects that decision evidence. Module receipts therefore
 cannot be joined to read-eval decisions through a public source-loading owner.
 
-## Frozen behavior
+## Behavioral evidence
 
 The characterization surface fixes the following behavior:
 

@@ -69,7 +69,7 @@ impl GeneratedLambdaMember {
 /// A loader-bound lambda class assembled directly from checked metadata.
 ///
 /// Generated classes deliberately have no classfile expression, shell, or byte
-/// storage. Their neutral face is the same checked `CLASS_2` descriptor used by
+/// storage. Their neutral face is the same checked `class organ` descriptor used by
 /// loaded classes, while invocation policy remains in the linker.
 #[derive(Clone, Debug)]
 pub struct GeneratedLambdaClass {

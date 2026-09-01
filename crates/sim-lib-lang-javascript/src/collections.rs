@@ -75,29 +75,32 @@ pub struct JavascriptArray {
 }
 impl Default for JavascriptArray {
     fn default() -> Self {
-        Self::sparse(0)
+        Self {
+            elements: SparseSequence::new(MAX_ARRAY_LENGTH),
+        }
     }
 }
 impl JavascriptArray {
     /// Construct a dense array.
-    pub fn dense(values: Vec<JavascriptValue>) -> Self {
+    pub fn dense(values: Vec<JavascriptValue>) -> Result<Self, JavascriptCollectionError> {
+        if values.len() > MAX_ARRAY_LENGTH {
+            return Err(JavascriptCollectionError::Index);
+        }
         let mut elements = SparseSequence::new(MAX_ARRAY_LENGTH);
         for (index, value) in values.into_iter().enumerate() {
             elements
                 .set(index, value)
-                .expect("a materialized vector has a valid JavaScript array length");
+                .map_err(|_| JavascriptCollectionError::Index)?;
         }
-        Self { elements }
+        Ok(Self { elements })
     }
     /// Construct with an explicit length and holes.
-    pub fn sparse(length: usize) -> Self {
-        assert!(
-            length <= MAX_ARRAY_LENGTH,
-            "invalid JavaScript array length"
-        );
+    pub fn sparse(length: usize) -> Result<Self, JavascriptCollectionError> {
         let mut elements = SparseSequence::new(MAX_ARRAY_LENGTH);
-        elements.set_len(length).expect("length was checked");
-        Self { elements }
+        elements
+            .set_len(length)
+            .map_err(|_| JavascriptCollectionError::Index)?;
+        Ok(Self { elements })
     }
     /// ECMAScript length.
     pub fn len(&self) -> usize {
@@ -112,10 +115,15 @@ impl JavascriptArray {
         self.elements.get(index)
     }
     /// Set an index, growing through holes as JavaScript arrays do.
-    pub fn set(&mut self, index: usize, value: JavascriptValue) {
+    pub fn set(
+        &mut self,
+        index: usize,
+        value: JavascriptValue,
+    ) -> Result<(), JavascriptCollectionError> {
         self.elements
             .set(index, value)
-            .expect("invalid JavaScript array index");
+            .map(|_| ())
+            .map_err(|_| JavascriptCollectionError::Index)
     }
     /// Set the ECMAScript length, creating holes or deleting truncated values.
     pub fn set_len(&mut self, length: usize) -> Result<(), JavascriptCollectionError> {
@@ -124,9 +132,9 @@ impl JavascriptArray {
             .map_err(|_| JavascriptCollectionError::Index)
     }
     /// Append and return the new length.
-    pub fn push(&mut self, value: JavascriptValue) -> usize {
-        self.set(self.len(), value);
-        self.len()
+    pub fn push(&mut self, value: JavascriptValue) -> Result<usize, JavascriptCollectionError> {
+        self.set(self.len(), value)?;
+        Ok(self.len())
     }
     /// Remove and return the last element (`undefined` and a hole both return `None` at this policy seam).
     pub fn pop(&mut self) -> Option<JavascriptValue> {
@@ -173,9 +181,9 @@ impl JavascriptArray {
         if visits > max_visits {
             return Err(JavascriptCollectionError::Limit);
         }
-        let mut out = Self::sparse(self.len());
+        let mut out = Self::sparse(self.len())?;
         for (index, value) in self.elements.occupied_in(..) {
-            out.set(index, f(value, index));
+            out.set(index, f(value, index))?;
         }
         Ok(out)
     }
@@ -193,7 +201,7 @@ impl JavascriptArray {
                 return Err(JavascriptCollectionError::Limit);
             }
             if f(value, i) {
-                out.push(value.clone());
+                out.push(value.clone())?;
             }
         }
         Ok(out)
@@ -381,8 +389,8 @@ mod tests {
     use super::*;
     #[test]
     fn arrays_preserve_holes_and_iterators_materialize_undefined() {
-        let mut a = JavascriptArray::sparse(2);
-        a.set(1, JavascriptValue::Number(2.));
+        let mut a = JavascriptArray::sparse(2).unwrap();
+        a.set(1, JavascriptValue::Number(2.)).unwrap();
         assert_eq!(a.map(1, |v, _| v.clone()).unwrap().get(0), None);
         let mut it = a.values();
         assert_eq!(it.next_result().value, Some(JavascriptValue::Undefined));
@@ -391,9 +399,9 @@ mod tests {
     }
     #[test]
     fn array_callbacks_skip_holes_and_length_truncation_deletes_values() {
-        let mut array = JavascriptArray::sparse(4);
-        array.set(1, JavascriptValue::Number(1.));
-        array.set(3, JavascriptValue::Number(3.));
+        let mut array = JavascriptArray::sparse(4).unwrap();
+        array.set(1, JavascriptValue::Number(1.)).unwrap();
+        array.set(3, JavascriptValue::Number(3.)).unwrap();
         let mut visited = Vec::new();
         array.for_each(2, |_, index| visited.push(index)).unwrap();
         assert_eq!(visited, vec![1, 3]);
@@ -405,6 +413,42 @@ mod tests {
         assert_eq!(array.get(3), None);
         array.set_len(4).unwrap();
         assert_eq!(array.get(3), None);
+    }
+    #[test]
+    fn array_bounds_fail_without_unwinding_or_mutating() {
+        let value = JavascriptValue::Number(7.);
+        let mut array = JavascriptArray::sparse(1).unwrap();
+        array.set(0, value.clone()).unwrap();
+        let before = array.clone();
+
+        let set_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            array.set(u32::MAX as usize, value.clone())
+        }));
+        assert_eq!(set_result.unwrap(), Err(JavascriptCollectionError::Index));
+        assert_eq!(array, before);
+
+        let mut full = JavascriptArray::sparse(u32::MAX as usize).unwrap();
+        let push_result =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| full.push(value.clone())));
+        assert_eq!(push_result.unwrap(), Err(JavascriptCollectionError::Index));
+        assert_eq!(full.len(), u32::MAX as usize);
+        assert!(!full.is_empty());
+        assert_eq!(full.get(0), None);
+
+        if let Some(oversized) = (u32::MAX as usize).checked_add(1) {
+            let sparse_result = std::panic::catch_unwind(|| JavascriptArray::sparse(oversized));
+            assert_eq!(
+                sparse_result.unwrap(),
+                Err(JavascriptCollectionError::Index)
+            );
+        }
+    }
+    #[test]
+    fn pop_shrinks_only_a_length_derived_from_private_state() {
+        let mut array = JavascriptArray::dense(vec![JavascriptValue::Number(1.)]).unwrap();
+        assert_eq!(array.pop(), Some(JavascriptValue::Number(1.)));
+        assert!(array.is_empty());
+        assert_eq!(array.pop(), None);
     }
     #[test]
     fn map_nan_keys_match_themselves() {

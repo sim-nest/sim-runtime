@@ -1,5 +1,5 @@
 {
-  "card_count": 31,
+  "card_count": 33,
   "cards": [
     {
       "id": "browse/catalog",
@@ -12,6 +12,18 @@
       "kind": "cookbook-recipe",
       "owner": "sim-lib-control",
       "summary": "Prompt, capture, abort, and resume surfaces."
+    },
+    {
+      "id": "cookbook/cookbook/organ/class",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-class",
+      "summary": "Language-neutral class lineage, browsing, read construction, and managed caches."
+    },
+    {
+      "id": "cookbook/cookbook/organ/function",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-function",
+      "summary": "Language-neutral typed functions, managed captures, and optional dispatch."
     },
     {
       "id": "cookbook/core",
@@ -62,6 +74,12 @@
       "summary": "Julia core profile descriptors and dispatch behavior."
     },
     {
+      "id": "cookbook/lang/jvm",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-lang-jvm",
+      "summary": "Load and evaluate bounded JVM language forms."
+    },
+    {
       "id": "cookbook/lang/lua",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-lang-lua",
@@ -108,6 +126,12 @@
       "kind": "cookbook-recipe",
       "owner": "sim-lib-logic",
       "summary": "Logic database, assertion, and query surfaces."
+    },
+    {
+      "id": "cookbook/operation/gate",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-operation-gate",
+      "summary": "Authorize and ledger capability-gated operations."
     },
     {
       "id": "cookbook/organ/binding",
@@ -158,28 +182,16 @@
       "summary": "Permission-gated host process runs with time and output limits."
     },
     {
-      "id": "cookbook/sim-lib-class",
-      "kind": "cookbook-recipe",
-      "owner": "sim-lib-class",
-      "summary": "Language-neutral class lineage, browsing, read construction, and managed caches."
-    },
-    {
-      "id": "cookbook/sim-lib-function",
-      "kind": "cookbook-recipe",
-      "owner": "sim-lib-function",
-      "summary": "Language-neutral typed functions, managed captures, and optional dispatch."
-    },
-    {
-      "id": "cookbook/sim-lib-lang-jvm",
-      "kind": "cookbook-recipe",
-      "owner": "sim-lib-lang-jvm",
-      "summary": ""
-    },
-    {
       "id": "cookbook/standard/core",
       "kind": "cookbook-recipe",
       "owner": "sim-lib-standard-core",
       "summary": "Language profiles, fidelity badges, conformance helpers, and strict migration characterization."
+    },
+    {
+      "id": "cookbook/study",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-study",
+      "summary": "Seal, schedule, execute, and reconstruct bounded domain-neutral studies."
     },
     {
       "id": "registry/catalog",
@@ -226,9 +238,11 @@
       "sim-lib-machine",
       "sim-lib-mutation",
       "sim-lib-namespace",
+      "sim-lib-operation-gate",
       "sim-lib-pattern",
       "sim-lib-sequence",
       "sim-lib-standard-core",
+      "sim-lib-study",
       "xtask"
     ]
   },
@@ -371,7 +385,7 @@
       "reason": "transduced sequence adapter; reconstruct from the source sequence and transducer pipeline descriptor"
     }
   ],
-  "package_count": 33,
+  "package_count": 35,
   "packages": [
     {
       "crate_name": "sim_incremental_core",
@@ -1474,6 +1488,16 @@
           "kind": [
             "test"
           ],
+          "name": "caller_selected",
+          "src": "crates/sim-lib-lang-jvm/tests/caller_selected.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
           "name": "class_initialization",
           "src": "crates/sim-lib-lang-jvm/tests/class_initialization.rs"
         },
@@ -1506,16 +1530,6 @@
           ],
           "name": "corpus",
           "src": "crates/sim-lib-lang-jvm/tests/corpus.rs"
-        },
-        {
-          "crate_types": [
-            "bin"
-          ],
-          "kind": [
-            "test"
-          ],
-          "name": "entry_surface",
-          "src": "crates/sim-lib-lang-jvm/tests/entry_surface.rs"
         },
         {
           "crate_types": [
@@ -1626,16 +1640,6 @@
           ],
           "name": "prepared_dispatch",
           "src": "crates/sim-lib-lang-jvm/tests/prepared_dispatch.rs"
-        },
-        {
-          "crate_types": [
-            "bin"
-          ],
-          "kind": [
-            "test"
-          ],
-          "name": "product_preparation",
-          "src": "crates/sim-lib-lang-jvm/tests/product_preparation.rs"
         },
         {
           "crate_types": [
@@ -1760,13 +1764,6 @@
           "kind": "normal",
           "optional": false,
           "package": "sim-lib-dispatch",
-          "rename": null,
-          "target": null
-        },
-        {
-          "kind": "normal",
-          "optional": false,
-          "package": "sim-lib-exec",
           "rename": null,
           "target": null
         },
@@ -2765,6 +2762,33 @@
       ]
     },
     {
+      "crate_name": "sim_lib_operation_gate",
+      "dependencies": [],
+      "description": "Domain-neutral capability and exact-approval gate for effectful SIM operations.",
+      "features": [],
+      "group": "workspace",
+      "manifest": "crates/sim-lib-operation-gate/Cargo.toml",
+      "name": "sim-lib-operation-gate",
+      "publish": "true",
+      "root": "crates/sim-lib-operation-gate",
+      "rustdoc_summary": "Declaration-driven gate for capability-scoped operations.",
+      "target_kinds": [
+        "lib"
+      ],
+      "targets": [
+        {
+          "crate_types": [
+            "lib"
+          ],
+          "kind": [
+            "lib"
+          ],
+          "name": "sim_lib_operation_gate",
+          "src": "crates/sim-lib-operation-gate/src/lib.rs"
+        }
+      ]
+    },
+    {
       "crate_name": "sim_lib_pattern",
       "dependencies": [
         {
@@ -2982,6 +3006,33 @@
       ]
     },
     {
+      "crate_name": "sim_lib_study",
+      "dependencies": [],
+      "description": "Domain-neutral durable study lifecycle over sealed coordinates.",
+      "features": [],
+      "group": "workspace",
+      "manifest": "crates/sim-lib-study/Cargo.toml",
+      "name": "sim-lib-study",
+      "publish": "true",
+      "root": "crates/sim-lib-study",
+      "rustdoc_summary": "Durable, domain-neutral study coordination.",
+      "target_kinds": [
+        "lib"
+      ],
+      "targets": [
+        {
+          "crate_types": [
+            "lib"
+          ],
+          "kind": [
+            "lib"
+          ],
+          "name": "sim_lib_study",
+          "src": "crates/sim-lib-study/src/lib.rs"
+        }
+      ]
+    },
+    {
       "crate_name": "xtask",
       "dependencies": [],
       "description": "Repository maintenance tasks for sim-runtime.",
@@ -3025,10 +3076,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-16T00:13:38+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "cf74b44fd0b1fc954428a63864c368a9d41e480c",
+    "git_commit": "c7a41a4e95ab317566b0c8a2f0eaa6b18fd9a939",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "cf74b44fd0b1fc954428a63864c368a9d41e480c",
+    "source_commit": "c7a41a4e95ab317566b0c8a2f0eaa6b18fd9a939",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -3041,9 +3092,9 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "eefa973dc4cbbfc1",
+    "workspace_hash": "2735dce2d33903a7",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 664,
+    "workspace_hash_input_count": 687,
     "workspace_hash_inputs": [
       "Cargo.toml",
       "crates/sim-incremental-core/Cargo.toml",
@@ -3159,8 +3210,8 @@
       "crates/sim-lib-exec/recipes/book.toml",
       "crates/sim-lib-exec/src/exec.rs",
       "crates/sim-lib-exec/src/lib.rs",
+      "crates/sim-lib-exec/src/sandbox.rs",
       "crates/sim-lib-exec/src/tests.rs",
-      "crates/sim-lib-exec/src/timeout.rs",
       "crates/sim-lib-function/Cargo.toml",
       "crates/sim-lib-function/recipes/01-basics/neutral-language/recipe.toml",
       "crates/sim-lib-function/recipes/book.toml",
@@ -3265,6 +3316,7 @@
       "crates/sim-lib-lang-javascript/src/jobs.rs",
       "crates/sim-lib-lang-javascript/src/json.rs",
       "crates/sim-lib-lang-javascript/src/lib.rs",
+      "crates/sim-lib-lang-javascript/src/lowered.rs",
       "crates/sim-lib-lang-javascript/src/managed.rs",
       "crates/sim-lib-lang-javascript/src/matrix_row.rs",
       "crates/sim-lib-lang-javascript/src/modules.rs",
@@ -3313,6 +3365,7 @@
       "crates/sim-lib-lang-jvm/src/constructor.rs",
       "crates/sim-lib-lang-jvm/src/control.rs",
       "crates/sim-lib-lang-jvm/src/dispatch.rs",
+      "crates/sim-lib-lang-jvm/src/driver.rs",
       "crates/sim-lib-lang-jvm/src/dynamic.rs",
       "crates/sim-lib-lang-jvm/src/entry.rs",
       "crates/sim-lib-lang-jvm/src/exception.rs",
@@ -3345,6 +3398,9 @@
       "crates/sim-lib-lang-jvm/src/specimen.rs",
       "crates/sim-lib-lang-jvm/src/superinstructions.rs",
       "crates/sim-lib-lang-jvm/src/superinstructions_generated.rs",
+      "crates/sim-lib-lang-jvm/src/surface/entry_policy.rs",
+      "crates/sim-lib-lang-jvm/src/surface/entry_policy_tests.rs",
+      "crates/sim-lib-lang-jvm/src/surface/execute_entry.rs",
       "crates/sim-lib-lang-jvm/src/surface.rs",
       "crates/sim-lib-lang-jvm/src/text.rs",
       "crates/sim-lib-lang-jvm/src/value.rs",
@@ -3367,11 +3423,11 @@
       "crates/sim-lib-lang-jvm/src/verifier_adversarial_tests.rs",
       "crates/sim-lib-lang-jvm/src/verifier_rules_generated.rs",
       "crates/sim-lib-lang-jvm/tests/baseline.rs",
+      "crates/sim-lib-lang-jvm/tests/caller_selected.rs",
       "crates/sim-lib-lang-jvm/tests/class_initialization.rs",
       "crates/sim-lib-lang-jvm/tests/constructor_state.rs",
       "crates/sim-lib-lang-jvm/tests/control_execution.rs",
       "crates/sim-lib-lang-jvm/tests/corpus.rs",
-      "crates/sim-lib-lang-jvm/tests/entry_surface.rs",
       "crates/sim-lib-lang-jvm/tests/exceptions.rs",
       "crates/sim-lib-lang-jvm/tests/frame_pool.rs",
       "crates/sim-lib-lang-jvm/tests/hot_path_ownership.rs",
@@ -3383,7 +3439,6 @@
       "crates/sim-lib-lang-jvm/tests/ownership_guard.rs",
       "crates/sim-lib-lang-jvm/tests/prepared_code.rs",
       "crates/sim-lib-lang-jvm/tests/prepared_dispatch.rs",
-      "crates/sim-lib-lang-jvm/tests/product_preparation.rs",
       "crates/sim-lib-lang-jvm/tests/product_specimen.rs",
       "crates/sim-lib-lang-jvm/tests/published_performance.rs",
       "crates/sim-lib-lang-jvm/tests/semantic_equivalence.rs",
@@ -3629,6 +3684,13 @@
       "crates/sim-lib-namespace/src/namespace.rs",
       "crates/sim-lib-namespace/src/specifier.rs",
       "crates/sim-lib-namespace/src/tests.rs",
+      "crates/sim-lib-operation-gate/Cargo.toml",
+      "crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/Cargo.toml",
+      "crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/recipe.toml",
+      "crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/src/main.rs",
+      "crates/sim-lib-operation-gate/recipes/book.toml",
+      "crates/sim-lib-operation-gate/src/lib.rs",
+      "crates/sim-lib-operation-gate/src/tests.rs",
       "crates/sim-lib-pattern/Cargo.toml",
       "crates/sim-lib-pattern/build.rs",
       "crates/sim-lib-pattern/recipes/01-basics/match-destructure/recipe.toml",
@@ -3707,11 +3769,23 @@
       "crates/sim-lib-standard-core/src/registry.rs",
       "crates/sim-lib-standard-core/src/scenario.rs",
       "crates/sim-lib-standard-core/src/tests.rs",
+      "crates/sim-lib-study/Cargo.toml",
+      "crates/sim-lib-study/recipes/book.toml",
+      "crates/sim-lib-study/src/decision/selection.rs",
+      "crates/sim-lib-study/src/decision/tests.rs",
+      "crates/sim-lib-study/src/decision.rs",
+      "crates/sim-lib-study/src/design/tests.rs",
+      "crates/sim-lib-study/src/design.rs",
+      "crates/sim-lib-study/src/lib.rs",
+      "crates/sim-lib-study/src/lifecycle/wire.rs",
+      "crates/sim-lib-study/src/lifecycle.rs",
+      "crates/sim-lib-study/src/product.rs",
+      "crates/sim-lib-study/src/tests.rs",
       "features.toml",
       "xtask/Cargo.toml"
     ]
   },
-  "recipe_book_count": 29,
+  "recipe_book_count": 31,
   "recipes": [
     {
       "book": "organ/binding",
@@ -3734,15 +3808,15 @@
       "title": "Binding Organ"
     },
     {
-      "book": "sim-lib-class",
+      "book": "cookbook/organ/class",
       "book_toml": "crates/sim-lib-class/recipes/book.toml",
-      "card_id": "cookbook/sim-lib-class",
+      "card_id": "cookbook/cookbook/organ/class",
       "group": "workspace",
       "package": "sim-lib-class",
       "recipe_count": 1,
       "recipes": [
         {
-          "card_id": "sim-lib-class/01-basics/neutral-class",
+          "card_id": "cookbook/organ/class/01-basics/neutral-class",
           "codec": "",
           "id": "neutral-class",
           "package": "sim-lib-class",
@@ -3842,15 +3916,15 @@
       "title": "Bounded Process Execution"
     },
     {
-      "book": "sim-lib-function",
+      "book": "cookbook/organ/function",
       "book_toml": "crates/sim-lib-function/recipes/book.toml",
-      "card_id": "cookbook/sim-lib-function",
+      "card_id": "cookbook/cookbook/organ/function",
       "group": "workspace",
       "package": "sim-lib-function",
       "recipe_count": 1,
       "recipes": [
         {
-          "card_id": "sim-lib-function/01-basics/neutral-language",
+          "card_id": "cookbook/organ/function/01-basics/neutral-language",
           "codec": "",
           "id": "neutral-language",
           "package": "sim-lib-function",
@@ -4086,15 +4160,15 @@
       "title": "Julia Core Profile"
     },
     {
-      "book": "sim-lib-lang-jvm",
+      "book": "lang/jvm",
       "book_toml": "crates/sim-lib-lang-jvm/recipes/book.toml",
-      "card_id": "cookbook/sim-lib-lang-jvm",
+      "card_id": "cookbook/lang/jvm",
       "group": "workspace",
       "package": "sim-lib-lang-jvm",
       "recipe_count": 5,
       "recipes": [
         {
-          "card_id": "sim-lib-lang-jvm/01-basics/authorized-static-call",
+          "card_id": "lang/jvm/01-basics/authorized-static-call",
           "codec": "",
           "id": "authorized-static-call",
           "package": "sim-lib-lang-jvm",
@@ -4102,7 +4176,7 @@
           "title": "Define authorized class bytes and call a static method"
         },
         {
-          "card_id": "sim-lib-lang-jvm/01-basics/java-lambda",
+          "card_id": "lang/jvm/01-basics/java-lambda",
           "codec": "",
           "id": "java-lambda",
           "package": "sim-lib-lang-jvm",
@@ -4110,7 +4184,7 @@
           "title": "Invoke a compiler-produced Java lambda from SIM"
         },
         {
-          "card_id": "sim-lib-lang-jvm/01-basics/method-reference",
+          "card_id": "lang/jvm/01-basics/method-reference",
           "codec": "",
           "id": "method-reference",
           "package": "sim-lib-lang-jvm",
@@ -4118,7 +4192,7 @@
           "title": "Invoke a Java method reference from SIM"
         },
         {
-          "card_id": "sim-lib-lang-jvm/01-basics/performance-evidence",
+          "card_id": "lang/jvm/01-basics/performance-evidence",
           "codec": "",
           "id": "performance-evidence",
           "package": "sim-lib-lang-jvm",
@@ -4126,7 +4200,7 @@
           "title": "Inspect prepared JVM performance evidence"
         },
         {
-          "card_id": "sim-lib-lang-jvm/01-basics/sim-functional-interface",
+          "card_id": "lang/jvm/01-basics/sim-functional-interface",
           "codec": "",
           "id": "sim-functional-interface",
           "package": "sim-lib-lang-jvm",
@@ -4134,7 +4208,7 @@
           "title": "Pass an authorized SIM callable to Java"
         }
       ],
-      "summary": "",
+      "summary": "Load and evaluate bounded JVM language forms.",
       "title": "JVM language profile"
     },
     {
@@ -4450,6 +4524,26 @@
       "title": "Namespace Organ"
     },
     {
+      "book": "operation/gate",
+      "book_toml": "crates/sim-lib-operation-gate/recipes/book.toml",
+      "card_id": "cookbook/operation/gate",
+      "group": "workspace",
+      "package": "sim-lib-operation-gate",
+      "recipe_count": 1,
+      "recipes": [
+        {
+          "card_id": "operation/gate/01-basics/two-manifests",
+          "codec": "rust",
+          "id": "two-manifests",
+          "package": "sim-lib-operation-gate",
+          "recipe_toml": "crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/recipe.toml",
+          "title": "Declare two unrelated guarded operations"
+        }
+      ],
+      "summary": "Authorize and ledger capability-gated operations.",
+      "title": "Guarded operations"
+    },
+    {
       "book": "organ/pattern",
       "book_toml": "crates/sim-lib-pattern/recipes/book.toml",
       "card_id": "cookbook/organ/pattern",
@@ -4516,6 +4610,17 @@
       ],
       "summary": "Language profiles, fidelity badges, conformance helpers, and strict migration characterization.",
       "title": "Standard Core"
+    },
+    {
+      "book": "study",
+      "book_toml": "crates/sim-lib-study/recipes/book.toml",
+      "card_id": "cookbook/study",
+      "group": "workspace",
+      "package": "sim-lib-study",
+      "recipe_count": 0,
+      "recipes": [],
+      "summary": "Seal, schedule, execute, and reconstruct bounded domain-neutral studies.",
+      "title": "Durable Studies"
     }
   ]
 }

@@ -57,19 +57,33 @@ impl PythonEvalPolicy {
         lowered: &Expr,
         env: &mut BTreeMap<String, PythonValue>,
     ) -> Result<PythonValue> {
-        let tokens = lowered_tokens(lowered)?;
+        let tokens = lowered_tokens(lowered, self.max_steps)?;
+        let mut candidate = env.clone();
         let mut parser = Parser {
             tokens: &tokens,
             at: 0,
             steps: self.max_steps,
-            env,
+            env: &mut candidate,
         };
-        parser.module()
+        let value = parser.module()?;
+        *env = candidate;
+        Ok(value)
     }
 }
 
-fn lowered_tokens(expr: &Expr) -> Result<Vec<String>> {
-    fn walk(expr: &Expr, out: &mut Vec<String>) -> Result<()> {
+fn lowered_tokens(expr: &Expr, max_nodes: usize) -> Result<Vec<String>> {
+    let mut out = Vec::new();
+    let mut pending = vec![(expr, true)];
+    let mut visited = 0usize;
+    while let Some((expr, root)) = pending.pop() {
+        visited = visited
+            .checked_add(1)
+            .ok_or_else(|| Error::Eval("python lowering exceeds structural bound".into()))?;
+        if visited > max_nodes {
+            return Err(Error::Eval(
+                "python lowering exceeds structural bound".into(),
+            ));
+        }
         let Expr::Call { operator, args } = expr else {
             return Err(Error::Eval(
                 "python evaluator accepts only codec/python lowered forms".into(),
@@ -83,21 +97,59 @@ fn lowered_tokens(expr: &Expr) -> Result<Vec<String>> {
                 "python evaluator accepts only codec/python lowered forms".into(),
             ));
         }
-        if head.name.as_ref() == "token" {
-            if let Some(Expr::String(text)) = args.get(1) {
-                out.push(text.clone());
-                return Ok(());
+        let name = head.name.as_ref();
+        if root && name != "module" {
+            return Err(Error::Eval(
+                "python lowering root must be python/module".into(),
+            ));
+        }
+        if name == "token" {
+            let [
+                Expr::Symbol(kind),
+                Expr::String(text),
+                Expr::Bool(executable),
+            ] = args.as_slice()
+            else {
+                return Err(Error::Eval("malformed python token".into()));
+            };
+            if kind.namespace.is_some() {
+                return Err(Error::Eval("malformed python token kind".into()));
             }
-            return Err(Error::Eval("malformed python token".into()));
+            let synthetic = matches!(kind.name.as_ref(), "dedent" | "end");
+            let trivia = matches!(kind.name.as_ref(), "newline" | "indent" | "trivia");
+            let executable_kind = matches!(
+                kind.name.as_ref(),
+                "name" | "keyword" | "number" | "string" | "operator"
+            );
+            let known = executable_kind
+                || trivia
+                || synthetic
+                || matches!(kind.name.as_ref(), "f-string" | "template-string");
+            if !known
+                || *executable
+                    != matches!(
+                        kind.name.as_ref(),
+                        "name" | "number" | "string" | "operator"
+                    )
+                || (text.is_empty() && !synthetic)
+                || (synthetic && !text.is_empty())
+            {
+                return Err(Error::Eval("invalid python token metadata".into()));
+            }
+            if (executable_kind && *executable) || kind.name.as_ref() == "keyword" {
+                out.push(text.clone());
+            }
+            continue;
         }
-        for arg in args {
-            walk(arg, out)?;
+        if !matches!(
+            name,
+            "module" | "statement" | "suite" | "group" | "expression"
+        ) {
+            return Err(Error::Eval(format!("unknown python lowering node {name}")));
         }
-        Ok(())
+        pending.extend(args.iter().rev().map(|child| (child, false)));
     }
-    let mut out = Vec::new();
-    walk(expr, &mut out)?;
-    Ok(out.into_iter().filter(|t| !t.trim().is_empty()).collect())
+    Ok(out)
 }
 
 struct Parser<'a> {
@@ -179,9 +231,7 @@ impl Parser<'_> {
                 }
                 Ok(v)
             }
-            _ if token.starts_with(['\'', '"']) => {
-                Ok(PythonValue::String(token[1..token.len() - 1].to_owned()))
-            }
+            _ if token.starts_with(['\'', '"']) => quoted_python_string(&token),
             _ if token.contains('.') => token
                 .parse()
                 .map(PythonValue::Float)
@@ -208,6 +258,14 @@ impl Parser<'_> {
             false
         }
     }
+}
+
+fn quoted_python_string(token: &str) -> Result<PythonValue> {
+    let quote = token.as_bytes()[0];
+    if token.len() < 2 || token.as_bytes().last() != Some(&quote) {
+        return Err(Error::Eval("malformed python string literal".into()));
+    }
+    Ok(PythonValue::String(token[1..token.len() - 1].to_owned()))
 }
 fn truth(v: &PythonValue) -> bool {
     match v {
@@ -254,6 +312,7 @@ fn binary(op: &str, a: PythonValue, b: PythonValue) -> Result<PythonValue> {
 mod tests {
     use super::*;
     use sim_kernel::Symbol;
+    use std::panic::{AssertUnwindSafe, catch_unwind};
     fn call(name: &str, args: Vec<Expr>) -> Expr {
         Expr::Call {
             operator: Box::new(Expr::Symbol(Symbol::qualified("python", name))),
@@ -303,6 +362,64 @@ mod tests {
                     &mut env
                 )
                 .is_err()
+        );
+    }
+
+    #[test]
+    fn forged_lowerings_are_typed_refusals_and_never_panic() {
+        let malformed = vec![
+            Expr::Bool(true),
+            call("statement", vec![token("1")]),
+            call("module", vec![Expr::Bool(false)]),
+            call("module", vec![call("alien", vec![])]),
+            call("module", vec![call("token", vec![])]),
+            call(
+                "module",
+                vec![call(
+                    "token",
+                    vec![
+                        Expr::Symbol(Symbol::qualified("foreign", "name")),
+                        Expr::String("x".into()),
+                        Expr::Bool(true),
+                    ],
+                )],
+            ),
+            call("module", vec![token("")]),
+            call("module", vec![token("'")]),
+            call("module", vec![token("'mismatch\"")]),
+            call("module", vec![token("1x")]),
+        ];
+        for bad in malformed {
+            let result = catch_unwind(AssertUnwindSafe(|| {
+                PythonEvalPolicy::new(16)
+                    .unwrap()
+                    .eval_lowered(&bad, &mut BTreeMap::new())
+            }));
+            assert!(
+                matches!(result, Ok(Err(_))),
+                "accepted or panicked: {bad:?}"
+            );
+        }
+
+        let bad = call("module", vec![token("'")]);
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            PythonEvalPolicy::new(16)
+                .unwrap()
+                .eval_lowered(&bad, &mut BTreeMap::new())
+        }));
+        assert!(matches!(result, Ok(Err(_))));
+
+        let mut nested = token("1");
+        for _ in 0..8 {
+            nested = call("expression", vec![nested]);
+        }
+        let bounded = call("module", vec![nested]);
+        assert_eq!(
+            PythonEvalPolicy::new(16)
+                .unwrap()
+                .eval_lowered(&bounded, &mut BTreeMap::new())
+                .unwrap(),
+            PythonValue::Int(1)
         );
     }
 

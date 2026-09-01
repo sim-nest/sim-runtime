@@ -12,7 +12,11 @@ use sim_kernel::{
 use super::*;
 
 fn cx() -> Cx {
-    let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xc08e_5c2c_ed03_7c53),
+    );
     install_control_policy(&mut cx);
     cx
 }

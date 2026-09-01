@@ -1,0 +1,5 @@
+book = "operation/gate"
+title = "Guarded operations"
+summary = "Authorize and ledger capability-gated operations."
+order = 10
+chapters = ["01-basics"]

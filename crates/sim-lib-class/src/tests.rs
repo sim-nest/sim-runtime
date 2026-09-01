@@ -46,7 +46,11 @@ fn descriptor_class(cx: &mut Cx, id: u32, name: &str, parents: Vec<DeclaredParen
 
 #[test]
 fn descriptor_projects_kernel_class_and_bounded_subclass_evidence() {
-    let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x3874_d4b1_73d2_c5b2),
+    );
     let root = descriptor_class(&mut cx, 7000, "Root", Vec::new());
     let root_identity =
         ClassIdentity::checked(sim_kernel::ClassId(7000), Symbol::qualified("test", "Root"))

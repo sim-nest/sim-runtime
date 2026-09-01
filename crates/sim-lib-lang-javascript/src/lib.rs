@@ -12,6 +12,7 @@ mod collections;
 mod fidelity;
 mod jobs;
 mod json;
+mod lowered;
 mod managed;
 mod matrix_row;
 mod modules;

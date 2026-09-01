@@ -9,7 +9,7 @@ shared manifest; the bounded `FUSED_DEFINITIONS` table maps every fusion back to
 its original instruction ids, source locations, work charges, and root effects.
 
 `performance-coverage.toml` is the compact browse face. It names every source
-anchor and both canonical BENCH_2 reports. Those reports live in sim-tooling,
+anchor and both canonical benchmark harness reports. Those reports live in sim-tooling,
 the statistics owner, under `benchmarks/bytecode-speed-4/`. Each retains 20 raw
 baseline and 20 raw candidate duration samples plus counter samples. Their
 content keys are recorded in the coverage manifest, so a summary cannot be

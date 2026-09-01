@@ -309,7 +309,7 @@ impl<M: Clone> ClassCache<M> {
         Ok(())
     }
 
-    /// Runs bounded MANAGED_2 tracing collection and returns its exact receipt.
+    /// Runs bounded managed graph tracing collection and returns its exact receipt.
     pub fn collect(&mut self, limits: CollectionLimits) -> Result<CollectionReceipt, CacheError> {
         Ok(collect(&mut self.arena, limits)?)
     }

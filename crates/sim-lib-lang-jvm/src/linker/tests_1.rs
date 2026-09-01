@@ -39,7 +39,7 @@
 
     #[test]
     fn java_lambda_is_an_ordinary_callable_and_sim_adapter_refuses_before_generation() {
-        let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0xba13_0379_90aa_4d73));
         cx.grant(crate::jvm_invoke_capability());
         let shape = cx.factory().opaque(Arc::new(AnyShape)).unwrap();
         let lambda = JavaLambdaCallable::new(vec![shape], None, |_cx, mut args| {
@@ -178,7 +178,7 @@
     #[test]
     fn generated_lambda_class_is_stable_browsable_and_shape_checked_without_bytes() {
         let (site, loader) = fixture();
-        let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x6799_544f_4e0d_0994));
         let mut heap = JvmHeap::new(
             32,
             CollectionLimits {
@@ -293,7 +293,7 @@
     #[test]
     fn loader_collection_stage_collects_a_captured_lambda_enclosing_object_cycle() {
         let (site, loader) = fixture();
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x3f57_af56_3555_d790));
         let owner = ClassDefinition::test(
             loader.id(),
             site.class.binary_name(),

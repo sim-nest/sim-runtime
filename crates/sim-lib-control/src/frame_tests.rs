@@ -11,7 +11,11 @@ use super::{
 };
 
 fn cx() -> Cx {
-    let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x3f88_ebb5_0afd_c418),
+    );
     install_control_policy(&mut cx);
     cx
 }

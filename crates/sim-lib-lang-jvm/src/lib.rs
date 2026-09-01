@@ -15,6 +15,7 @@ mod code;
 mod constructor;
 mod control;
 mod dispatch;
+mod driver;
 mod dynamic;
 mod entry;
 mod exception;
@@ -66,6 +67,8 @@ pub use control::{
     JvmControlError, JvmControlErrorKind, JvmControlOutcome, execute_control_instruction,
 };
 pub use dispatch::{PreparedDispatch, dispatch_prepared};
+pub use driver::{JvmDriveReceipt, JvmPreparationReceipt};
+pub use driver::{SurfaceOpcodeDisposition, surface_opcode_disposition};
 pub use dynamic::{
     ConcatConstant, DynamicBootstrap, DynamicLinkCache, DynamicLinkError, LinkedStringConcat,
     STRING_CONCAT_BOOTSTRAP_DESCRIPTOR, STRING_CONCAT_BOOTSTRAP_NAME,
@@ -74,7 +77,7 @@ pub use dynamic::{
 pub use entry::{
     ClassVerifierProvider, ClassfilePermit, EntryRefusal, EntryTarget, ExecutionPermit, NoVerifier,
     PreparedEntry, ResolvedEntry, StaticEntryPermit, VerificationFidelity,
-    VerificationProofFailure, VerifierProvider, drive,
+    VerificationProofFailure, VerifierProvider,
 };
 pub use exception::{
     JavaHandlerEntry, JavaThrowError, JavaThrowSite, JavaThrowableHeap, JavaThrowableMutationError,
@@ -138,7 +141,8 @@ pub use sim_lib_class::LineageBudget;
 pub use specimen::{JvmProductSpecimen, run_product_specimen};
 pub use superinstructions::{FusedHandler, PreparedFusion, prepare_fusions};
 pub use surface::{
-    JVM_DECLARED_ABSENCES, JvmBrowse, JvmLanguageLib, JvmSurface, install_jvm_language_lib,
+    JVM_DECLARED_ABSENCES, JvmBrowse, JvmEntryPolicy, JvmExecutionOutcome, JvmExecutionRequest,
+    JvmInvocationError, JvmLanguageLib, JvmSurface, install_jvm_language_lib,
     jvm_browse_capability, jvm_invoke_capability, jvm_language_profile,
 };
 pub use text::{ADMITTED_CORE_MEMBERS, JavaClassMirror, JavaCoreMember, JavaString};

@@ -43,7 +43,7 @@ pub use conformance::{
     REUSE_LEDGER, ReuseLedgerEntry, run_lua_core_conformance_case, run_lua_core_matrix_row,
 };
 pub use env::LuaEnv;
-pub use eval::LuaEvalPolicy;
+pub use eval::{LuaEvalPolicy, LuaRuntimeConfiguration};
 pub use matrix_row::{lua_core_matrix_row, lua_core_source_cases};
 pub use metatable::{lua_get, lua_index_slot, lua_metamethod};
 pub use number::{LuaNumber, lua_float_value, lua_integer_value, lua_number_from_value};

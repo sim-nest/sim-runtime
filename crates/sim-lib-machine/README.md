@@ -12,7 +12,7 @@ each prepared safepoint while leaving reclamation policy to the observer.
 
 The crate owns neither a guest language nor host execution. Its public surface
 excludes language object models, host scheduling, time, ambient input/output,
-and text representations. Later phases build storage and drivers behind these
+and text representations. Installed storage and drivers remain behind these
 policy seams without weakening that boundary.
 
 See [REUSE.md](REUSE.md) for the source-level ownership and reuse ledger.

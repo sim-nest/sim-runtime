@@ -1,6 +1,9 @@
 use sim_kernel::{CapabilityName, Cx, Error, Expr, NumberLiteral, Symbol, Value};
 
-use crate::{LuaEnv, LuaEvalPolicy, load::eval_lua_source, lua_rawget, lua_table_value};
+use crate::{
+    LuaEnv, LuaEvalPolicy, LuaRuntimeConfiguration, load::eval_lua_source, lua_rawget,
+    lua_table_value,
+};
 
 use sim_kernel::testing::bare_cx as cx;
 
@@ -197,6 +200,51 @@ fn lua_io_and_os_host_effects_fail_closed_without_capabilities() {
         )
         .unwrap_err();
     assert_capability(getenv_err, "env/read");
+}
+
+#[test]
+fn lua_os_uses_only_explicit_modeled_configuration() {
+    let mut cx = cx();
+    cx.grant(CapabilityName::new("env/read"));
+    let policy = LuaEvalPolicy::new(&mut cx).unwrap();
+    let mut env = LuaEnv::new();
+    policy.install_stdlib(&mut cx, &mut env).unwrap();
+
+    let missing = policy
+        .eval(
+            &mut cx,
+            &mut env,
+            &lua_call(
+                Expr::Local(Symbol::new("os.getenv")),
+                vec![Expr::String("HOME".to_owned())],
+            ),
+        )
+        .unwrap_err();
+    assert!(
+        missing
+            .to_string()
+            .contains("configuration service is not installed")
+    );
+
+    let policy = LuaEvalPolicy::new(&mut cx).unwrap().with_configuration(
+        LuaRuntimeConfiguration::new()
+            .with_environment("HOME", "/modeled/home")
+            .with_cpu_clock_millis(1_250),
+    );
+    let mut env = LuaEnv::new();
+    policy.install_stdlib(&mut cx, &mut env).unwrap();
+    let home = policy
+        .eval(
+            &mut cx,
+            &mut env,
+            &lua_call(
+                Expr::Local(Symbol::new("os.getenv")),
+                vec![Expr::String("HOME".to_owned())],
+            ),
+        )
+        .unwrap()
+        .into_values();
+    assert_eq!(string_value(&mut cx, &home[0]), "/modeled/home");
 }
 
 #[test]

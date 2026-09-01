@@ -46,7 +46,7 @@ pub fn islisp_profile() -> LanguageProfile {
 /// use sim_lib_lang_islisp::install_islisp_profile;
 /// use sim_kernel::Symbol;
 ///
-/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0xce26_b302_e89b_f502));
 /// let mut registry = ProfileRegistry::new();
 /// let profile = install_islisp_profile(&mut cx, &mut registry).unwrap();
 /// assert!(profile.backing_requirements.contains(&Symbol::qualified("sim", "dispatch")));

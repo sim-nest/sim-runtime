@@ -7,7 +7,11 @@ use sim_lib_lang_jvm::{
 };
 
 fn cx_with(capabilities: &[sim_kernel::CapabilityName]) -> Cx {
-    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let (mut cx, seat) = Cx::new_seated(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x4a56_4d02),
+    );
     for capability in capabilities {
         seat.grant(&mut cx, capability.clone()).unwrap();
     }

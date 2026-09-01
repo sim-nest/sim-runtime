@@ -1,94 +1,242 @@
+use sim_kernel::{CapabilityName, Cx, Error, Expr, NumberLiteral, Result, Symbol};
 use std::{
-    io::{self, Read, Write},
-    path::PathBuf,
-    process::{Child, Command, ExitStatus, Stdio},
+    collections::BTreeMap,
     sync::{
-        Arc, Mutex,
-        mpsc::{self, Receiver, RecvTimeoutError, Sender},
+        Arc,
+        atomic::{AtomicBool, Ordering},
     },
-    thread,
-    time::{Duration, Instant},
 };
 
-#[cfg(unix)]
-use std::os::unix::process::CommandExt as _;
-
-use sim_kernel::{CapabilityName, Cx, Error, Expr, NumberLiteral, Result, Symbol};
-
-use crate::timeout::terminate_timed_out_child;
-
-/// Returns the capability required by [`exec`].
+const MAX_BINDINGS: usize = 128;
+const MAX_BINDING_BYTES: usize = 64 * 1024;
+/// Capability required before a process request reaches its port.
 pub fn exec_capability() -> CapabilityName {
     CapabilityName::new("exec")
 }
-
-/// Returns the constructor symbol used by [`ProcResult::to_constructor_expr`].
+/// Read-constructor symbol for process results.
 pub fn proc_result_symbol() -> Symbol {
     Symbol::new("ProcResult")
 }
 
-/// Bounded process execution options.
+macro_rules! opaque_ref {
+    ($name:ident, $label:literal) => {
+        #[doc = concat!("Opaque, boot-trusted ", $label, ".")]
+        #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+        pub struct $name(String);
+        impl $name {
+            /// Validates and creates an opaque reference.
+            pub fn new(value: impl Into<String>) -> Result<Self> {
+                let value = value.into();
+                if value.is_empty() || value.contains('\0') {
+                    return Err(Error::Eval(
+                        concat!($label, " must be non-empty and NUL-free").into(),
+                    ));
+                }
+                Ok(Self(value))
+            }
+            #[must_use]
+            /// Returns the non-native reference identifier.
+            pub fn as_str(&self) -> &str {
+                &self.0
+            }
+        }
+    };
+}
+opaque_ref!(ProgramRef, "program reference");
+opaque_ref!(ProjectRootRef, "project-root reference");
+opaque_ref!(PrivateArtifactRef, "private-artifact reference");
+
+/// One whole, NUL-free native argument; it is never shell-split.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ExecOptions {
-    /// Directory the child runs in.
-    ///
-    /// When set, the directory must canonicalize inside [`root`](Self::root).
-    pub cwd: Option<PathBuf>,
-    /// Root that confines [`cwd`](Self::cwd).
-    ///
-    /// When `cwd` is set and this is absent, the current process directory is
-    /// the confinement root. When this is set and `cwd` is absent, the child
-    /// runs in this root directory.
-    pub root: Option<PathBuf>,
-    /// Mandatory timeout in milliseconds. Zero is rejected before spawning.
+pub struct ArgAtom(String);
+impl ArgAtom {
+    /// Validates and creates one whole argument.
+    pub fn new(value: impl Into<String>) -> Result<Self> {
+        let value = value.into();
+        if value.contains('\0') {
+            return Err(Error::Eval("argument contains NUL".into()));
+        }
+        Ok(Self(value))
+    }
+    #[must_use]
+    /// Returns the literal argument.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+/// A sealed literal or capsule-rendered resource reference.
+pub enum BindingValue {
+    /// Exact literal value.
+    Literal(String),
+    /// Opaque project root rendered by the capsule.
+    ProjectRoot(ProjectRootRef),
+    /// Opaque private artifact rendered by the capsule.
+    PrivateArtifact(PrivateArtifactRef),
+}
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+/// Exact child bindings. No ambient inheritance is representable.
+pub struct SealedBindings(BTreeMap<String, BindingValue>);
+impl SealedBindings {
+    /// Creates the secure empty default.
+    #[must_use]
+    pub fn empty() -> Self {
+        Self::default()
+    }
+    /// Validates names, values, duplicates, count, and total bytes.
+    pub fn try_from_entries(
+        entries: impl IntoIterator<Item = (String, BindingValue)>,
+    ) -> Result<Self> {
+        let mut values = BTreeMap::new();
+        let mut bytes = 0usize;
+        for (name, value) in entries {
+            if name.is_empty() || name.contains(['=', '\0']) {
+                return Err(Error::Eval("sealed binding has an invalid name".into()));
+            }
+            let value_bytes = match &value {
+                BindingValue::Literal(v) => {
+                    if v.contains('\0') {
+                        return Err(Error::Eval("sealed binding literal contains NUL".into()));
+                    }
+                    v.len()
+                }
+                BindingValue::ProjectRoot(v) => v.as_str().len(),
+                BindingValue::PrivateArtifact(v) => v.as_str().len(),
+            };
+            bytes = bytes.saturating_add(name.len()).saturating_add(value_bytes);
+            if values.insert(name, value).is_some() {
+                return Err(Error::Eval("duplicate sealed binding".into()));
+            }
+            if values.len() > MAX_BINDINGS || bytes > MAX_BINDING_BYTES {
+                return Err(Error::Eval("sealed bindings exceed bounded size".into()));
+            }
+        }
+        Ok(Self(values))
+    }
+    /// Creates explicit literal bindings, for boot-supplied compatibility data.
+    pub fn literals(entries: impl IntoIterator<Item = (String, String)>) -> Result<Self> {
+        Self::try_from_entries(
+            entries
+                .into_iter()
+                .map(|(k, v)| (k, BindingValue::Literal(v))),
+        )
+    }
+    /// Iterates exact bindings for capsule rendering.
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &BindingValue)> {
+        self.0.iter().map(|(k, v)| (k.as_str(), v))
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+/// Bounded input, time, and output policy.
+pub struct ProcessBudget {
+    /// Required timeout.
     pub timeout_ms: u64,
-    /// Maximum total captured stdout plus stderr bytes.
+    /// Shared stdout/stderr byte cap.
     pub max_output_bytes: usize,
-    /// Optional stdin bytes written to the child.
+    /// Optional standard input.
     pub stdin: Option<Vec<u8>>,
 }
-
+#[derive(Clone, Debug, PartialEq, Eq)]
+/// Portable options used to create a sealed process request.
+pub struct ExecOptions {
+    /// Boot-trusted program identity.
+    pub program: ProgramRef,
+    /// Opaque working project identity.
+    pub root: ProjectRootRef,
+    /// Resource budget.
+    pub budget: ProcessBudget,
+    /// Exact, empty-by-default child environment.
+    pub environment: SealedBindings,
+    /// Declared private artifacts available to bindings.
+    pub private_artifacts: Vec<PrivateArtifactRef>,
+}
 impl ExecOptions {
-    /// Builds process options with a timeout and output cap.
-    pub fn new(timeout_ms: u64, max_output_bytes: usize) -> Self {
+    /// Creates options with an empty sealed environment.
+    pub fn new(
+        program: ProgramRef,
+        root: ProjectRootRef,
+        timeout_ms: u64,
+        max_output_bytes: usize,
+    ) -> Self {
         Self {
-            cwd: None,
-            root: None,
-            timeout_ms,
-            max_output_bytes,
-            stdin: None,
+            program,
+            root,
+            budget: ProcessBudget {
+                timeout_ms,
+                max_output_bytes,
+                stdin: None,
+            },
+            environment: SealedBindings::empty(),
+            private_artifacts: Vec::new(),
         }
     }
-
-    /// Returns options with a confined working directory.
-    pub fn with_cwd(mut self, cwd: impl Into<PathBuf>, root: impl Into<PathBuf>) -> Self {
-        self.cwd = Some(cwd.into());
-        self.root = Some(root.into());
+    #[must_use]
+    /// Supplies bounded standard input.
+    pub fn with_stdin(mut self, stdin: impl Into<Vec<u8>>) -> Self {
+        self.budget.stdin = Some(stdin.into());
         self
     }
-
-    /// Returns options with stdin bytes.
-    pub fn with_stdin(mut self, stdin: impl Into<Vec<u8>>) -> Self {
-        self.stdin = Some(stdin.into());
+    #[must_use]
+    /// Supplies explicitly validated bindings.
+    pub fn with_bindings(mut self, bindings: SealedBindings) -> Self {
+        self.environment = bindings;
+        self
+    }
+    #[must_use]
+    /// Declares private artifacts that the capsule may render.
+    pub fn with_private_artifacts(mut self, artifacts: Vec<PrivateArtifactRef>) -> Self {
+        self.private_artifacts = artifacts;
         self
     }
 }
-
-/// Result of a bounded process run.
 #[derive(Clone, Debug, PartialEq, Eq)]
+/// Fully validated portable request passed to a platform capsule.
+pub struct ProcessRequest {
+    /// Boot-trusted program identity.
+    pub program: ProgramRef,
+    /// Whole literal arguments.
+    pub argv: Vec<ArgAtom>,
+    /// Opaque project root.
+    pub root: ProjectRootRef,
+    /// Exact sealed child environment.
+    pub environment: SealedBindings,
+    /// Declared private resources.
+    pub private_artifacts: Vec<PrivateArtifactRef>,
+    /// Bounded execution budget.
+    pub budget: ProcessBudget,
+}
+
+#[derive(Clone, Debug, Default)]
+/// Cooperative cancellation token shared with the platform adapter.
+pub struct ProcessCancellation(Arc<AtomicBool>);
+impl ProcessCancellation {
+    /// Requests cancellation.
+    pub fn cancel(&self) {
+        self.0.store(true, Ordering::Release)
+    }
+    #[must_use]
+    /// Reports whether cancellation was requested.
+    pub fn is_cancelled(&self) -> bool {
+        self.0.load(Ordering::Acquire)
+    }
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+/// Stable bounded process result; non-zero exit remains a result.
 pub struct ProcResult {
-    /// Captured stdout, lossily decoded as UTF-8 after byte capping.
+    /// Captured standard output.
     pub stdout: String,
-    /// Captured stderr, lossily decoded as UTF-8 after byte capping.
+    /// Captured standard error.
     pub stderr: String,
-    /// Process exit code, or `-1` when the host reports no numeric code.
+    /// Native exit code, or -1 when unavailable.
     pub exit_code: i32,
-    /// Whether stdout or stderr exceeded the shared output byte cap.
+    /// Whether output exceeded its shared cap.
     pub truncated: bool,
 }
-
 impl ProcResult {
-    /// Encodes this result as `#(ProcResult stdout stderr exit_code truncated)`.
+    /// Converts the result to its stable read-constructor expression.
+    #[must_use]
     pub fn to_constructor_expr(&self) -> Expr {
         Expr::Call {
             operator: Box::new(Expr::Symbol(proc_result_symbol())),
@@ -104,387 +252,121 @@ impl ProcResult {
         }
     }
 }
-
-/// Runs one host process with explicit argv and bounded output.
-///
-/// The caller must hold [`exec_capability`]. The argv list must be non-empty;
-/// the first element is the program and the remaining elements are passed
-/// verbatim as arguments. No shell is inserted by this function.
-pub fn exec(cx: &mut Cx, argv: &[String], options: &ExecOptions) -> Result<ProcResult> {
-    cx.require(&exec_capability())?;
-    validate_request(argv, options)?;
-
-    #[cfg(not(unix))]
-    {
-        return Err(Error::HostError(
-            "exec is unavailable on this platform until process-tree timeout enforcement is implemented"
-                .to_owned(),
-        ));
-    }
-
-    let mut command = Command::new(&argv[0]);
-    command.args(&argv[1..]);
-    command.stdin(Stdio::piped());
-    command.stdout(Stdio::piped());
-    command.stderr(Stdio::piped());
-    #[cfg(unix)]
-    command.process_group(0);
-    if let Some(cwd) = confined_cwd(options)? {
-        command.current_dir(cwd);
-    }
-
-    let mut child = command
-        .spawn()
-        .map_err(|err| Error::HostError(format!("exec spawn {}: {err}", argv[0])))?;
-    run_child(&mut child, options)
+#[derive(Clone, Debug, PartialEq, Eq)]
+/// Privacy-safe completed-process receipt.
+pub struct ProcessReceipt {
+    /// Stable capsule identity.
+    pub provider: String,
+    /// Elapsed monotonic time.
+    pub elapsed_mono_ns: u64,
+    /// Completed result.
+    pub result: ProcResult,
 }
-
-fn validate_request(argv: &[String], options: &ExecOptions) -> Result<()> {
-    if argv.is_empty() {
-        return Err(Error::Eval(
-            "exec requires a non-empty argv list".to_owned(),
-        ));
-    }
-    if options.timeout_ms == 0 {
-        return Err(Error::Eval(
-            "exec requires a non-zero timeout_ms".to_owned(),
-        ));
-    }
-    Ok(())
+#[derive(Clone, Debug, PartialEq, Eq)]
+/// Proof that a dispatched process group was killed and reaped.
+pub struct StopReceipt {
+    /// Stable capsule identity.
+    pub provider: String,
+    /// Elapsed monotonic time.
+    pub elapsed_mono_ns: u64,
+    /// Bounded cleanup evidence.
+    pub cleanup: String,
 }
-
-fn confined_cwd(options: &ExecOptions) -> Result<Option<PathBuf>> {
-    if options.cwd.is_none() && options.root.is_none() {
-        return Ok(None);
-    }
-
-    let root = match &options.root {
-        Some(root) => root.clone(),
-        None => std::env::current_dir()
-            .map_err(|err| Error::HostError(format!("exec current dir: {err}")))?,
-    };
-    let cwd = options.cwd.clone().unwrap_or_else(|| root.clone());
-    let root = canonicalize_path(root, "exec root")?;
-    let cwd = canonicalize_path(cwd, "exec cwd")?;
-    if !cwd.starts_with(&root) {
-        return Err(Error::HostError(format!(
-            "exec cwd {} escapes root {}",
-            cwd.display(),
-            root.display()
-        )));
-    }
-    Ok(Some(cwd))
+#[derive(Clone, Debug, PartialEq, Eq)]
+/// Bounded evidence for an ambiguous post-spawn outcome.
+pub struct DispatchEvidence {
+    /// Stable capsule identity.
+    pub provider: String,
+    /// Failed post-spawn stage.
+    pub stage: String,
+    /// Sanitized bounded detail.
+    pub detail: String,
 }
-
-fn canonicalize_path(path: PathBuf, label: &'static str) -> Result<PathBuf> {
-    path.canonicalize()
-        .map_err(|err| Error::HostError(format!("{label} {}: {err}", path.display())))
+#[derive(Clone, Debug, PartialEq, Eq)]
+/// Reason a process definitely did not cross the spawn boundary.
+pub enum ProcessRefusal {
+    /// Portable request validation failed.
+    Invalid(String),
+    /// Capsule policy or resource resolution refused the request.
+    Refused(String),
+    /// Native spawn failed before dispatch.
+    SpawnFailed(String),
 }
-
-fn run_child(child: &mut Child, options: &ExecOptions) -> Result<ProcResult> {
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| Error::HostError("exec stdout pipe missing".to_owned()))?;
-    let stderr = child
-        .stderr
-        .take()
-        .ok_or_else(|| Error::HostError("exec stderr pipe missing".to_owned()))?;
-    let stdin = child.stdin.take();
-
-    let budget = Arc::new(Mutex::new(CaptureBudget::new(options.max_output_bytes)));
-    let deadline = Instant::now()
-        .checked_add(Duration::from_millis(options.timeout_ms))
-        .ok_or_else(|| Error::Eval("exec timeout is too large".to_owned()))?;
-
-    let (tx, rx) = mpsc::channel();
-    spawn_reader(
-        stdout,
-        Arc::clone(&budget),
-        CaptureStream::Stdout,
-        tx.clone(),
-    );
-    spawn_reader(
-        stderr,
-        Arc::clone(&budget),
-        CaptureStream::Stderr,
-        tx.clone(),
-    );
-    let stdin_pending = if let Some(stdin) = stdin {
-        spawn_writer(stdin, options.stdin.clone(), tx.clone());
-        true
-    } else {
-        false
-    };
-    drop(tx);
-
-    let completion = wait_for_completion(child, &rx, deadline, stdin_pending);
-    match completion {
-        Ok(ChildCompletion {
-            status,
-            stdout,
-            stderr,
-            stdin,
-        }) => {
-            stdin?;
-            let stdout = stdout?;
-            let stderr = stderr?;
-            let truncated = budget
-                .lock()
-                .map_err(|_| Error::PoisonedLock("exec output budget"))?
-                .truncated;
-            Ok(ProcResult {
-                stdout: String::from_utf8_lossy(&stdout).into_owned(),
-                stderr: String::from_utf8_lossy(&stderr).into_owned(),
-                exit_code: exit_code(status),
-                truncated,
-            })
-        }
-        Err(WaitError::Timeout { child_exited }) => {
-            Err(timeout_error(child, options.timeout_ms, child_exited))
-        }
-        Err(WaitError::Host(err)) => Err(err),
-    }
-}
-
-fn spawn_reader<R>(
-    reader: R,
-    budget: Arc<Mutex<CaptureBudget>>,
-    stream: CaptureStream,
-    tx: Sender<ChildEvent>,
-) where
-    R: Read + Send + 'static,
-{
-    thread::spawn(move || {
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            read_capped(reader, budget, stream.name())
-        }))
-        .unwrap_or_else(|_| {
-            Err(Error::HostError(format!(
-                "exec {} thread panicked",
-                stream.name()
-            )))
-        });
-        let _ = tx.send(ChildEvent::Capture { stream, result });
-    });
-}
-
-fn spawn_writer(
-    mut stdin: std::process::ChildStdin,
-    input: Option<Vec<u8>>,
-    tx: Sender<ChildEvent>,
-) {
-    thread::spawn(move || {
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            write_stdin(&mut stdin, input)
-        }))
-        .unwrap_or_else(|_| Err(Error::HostError("exec stdin thread panicked".to_owned())));
-        let _ = tx.send(ChildEvent::Stdin(result));
-    });
-}
-
-fn write_stdin(stdin: &mut std::process::ChildStdin, input: Option<Vec<u8>>) -> Result<()> {
-    let Some(input) = input else {
-        return Ok(());
-    };
-    match stdin.write_all(&input) {
-        Ok(()) => Ok(()),
-        Err(err) if err.kind() == io::ErrorKind::BrokenPipe => Ok(()),
-        Err(err) => Err(Error::HostError(format!("exec stdin write: {err}"))),
-    }
-}
-
-fn wait_for_completion(
-    child: &mut Child,
-    rx: &Receiver<ChildEvent>,
-    deadline: Instant,
-    stdin_pending: bool,
-) -> std::result::Result<ChildCompletion, WaitError> {
-    let mut status = None;
-    let mut stdout = None;
-    let mut stderr = None;
-    let mut stdin = if stdin_pending { None } else { Some(Ok(())) };
-
-    loop {
-        poll_child_status(child, &mut status)?;
-        drain_child_events(rx, &mut stdout, &mut stderr, &mut stdin)?;
-        if status.is_some() && stdout.is_some() && stderr.is_some() && stdin.is_some() {
-            return Ok(ChildCompletion {
-                status: status.take().expect("status checked above"),
-                stdout: stdout.take().expect("stdout checked above"),
-                stderr: stderr.take().expect("stderr checked above"),
-                stdin: stdin.take().expect("stdin checked above"),
-            });
-        }
-
-        let now = Instant::now();
-        if now >= deadline {
-            return Err(WaitError::Timeout {
-                child_exited: status.is_some(),
-            });
-        }
-
-        match rx.recv_timeout((deadline - now).min(Duration::from_millis(10))) {
-            Ok(event) => record_child_event(event, &mut stdout, &mut stderr, &mut stdin),
-            Err(RecvTimeoutError::Timeout) => {}
-            Err(RecvTimeoutError::Disconnected) if status.is_some() => {
-                return Err(WaitError::Host(Error::HostError(
-                    "exec capture thread ended without result".to_owned(),
-                )));
-            }
-            Err(RecvTimeoutError::Disconnected) => {
-                thread::sleep((deadline - now).min(Duration::from_millis(10)));
-            }
-        }
-    }
-}
-
-fn poll_child_status(
-    child: &mut Child,
-    status: &mut Option<ExitStatus>,
-) -> std::result::Result<(), WaitError> {
-    if status.is_some() {
-        return Ok(());
-    }
-    *status = child
-        .try_wait()
-        .map_err(|err| WaitError::Host(Error::HostError(format!("exec wait: {err}"))))?;
-    Ok(())
-}
-
-fn drain_child_events(
-    rx: &Receiver<ChildEvent>,
-    stdout: &mut Option<Result<Vec<u8>>>,
-    stderr: &mut Option<Result<Vec<u8>>>,
-    stdin: &mut Option<Result<()>>,
-) -> std::result::Result<(), WaitError> {
-    loop {
-        match rx.try_recv() {
-            Ok(event) => record_child_event(event, stdout, stderr, stdin),
-            Err(mpsc::TryRecvError::Empty) => return Ok(()),
-            Err(mpsc::TryRecvError::Disconnected) => return Ok(()),
-        }
-    }
-}
-
-fn record_child_event(
-    event: ChildEvent,
-    stdout: &mut Option<Result<Vec<u8>>>,
-    stderr: &mut Option<Result<Vec<u8>>>,
-    stdin: &mut Option<Result<()>>,
-) {
-    match event {
-        ChildEvent::Capture {
-            stream: CaptureStream::Stdout,
-            result,
-        } => *stdout = Some(result),
-        ChildEvent::Capture {
-            stream: CaptureStream::Stderr,
-            result,
-        } => *stderr = Some(result),
-        ChildEvent::Stdin(result) => *stdin = Some(result),
-    }
-}
-
-fn timeout_error(child: &mut Child, timeout_ms: u64, child_exited: bool) -> Error {
-    let kill_result = terminate_timed_out_child(child, child_exited);
-    let wait_result = child.wait();
-    let mut message = format!("exec timed out after {timeout_ms} ms");
-    if let Err(err) = kill_result {
-        message.push_str(&format!("; kill failed: {err}"));
-    }
-    if let Err(err) = wait_result {
-        message.push_str(&format!("; wait failed: {err}"));
-    }
-    Error::HostError(message)
-}
-
-struct ChildCompletion {
-    status: ExitStatus,
-    stdout: Result<Vec<u8>>,
-    stderr: Result<Vec<u8>>,
-    stdin: Result<()>,
-}
-
-enum WaitError {
-    Timeout { child_exited: bool },
-    Host(Error),
-}
-
-#[derive(Clone, Copy)]
-enum CaptureStream {
-    Stdout,
-    Stderr,
-}
-
-impl CaptureStream {
-    fn name(self) -> &'static str {
-        match self {
-            Self::Stdout => "stdout",
-            Self::Stderr => "stderr",
-        }
-    }
-}
-
-enum ChildEvent {
-    Capture {
-        stream: CaptureStream,
-        result: Result<Vec<u8>>,
+#[derive(Clone, Debug, PartialEq, Eq)]
+/// Exact dispatch truth for one process attempt.
+pub enum ProcessAttempt {
+    /// Spawn definitely did not succeed.
+    NotDispatched {
+        /// Pre-spawn refusal evidence.
+        refusal: ProcessRefusal,
     },
-    Stdin(Result<()>),
+    /// The child completed, including non-zero exit.
+    Completed {
+        /// Completion receipt.
+        receipt: ProcessReceipt,
+    },
+    /// Timeout won and cleanup was proven.
+    StoppedAfterTimeout {
+        /// Proven cleanup receipt.
+        receipt: StopReceipt,
+    },
+    /// Cancellation won and cleanup was proven.
+    StoppedAfterCancel {
+        /// Proven cleanup receipt.
+        receipt: StopReceipt,
+    },
+    /// Spawn succeeded but final state is ambiguous.
+    UnknownAfterDispatch {
+        /// Bounded ambiguity evidence.
+        evidence: DispatchEvidence,
+    },
 }
-
-fn read_capped<R>(
-    mut reader: R,
-    budget: Arc<Mutex<CaptureBudget>>,
-    name: &'static str,
-) -> Result<Vec<u8>>
-where
-    R: Read,
-{
-    let mut captured = Vec::new();
-    let mut chunk = [0_u8; 4096];
-    loop {
-        let read = reader
-            .read(&mut chunk)
-            .map_err(|err| Error::HostError(format!("exec read {name}: {err}")))?;
-        if read == 0 {
-            return Ok(captured);
-        }
-        let keep = {
-            let mut budget = budget
-                .lock()
-                .map_err(|_| Error::PoisonedLock("exec output budget"))?;
-            budget.claim(read)
-        };
-        captured.extend_from_slice(&chunk[..keep]);
+impl ProcessAttempt {
+    /// Returns true only when automatic retry cannot duplicate dispatched work.
+    #[must_use]
+    pub fn automatically_retryable(&self) -> bool {
+        matches!(self, Self::NotDispatched { .. })
     }
 }
-
-fn exit_code(status: ExitStatus) -> i32 {
-    status.code().unwrap_or(-1)
+/// Runtime-owned seam implemented only by model and physical capsules.
+pub trait ProcessPort: Send + Sync {
+    /// Resolves opaque resources and executes one sealed request.
+    fn run(&self, request: &ProcessRequest, cancellation: &ProcessCancellation) -> ProcessAttempt;
 }
 
-#[derive(Debug)]
-struct CaptureBudget {
-    remaining: usize,
-    truncated: bool,
+/// Checks capability and portable policy before invoking the port.
+pub fn exec(
+    cx: &mut Cx,
+    port: &dyn ProcessPort,
+    argv: &[String],
+    options: &ExecOptions,
+    cancellation: &ProcessCancellation,
+) -> Result<ProcResult> {
+    cx.require(&exec_capability())?;
+    let request = checked_request(argv, options)?;
+    match port.run(&request, cancellation) {
+        ProcessAttempt::Completed { receipt } => Ok(receipt.result),
+        attempt => Err(Error::HostError(format!("exec attempt: {attempt:?}"))),
+    }
 }
-
-impl CaptureBudget {
-    fn new(max_output_bytes: usize) -> Self {
-        Self {
-            remaining: max_output_bytes,
-            truncated: false,
-        }
+fn checked_request(argv: &[String], options: &ExecOptions) -> Result<ProcessRequest> {
+    if options.budget.timeout_ms == 0 {
+        return Err(Error::Eval("exec requires a non-zero timeout_ms".into()));
     }
-
-    fn claim(&mut self, read: usize) -> usize {
-        let keep = read.min(self.remaining);
-        self.remaining -= keep;
-        if keep < read {
-            self.truncated = true;
-        }
-        keep
+    if options.budget.max_output_bytes == 0 {
+        return Err(Error::Eval("exec requires a non-zero output budget".into()));
     }
+    let argv = argv
+        .iter()
+        .cloned()
+        .map(ArgAtom::new)
+        .collect::<Result<Vec<_>>>()?;
+    Ok(ProcessRequest {
+        program: options.program.clone(),
+        argv,
+        root: options.root.clone(),
+        environment: options.environment.clone(),
+        private_artifacts: options.private_artifacts.clone(),
+        budget: options.budget.clone(),
+    })
 }

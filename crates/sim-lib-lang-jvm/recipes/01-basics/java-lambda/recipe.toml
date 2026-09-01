@@ -1,3 +1,4 @@
 title = "Invoke a compiler-produced Java lambda from SIM"
 kind = "lisp"
 entry = "setup.siml"
+purpose = "purpose.md"

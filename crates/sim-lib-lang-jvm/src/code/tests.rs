@@ -29,7 +29,7 @@ mod identity_tests {
         VerificationState,
     ) {
         let loader = ClassLoader::new(4096);
-        let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+        let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x42f1_12bb_1b9a_09df));
         seat.grant(&mut cx, class_load_capability()).unwrap();
         let definition = loader
             .define_bytes(

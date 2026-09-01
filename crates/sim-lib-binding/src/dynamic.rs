@@ -121,7 +121,7 @@ impl Parameter {
     /// use sim_kernel::{Cx, DefaultFactory, NoopEvalPolicy, Symbol};
     /// use sim_lib_binding::Parameter;
     ///
-    /// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    /// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x1638_616f_3a31_86bc));
     /// let default = cx.factory().symbol(Symbol::new("default")).unwrap();
     /// let temporary = cx.factory().symbol(Symbol::new("temporary")).unwrap();
     /// let parameter = Parameter::new(Symbol::new("current"), default.clone());

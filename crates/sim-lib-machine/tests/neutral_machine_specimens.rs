@@ -518,6 +518,8 @@ fn managed_root() -> ManagedId {
 
 #[test]
 fn specimens_import_only_neutral_machine_vocabulary() {
+    // This source scan is intentionally limited to public hygiene. The two
+    // executions above prove neutral behavior through distinct storage models.
     let source = include_str!("neutral_machine_specimens.rs").to_ascii_lowercase();
     for forbidden in [
         concat!("j", "vm"),

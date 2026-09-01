@@ -10,7 +10,11 @@ use crate::{LogicConfig, LogicEnv, model::OccursCheck, unify::unify_exprs};
 
 #[test]
 fn unify_binds_repeated_variables_across_lists() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x59b0_4c26_de7d_fbdf),
+    );
     let left = Expr::List(vec![
         Expr::Symbol(Symbol::new("pair")),
         Expr::Local(Symbol::new("x")),
@@ -47,7 +51,11 @@ fn occurs_check_rejects_cycles() {
 
 #[test]
 fn shape_unify_binds_logic_variable() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xba84_29d5_b7c1_1ec7),
+    );
     let mut env = LogicEnv::new();
     let pattern = Expr::List(vec![
         Expr::Symbol(Symbol::new("parent")),
@@ -71,7 +79,11 @@ fn shape_unify_binds_logic_variable() {
 
 #[test]
 fn shape_unify_fails_on_mismatch() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x0981_6de2_922d_e52e),
+    );
     let mut env = LogicEnv::new();
     let pattern = Expr::List(vec![
         Expr::Symbol(Symbol::new("parent")),
@@ -92,7 +104,11 @@ fn shape_unify_fails_on_mismatch() {
 
 #[test]
 fn shape_unify_repeated_variable_requires_same_subject() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xfd12_09cf_a261_c4ac),
+    );
     let mut accepted = LogicEnv::new();
     let pattern = Expr::List(vec![
         Expr::Symbol(Symbol::new("same")),
@@ -130,7 +146,11 @@ fn shape_unify_repeated_variable_requires_same_subject() {
 
 #[test]
 fn unify_returns_false_on_mismatch() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x4e86_c976_04b4_393e),
+    );
     let mut env = LogicEnv::new();
     let accepted = env
         .unify(
@@ -202,7 +222,11 @@ impl Lib for RequiresCapabilityShapeLib {
 
 #[test]
 fn shape_unify_uses_caller_context_for_registered_shapes() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x0144_0264_fe53_b661),
+    );
     cx.load_lib(&RequiresCapabilityShapeLib).unwrap();
 
     let pattern = Expr::Symbol(live_shape_symbol());

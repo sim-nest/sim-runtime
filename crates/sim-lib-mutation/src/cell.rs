@@ -17,7 +17,7 @@ use crate::standard_mutate_capability;
 /// use sim_kernel::{Cx, DefaultFactory, NoopEvalPolicy};
 /// use sim_lib_mutation::{Cell, standard_mutate_capability};
 ///
-/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0xb7c0_5082_0987_e6bd));
 /// let old = cx.factory().string("old".to_owned()).unwrap();
 /// let cell = Cell::new(old);
 ///

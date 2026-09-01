@@ -173,7 +173,7 @@ impl Sequence for LazySequence {
 /// use sim_kernel::{Cx, DefaultFactory, NoopEvalPolicy, Symbol};
 /// use sim_lib_sequence::{force_sequence_bounded, lazy_sequence_value};
 ///
-/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0xc813_50e3_f587_a796));
 /// // A producer of two elements, then exhaustion.
 /// let seq = lazy_sequence_value(&mut cx, Arc::new(|cx: &mut Cx, index| {
 ///     if index >= 2 {

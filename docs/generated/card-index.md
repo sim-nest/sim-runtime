@@ -6,6 +6,8 @@
 | --- | --- | --- | --- |
 | `browse/catalog` | `browse-root` | `workspace` | root browse catalog |
 | `cookbook/control` | `cookbook-recipe` | `sim-lib-control` | Prompt, capture, abort, and resume surfaces. |
+| `cookbook/cookbook/organ/class` | `cookbook-recipe` | `sim-lib-class` | Language-neutral class lineage, browsing, read construction, and managed caches. |
+| `cookbook/cookbook/organ/function` | `cookbook-recipe` | `sim-lib-function` | Language-neutral typed functions, managed captures, and optional dispatch. |
 | `cookbook/core` | `cookbook-recipe` | `sim-lib-core` | Quoting, evaluation, and collection basics. |
 | `cookbook/gc-tracing` | `cookbook-recipe` | `sim-lib-gc-tracing` | Bound and audit managed-arena cycle collection. |
 | `cookbook/lang/clojure` | `cookbook-recipe` | `sim-lib-lang-clojure` | Clojure core profile, EDN reader, namespace, and sequence surfaces. |
@@ -14,6 +16,7 @@
 | `cookbook/lang/islisp` | `cookbook-recipe` | `sim-lib-lang-islisp` | ISLISP profile descriptors and dispatch fidelity. |
 | `cookbook/lang/javascript` | `cookbook-recipe` | `sim-lib-lang-javascript` | Embedded capability-scoped ECMAScript with explicit drains; no Node, DOM, timers, or ambient host IO. |
 | `cookbook/lang/julia` | `cookbook-recipe` | `sim-lib-lang-julia` | Julia core profile descriptors and dispatch behavior. |
+| `cookbook/lang/jvm` | `cookbook-recipe` | `sim-lib-lang-jvm` | Load and evaluate bounded JVM language forms. |
 | `cookbook/lang/lua` | `cookbook-recipe` | `sim-lib-lang-lua` | Lua core profile descriptors, source conformance cases, tables, and coroutines. |
 | `cookbook/lang/matrix` | `cookbook-recipe` | `sim-lib-lang-matrix` | Shared conformance matrix assembly recipes. |
 | `cookbook/lang/python` | `cookbook-recipe` | `sim-lib-lang-python` | Capability-scoped, agent-authored Python over SIM values; not a CPython replacement. |
@@ -22,6 +25,7 @@
 | `cookbook/lang/typed-lazy` | `cookbook-recipe` | `sim-lib-lang-typed-lazy` | Typed lazy profile descriptors, ADTs, lazy refs, and typeclasses. |
 | `cookbook/lang/typescript` | `cookbook-recipe` | `sim-lib-lang-typescript` | TypeScript notation over JavaScript evaluation; no type checker or independent runtime. |
 | `cookbook/logic` | `cookbook-recipe` | `sim-lib-logic` | Logic database, assertion, and query surfaces. |
+| `cookbook/operation/gate` | `cookbook-recipe` | `sim-lib-operation-gate` | Authorize and ledger capability-gated operations. |
 | `cookbook/organ/binding` | `cookbook-recipe` | `sim-lib-binding` | Binding surface concepts shared by language profiles. |
 | `cookbook/organ/dispatch` | `cookbook-recipe` | `sim-lib-dispatch` | Generic function and multimethod concepts. |
 | `cookbook/organ/incremental` | `cookbook-recipe` | `sim-lib-incremental` | Memoized expression queries plus immutable, proof-backed dataflow analysis projections. |
@@ -30,8 +34,6 @@
 | `cookbook/organ/pattern` | `cookbook-recipe` | `sim-lib-pattern` | Pattern matching and algebraic data type declarations. |
 | `cookbook/organ/sequence` | `cookbook-recipe` | `sim-lib-sequence` | Sequence operations shared by language profiles. |
 | `cookbook/runtime/exec` | `cookbook-recipe` | `sim-lib-exec` | Permission-gated host process runs with time and output limits. |
-| `cookbook/sim-lib-class` | `cookbook-recipe` | `sim-lib-class` | Language-neutral class lineage, browsing, read construction, and managed caches. |
-| `cookbook/sim-lib-function` | `cookbook-recipe` | `sim-lib-function` | Language-neutral typed functions, managed captures, and optional dispatch. |
-| `cookbook/sim-lib-lang-jvm` | `cookbook-recipe` | `sim-lib-lang-jvm` |  |
 | `cookbook/standard/core` | `cookbook-recipe` | `sim-lib-standard-core` | Language profiles, fidelity badges, conformance helpers, and strict migration characterization. |
+| `cookbook/study` | `cookbook-recipe` | `sim-lib-study` | Seal, schedule, execute, and reconstruct bounded domain-neutral studies. |
 | `registry/catalog` | `browse-registry` | `workspace` | registry catalog browse card |

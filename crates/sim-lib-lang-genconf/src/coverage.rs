@@ -156,7 +156,11 @@ mod tests {
     use super::*;
 
     fn coverage_cx() -> Cx {
-        let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+        let mut cx = Cx::new(
+            Arc::new(EagerPolicy),
+            Arc::new(DefaultFactory),
+            sim_kernel::HandleSeed::new(0x8cda_2585_59b2_e878),
+        );
         sim_test_support::register_core_classes(&mut cx);
         sim_test_support::register_f64_number_domain(&mut cx);
         cx

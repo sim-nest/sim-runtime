@@ -103,7 +103,7 @@
     }
 
     fn test_method(descriptor: &str, access_flags: u16) -> JavaMember {
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0xc9d0_632a_d4be_bda5));
         JavaClassMetadata::test_class(&cx, "Owner", &[], 0, &[("work", descriptor, access_flags)])
             .select_method("work", descriptor)
             .unwrap()

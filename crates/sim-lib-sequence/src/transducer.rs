@@ -181,7 +181,7 @@ pub fn for_each_sequence(cx: &mut Cx, source: &Value, visitor: ValueVisitor) -> 
 ///     canonical.parse().unwrap()
 /// }
 ///
-/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+/// let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0x9d76_e488_957a_39e7));
 /// // Source yields 0, 1, 2 then ends.
 /// let source = lazy_sequence_value(&mut cx, Arc::new(|cx: &mut Cx, i| {
 ///     if i >= 3 { return Ok(None); }

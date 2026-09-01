@@ -1,6 +1,7 @@
 //! Managed JVM object-graph policy over the shared tracing substrate.
 
 use sim_lib_gc_tracing::{CollectionError, CollectionLimits, CollectionReceipt, ManagedHeap};
+use sim_lib_machine::ManagedRootSource;
 use sim_lib_mutation::{
     ArenaError, EdgeAllocationError, EdgeId, EphemeronMutationError, ManagedHandle, ManagedNode,
     RootedHandle, StrongEdgeMutationError, WeakEdgeMutationError,
@@ -219,6 +220,21 @@ pub struct JvmHeap {
 }
 
 impl JvmHeap {
+    pub(crate) fn surface_default() -> Self {
+        Self::new(
+            4_096,
+            CollectionLimits {
+                objects: 4_096,
+                edges: 16_384,
+                stack: 4_096,
+                work: 65_536,
+                clears: 4_096,
+                finalizers: 0,
+            },
+        )
+        .expect("fixed positive JVM heap capacity")
+    }
+
     /// Creates a bounded tracing JVM heap.
     pub fn new(cap: usize, limits: CollectionLimits) -> Result<Self, ArenaError> {
         Ok(Self {
@@ -336,6 +352,37 @@ impl JvmHeap {
             .heap
             .collect()?
             .expect("JVM heaps always use tracing policy"))
+    }
+
+    /// Collects while treating every identity published by a live machine source as a root.
+    ///
+    /// Root registration is transactional around the shared collector: identities are
+    /// validated before collection, registered in source order, and released afterward.
+    /// This is the bridge between suspended/live activation storage and the one JVM heap;
+    /// it does not retain a parallel root bitmap.
+    pub fn collect_from(
+        &mut self,
+        source: &impl ManagedRootSource,
+    ) -> Result<CollectionReceipt, CollectionError> {
+        let mut identities = Vec::new();
+        let complete = source.visit_managed_roots(&mut |identity| {
+            identities.push(identity);
+            true
+        });
+        debug_assert!(complete, "unbounded live-root enumeration cannot refuse");
+
+        let mut temporary = Vec::with_capacity(identities.len());
+        for identity in identities {
+            let handle = self.heap.handle(identity).map_err(CollectionError::Arena)?;
+            temporary.push(self.heap.root(handle).map_err(CollectionError::Arena)?);
+        }
+        let result = self.collect();
+        for root in temporary.into_iter().rev() {
+            self.heap
+                .release_root(root)
+                .expect("temporary JVM collection root remains registered");
+        }
+        result
     }
 }
 

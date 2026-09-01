@@ -164,7 +164,11 @@ mod tests {
     use std::{collections::BTreeMap, sync::Arc};
 
     fn definition(loader: &ClassLoader, name: &str, key: u64) -> Arc<ClassDefinition> {
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(
+            Arc::new(NoopEvalPolicy),
+            Arc::new(DefaultFactory),
+            sim_kernel::HandleSeed::new(0xbefd_261c_2694_0d21),
+        );
         ClassDefinition::test(
             loader.id(),
             name,

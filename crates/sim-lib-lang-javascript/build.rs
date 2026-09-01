@@ -1,5 +1,5 @@
 fn main() {
-    sim_cookbook::write_embed("recipes").expect("embed JavaScript recipes");
+    sim_cookbook_build::write_embed("recipes").expect("embed JavaScript recipes");
     println!("cargo:rerun-if-changed=intrinsics.tsv");
     let source = std::fs::read_to_string("intrinsics.tsv").expect("read JavaScript intrinsics");
     let mut names = std::collections::BTreeSet::new();

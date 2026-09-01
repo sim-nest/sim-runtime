@@ -7,9 +7,15 @@ use sim_lib_lang_jvm::{JvmSurface, class_load_capability, jvm_invoke_capability}
 const CORPUS: &str = include_str!("../fixtures/corpus.toml");
 const JAVAC_STATIC_INT: &[u8] = include_bytes!("../fixtures/javac/StaticInt.class");
 const HAND_BUILT_MINIMAL: &[u8] = include_bytes!("../fixtures/hand-built/Minimal.class");
+const DRIVER_BASELINE: &[u8] = include_bytes!("../fixtures/javac/DriverBaseline.class");
+const PUBLIC_FORMS: &[u8] = include_bytes!("../fixtures/javac/PublicForms.class");
 
 fn authorized_cx() -> Cx {
-    let (mut cx, seat) = Cx::new_seated(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let (mut cx, seat) = Cx::new_seated(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x4a56_4d03),
+    );
     for capability in [class_load_capability(), jvm_invoke_capability()] {
         seat.grant(&mut cx, capability).unwrap();
     }
@@ -57,7 +63,7 @@ fn corpus_manifest_declares_every_normalization_at_the_scenario() {
             scenario["id"].as_str().unwrap()
         );
     }
-    assert_eq!(corpus["finding"].as_array().unwrap().len(), 2);
+    assert_eq!(corpus["finding"].as_array().unwrap().len(), 1);
 }
 
 #[test]
@@ -80,10 +86,129 @@ fn retained_positive_and_differential_corpus_matches_exact_guest_values() {
     assert_eq!(
         surface
             .invoke_static_i32(&mut cx, "Minimal", "value", "()I", &[])
-            .unwrap_err()
-            .to_string(),
-        "evaluation error: JVM callable subset refuses opcode Bipush"
+            .unwrap(),
+        42
     );
+    let (preparation, execution) = surface.last_drive_receipts().unwrap();
+    assert_eq!(preparation.instructions, 2);
+    assert_eq!(execution.work.len(), 2);
+    assert!(execution.cleaned_up);
+    assert_eq!(surface.live_frame_leases(), 0);
+    let decoded = surface.decode_count();
+    assert_eq!(
+        surface
+            .invoke_static_i32(&mut cx, "Minimal", "value", "()I", &[])
+            .unwrap(),
+        42
+    );
+    assert_eq!(
+        surface.decode_count(),
+        decoded,
+        "prepared execution must not decode again"
+    );
+}
+
+#[test]
+fn integer_surface_admits_exact_arity_and_refuses_contradictions_before_frames() {
+    let mut cx = authorized_cx();
+    let surface = JvmSurface::new(16_384);
+    surface
+        .define(&mut cx, "StaticInt", JAVAC_STATIC_INT.to_vec())
+        .unwrap();
+
+    assert_eq!(
+        surface
+            .invoke_static_i32(&mut cx, "StaticInt", "wholePipeline", "(II)I", &[3, 4])
+            .unwrap(),
+        14
+    );
+    for (arguments, expected) in [
+        (&[3][..], "requires 2 arguments, received 1"),
+        (&[3, 4, 5][..], "requires 2 arguments, received 3"),
+    ] {
+        let error = surface
+            .invoke_static_i32(&mut cx, "StaticInt", "wholePipeline", "(II)I", arguments)
+            .unwrap_err();
+        assert!(matches!(
+            &error,
+            sim_lib_lang_jvm::JvmInvocationError::Admission(_)
+        ));
+        assert!(error.to_string().contains(expected), "{error}");
+        assert!(!error.to_string().contains("integer local missing"));
+        assert_eq!(surface.live_frame_leases(), 0);
+    }
+
+    for (name, descriptor, expected) in [
+        ("nonIntParameter", "(J)J", "non-int parameter"),
+        ("nonIntReturn", "(I)V", "does not return int"),
+    ] {
+        let error = surface
+            .invoke_static_i32(&mut cx, "StaticInt", name, descriptor, &[1])
+            .unwrap_err();
+        assert!(error.to_string().contains(expected), "{error}");
+        assert_eq!(surface.live_frame_leases(), 0);
+    }
+
+    let error = surface
+        .invoke_instance_i32(&mut cx, "StaticInt", "StaticInt", "instance", "(I)I", &[1])
+        .unwrap_err();
+    assert!(error.to_string().contains("surface-owned receiver object"));
+    assert_eq!(surface.live_frame_leases(), 0);
+}
+
+#[test]
+fn public_invocation_executes_branches_and_backward_loops_deterministically() {
+    let mut cx = authorized_cx();
+    let surface = JvmSurface::new(16_384);
+    surface
+        .define(&mut cx, "DriverBaseline", DRIVER_BASELINE.to_vec())
+        .unwrap();
+
+    for (argument, expected) in [(-1, 3), (0, 3), (1, 7)] {
+        assert_eq!(
+            surface
+                .invoke_static_i32(&mut cx, "DriverBaseline", "branch", "(I)I", &[argument])
+                .unwrap(),
+            expected
+        );
+    }
+    for (argument, expected) in [(0, 0), (1, 0), (5, 10), (10, 45)] {
+        assert_eq!(
+            surface
+                .invoke_static_i32(&mut cx, "DriverBaseline", "loop", "(I)I", &[argument])
+                .unwrap(),
+            expected
+        );
+    }
+}
+
+#[test]
+fn public_invocation_refuses_uninstalled_effect_families_before_a_frame_is_live() {
+    let mut cx = authorized_cx();
+    let surface = JvmSurface::new(16_384);
+    surface
+        .define(&mut cx, "PublicForms", PUBLIC_FORMS.to_vec())
+        .unwrap();
+
+    for (name, descriptor, args) in [
+        ("field", "()I", &[][..]),
+        ("array", "()I", &[][..]),
+        ("allocation", "()I", &[][..]),
+        ("call", "()I", &[][..]),
+        ("handler", "()I", &[][..]),
+        ("concat", "()I", &[][..]),
+        ("initialization", "()I", &[][..]),
+        ("monitor", "()I", &[][..]),
+    ] {
+        let error = surface
+            .invoke_static_i32(&mut cx, "PublicForms", name, descriptor, args)
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            sim_lib_lang_jvm::JvmInvocationError::Admission(_)
+        ));
+        assert_eq!(surface.live_frame_leases(), 0, "{name} acquired a frame");
+    }
 }
 
 #[test]
@@ -112,6 +237,6 @@ fn runtime_negative_corpus_preserves_the_missing_method_refusal() {
         .unwrap_err();
     assert_eq!(
         error.to_string(),
-        "evaluation error: missing JVM method StaticInt.absent()I"
+        "JVM invocation admission refused: evaluation error: missing JVM method StaticInt.absent()I"
     );
 }

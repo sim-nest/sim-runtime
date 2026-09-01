@@ -33,7 +33,9 @@
 | `sim-lib-machine` | `workspace` | Policy contracts for neutral, bounded decoded-instruction machines. |
 | `sim-lib-mutation` | `workspace` | Mutation behavior for the SIM runtime: cells, boxes, vectors, tables, and a bounded managed-object arena. |
 | `sim-lib-namespace` | `workspace` | Namespace records and capability-aware source module lifecycle for the SIM runtime. |
+| `sim-lib-operation-gate` | `workspace` | Declaration-driven gate for capability-scoped operations. |
 | `sim-lib-pattern` | `workspace` | Pattern behavior for the SIM runtime over the kernel Shape protocol. |
 | `sim-lib-sequence` | `workspace` | Sequence behavior for the SIM runtime: lazy, persistent, runtime-indexed, and transducer-backed collections. |
 | `sim-lib-standard-core` | `workspace` | Standard distribution core for SIM capabilities, claims, tests, and profiles. |
+| `sim-lib-study` | `workspace` | Durable, domain-neutral study coordination. |
 | `xtask` | `workspace` | Repository maintenance tasks for sim-runtime. |

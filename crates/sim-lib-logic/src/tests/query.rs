@@ -13,7 +13,11 @@ fn number(text: &str) -> Expr {
 
 #[test]
 fn query_facts_and_rules() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xbf80_72b2_4583_a435),
+    );
     let mut db = LogicDb::new();
     db.assert_clause_expr(Expr::List(vec![
         Expr::Symbol(Symbol::new("fact")),
@@ -72,7 +76,11 @@ fn query_facts_and_rules() {
 
 #[test]
 fn recursive_queries_obey_max_depth() {
-    let mut cx = Cx::new(Arc::new(EagerPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(EagerPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0xb3b6_a94c_2307_07a1),
+    );
     let mut db = LogicDb::new();
     db.assert_clause_expr(Expr::List(vec![
         Expr::Symbol(Symbol::new("rule")),

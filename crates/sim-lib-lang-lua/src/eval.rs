@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
 use sim_kernel::{Cx, Error, Expr, Result, Symbol, Value};
 use sim_lib_standard_core::{
@@ -29,6 +29,44 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct LuaEvalPolicy {
     kit: GuestRuntimeKit,
+    configuration: Option<LuaRuntimeConfiguration>,
+}
+
+/// Host-authored facts visible to one Lua runtime instance.
+///
+/// This is data, not an ambient host adapter. Constructing a policy never
+/// reads the embedding process environment or clock.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct LuaRuntimeConfiguration {
+    environment: BTreeMap<String, String>,
+    cpu_clock_millis: u64,
+}
+
+impl LuaRuntimeConfiguration {
+    /// Creates an empty deterministic configuration.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Supplies one guest-visible environment entry.
+    pub fn with_environment(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
+        self.environment.insert(name.into(), value.into());
+        self
+    }
+
+    /// Supplies the modeled process CPU clock in milliseconds.
+    pub fn with_cpu_clock_millis(mut self, millis: u64) -> Self {
+        self.cpu_clock_millis = millis;
+        self
+    }
+
+    pub(crate) fn environment(&self, name: &str) -> Option<&str> {
+        self.environment.get(name).map(String::as_str)
+    }
+
+    pub(crate) const fn cpu_clock_millis(&self) -> u64 {
+        self.cpu_clock_millis
+    }
 }
 
 impl LuaEvalPolicy {
@@ -45,7 +83,22 @@ impl LuaEvalPolicy {
             .ok_or(Error::UnknownSymbol {
                 symbol: profile_symbol,
             })?;
-        Ok(Self { kit })
+        Ok(Self {
+            kit,
+            configuration: None,
+        })
+    }
+
+    /// Installs explicit modeled host facts for this guest instance.
+    pub fn with_configuration(mut self, configuration: LuaRuntimeConfiguration) -> Self {
+        self.configuration = Some(configuration);
+        self
+    }
+
+    pub(crate) fn configuration(&self) -> Result<&LuaRuntimeConfiguration> {
+        self.configuration.as_ref().ok_or_else(|| {
+            Error::Eval("lua host configuration service is not installed".to_owned())
+        })
     }
 
     /// Borrow the language-neutral runtime policy kit.

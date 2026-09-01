@@ -3,7 +3,7 @@
 use crate::{
     Automaton, ByteDomain, ByteOffset, CaptureId, CodeUnitDomain, CodeUnitOffset, ExecutionLimit,
     ExecutionOutcome, ExecutionReceipt, ScalarDomain, ScalarOffset, SymbolDomain, TextLimits,
-    UnsupportedFeature, execute_regular,
+    UnsupportedFeature, execute_regular, search_regular,
 };
 use sim_text::CodeUnitString;
 use std::collections::BTreeMap;
@@ -162,6 +162,23 @@ pub fn execute_code_units<E>(
     typed(execute_regular(
         automaton,
         subject.as_code_units(),
+        limits,
+        extension_matches,
+    ))
+}
+
+/// Search exact code units without copying suffixes or resetting the receipt.
+pub fn search_code_units<E>(
+    automaton: &Automaton<u16, E>,
+    subject: &CodeUnitString,
+    init: usize,
+    limits: TextLimits,
+    extension_matches: impl Fn(&E, &u16) -> bool,
+) -> DomainExecutionOutcome<CodeUnitDomain> {
+    typed(search_regular(
+        automaton,
+        subject.as_code_units(),
+        init,
         limits,
         extension_matches,
     ))

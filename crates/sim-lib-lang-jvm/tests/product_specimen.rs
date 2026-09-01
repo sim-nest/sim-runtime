@@ -7,7 +7,11 @@ use sim_lib_lang_jvm::{class_load_capability, jvm_invoke_capability, run_product
 
 #[test]
 fn published_specimen_runs_all_product_cases() {
-    let mut cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+    let mut cx = Cx::new(
+        Arc::new(NoopEvalPolicy),
+        Arc::new(DefaultFactory),
+        sim_kernel::HandleSeed::new(0x4a56_4d01),
+    );
     cx.grant(class_load_capability());
     cx.grant(jvm_invoke_capability());
     let report = run_product_specimen(&mut cx).unwrap();

@@ -83,7 +83,7 @@ fn million_deep_chain_exhausts_declared_budget_without_host_recursion() {
 }
 
 #[test]
-fn transfers_are_only_code_references_values_and_widths() {
+fn transfers_preserve_only_code_references_values_and_widths() {
     let packet = CallTransfer::new(vec![10_u64, 20], vec![1, 2], "code:sum")
         .expect("aligned nonzero widths");
     assert_eq!(packet.target, "code:sum");
@@ -93,7 +93,12 @@ fn transfers_are_only_code_references_values_and_widths() {
         CallTransfer::new(vec![10_u64], vec![], "code:bad"),
         Err(TransferError::WidthCountMismatch)
     );
+}
 
+#[test]
+fn frame_source_obeys_guest_vocabulary_hygiene() {
+    // This is deliberately a public-hygiene check, not evidence of runtime
+    // ownership or behavior. The transfer test above carries that proof.
     let source = include_str!("../src/frame.rs").to_ascii_lowercase();
     for forbidden in ["method", "signature", "class"] {
         assert!(

@@ -9,7 +9,7 @@
         ManagedHandle,
     ) {
         let loader = ClassLoader::new(4096);
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0xe688_7b37_786e_2814));
         let target = ClassDefinition::test(
             loader.id(),
             "target.Target",
@@ -122,7 +122,7 @@
             DirectReceiver::None,
         )
         .unwrap();
-        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory));
+        let cx = Cx::new(Arc::new(NoopEvalPolicy), Arc::new(DefaultFactory), sim_kernel::HandleSeed::new(0xbb3f_c4c6_ed6c_b730));
         let site = SiteKey {
             class: owner.id().clone(),
             method: MethodIdentity {

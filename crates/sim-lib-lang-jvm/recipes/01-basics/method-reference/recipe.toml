@@ -1,3 +1,4 @@
 title = "Invoke a Java method reference from SIM"
 kind = "lisp"
 entry = "setup.siml"
+purpose = "purpose.md"
