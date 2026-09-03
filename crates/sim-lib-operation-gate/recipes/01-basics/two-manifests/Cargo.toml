@@ -6,7 +6,7 @@ license = "MPL-2.0"
 publish = false
 
 [dependencies]
-sim-kernel = "0.3.0"
+sim-kernel = "0.4.0"
 sim-lib-operation-gate = { path = "../../.." }
 
 [workspace]
