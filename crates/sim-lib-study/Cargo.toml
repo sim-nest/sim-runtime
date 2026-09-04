@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-study"
-version = "0.1.0"
+version = "0.2.0"
 edition.workspace = true
 license.workspace = true
 readme = "README.md"
@@ -14,9 +14,9 @@ policy = "book"
 
 [dependencies]
 sha2 = "0.10"
-sim-kernel = { version = "0.3.0" }
-sim-lib-journal = { version = "0.1.0" }
-sim-study-core = { version = "0.1.0" }
+sim-kernel = { version = "0.4.0" }
+sim-lib-journal = { version = "0.2.0" }
+sim-study-core = { version = "0.2.0" }
 thiserror = "2"
 
 [lints]
