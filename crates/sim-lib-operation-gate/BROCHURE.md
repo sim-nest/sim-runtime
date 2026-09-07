@@ -4,7 +4,7 @@ In one line: Domain-neutral capability and exact-approval gate for effectful SIM
 
 ## What it gives you
 
-A domain-neutral gate for content-identified operations. Callers provide the required capability, the exact operation request, and an approval bound to that request; mismatched, stale, missing, or over-broad authority fails closed before an effect adapter runs. Approval cannot silently drift to a different operation. Capability checks and human review remain separate, inspectable facts. Domain libraries reuse one gate instead of inventing approval policy. This runtime organ sits immediately before effectful adapters. It owns admission records and checks, never the effect itself. The contract keeps inputs, outputs, limits, and refusal cases explicit, so callers can compose the capability without acquiring unrelated host, transport, or product authority. Stable records make the result suitable for tests, inspection, and deterministic integration.
+A domain-neutral gate and durable handoff for content-identified operations. Callers provide the required capability, exact semantic intent, and approval bound to that request; mismatched, stale, missing, or over-broad authority fails closed before an effect adapter runs. Canonical intent binds the target, intended result, and replay policy while grants, attempts, and writer leases stay separate. The journal records dispatch before an injected performer runs and retains its raw acknowledgement. Reopening a recorded dispatch never repeats it, so acknowledgement loss remains visible uncertainty instead of retry authority. Capability checks, human review, durability, and later reconciliation remain separate, inspectable facts.
 
 ## Why you will be glad
 

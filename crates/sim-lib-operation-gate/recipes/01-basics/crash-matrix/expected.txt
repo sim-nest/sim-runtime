@@ -1,0 +1,5 @@
+first state: dispatched
+reopened state: dispatched
+performer invocations: 1
+operation identity stable: true
+real effects: 0

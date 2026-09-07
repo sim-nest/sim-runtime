@@ -6,6 +6,19 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
+mod durable;
+mod operation_error;
+mod operation_service;
+mod operation_wire;
+
+pub use durable::{
+    DispatchId, DurableOperationState, OperationAttempt, OperationAttemptId, OperationDispatch,
+    OperationGrant, OperationGrantId, OperationId, OperationIntent, OperationIntentId,
+    OperationPerformer, PerformerReceipt, PerformerReceiptId, PerformerResponse, ReplayPolicy,
+};
+pub use operation_error::OperationError;
+pub use operation_service::{OperationRecord, OperationService};
+
 use sim_kernel::{
     CapabilityName, Cx, Error, Ref, Result,
     effect::{Effect, resolve_effect},
@@ -182,6 +195,9 @@ where
         }
     })
 }
+
+#[cfg(test)]
+mod durable_tests;
 
 #[cfg(test)]
 mod tests;

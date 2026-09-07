@@ -1,2 +1,2 @@
 title = "Basics"
-recipes = ["two-manifests"]
+recipes = ["two-manifests", "crash-matrix"]

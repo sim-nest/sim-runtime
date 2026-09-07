@@ -875,13 +875,17 @@ steps = [
 [[feature]]
 id = "feature/sim-runtime/guarded-operations"
 title = "Declaration-driven guarded operations"
-summary = "Guard domain-neutral operations with explicit capability, execution mode, exact-subject approval, atomic approval use, effect replay, and auditable sink policy."
+summary = "Guard domain-neutral operations with explicit capability and exact approval, then durably retain canonical intent, separate grants and attempts, dispatch-before-performance, and raw performer receipts."
 owner = "crate/sim-lib-operation-gate"
 audiences = ["code", "framework"]
-guidance = "Declare every operation from canonical manifest fields; never infer policy from operation text. Put verification, atomic approval use, performance, and sink emission inside guard_operation so kernel cassette replay repeats none of them. Observation and Recorded are distinct labels, not reversibility claims; only Reviewed requires exact approval."
+guidance = "Declare every operation from canonical manifest fields; never infer policy from operation text. Use OperationService over sim-lib-journal to persist semantic intent and its grant before a dispatch; a recovered dispatch never calls the performer again, including after missing acknowledgement. Keep the injected performer behind guard_operation so capability verification and exact approval stay distinct from durability. NV12.04 owns only intent, dispatch, and raw receipt facts; independent postcondition observation and real process or network adapters require their later qualification."
 claims_anchors = ["anchor/crate/sim-lib-operation-gate"]
-claims_specimens = ["recipe/sim-runtime/crates/sim-lib-operation-gate/01-basics/two-manifests"]
-composes = ["crate/sim-kernel"]
+claims_specimens = [
+  "recipe/sim-runtime/crates/sim-lib-operation-gate/01-basics/two-manifests",
+  "recipe/sim-runtime/crates/sim-lib-operation-gate/01-basics/crash-matrix",
+  "spec-test/sim-runtime/crates/sim-lib-operation-gate/src/durable_tests",
+]
+composes = ["crate/sim-kernel", "crate/sim-lib-journal"]
 
 [[route]]
 id = "route/guard-an-operation"
@@ -890,4 +894,13 @@ audiences = ["code", "framework"]
 steps = [
   { feature = "feature/sim-runtime/guarded-operations", why = "The generic gate owns explicit policy, exact approval, atomic use, records, and the performer boundary." },
   { specimen = "recipe/sim-runtime/crates/sim-lib-operation-gate/01-basics/two-manifests", why = "Two unrelated fixture manifests prove the gate contains no automotive assumption." },
+]
+
+[[route]]
+id = "route/perform-durable-operation"
+task = "Persist and safely hand off one durable operation"
+audiences = ["code", "framework"]
+steps = [
+  { feature = "feature/sim-runtime/guarded-operations", why = "OperationService derives canonical intent identity, records grants and attempts separately, and makes a durable dispatch the at-most-once performer barrier." },
+  { specimen = "recipe/sim-runtime/crates/sim-lib-operation-gate/01-basics/crash-matrix", why = "The checked fake-performer specimen loses an acknowledgement, reopens the journal, and proves replay never increments the external invocation counter." },
 ]
