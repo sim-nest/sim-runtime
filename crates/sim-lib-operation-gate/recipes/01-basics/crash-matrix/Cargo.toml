@@ -1,0 +1,13 @@
+[package]
+name = "sim-lib-operation-gate-recipe-crash-matrix"
+version = "0.0.0"
+edition = "2024"
+license = "MPL-2.0"
+publish = false
+
+[dependencies]
+sim-kernel = "0.4.0"
+sim-lib-journal = "0.3.1"
+sim-lib-operation-gate = { path = "../../.." }
+
+[workspace]

@@ -1,0 +1,13 @@
+id = "crash-matrix"
+title = "Recover without repeating a dispatched operation"
+codec = "rust"
+setup = "src/main.rs"
+purpose = "README.md"
+expected = "expected.txt"
+order = 20
+tags = ["operation", "journal", "crash", "at-most-once", "rust"]
+requires = ["sim-lib-operation-gate", "sim-lib-journal", "sim-kernel"]
+
+[[expect]]
+form = 0
+result = "first state: dispatched\nreopened state: dispatched\nperformer invocations: 1\noperation identity stable: true\nreal effects: 0"
