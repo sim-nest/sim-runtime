@@ -1,3 +1,5 @@
+//! conformance: durable operation protocol crash matrix and identity laws.
+
 use std::sync::{
     Arc, Mutex,
     atomic::{AtomicUsize, Ordering},
