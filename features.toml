@@ -558,7 +558,11 @@ summary = "Bind exact installed commands and every execution resource, bound, ou
 owner = "crate/sim-lib-exec"
 audiences = ["code", "framework"]
 guidance = "Construct CommandSpec only from trusted owner command bytes and boot-resolved resource identities. For compound manifest commands, use CommandInvocation::Interpreter so the interpreter flags and unchanged script bytes enter CommandId; never interpolate packet or model text. Give LocalCheckRequest only an installed CommandId. Use LocalCheckPort from portable packet tooling and let the selected platform capsule resolve paths and process mechanics. A Process route cannot claim absent networking; a scoped network route needs a separate matching grant."
-claims_anchors = ["anchor/crate/sim-lib-exec"]
+claims_anchors = [
+  "anchor/rustdoc/sim-lib-exec/command/command-spec",
+  "anchor/rustdoc/sim-lib-exec/command/local-check-port",
+  "anchor/rustdoc/sim-lib-exec/command/local-check-request",
+]
 claims_specimens = ["spec-test/sim-runtime/crates/sim-lib-exec/tests/command_contract"]
 supports = ["feature/sim-runtime/host-exec", "feature/sim-runtime/sandbox-exec"]
 
