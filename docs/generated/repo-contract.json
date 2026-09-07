@@ -707,7 +707,8 @@
       "rustdoc_summary": "Capability-gated bounded host-process execution for the SIM runtime.",
       "target_kinds": [
         "custom-build",
-        "lib"
+        "lib",
+        "test"
       ],
       "targets": [
         {
@@ -719,6 +720,16 @@
           ],
           "name": "sim_lib_exec",
           "src": "crates/sim-lib-exec/src/lib.rs"
+        },
+        {
+          "crate_types": [
+            "bin"
+          ],
+          "kind": [
+            "test"
+          ],
+          "name": "command_contract",
+          "src": "crates/sim-lib-exec/tests/command_contract.rs"
         },
         {
           "crate_types": [
@@ -3076,10 +3087,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-16T00:13:38+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "c392352d346b95c68a4b62ab33f43d7cdcdab0ca",
+    "git_commit": "ac6d905b65f3fab5ab5ea770077b92b9259b704c",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "c392352d346b95c68a4b62ab33f43d7cdcdab0ca",
+    "source_commit": "ac6d905b65f3fab5ab5ea770077b92b9259b704c",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -3092,9 +3103,9 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "4278f70cc207ea64",
+    "workspace_hash": "62cd5dc654022282",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 695,
+    "workspace_hash_input_count": 705,
     "workspace_hash_inputs": [
       "Cargo.toml",
       "crates/sim-incremental-core/Cargo.toml",
@@ -3208,10 +3219,14 @@
       "crates/sim-lib-exec/build.rs",
       "crates/sim-lib-exec/recipes/01-basics/bounded-process/recipe.toml",
       "crates/sim-lib-exec/recipes/book.toml",
+      "crates/sim-lib-exec/src/command.rs",
+      "crates/sim-lib-exec/src/command_tests.rs",
+      "crates/sim-lib-exec/src/command_wire.rs",
       "crates/sim-lib-exec/src/exec.rs",
       "crates/sim-lib-exec/src/lib.rs",
       "crates/sim-lib-exec/src/sandbox.rs",
       "crates/sim-lib-exec/src/tests.rs",
+      "crates/sim-lib-exec/tests/command_contract.rs",
       "crates/sim-lib-function/Cargo.toml",
       "crates/sim-lib-function/recipes/01-basics/neutral-language/recipe.toml",
       "crates/sim-lib-function/recipes/book.toml",
@@ -3695,6 +3710,12 @@
       "crates/sim-lib-operation-gate/src/durable.rs",
       "crates/sim-lib-operation-gate/src/durable_tests.rs",
       "crates/sim-lib-operation-gate/src/lib.rs",
+      "crates/sim-lib-operation-gate/src/lifecycle.rs",
+      "crates/sim-lib-operation-gate/src/lifecycle_engine.rs",
+      "crates/sim-lib-operation-gate/src/lifecycle_project.rs",
+      "crates/sim-lib-operation-gate/src/lifecycle_record.rs",
+      "crates/sim-lib-operation-gate/src/lifecycle_tests.rs",
+      "crates/sim-lib-operation-gate/src/lifecycle_wire.rs",
       "crates/sim-lib-operation-gate/src/operation_error.rs",
       "crates/sim-lib-operation-gate/src/operation_service.rs",
       "crates/sim-lib-operation-gate/src/operation_wire.rs",

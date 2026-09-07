@@ -4,13 +4,15 @@ In one line: Domain-neutral capability and exact-approval gate for effectful SIM
 
 ## What it gives you
 
-A domain-neutral gate and durable handoff for content-identified operations. Callers provide the required capability, exact semantic intent, and approval bound to that request; mismatched, stale, missing, or over-broad authority fails closed before an effect adapter runs. Canonical intent binds the target, intended result, and replay policy while grants, attempts, and writer leases stay separate. The journal records dispatch before an injected performer runs and retains its raw acknowledgement. Reopening a recorded dispatch never repeats it, so acknowledgement loss remains visible uncertainty instead of retry authority. Capability checks, human review, durability, and later reconciliation remain separate, inspectable facts.
+A domain-neutral gate and durable handoff for content-identified operations. Callers provide the required capability, exact semantic intent, and approval bound to that request; mismatched, stale, missing, or over-broad authority fails closed before an effect adapter runs. Canonical intent binds the target, intended result, and replay policy while grants, attempts, and bounded writer-fenced leases stay separate. The journal records dispatch before an injected performer runs and retains its raw acknowledgement. Recovery observes the postcondition independently before deciding whether anything may run. `ExactlyOnce` never repeats a durable dispatch. `Idempotent` permits another attempt only after the old lease expires and the observer proves the intended state absent. The result remains `AlreadyTrue`, `Verified`, `Diverged`, or `Uncertain`; acknowledgement loss never becomes assumed failure or success.
 
 ## Why you will be glad
 
 - The public contract makes supported behavior, limits, and typed failures visible before integration.
 - One owning crate prevents neighboring libraries from growing competing copies of the same policy.
 - Deterministic records and checked tests keep adapters reviewable when implementations evolve.
+- Crash coverage crosses every durable boundary around performance, including a lost raw receipt.
+- Performer and observer identities are distinct and durable; changing the performer during recovery fails closed.
 
 ## Where it fits
 

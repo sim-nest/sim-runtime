@@ -19,6 +19,15 @@ pub enum OperationError {
     /// An attempt did not belong to the stable operation.
     #[error("operation attempt does not match intent")]
     AttemptMismatch,
+    /// A bounded operation lease was empty, expired at acquisition, or moved backwards.
+    #[error("invalid bounded operation lease")]
+    InvalidLease,
+    /// The postcondition observer was the same authority as the performer.
+    #[error("postcondition observer is not independent of the performer")]
+    ObserverNotIndependent,
+    /// Recovery selected a different performer authority for the same operation.
+    #[error("operation performer does not match the durable dispatch authority")]
+    PerformerMismatch,
     /// Durable replay contained a second intent for one operation.
     #[error("durable operation contains duplicate intent")]
     DuplicateIntent,

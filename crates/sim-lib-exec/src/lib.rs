@@ -6,10 +6,24 @@
 //! to run an external process under explicit authority. The operation accepts a
 //! structured argv vector, never inserts a shell, captures stdout and stderr,
 //! enforces a mandatory timeout, and truncates captured output at a caller-set
-//! byte cap. It is a host operation, not SIM evaluation.
+//! byte cap. [`CommandSpec`] identifies exact installed checker commands,
+//! including unchanged interpreter bytes, resources, output and cleanup policy;
+//! [`LocalCheckPort`] keeps packet tooling outside the native process boundary.
+//! It is a host operation, not SIM evaluation.
 
+mod command;
+#[cfg(test)]
+mod command_tests;
+mod command_wire;
 mod exec;
 mod sandbox;
+
+pub use command::{
+    BuildSourceRef, CapabilityGrantRef, CleanupContract, CommandId, CommandInvocation,
+    CommandReplayPolicy, CommandResource, CommandRoute, CommandSpec, LocalCheckLease,
+    LocalCheckPort, LocalCheckRequest, LocalCheckResult, LocalCheckStatus, NetworkAccess,
+    OutputContract, OutputExpectation, OutputState, PacketRef, ResourceAccess,
+};
 
 pub use exec::{
     ArgAtom, BindingValue, DispatchEvidence, ExecOptions, PrivateArtifactRef, ProcResult,
