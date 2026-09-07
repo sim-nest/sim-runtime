@@ -43,7 +43,7 @@ impl<K, V> Query<K, V> {
 impl<K, V> QueryFrame<'_, K, V>
 where
     K: Ord + Clone,
-    V: Clone + FingerprintValue,
+    V: Clone + Eq + FingerprintValue,
 {
     /// Reads another query and records a read dependency.
     pub fn read(&mut self, key: K) -> QueryResult<K, V> {

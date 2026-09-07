@@ -60,7 +60,7 @@ pub use error::{ContinuationToken, IncrementalError, SnapshotError};
 pub use fingerprint::{FingerprintValue, ValueFingerprint};
 pub use observation::{Observation, ObservationKind, Revision};
 pub use query::{Query, QueryResult};
-pub use snapshot::{GraphSnapshot, RestoreReport, SnapshotNode};
+pub use snapshot::{GraphSnapshot, RestoreReport, SnapshotNode, SnapshotObservation};
 
 #[cfg(test)]
 mod tests;

@@ -1,6 +1,6 @@
 use std::cell::Cell;
 
-use sim_kernel::{CodecId, Origin, SourceId, Span};
+use sim_kernel::{CodecId, Datum, NumberLiteral, Origin, SourceId, Span, Symbol};
 use sim_lib_control::WorkLimit;
 use sim_lib_machine::{
     AdmissionLimits, AdmissionPolicy, DriveError, DriveOutcome, Driver, FrameStack,
@@ -32,10 +32,20 @@ impl AdmissionPolicy<Instructions, ()> for Admission {
         Ok(())
     }
 
-    fn encode_metadata(_: &(), _: &mut Vec<u8>) {}
-
-    fn encode_instruction(instruction: &u8, output: &mut Vec<u8>) {
-        output.push(*instruction);
+    fn policy_identity() -> Symbol {
+        Symbol::qualified("machine-test", "iterative-driver")
+    }
+    fn policy_version() -> u32 {
+        1
+    }
+    fn metadata_datum(_: &()) -> Datum {
+        Datum::Nil
+    }
+    fn instruction_datum(instruction: &u8) -> Datum {
+        Datum::Number(NumberLiteral {
+            domain: Symbol::qualified("numbers", "u8"),
+            canonical: instruction.to_string(),
+        })
     }
 }
 

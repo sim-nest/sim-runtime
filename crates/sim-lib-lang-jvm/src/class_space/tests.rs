@@ -6,7 +6,7 @@ mod tests {
     };
 
     use sim_kernel::{
-        CapabilitySet, ClassId, ClassRef, CodecId, DefaultFactory, EagerPolicy, Object,
+        CapabilitySet, ClassId, ClassRef, CodecId, Datum, DefaultFactory, EagerPolicy, Object,
         ObjectCompat, Origin, ReadPolicy, SourceId, Span, Table, TrustLevel, Value,
         read_eval_capability,
     };
@@ -344,9 +344,11 @@ mod tests {
         fn validate_instruction(_: &u8, _: &()) -> std::result::Result<(), ()> {
             Ok(())
         }
-        fn encode_metadata(_: &(), _: &mut Vec<u8>) {}
-        fn encode_instruction(instruction: &u8, output: &mut Vec<u8>) {
-            output.push(*instruction);
+        fn policy_identity() -> Symbol { Symbol::qualified("jvm-test", "entry") }
+        fn policy_version() -> u32 { 1 }
+        fn metadata_datum(_: &()) -> Datum { Datum::Nil }
+        fn instruction_datum(instruction: &u8) -> Datum {
+            Datum::Number(sim_kernel::NumberLiteral { domain: Symbol::qualified("numbers", "u8"), canonical: instruction.to_string() })
         }
     }
     fn machine_permit() -> MachinePermit {

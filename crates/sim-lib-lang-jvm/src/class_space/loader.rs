@@ -7,6 +7,13 @@ pub fn class_load_capability() -> CapabilityName {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ClassLoaderId(pub(crate) u64);
 
+impl ClassLoaderId {
+    /// Returns the stable numeric namespace identity.
+    pub const fn number(self) -> u64 {
+        self.0
+    }
+}
+
 /// A definition identity bound to loader namespace and exact classfile content.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ClassDefinitionId {

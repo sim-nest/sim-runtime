@@ -6,8 +6,8 @@ use std::{
 };
 
 use sim_incremental_core::{
-    GraphSnapshot, IncrementalEngine, IncrementalError, Observation, ObservationKind, QueryFrame,
-    QueryResult, SnapshotBudgets,
+    GraphSnapshot, IncrementalEngine, IncrementalError, ObservationKind, QueryFrame, QueryResult,
+    SnapshotBudgets, SnapshotObservation,
     dataflow::{
         DATAFLOW_PROOF_SCHEMA_REVISION, DataflowCompletionProof, DataflowEvent, DataflowGraph,
         EdgeClass,

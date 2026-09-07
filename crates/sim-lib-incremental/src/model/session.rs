@@ -281,10 +281,6 @@ fn snapshot_value(cx: &mut Cx, snapshot: GraphSnapshot<String, Expr>) -> Result<
             Some(value) => cx.factory().expr(value)?,
             None => cx.factory().nil()?,
         };
-        let fingerprint = match node.fingerprint {
-            Some(fingerprint) => number_value(cx, fingerprint.get() as usize)?,
-            None => cx.factory().nil()?,
-        };
         let key = symbol_entry(cx, "key", Symbol::new(node.key))?;
         let revision = revision_entry(cx, "revision", node.revision)?;
         let dirty = bool_entry(cx, "dirty", node.dirty)?;
@@ -294,7 +290,6 @@ fn snapshot_value(cx: &mut Cx, snapshot: GraphSnapshot<String, Expr>) -> Result<
             revision,
             dirty,
             (Symbol::new("value"), value),
-            (Symbol::new("fingerprint"), fingerprint),
             (Symbol::new("dependencies"), dependencies),
         ])?);
     }
@@ -302,23 +297,15 @@ fn snapshot_value(cx: &mut Cx, snapshot: GraphSnapshot<String, Expr>) -> Result<
     cx.factory().table(vec![(Symbol::new("nodes"), nodes)])
 }
 
-fn observation_value(cx: &mut Cx, observation: Observation<String>) -> Result<Value> {
-    let fingerprint = match observation.fingerprint() {
-        Some(fingerprint) => number_value(cx, fingerprint.get() as usize)?,
-        None => cx.factory().nil()?,
-    };
-    let key = symbol_entry(cx, "key", Symbol::new(observation.key().clone()))?;
+fn observation_value(cx: &mut Cx, observation: SnapshotObservation<String>) -> Result<Value> {
+    let key = symbol_entry(cx, "key", Symbol::new(observation.key))?;
     let kind = cx.factory().symbol(Symbol::qualified(
         "incremental-observation",
-        observation_kind_name(observation.kind()),
+        observation_kind_name(&observation.kind),
     ))?;
-    let revision = revision_entry(cx, "revision", observation.revision())?;
-    cx.factory().table(vec![
-        key,
-        (Symbol::new("kind"), kind),
-        revision,
-        (Symbol::new("fingerprint"), fingerprint),
-    ])
+    let revision = revision_entry(cx, "revision", observation.revision)?;
+    cx.factory()
+        .table(vec![key, (Symbol::new("kind"), kind), revision])
 }
 
 fn observation_kind_name(kind: &ObservationKind) -> &'static str {
