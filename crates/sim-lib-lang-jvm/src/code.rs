@@ -5,7 +5,7 @@ use sim_codec_classfile::{
     InstructionErrorKind, InstructionId, InstructionOperand, Opcode, validate_exception_handlers,
 };
 use sim_incremental_core::ValueFingerprint;
-use sim_kernel::{CodecId, Origin, SourceId, Span};
+use sim_kernel::{CodecId, Datum, NumberLiteral, Origin, SourceId, Span, Symbol};
 use sim_lib_machine::{
     BranchTarget, CodeError, InstructionPolicy, LocatedCode, LocatedInstruction, SourceLocation,
     TargetLocation,

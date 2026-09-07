@@ -4,8 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
     BudgetKind, FingerprintValue, IncrementalEngine, IncrementalError, Observation,
-    ObservationKind, QueryResult, Revision, SnapshotBudgets, SnapshotError, ValueFingerprint,
-    state::Node,
+    ObservationKind, QueryResult, Revision, SnapshotBudgets, SnapshotError, state::Node,
 };
 
 /// A deterministic snapshot of memoized graph state.
@@ -34,10 +33,20 @@ pub struct SnapshotNode<K, V> {
     pub dirty: bool,
     /// The memoized value, when one exists.
     pub value: Option<V>,
-    /// The memoized value fingerprint.
-    pub fingerprint: Option<ValueFingerprint>,
-    /// Dependency observations captured during the last execution.
-    pub dependencies: Vec<Observation<K>>,
+    /// Dependency observations captured during the last execution, without
+    /// process-local cutoff fingerprints.
+    pub dependencies: Vec<SnapshotObservation<K>>,
+}
+
+/// Durable dependency observation with no process-local fingerprint authority.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SnapshotObservation<K> {
+    /// Observed dependency key.
+    pub key: K,
+    /// Kind of observation made.
+    pub kind: ObservationKind,
+    /// Revision observed at snapshot time.
+    pub revision: Revision,
 }
 
 /// Summary of a snapshot restore operation.
@@ -53,7 +62,7 @@ pub struct RestoreReport {
 impl<K, V> IncrementalEngine<K, V>
 where
     K: Ord + Clone,
-    V: Clone + FingerprintValue,
+    V: Clone + Eq + FingerprintValue,
 {
     /// Exports memo graph state reachable from `roots`.
     pub fn snapshot<I>(
@@ -109,8 +118,15 @@ where
                 revision: node.revision,
                 dirty: node.dirty,
                 value: node.value.clone(),
-                fingerprint: node.fingerprint,
-                dependencies: node.dependencies.clone(),
+                dependencies: node
+                    .dependencies
+                    .iter()
+                    .map(|observation| SnapshotObservation {
+                        key: observation.key().clone(),
+                        kind: observation.kind().clone(),
+                        revision: observation.revision(),
+                    })
+                    .collect(),
             });
         }
         Ok(GraphSnapshot::new(nodes))
@@ -134,31 +150,44 @@ where
         self.reverse.clear();
         let mut recovered_dirty = 0_usize;
         let mut max_revision = self.next_revision.saturating_sub(1);
+        let restored_fingerprints = snapshot
+            .nodes
+            .iter()
+            .filter_map(|node| {
+                node.value
+                    .as_ref()
+                    .map(|value| (node.key.clone(), value.incremental_fingerprint()))
+            })
+            .collect::<BTreeMap<_, _>>();
         for snapshot_node in snapshot.nodes {
             max_revision = max_revision.max(snapshot_node.revision.get());
-            let mut dirty = snapshot_node.dirty;
-            let mut recovered = false;
-            if snapshot_node.value.is_none() {
-                recovered = !dirty;
-                dirty = true;
-            }
-            let mut fingerprint = snapshot_node.fingerprint;
-            if let Some(value) = &snapshot_node.value {
-                let computed = value.incremental_fingerprint();
-                if fingerprint != Some(computed) {
-                    fingerprint = Some(computed);
-                    recovered = recovered || !dirty;
-                    dirty = true;
-                }
-            }
-            if has_missing_read_deps(&snapshot_node, &keys) {
-                recovered = recovered || !dirty;
-                dirty = true;
-            }
+            // Snapshot revisions are historical hints. Recheck every restored
+            // value through its registered query before it can be reused.
+            let dirty = true;
+            let recovered = !snapshot_node.dirty;
+            let fingerprint = snapshot_node
+                .value
+                .as_ref()
+                .map(FingerprintValue::incremental_fingerprint);
             if recovered {
                 recovered_dirty += 1;
             }
             restore_external_revisions(&mut self.source_revisions, &snapshot_node);
+            let dependencies = snapshot_node
+                .dependencies
+                .into_iter()
+                .map(|observation| match observation.kind {
+                    ObservationKind::Read => Observation::read(
+                        observation.key.clone(),
+                        observation.revision,
+                        restored_fingerprints
+                            .get(&observation.key)
+                            .copied()
+                            .unwrap_or_else(|| crate::ValueFingerprint::new(0)),
+                    ),
+                    kind => Observation::new(observation.key, kind, observation.revision, None),
+                })
+                .collect();
             self.nodes.insert(
                 snapshot_node.key,
                 Node {
@@ -166,7 +195,7 @@ where
                     dirty,
                     value: snapshot_node.value,
                     fingerprint,
-                    dependencies: snapshot_node.dependencies,
+                    dependencies,
                 },
             );
         }
@@ -191,15 +220,6 @@ where
     }
 }
 
-fn has_missing_read_deps<K, V>(snapshot_node: &SnapshotNode<K, V>, keys: &BTreeSet<K>) -> bool
-where
-    K: Ord,
-{
-    snapshot_node.dependencies.iter().any(|observation| {
-        matches!(observation.kind(), ObservationKind::Read) && !keys.contains(observation.key())
-    })
-}
-
 fn restore_external_revisions<K, V>(
     source_revisions: &mut BTreeMap<K, Revision>,
     snapshot_node: &SnapshotNode<K, V>,
@@ -207,16 +227,16 @@ fn restore_external_revisions<K, V>(
     K: Ord + Clone,
 {
     for observation in &snapshot_node.dependencies {
-        if matches!(observation.kind(), ObservationKind::Read) {
+        if matches!(observation.kind, ObservationKind::Read) {
             continue;
         }
         source_revisions
-            .entry(observation.key().clone())
+            .entry(observation.key.clone())
             .and_modify(|revision| {
-                if observation.revision() > *revision {
-                    *revision = observation.revision();
+                if observation.revision > *revision {
+                    *revision = observation.revision;
                 }
             })
-            .or_insert(observation.revision());
+            .or_insert(observation.revision);
     }
 }

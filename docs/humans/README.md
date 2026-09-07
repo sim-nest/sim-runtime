@@ -2061,9 +2061,18 @@ use std::{
     },
 };
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct CollidingValue(i64);
+
+impl std::hash::Hash for CollidingValue {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::hash::Hash::hash(&0_u8, state);
+    }
+}
+
 use crate::{
-    BudgetKind, FingerprintValue, GraphSnapshot, IncrementalEngine, IncrementalError, Observation,
-    ObservationKind, QueryBudgets, Revision, SnapshotBudgets, SnapshotError, ValueFingerprint,
+    BudgetKind, GraphSnapshot, IncrementalEngine, IncrementalError, Observation, ObservationKind,
+    QueryBudgets, Revision, SnapshotBudgets, SnapshotError, ValueFingerprint,
 };
 
 #[test]
@@ -2118,6 +2127,30 @@ fn reverse_invalidation_uses_value_cutoff_before_rerunning_dependents() {
     source_value.store(12, Ordering::Relaxed);
     engine.invalidate(&"source");
     assert_eq!(engine.verify("root").unwrap(), 4);
+    assert_eq!(root_runs.load(Ordering::Relaxed), 2);
+}
+
+#[test]
+fn fingerprint_collision_cannot_preserve_a_semantic_revision_or_skip_a_dependent() {
+    let source_value = Arc::new(AtomicI64::new(1));
+    let root_runs = Arc::new(AtomicUsize::new(0));
+    let mut engine = IncrementalEngine::<&'static str, CollidingValue>::new();
+    let source = Arc::clone(&source_value);
+    engine.register_fn("leaf", move |_, frame| {
+        frame.observe_epoch("source")?;
+        Ok(CollidingValue(source.load(Ordering::Relaxed)))
+    });
+    let root_counter = Arc::clone(&root_runs);
+    engine.register_fn("root", move |_, frame| {
+        root_counter.fetch_add(1, Ordering::Relaxed);
+        frame.read("leaf")
+    });
+
+    assert_eq!(engine.verify("root").unwrap(), CollidingValue(1));
+    source_value.store(2, Ordering::Relaxed);
+    engine.invalidate(&"source");
+
+    assert_eq!(engine.verify("root").unwrap(), CollidingValue(2));
     assert_eq!(root_runs.load(Ordering::Relaxed), 2);
 }
 
@@ -2400,10 +2433,17 @@ fn restore_counts_each_recovered_dirty_node_once() {
         revision: Revision::new(1),
         dirty: false,
         value: Some(1_i64),
-        fingerprint: Some(ValueFingerprint::new(999)),
         dependencies: vec![
-            Observation::read("missing-a", Revision::new(1), ValueFingerprint::new(1)),
-            Observation::read("missing-b", Revision::new(1), ValueFingerprint::new(2)),
+            crate::SnapshotObservation {
+                key: "missing-a",
+                kind: ObservationKind::Read,
+                revision: Revision::new(1),
+            },
+            crate::SnapshotObservation {
+                key: "missing-b",
+                kind: ObservationKind::Read,
+                revision: Revision::new(1),
+            },
         ],
     }]);
     let mut engine = IncrementalEngine::<&'static str, i64>::new();
@@ -2422,7 +2462,6 @@ fn duplicate_snapshot_nodes_are_corruption() {
             revision: crate::Revision::new(1),
             dirty: false,
             value: Some(1_i64),
-            fingerprint: Some(1_i64.incremental_fingerprint()),
             dependencies: Vec::new(),
         },
         crate::SnapshotNode {
@@ -2430,7 +2469,6 @@ fn duplicate_snapshot_nodes_are_corruption() {
             revision: crate::Revision::new(1),
             dirty: false,
             value: Some(1_i64),
-            fingerprint: Some(1_i64.incremental_fingerprint()),
             dependencies: Vec::new(),
         },
     ]);
@@ -7358,7 +7396,7 @@ Source `crates/sim-lib-machine/tests/control_resume.rs`:
 // conformance: protected handlers, exactly-once cleanup, and content-bound resume.
 use std::sync::{Arc, Mutex};
 
-use sim_kernel::{CodecId, Origin, SourceId, Span};
+use sim_kernel::{CodecId, Datum, NumberLiteral, Origin, SourceId, Span, Symbol};
 use sim_lib_control::{CleanupStack, WorkLimit};
 use sim_lib_machine::{
     AdmissionLimits, AdmissionPolicy, DriveOutcome, Driver, FrameStack, InstructionDriverPolicy,
@@ -7391,10 +7429,20 @@ impl AdmissionPolicy<Instructions, ()> for Admission {
         Ok(())
     }
 
-    fn encode_metadata(_: &(), _: &mut Vec<u8>) {}
-
-    fn encode_instruction(instruction: &u8, output: &mut Vec<u8>) {
-        output.push(*instruction);
+    fn policy_identity() -> Symbol {
+        Symbol::qualified("machine-test", "control-resume")
+    }
+    fn policy_version() -> u32 {
+        1
+    }
+    fn metadata_datum(_: &()) -> Datum {
+        Datum::Nil
+    }
+    fn instruction_datum(instruction: &u8) -> Datum {
+        Datum::Number(NumberLiteral {
+            domain: Symbol::qualified("numbers", "u8"),
+            canonical: instruction.to_string(),
+        })
     }
 }
 
@@ -7652,7 +7700,7 @@ Source `crates/sim-lib-machine/tests/neutral_machine_specimens.rs`:
 
 //! Neutral end-to-end specimens: one operand-stack machine and one register machine.
 
-use sim_kernel::{CodecId, Origin, SourceId, Span};
+use sim_kernel::{CodecId, Datum, NumberLiteral, Origin, SourceId, Span, Symbol};
 use sim_lib_control::{AdmissionLimit, WorkLimit};
 use sim_lib_machine::{
     AdmissionLimits, AdmissionPolicy, DriveOutcome, Driver, FrameStack, InstructionDriverPolicy,
@@ -7702,17 +7750,48 @@ impl AdmissionPolicy<Instructions, ()> for Admission {
         Ok(())
     }
 
-    fn encode_metadata(_: &(), _: &mut Vec<u8>) {}
-
-    fn encode_instruction(instruction: &Instruction, output: &mut Vec<u8>) {
-        output.push(instruction.id);
-        match instruction.operation {
-            Operation::Constant(value) => output.extend_from_slice(&value.to_le_bytes()),
-            Operation::Divide => output.push(1),
-            Operation::Add => output.push(2),
-            Operation::Call(target) => output.extend_from_slice(&[3, target]),
-            Operation::Interrupt => output.push(4),
-            Operation::Return => output.push(5),
+    fn policy_identity() -> Symbol {
+        Symbol::qualified("machine-test", "neutral-specimens")
+    }
+    fn policy_version() -> u32 {
+        1
+    }
+    fn metadata_datum(_: &()) -> Datum {
+        Datum::Nil
+    }
+    fn instruction_datum(instruction: &Instruction) -> Datum {
+        let operation = match instruction.operation {
+            Operation::Constant(value) => Datum::Number(NumberLiteral {
+                domain: Symbol::qualified("numbers", "i64"),
+                canonical: value.to_string(),
+            }),
+            Operation::Divide => Datum::Symbol(Symbol::new("divide")),
+            Operation::Add => Datum::Symbol(Symbol::new("add")),
+            Operation::Call(target) => Datum::Node {
+                tag: Symbol::qualified("machine-test", "Call"),
+                fields: vec![(
+                    Symbol::new("target"),
+                    Datum::Number(NumberLiteral {
+                        domain: Symbol::qualified("numbers", "u8"),
+                        canonical: target.to_string(),
+                    }),
+                )],
+            },
+            Operation::Interrupt => Datum::Symbol(Symbol::new("interrupt")),
+            Operation::Return => Datum::Symbol(Symbol::new("return")),
+        };
+        Datum::Node {
+            tag: Symbol::qualified("machine-test", "Instruction"),
+            fields: vec![
+                (
+                    Symbol::new("id"),
+                    Datum::Number(NumberLiteral {
+                        domain: Symbol::qualified("numbers", "u8"),
+                        canonical: instruction.id.to_string(),
+                    }),
+                ),
+                (Symbol::new("operation"), operation),
+            ],
         }
     }
 }

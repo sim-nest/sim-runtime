@@ -2,7 +2,7 @@
 
 //! Neutral end-to-end specimens: one operand-stack machine and one register machine.
 
-use sim_kernel::{CodecId, Origin, SourceId, Span};
+use sim_kernel::{CodecId, Datum, NumberLiteral, Origin, SourceId, Span, Symbol};
 use sim_lib_control::{AdmissionLimit, WorkLimit};
 use sim_lib_machine::{
     AdmissionLimits, AdmissionPolicy, DriveOutcome, Driver, FrameStack, InstructionDriverPolicy,
@@ -52,17 +52,48 @@ impl AdmissionPolicy<Instructions, ()> for Admission {
         Ok(())
     }
 
-    fn encode_metadata(_: &(), _: &mut Vec<u8>) {}
-
-    fn encode_instruction(instruction: &Instruction, output: &mut Vec<u8>) {
-        output.push(instruction.id);
-        match instruction.operation {
-            Operation::Constant(value) => output.extend_from_slice(&value.to_le_bytes()),
-            Operation::Divide => output.push(1),
-            Operation::Add => output.push(2),
-            Operation::Call(target) => output.extend_from_slice(&[3, target]),
-            Operation::Interrupt => output.push(4),
-            Operation::Return => output.push(5),
+    fn policy_identity() -> Symbol {
+        Symbol::qualified("machine-test", "neutral-specimens")
+    }
+    fn policy_version() -> u32 {
+        1
+    }
+    fn metadata_datum(_: &()) -> Datum {
+        Datum::Nil
+    }
+    fn instruction_datum(instruction: &Instruction) -> Datum {
+        let operation = match instruction.operation {
+            Operation::Constant(value) => Datum::Number(NumberLiteral {
+                domain: Symbol::qualified("numbers", "i64"),
+                canonical: value.to_string(),
+            }),
+            Operation::Divide => Datum::Symbol(Symbol::new("divide")),
+            Operation::Add => Datum::Symbol(Symbol::new("add")),
+            Operation::Call(target) => Datum::Node {
+                tag: Symbol::qualified("machine-test", "Call"),
+                fields: vec![(
+                    Symbol::new("target"),
+                    Datum::Number(NumberLiteral {
+                        domain: Symbol::qualified("numbers", "u8"),
+                        canonical: target.to_string(),
+                    }),
+                )],
+            },
+            Operation::Interrupt => Datum::Symbol(Symbol::new("interrupt")),
+            Operation::Return => Datum::Symbol(Symbol::new("return")),
+        };
+        Datum::Node {
+            tag: Symbol::qualified("machine-test", "Instruction"),
+            fields: vec![
+                (
+                    Symbol::new("id"),
+                    Datum::Number(NumberLiteral {
+                        domain: Symbol::qualified("numbers", "u8"),
+                        canonical: instruction.id.to_string(),
+                    }),
+                ),
+                (Symbol::new("operation"), operation),
+            ],
         }
     }
 }

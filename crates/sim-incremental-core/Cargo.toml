@@ -1,6 +1,6 @@
 [package]
 name = "sim-incremental-core"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 license = "MPL-2.0"
 description = "Dependency-light incremental query graph with memo cutoff and bounded snapshots."
@@ -13,7 +13,7 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 
 [dev-dependencies]
 sim-kernel = "0.4.0"
-sim-lib-machine = { version = "0.2.0", path = "../sim-lib-machine" }
+sim-lib-machine = { version = "0.3.0", path = "../sim-lib-machine" }
 
 [lints]
 workspace = true

@@ -1,5 +1,4 @@
-use sha2::{Digest, Sha256};
-use sim_kernel::{ContentId, Symbol};
+use sim_kernel::{ContentId, Datum, NumberLiteral, Symbol};
 
 use crate::{InstructionPolicy, LocatedCode};
 
@@ -16,20 +15,6 @@ pub struct AdmissionLimits {
     pub frames: usize,
     /// Greatest work allowance for one drive operation.
     pub work: usize,
-}
-
-impl AdmissionLimits {
-    fn encode(self, digest: &mut Sha256) {
-        for value in [
-            self.instructions,
-            self.operand_units,
-            self.slots,
-            self.frames,
-            self.work,
-        ] {
-            digest.update(value.to_le_bytes());
-        }
-    }
 }
 
 /// Immutable code plus the consumer-owned metadata needed to admit it.
@@ -65,7 +50,7 @@ impl<'a, P: InstructionPolicy, M> MachineDescription<'a, P, M> {
     }
 }
 
-/// Pure consumer checks and canonical encoding used during admission.
+/// Pure consumer checks and canonical semantic data used during admission.
 ///
 /// These callbacks validate data only. Effect classification and execution are
 /// intentionally not part of this trait, so admission cannot invoke them.
@@ -85,11 +70,17 @@ pub trait AdmissionPolicy<P: InstructionPolicy, M> {
         metadata: &M,
     ) -> Result<(), Self::Refusal>;
 
-    /// Appends a canonical, unambiguous encoding of consumer-owned metadata.
-    fn encode_metadata(metadata: &M, output: &mut Vec<u8>);
+    /// Stable identity of this admission policy.
+    fn policy_identity() -> Symbol;
 
-    /// Appends a canonical, unambiguous encoding of one decoded instruction.
-    fn encode_instruction(instruction: &P::Instruction, output: &mut Vec<u8>);
+    /// Version of the policy semantics and its datum projections.
+    fn policy_version() -> u32;
+
+    /// Projects consumer-owned metadata to canonical semantic data.
+    fn metadata_datum(metadata: &M) -> Datum;
+
+    /// Projects one decoded instruction to canonical semantic data.
+    fn instruction_datum(instruction: &P::Instruction) -> Datum;
 }
 
 /// A refusal produced before a permit can exist.
@@ -109,6 +100,8 @@ pub enum AdmissionError<R> {
     },
     /// A pure consumer validation rejected the description.
     Policy(R),
+    /// The policy supplied data that cannot be canonically identified.
+    NonCanonical,
 }
 
 /// Proof that one exact immutable machine description passed admission.
@@ -133,9 +126,9 @@ impl MachinePermit {
             A::validate_instruction(located.instruction(), description.metadata)
                 .map_err(AdmissionError::Policy)?;
         }
-        Ok(Self {
-            content_id: content_id::<P, M, A>(description),
-        })
+        let content_id =
+            content_id::<P, M, A>(description).map_err(|_| AdmissionError::NonCanonical)?;
+        Ok(Self { content_id })
     }
 
     /// Returns the kernel content identity admitted by this permit.
@@ -150,7 +143,7 @@ impl MachinePermit {
         P::InstructionId: Copy + Eq + Ord,
         A: AdmissionPolicy<P, M>,
     {
-        self.content_id == content_id::<P, M, A>(description)
+        content_id::<P, M, A>(description).is_ok_and(|id| self.content_id == id)
     }
 }
 
@@ -177,30 +170,56 @@ fn validate_limits<P: InstructionPolicy, M, R>(
     Ok(())
 }
 
-fn content_id<P, M, A>(description: &MachineDescription<'_, P, M>) -> ContentId
+fn content_id<P, M, A>(description: &MachineDescription<'_, P, M>) -> sim_kernel::Result<ContentId>
 where
     P: InstructionPolicy,
     P::InstructionId: Copy + Eq + Ord,
     A: AdmissionPolicy<P, M>,
 {
-    let mut digest = Sha256::new();
-    digest.update(b"sim-lib-machine/admission/v1\0");
-    description.limits.encode(&mut digest);
-    let mut encoded = Vec::new();
-    A::encode_metadata(description.metadata, &mut encoded);
-    hash_field(&mut digest, &encoded);
-    description
-        .code
-        .hash_structure(&mut digest, |instruction, output| {
-            A::encode_instruction(instruction, output);
-        });
-    ContentId::from_bytes(
-        Symbol::qualified("core", "sha256"),
-        digest.finalize().into(),
-    )
+    Datum::Node {
+        tag: Symbol::qualified("machine", "AdmissionIdentityV2"),
+        fields: vec![
+            (Symbol::new("policy"), Datum::Symbol(A::policy_identity())),
+            (
+                Symbol::new("policy-version"),
+                usize_datum(A::policy_version() as usize),
+            ),
+            (Symbol::new("limits"), limits_datum(description.limits)),
+            (
+                Symbol::new("metadata"),
+                A::metadata_datum(description.metadata),
+            ),
+            (
+                Symbol::new("located-code"),
+                description.code.semantic_datum(A::instruction_datum),
+            ),
+        ],
+    }
+    .content_id()
 }
 
-fn hash_field(digest: &mut Sha256, bytes: &[u8]) {
-    digest.update(bytes.len().to_le_bytes());
-    digest.update(bytes);
+fn limits_datum(limits: AdmissionLimits) -> Datum {
+    Datum::Node {
+        tag: Symbol::qualified("machine", "AdmissionLimitsV1"),
+        fields: vec![
+            (
+                Symbol::new("instructions"),
+                usize_datum(limits.instructions),
+            ),
+            (
+                Symbol::new("operand-units"),
+                usize_datum(limits.operand_units),
+            ),
+            (Symbol::new("slots"), usize_datum(limits.slots)),
+            (Symbol::new("frames"), usize_datum(limits.frames)),
+            (Symbol::new("work"), usize_datum(limits.work)),
+        ],
+    }
+}
+
+pub(crate) fn usize_datum(value: usize) -> Datum {
+    Datum::Number(NumberLiteral {
+        domain: Symbol::qualified("numbers", "usize"),
+        canonical: value.to_string(),
+    })
 }

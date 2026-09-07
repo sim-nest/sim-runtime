@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 
-use sha2::{Digest, Sha256};
-use sim_kernel::{Origin, SourceId};
+use sim_kernel::{Datum, NumberLiteral, Origin, SourceId, Symbol};
 
 use crate::InstructionPolicy;
 
@@ -427,47 +426,124 @@ where
         &self.instructions
     }
 
-    pub(crate) fn hash_structure(
+    pub(crate) fn semantic_datum(
         &self,
-        digest: &mut Sha256,
-        mut encode_instruction: impl FnMut(&P::Instruction, &mut Vec<u8>),
-    ) {
-        digest.update(self.instructions.len().to_le_bytes());
-        for located in &self.instructions {
-            let mut bytes = Vec::new();
-            encode_instruction(&located.instruction, &mut bytes);
-            digest.update(bytes.len().to_le_bytes());
-            digest.update(bytes);
-            let (unit, start, end) = located.location.range();
-            digest.update([match unit {
-                LocationUnit::Byte => 0,
-                LocationUnit::Token => 1,
-            }]);
-            digest.update(start.to_le_bytes());
-            digest.update(end.to_le_bytes());
-            digest.update([u8::from(located.safepoint)]);
-            digest.update(
-                located
-                    .coverage
-                    .map_or(u64::MAX, |value| value.counter)
-                    .to_le_bytes(),
-            );
-        }
-        digest.update(self.targets.len().to_le_bytes());
-        for (from, targets) in &self.targets {
-            digest.update(self.cursors[from].0.to_le_bytes());
-            digest.update(targets.len().to_le_bytes());
-            for target in targets.iter() {
-                digest.update(target.0.to_le_bytes());
-            }
-        }
-        digest.update(self.regions.len().to_le_bytes());
-        for region in &self.regions {
-            digest.update(region.start.0.to_le_bytes());
-            digest.update(region.end_index.to_le_bytes());
-            digest.update(region.handler.0.to_le_bytes());
+        mut instruction_datum: impl FnMut(&P::Instruction) -> Datum,
+    ) -> Datum {
+        let instructions = self
+            .instructions
+            .iter()
+            .enumerate()
+            .map(|(index, located)| Datum::Node {
+                tag: Symbol::qualified("machine", "LocatedInstructionV1"),
+                fields: vec![
+                    (Symbol::new("index"), usize_datum(index)),
+                    (
+                        Symbol::new("instruction"),
+                        instruction_datum(&located.instruction),
+                    ),
+                    (
+                        Symbol::new("location"),
+                        source_location_datum(&located.location),
+                    ),
+                    (Symbol::new("safepoint"), Datum::Bool(located.safepoint)),
+                    (
+                        Symbol::new("coverage-counter"),
+                        located
+                            .coverage
+                            .map_or(Datum::Nil, |coverage| u64_datum(coverage.counter)),
+                    ),
+                ],
+            })
+            .collect();
+        let mut targets = self
+            .targets
+            .iter()
+            .map(|(from, destinations)| {
+                (
+                    self.cursors[from].0,
+                    Datum::Node {
+                        tag: Symbol::qualified("machine", "BranchTargetsV1"),
+                        fields: vec![
+                            (Symbol::new("from-index"), usize_datum(self.cursors[from].0)),
+                            (
+                                Symbol::new("target-indices"),
+                                Datum::List(
+                                    destinations
+                                        .iter()
+                                        .map(|target| usize_datum(target.0))
+                                        .collect(),
+                                ),
+                            ),
+                        ],
+                    },
+                )
+            })
+            .collect::<Vec<_>>();
+        targets.sort_by_key(|(index, _)| *index);
+        let regions = self
+            .regions
+            .iter()
+            .map(|region| Datum::Node {
+                tag: Symbol::qualified("machine", "ProtectedRegionV1"),
+                fields: vec![
+                    (Symbol::new("start-index"), usize_datum(region.start.0)),
+                    (Symbol::new("end-index"), usize_datum(region.end_index)),
+                    (Symbol::new("handler-index"), usize_datum(region.handler.0)),
+                ],
+            })
+            .collect();
+        Datum::Node {
+            tag: Symbol::qualified("machine", "LocatedCodeV2"),
+            fields: vec![
+                (Symbol::new("instructions"), Datum::List(instructions)),
+                (
+                    Symbol::new("branch-targets"),
+                    Datum::List(targets.into_iter().map(|(_, datum)| datum).collect()),
+                ),
+                (Symbol::new("protected-regions"), Datum::List(regions)),
+            ],
         }
     }
+}
+
+fn source_location_datum(location: &SourceLocation) -> Datum {
+    let (origin, unit, start, end) = match location {
+        SourceLocation::Bytes(origin) => (origin, "byte", origin.span.start, origin.span.end),
+        SourceLocation::Tokens { origin, start, end } => (origin, "token", *start, *end),
+    };
+    Datum::Node {
+        tag: Symbol::qualified("machine", "SourceLocationV1"),
+        fields: vec![
+            (Symbol::new("unit"), Datum::Symbol(Symbol::new(unit))),
+            (
+                Symbol::new("source"),
+                Datum::String(origin.source.0.clone()),
+            ),
+            (Symbol::new("codec"), u64_datum(u64::from(origin.codec.0))),
+            (
+                Symbol::new("origin-byte-start"),
+                usize_datum(origin.span.start),
+            ),
+            (Symbol::new("origin-byte-end"), usize_datum(origin.span.end)),
+            (Symbol::new("start"), usize_datum(start)),
+            (Symbol::new("end"), usize_datum(end)),
+        ],
+    }
+}
+
+fn usize_datum(value: usize) -> Datum {
+    Datum::Number(NumberLiteral {
+        domain: Symbol::qualified("numbers", "usize"),
+        canonical: value.to_string(),
+    })
+}
+
+fn u64_datum(value: u64) -> Datum {
+    Datum::Number(NumberLiteral {
+        domain: Symbol::qualified("numbers", "u64"),
+        canonical: value.to_string(),
+    })
 }
 
 fn resolve_target<P: InstructionPolicy>(

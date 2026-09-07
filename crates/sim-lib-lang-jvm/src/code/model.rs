@@ -326,4 +326,230 @@ impl PreparedJvmInstruction {
     pub fn micro_op(&self) -> &PreparedMicroOp {
         &self.micro_op
     }
+
+    pub(crate) fn semantic_datum(&self) -> Datum {
+        Datum::Node {
+            tag: Symbol::qualified("jvm", "PreparedInstructionV1"),
+            fields: vec![
+                (Symbol::new("id"), u64_datum(u64::from(self.id.0))),
+                (
+                    Symbol::new("opcode"),
+                    Datum::Symbol(Symbol::qualified(
+                        "jvm-opcode",
+                        self.opcode.metadata().mnemonic,
+                    )),
+                ),
+                (Symbol::new("wide"), Datum::Bool(self.instruction.wide)),
+                (
+                    Symbol::new("decoded-operands"),
+                    Datum::List(
+                        self.instruction
+                            .operands
+                            .iter()
+                            .map(instruction_operand_datum)
+                            .collect(),
+                    ),
+                ),
+                (
+                    Symbol::new("dispatch"),
+                    Datum::Symbol(Symbol::qualified(
+                        "jvm-dispatch",
+                        match self.dispatch {
+                            PreparedDispatchFamily::Storage => "storage",
+                            PreparedDispatchFamily::Numeric => "numeric",
+                            PreparedDispatchFamily::Control => "control",
+                            PreparedDispatchFamily::Object => "object",
+                        },
+                    )),
+                ),
+                (Symbol::new("input-width"), usize_datum(self.input_width)),
+                (Symbol::new("output-width"), usize_datum(self.output_width)),
+                (
+                    Symbol::new("root-effect"),
+                    Datum::Node {
+                        tag: Symbol::qualified("jvm", "RootEffectV1"),
+                        fields: vec![
+                            (Symbol::new("removed"), usize_datum(self.root_effect.removed)),
+                            (Symbol::new("added"), usize_datum(self.root_effect.added)),
+                        ],
+                    },
+                ),
+                (
+                    Symbol::new("prepared-operands"),
+                    prepared_operands_datum(&self.operands),
+                ),
+                (Symbol::new("work-charge"), usize_datum(self.work_charge)),
+                (
+                    Symbol::new("code-identity"),
+                    self.code_identity
+                        .as_ref()
+                        .map(prepared_code_identity_datum)
+                        .unwrap_or(Datum::Nil),
+                ),
+                (
+                    Symbol::new("handler-membership"),
+                    Datum::List(self.handler_membership.iter().map(catch_datum).collect()),
+                ),
+                (
+                    Symbol::new("handler-entries"),
+                    Datum::List(self.handler_entries.iter().copied().map(usize_datum).collect()),
+                ),
+                (Symbol::new("micro-op"), micro_op_datum(&self.micro_op)),
+            ],
+        }
+    }
 }
+
+fn prepared_code_identity_datum(identity: &PreparedCodeIdentity) -> Datum {
+    Datum::Node {
+        tag: Symbol::qualified("jvm", "PreparedCodeIdentityV1"),
+        fields: vec![
+            (Symbol::new("code-bytes"), Datum::Bytes(identity.content.to_vec())),
+            (
+                Symbol::new("loader"),
+                u64_datum(identity.revision.loader().number()),
+            ),
+            (
+                Symbol::new("class-space-revision"),
+                u64_datum(identity.revision.number()),
+            ),
+        ],
+    }
+}
+
+fn instruction_operand_datum(operand: &InstructionOperand) -> Datum {
+    let (kind, value, domain) = match operand {
+        InstructionOperand::Immediate(value) => ("immediate", i64::from(*value), "i32"),
+        InstructionOperand::Local(value) => ("local", i64::from(*value), "u16"),
+        InstructionOperand::Constant(value) => ("constant", i64::from(*value), "u16"),
+        InstructionOperand::Branch(value) => ("branch", i64::from(*value), "i32"),
+        InstructionOperand::TableLow(value) => ("table-low", i64::from(*value), "i32"),
+        InstructionOperand::TableHigh(value) => ("table-high", i64::from(*value), "i32"),
+        InstructionOperand::LookupKey(value) => ("lookup-key", i64::from(*value), "i32"),
+        InstructionOperand::Count(value) => ("count", i64::from(*value), "u8"),
+        InstructionOperand::Dimensions(value) => ("dimensions", i64::from(*value), "u8"),
+        InstructionOperand::ArrayType(value) => ("array-type", i64::from(*value), "u8"),
+    };
+    Datum::Node {
+        tag: Symbol::qualified("jvm", "InstructionOperandV1"),
+        fields: vec![
+            (Symbol::new("kind"), Datum::Symbol(Symbol::new(kind))),
+            (Symbol::new("value"), integer_datum(domain, value)),
+        ],
+    }
+}
+
+fn prepared_operands_datum(operands: &PreparedJvmOperands) -> Datum {
+    match operands {
+        PreparedJvmOperands::None => Datum::Symbol(Symbol::qualified("jvm-operands", "none")),
+        PreparedJvmOperands::Immediate(value) => unary_operands("immediate", integer_datum("i32", i64::from(*value))),
+        PreparedJvmOperands::ConstantSite(value) => unary_operands("constant-site", u64_datum(u64::from(*value))),
+        PreparedJvmOperands::Local(value) => unary_operands("local", usize_datum(*value)),
+        PreparedJvmOperands::Increment { slot, amount } => Datum::Node {
+            tag: Symbol::qualified("jvm-operands", "IncrementV1"),
+            fields: vec![(Symbol::new("slot"), usize_datum(*slot)), (Symbol::new("amount"), integer_datum("i32", i64::from(*amount)))],
+        },
+        PreparedJvmOperands::Direct(target) => unary_operands("direct", u64_datum(u64::from(target.0))),
+        PreparedJvmOperands::Table { low, default, targets } => Datum::Node {
+            tag: Symbol::qualified("jvm-operands", "TableV1"),
+            fields: vec![
+                (Symbol::new("low"), integer_datum("i32", i64::from(*low))),
+                (Symbol::new("default"), u64_datum(u64::from(default.0))),
+                (Symbol::new("targets"), Datum::List(targets.iter().map(|target| u64_datum(u64::from(target.0))).collect())),
+            ],
+        },
+        PreparedJvmOperands::Lookup { default, pairs } => Datum::Node {
+            tag: Symbol::qualified("jvm-operands", "LookupV1"),
+            fields: vec![
+                (Symbol::new("default"), u64_datum(u64::from(default.0))),
+                (Symbol::new("pairs"), Datum::List(pairs.iter().map(|(key, target)| Datum::Node {
+                    tag: Symbol::qualified("jvm-operands", "LookupPairV1"),
+                    fields: vec![(Symbol::new("key"), integer_datum("i32", i64::from(*key))), (Symbol::new("target"), u64_datum(u64::from(target.0)))],
+                }).collect())),
+            ],
+        },
+        PreparedJvmOperands::Shuffle(layouts) => Datum::Node {
+            tag: Symbol::qualified("jvm-operands", "ShuffleV1"),
+            fields: vec![(Symbol::new("layouts"), Datum::List(layouts.iter().map(|(inputs, outputs)| Datum::Node {
+                tag: Symbol::qualified("jvm-operands", "ShuffleLayoutV1"),
+                fields: vec![
+                    (Symbol::new("inputs"), Datum::List(inputs.iter().copied().map(usize_datum).collect())),
+                    (Symbol::new("outputs"), Datum::List(outputs.iter().copied().map(usize_datum).collect())),
+                ],
+            }).collect()))],
+        },
+        PreparedJvmOperands::Other(values) => Datum::Node {
+            tag: Symbol::qualified("jvm-operands", "OtherV1"),
+            fields: vec![(Symbol::new("values"), Datum::List(values.iter().map(instruction_operand_datum).collect()))],
+        },
+    }
+}
+
+fn unary_operands(kind: &str, value: Datum) -> Datum {
+    Datum::Node { tag: Symbol::qualified("jvm-operands", kind), fields: vec![(Symbol::new("value"), value)] }
+}
+
+fn catch_datum(catch: &PreparedCatchEntry) -> Datum {
+    Datum::Node {
+        tag: Symbol::qualified("jvm", "PreparedCatchEntryV1"),
+        fields: vec![
+            (Symbol::new("row"), usize_datum(catch.row)),
+            (Symbol::new("start"), u64_datum(u64::from(catch.start.0))),
+            (Symbol::new("end"), catch.end.map(|id| u64_datum(u64::from(id.0))).unwrap_or(Datum::Nil)),
+            (Symbol::new("handler"), u64_datum(u64::from(catch.handler.0))),
+            (Symbol::new("catch-type"), u64_datum(u64::from(catch.catch_type))),
+        ],
+    }
+}
+
+fn micro_op_datum(operation: &PreparedMicroOp) -> Datum {
+    match operation {
+        PreparedMicroOp::Checked => Datum::Symbol(Symbol::qualified("jvm-micro-op", "checked")),
+        PreparedMicroOp::Verified(guarantee) => Datum::Node {
+            tag: Symbol::qualified("jvm-micro-op", "VerifiedV1"),
+            fields: vec![
+                (Symbol::new("stack-width"), usize_datum(guarantee.stack_width)),
+                (Symbol::new("local-width"), usize_datum(guarantee.local_width)),
+                (Symbol::new("stack"), Datum::List(guarantee.stack.iter().map(value_guarantee_datum).collect())),
+                (Symbol::new("locals"), Datum::List(guarantee.locals.iter().map(|(slot, value)| Datum::Node {
+                    tag: Symbol::qualified("jvm", "LocalGuaranteeV1"),
+                    fields: vec![(Symbol::new("slot"), usize_datum(*slot)), (Symbol::new("value"), value_guarantee_datum(value))],
+                }).collect())),
+                (Symbol::new("targets"), Datum::List(guarantee.targets.iter().map(|id| u64_datum(u64::from(id.0))).collect())),
+                (Symbol::new("handlers"), Datum::List(guarantee.handlers.iter().map(catch_datum).collect())),
+            ],
+        },
+    }
+}
+
+fn value_guarantee_datum(value: &PreparedValueGuarantee) -> Datum {
+    match value {
+        PreparedValueGuarantee::Int => Datum::Symbol(Symbol::qualified("jvm-value", "int")),
+        PreparedValueGuarantee::Float => Datum::Symbol(Symbol::qualified("jvm-value", "float")),
+        PreparedValueGuarantee::Long => Datum::Symbol(Symbol::qualified("jvm-value", "long")),
+        PreparedValueGuarantee::Double => Datum::Symbol(Symbol::qualified("jvm-value", "double")),
+        PreparedValueGuarantee::Null => Datum::Symbol(Symbol::qualified("jvm-value", "null")),
+        PreparedValueGuarantee::Uninitialized => Datum::Symbol(Symbol::qualified("jvm-value", "uninitialized")),
+        PreparedValueGuarantee::Reference(reference) => Datum::Node {
+            tag: Symbol::qualified("jvm-value", "ReferenceV1"),
+            fields: vec![(Symbol::new("type"), reference_type_datum(reference))],
+        },
+    }
+}
+
+fn reference_type_datum(reference: &ReferenceType) -> Datum {
+    match reference {
+        ReferenceType::Object => Datum::Symbol(Symbol::qualified("jvm-reference", "object")),
+        ReferenceType::Class(name) => Datum::Node { tag: Symbol::qualified("jvm-reference", "ClassV1"), fields: vec![(Symbol::new("name"), Datum::String(name.to_string()))] },
+        ReferenceType::Array(descriptor) => Datum::Node { tag: Symbol::qualified("jvm-reference", "ArrayV1"), fields: vec![(Symbol::new("descriptor"), Datum::String(descriptor.to_string()))] },
+    }
+}
+
+fn usize_datum(value: usize) -> Datum {
+    Datum::Number(NumberLiteral {
+        domain: Symbol::qualified("numbers", "usize"),
+        canonical: value.to_string(),
+    })
+}
+fn u64_datum(value: u64) -> Datum { Datum::Number(NumberLiteral { domain: Symbol::qualified("numbers", "u64"), canonical: value.to_string() }) }
+fn integer_datum(domain: &str, value: i64) -> Datum { Datum::Number(NumberLiteral { domain: Symbol::qualified("numbers", domain), canonical: value.to_string() }) }

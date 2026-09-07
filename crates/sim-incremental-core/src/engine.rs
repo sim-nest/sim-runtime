@@ -128,7 +128,7 @@ where
 impl<K, V> IncrementalEngine<K, V>
 where
     K: Ord + Clone,
-    V: Clone + FingerprintValue,
+    V: Clone + Eq + FingerprintValue,
 {
     /// Verifies a root query using unbounded budgets.
     pub fn verify(&mut self, key: K) -> QueryResult<K, V> {
@@ -282,11 +282,14 @@ where
             }
         }
 
+        // A process-local fingerprint may accelerate diagnostics, but equality
+        // is the authority for preserving a semantic revision. This makes a
+        // collision cost recomputation rather than permit false memo reuse.
         let same_value = self
             .nodes
             .get(&key)
-            .and_then(|node| node.fingerprint)
-            .is_some_and(|old| old == fingerprint);
+            .and_then(|node| node.value.as_ref())
+            .is_some_and(|old| old == &value);
         let revision = if same_value {
             self.nodes
                 .get(&key)

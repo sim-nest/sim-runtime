@@ -1,7 +1,7 @@
 //! The single production policy connecting prepared JVM code to the neutral machine.
 
 use sim_codec_classfile::{InstructionId, Opcode};
-use sim_kernel::ContentId;
+use sim_kernel::{ContentId, Datum, Symbol};
 use sim_lib_control::WorkLimit;
 use sim_lib_machine::{
     AdmissionLimits, AdmissionPolicy, CodeCursor, DriveOutcome, Driver, FrameStack,
@@ -110,14 +110,17 @@ impl AdmissionPolicy<PreparedJvmPolicy, ()> for SurfaceAdmission {
     fn validate_instruction(_: &PreparedJvmInstruction, _: &()) -> Result<(), ()> {
         Ok(())
     }
-    fn encode_metadata(_: &(), output: &mut Vec<u8>) {
-        output.extend_from_slice(b"jvm-surface/v1");
+    fn policy_identity() -> Symbol {
+        Symbol::qualified("jvm", "surface-admission")
     }
-    fn encode_instruction(instruction: &PreparedJvmInstruction, output: &mut Vec<u8>) {
-        output.extend_from_slice(&instruction.id().0.to_le_bytes());
-        output.push(instruction.opcode() as u8);
-        output.extend_from_slice(&instruction.work_charge().to_le_bytes());
-        output.extend_from_slice(format!("{:?}", instruction.code_identity()).as_bytes());
+    fn policy_version() -> u32 {
+        1
+    }
+    fn metadata_datum(_: &()) -> Datum {
+        Datum::Nil
+    }
+    fn instruction_datum(instruction: &PreparedJvmInstruction) -> Datum {
+        instruction.semantic_datum()
     }
 }
 
