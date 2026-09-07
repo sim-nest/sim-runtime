@@ -1,12 +1,19 @@
 //! Declaration-driven gate for capability-scoped operations.
 //!
 //! The gate contains no domain policy: callers provide a manifest declaration,
-//! exact approval verifier/use adapters, a record sink, and the performer.
+//! exact approval verifier/use adapters, a record sink, and the performer. The
+//! journal-backed [`OperationLifecycle`] adds bounded fenced leases, durable
+//! dispatch, independent postcondition observation, and truthful reconciliation.
 
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
 mod durable;
+mod lifecycle;
+mod lifecycle_engine;
+mod lifecycle_project;
+mod lifecycle_record;
+mod lifecycle_wire;
 mod operation_error;
 mod operation_service;
 mod operation_wire;
@@ -16,6 +23,15 @@ pub use durable::{
     OperationGrant, OperationGrantId, OperationId, OperationIntent, OperationIntentId,
     OperationPerformer, PerformerReceipt, PerformerReceiptId, PerformerResponse, ReplayPolicy,
 };
+pub use lifecycle::{
+    EvidenceSetId, FencedDispatch, FencedDispatchId, LeaseWindow, LifecyclePerformer,
+    LifecyclePerformerResponse, LifecycleReceipt, LifecycleReceiptId, OperationLease,
+    OperationLeaseId, OperationObservation, OperationObservationId, OperationOutcome,
+    OperationOutcomeId, OperationStep, PostconditionObserver, PostconditionRequest,
+    PostconditionResponse,
+};
+pub use lifecycle_engine::OperationLifecycle;
+pub use lifecycle_record::OperationLifecycleRecord;
 pub use operation_error::OperationError;
 pub use operation_service::{OperationRecord, OperationService};
 
@@ -198,6 +214,9 @@ where
 
 #[cfg(test)]
 mod durable_tests;
+
+#[cfg(test)]
+mod lifecycle_tests;
 
 #[cfg(test)]
 mod tests;

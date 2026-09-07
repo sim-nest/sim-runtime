@@ -91,7 +91,8 @@
       "root": "crates/sim-lib-exec",
       "target_kinds": [
         "custom-build",
-        "lib"
+        "lib",
+        "test"
       ]
     },
     {

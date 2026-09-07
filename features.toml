@@ -552,6 +552,17 @@ claims_specimens = [
 ]
 
 [[feature]]
+id = "feature/sim-runtime/local-check-contract"
+title = "Content-identified local check contract"
+summary = "Bind exact installed commands and every execution resource, bound, output, network grant, and cleanup rule behind a portable checker port."
+owner = "crate/sim-lib-exec"
+audiences = ["code", "framework"]
+guidance = "Construct CommandSpec only from trusted owner command bytes and boot-resolved resource identities. For compound manifest commands, use CommandInvocation::Interpreter so the interpreter flags and unchanged script bytes enter CommandId; never interpolate packet or model text. Give LocalCheckRequest only an installed CommandId. Use LocalCheckPort from portable packet tooling and let the selected platform capsule resolve paths and process mechanics. A Process route cannot claim absent networking; a scoped network route needs a separate matching grant."
+claims_anchors = ["anchor/crate/sim-lib-exec"]
+claims_specimens = ["spec-test/sim-runtime/crates/sim-lib-exec/tests/command_contract"]
+supports = ["feature/sim-runtime/host-exec", "feature/sim-runtime/sandbox-exec"]
+
+[[feature]]
 id = "feature/sim-runtime/sandbox-exec"
 title = "Auditable untrusted-process sandbox contract"
 summary = "Validate complete requested controls and require launcher evidence before an untrusted process result can be accepted."
@@ -875,15 +886,16 @@ steps = [
 [[feature]]
 id = "feature/sim-runtime/guarded-operations"
 title = "Declaration-driven guarded operations"
-summary = "Guard domain-neutral operations with explicit capability and exact approval, then durably retain canonical intent, separate grants and attempts, dispatch-before-performance, and raw performer receipts."
+summary = "Guard domain-neutral operations with explicit capability and exact approval, then reconcile durable fenced dispatch against independent postcondition evidence."
 owner = "crate/sim-lib-operation-gate"
 audiences = ["code", "framework"]
-guidance = "Declare every operation from canonical manifest fields; never infer policy from operation text. Use OperationService over sim-lib-journal to persist semantic intent and its grant before a dispatch; a recovered dispatch never calls the performer again, including after missing acknowledgement. Keep the injected performer behind guard_operation so capability verification and exact approval stay distinct from durability. NV12.04 owns only intent, dispatch, and raw receipt facts; independent postcondition observation and real process or network adapters require their later qualification."
+guidance = "Declare every operation from canonical manifest fields; never infer policy from operation text. Use OperationLifecycle over sim-lib-journal for bounded writer-fenced leases, performer-bound dispatch, raw receipts, and independent postcondition observation. Recovery observes before any new performance. ExactlyOnce never repeats a recorded dispatch; Idempotent repeats only after lease expiry plus observed absence. Treat AlreadyTrue, Verified, Diverged, and Uncertain as distinct durable outcomes. Keep guard_operation, the lifecycle, and domain effect adapters separate."
 claims_anchors = ["anchor/crate/sim-lib-operation-gate"]
 claims_specimens = [
   "recipe/sim-runtime/crates/sim-lib-operation-gate/01-basics/two-manifests",
   "recipe/sim-runtime/crates/sim-lib-operation-gate/01-basics/crash-matrix",
   "spec-test/sim-runtime/crates/sim-lib-operation-gate/src/durable_tests",
+  "spec-test/sim-runtime/crates/sim-lib-operation-gate/src/lifecycle_tests",
 ]
 composes = ["crate/sim-kernel", "crate/sim-lib-journal"]
 
@@ -898,9 +910,9 @@ steps = [
 
 [[route]]
 id = "route/perform-durable-operation"
-task = "Persist and safely hand off one durable operation"
+task = "Persist, reconcile, and safely hand off one durable operation"
 audiences = ["code", "framework"]
 steps = [
-  { feature = "feature/sim-runtime/guarded-operations", why = "OperationService derives canonical intent identity, records grants and attempts separately, and makes a durable dispatch the at-most-once performer barrier." },
-  { specimen = "recipe/sim-runtime/crates/sim-lib-operation-gate/01-basics/crash-matrix", why = "The checked fake-performer specimen loses an acknowledgement, reopens the journal, and proves replay never increments the external invocation counter." },
+  { feature = "feature/sim-runtime/guarded-operations", why = "OperationLifecycle derives canonical intent identity, records bounded fenced leases and performer-bound dispatch, and observes independently before recovery." },
+  { specimen = "spec-test/sim-runtime/crates/sim-lib-operation-gate/src/lifecycle_tests", why = "Hostile fake ports cross every lifecycle boundary, lose acknowledgements and receipts, dispute observations, expire leases, and prove ExactlyOnce never redispatches." },
 ]
