@@ -114,6 +114,25 @@ impl FederatedClosure {
             .collect()
     }
 
+    /// Iterates over every declared conclusion in canonical order.
+    pub fn conclusions(&self) -> impl ExactSizeIterator<Item = &ConclusionId> {
+        self.dependencies.keys()
+    }
+
+    /// Returns whether one exact conclusion-to-fact dependency is declared.
+    #[must_use]
+    pub fn depends_on(&self, conclusion: &ConclusionId, fact: &FactId) -> bool {
+        self.dependencies
+            .get(conclusion)
+            .is_some_and(|facts| facts.contains(fact))
+    }
+
+    /// Returns whether a fact belongs to the sealed semantic universe.
+    #[must_use]
+    pub fn contains_fact(&self, fact: &FactId) -> bool {
+        self.consumers.contains_key(fact)
+    }
+
     /// Explains one exact conclusion-to-fact dependency.
     pub fn explain(
         &self,
