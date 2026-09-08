@@ -1,5 +1,5 @@
 {
-  "card_count": 33,
+  "card_count": 34,
   "cards": [
     {
       "id": "browse/catalog",
@@ -194,6 +194,12 @@
       "summary": "Seal, schedule, execute, and reconstruct bounded domain-neutral studies."
     },
     {
+      "id": "cookbook/world",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-world",
+      "summary": "Pure projections, exact invalidation, and causal explanations."
+    },
+    {
       "id": "registry/catalog",
       "kind": "browse-registry",
       "owner": "workspace",
@@ -243,6 +249,7 @@
       "sim-lib-sequence",
       "sim-lib-standard-core",
       "sim-lib-study",
+      "sim-lib-world",
       "xtask"
     ]
   },
@@ -385,7 +392,7 @@
       "reason": "transduced sequence adapter; reconstruct from the source sequence and transducer pipeline descriptor"
     }
   ],
-  "package_count": 35,
+  "package_count": 36,
   "packages": [
     {
       "crate_name": "sim_incremental_core",
@@ -3044,6 +3051,41 @@
       ]
     },
     {
+      "crate_name": "sim_lib_world",
+      "dependencies": [
+        {
+          "kind": "normal",
+          "optional": false,
+          "package": "sim-incremental-core",
+          "rename": null,
+          "target": null
+        }
+      ],
+      "description": "Loadable read-only semantic projection and explanation surface for SIM.",
+      "features": [],
+      "group": "workspace",
+      "manifest": "crates/sim-lib-world/Cargo.toml",
+      "name": "sim-lib-world",
+      "publish": "true",
+      "root": "crates/sim-lib-world",
+      "rustdoc_summary": "Loadable read-only world projection and explanation product.",
+      "target_kinds": [
+        "lib"
+      ],
+      "targets": [
+        {
+          "crate_types": [
+            "lib"
+          ],
+          "kind": [
+            "lib"
+          ],
+          "name": "sim_lib_world",
+          "src": "crates/sim-lib-world/src/lib.rs"
+        }
+      ]
+    },
+    {
       "crate_name": "xtask",
       "dependencies": [],
       "description": "Repository maintenance tasks for sim-runtime.",
@@ -3087,10 +3129,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-16T00:13:38+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "5e3bca8f74de2c40e07d82b1aefe11d9ac82abf1",
+    "git_commit": "ae3fa1dcca0fd2269fd28f8638a47987e4236483",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "5e3bca8f74de2c40e07d82b1aefe11d9ac82abf1",
+    "source_commit": "ae3fa1dcca0fd2269fd28f8638a47987e4236483",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -3103,9 +3145,9 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "092fe8b235db9889",
+    "workspace_hash": "51a7b59be24df08f",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 705,
+    "workspace_hash_input_count": 720,
     "workspace_hash_inputs": [
       "Cargo.toml",
       "crates/sim-incremental-core/Cargo.toml",
@@ -3123,6 +3165,13 @@
       "crates/sim-incremental-core/src/fingerprint.rs",
       "crates/sim-incremental-core/src/lib.rs",
       "crates/sim-incremental-core/src/observation.rs",
+      "crates/sim-incremental-core/src/projection/admission.rs",
+      "crates/sim-incremental-core/src/projection/builtin.rs",
+      "crates/sim-incremental-core/src/projection/engine.rs",
+      "crates/sim-incremental-core/src/projection/graph.rs",
+      "crates/sim-incremental-core/src/projection/mod.rs",
+      "crates/sim-incremental-core/src/projection/model.rs",
+      "crates/sim-incremental-core/src/projection/tests.rs",
       "crates/sim-incremental-core/src/query.rs",
       "crates/sim-incremental-core/src/snapshot.rs",
       "crates/sim-incremental-core/src/state.rs",
@@ -3810,11 +3859,19 @@
       "crates/sim-lib-study/src/lifecycle.rs",
       "crates/sim-lib-study/src/product.rs",
       "crates/sim-lib-study/src/tests.rs",
+      "crates/sim-lib-world/Cargo.toml",
+      "crates/sim-lib-world/recipes/01-projection/world-explain/recipe.toml",
+      "crates/sim-lib-world/recipes/book.toml",
+      "crates/sim-lib-world/src/command.rs",
+      "crates/sim-lib-world/src/lib.rs",
+      "crates/sim-lib-world/src/product.rs",
+      "crates/sim-lib-world/src/provider.rs",
+      "crates/sim-lib-world/src/tests.rs",
       "features.toml",
       "xtask/Cargo.toml"
     ]
   },
-  "recipe_book_count": 31,
+  "recipe_book_count": 32,
   "recipes": [
     {
       "book": "organ/binding",
@@ -4658,6 +4715,26 @@
       "recipes": [],
       "summary": "Seal, schedule, execute, and reconstruct bounded domain-neutral studies.",
       "title": "Durable Studies"
+    },
+    {
+      "book": "world",
+      "book_toml": "crates/sim-lib-world/recipes/book.toml",
+      "card_id": "cookbook/world",
+      "group": "workspace",
+      "package": "sim-lib-world",
+      "recipe_count": 1,
+      "recipes": [
+        {
+          "card_id": "world/01-projection/world-explain",
+          "codec": "",
+          "id": "world-explain",
+          "package": "sim-lib-world",
+          "recipe_toml": "crates/sim-lib-world/recipes/01-projection/world-explain/recipe.toml",
+          "title": "Project and explain a supplied world fact"
+        }
+      ],
+      "summary": "Pure projections, exact invalidation, and causal explanations.",
+      "title": "Semantic World Projection"
     }
   ]
 }

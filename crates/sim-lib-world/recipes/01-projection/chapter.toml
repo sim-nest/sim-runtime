@@ -1,0 +1,3 @@
+title = "Explain a supplied fact"
+order = 10
+summary = "Projects an immutable semantic fact and explains its consumers without observation or effects."

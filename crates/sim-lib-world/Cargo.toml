@@ -1,0 +1,21 @@
+[package]
+name = "sim-lib-world"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+readme = "README.md"
+description = "Loadable read-only semantic projection and explanation surface for SIM."
+repository.workspace = true
+homepage.workspace = true
+publish = true
+
+[dependencies]
+sim-incremental-core = { version = "0.5.0", path = "../sim-incremental-core" }
+sim-kernel = { version = "0.4.0" }
+sim-run-core = { version = "0.5.0" }
+
+[dev-dependencies]
+sim-kernel = { version = "0.4.0", features = ["test-support"] }
+
+[lints]
+workspace = true

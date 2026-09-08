@@ -36,4 +36,5 @@
 | `cookbook/runtime/exec` | `cookbook-recipe` | `sim-lib-exec` | Permission-gated host process runs with time and output limits. |
 | `cookbook/standard/core` | `cookbook-recipe` | `sim-lib-standard-core` | Language profiles, fidelity badges, conformance helpers, and strict migration characterization. |
 | `cookbook/study` | `cookbook-recipe` | `sim-lib-study` | Seal, schedule, execute, and reconstruct bounded domain-neutral studies. |
+| `cookbook/world` | `cookbook-recipe` | `sim-lib-world` | Pure projections, exact invalidation, and causal explanations. |
 | `registry/catalog` | `browse-registry` | `workspace` | registry catalog browse card |

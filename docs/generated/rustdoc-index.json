@@ -240,6 +240,13 @@
       "summary": "Durable, domain-neutral study coordination."
     },
     {
+      "crate_name": "sim_lib_world",
+      "group": "workspace",
+      "manifest": "crates/sim-lib-world/Cargo.toml",
+      "package": "sim-lib-world",
+      "summary": "Loadable read-only world projection and explanation product."
+    },
+    {
       "crate_name": "xtask",
       "group": "workspace",
       "manifest": "xtask/Cargo.toml",

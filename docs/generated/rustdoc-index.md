@@ -38,4 +38,5 @@
 | `sim-lib-sequence` | `workspace` | Sequence behavior for the SIM runtime: lazy, persistent, runtime-indexed, and transducer-backed collections. |
 | `sim-lib-standard-core` | `workspace` | Standard distribution core for SIM capabilities, claims, tests, and profiles. |
 | `sim-lib-study` | `workspace` | Durable, domain-neutral study coordination. |
+| `sim-lib-world` | `workspace` | Loadable read-only world projection and explanation product. |
 | `xtask` | `workspace` | Repository maintenance tasks for sim-runtime. |

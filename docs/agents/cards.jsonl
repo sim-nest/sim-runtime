@@ -249,3 +249,9 @@
 {"kind":"recipe","path":"crates/sim-lib-study/recipes/README.md"}
 {"kind":"recipe","path":"crates/sim-lib-study/recipes/book.toml"}
 {"kind":"recipe","path":"crates/sim-lib-study/recipes/complete-a-study.md"}
+{"kind":"recipe","path":"crates/sim-lib-world/recipes/01-projection/chapter.toml"}
+{"kind":"recipe","path":"crates/sim-lib-world/recipes/01-projection/world-explain/expected.txt"}
+{"kind":"recipe","path":"crates/sim-lib-world/recipes/01-projection/world-explain/purpose.md"}
+{"kind":"recipe","path":"crates/sim-lib-world/recipes/01-projection/world-explain/recipe.toml"}
+{"kind":"recipe","path":"crates/sim-lib-world/recipes/01-projection/world-explain/setup.siml"}
+{"kind":"recipe","path":"crates/sim-lib-world/recipes/book.toml"}
