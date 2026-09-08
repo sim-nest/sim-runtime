@@ -251,6 +251,12 @@
     "crates/sim-lib-standard-core/recipes/book.toml",
     "crates/sim-lib-study/recipes/README.md",
     "crates/sim-lib-study/recipes/book.toml",
-    "crates/sim-lib-study/recipes/complete-a-study.md"
+    "crates/sim-lib-study/recipes/complete-a-study.md",
+    "crates/sim-lib-world/recipes/01-projection/chapter.toml",
+    "crates/sim-lib-world/recipes/01-projection/world-explain/expected.txt",
+    "crates/sim-lib-world/recipes/01-projection/world-explain/purpose.md",
+    "crates/sim-lib-world/recipes/01-projection/world-explain/recipe.toml",
+    "crates/sim-lib-world/recipes/01-projection/world-explain/setup.siml",
+    "crates/sim-lib-world/recipes/book.toml"
   ]
 }

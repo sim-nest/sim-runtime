@@ -1,0 +1,9 @@
+id = "world-explain"
+title = "Project and explain a supplied world fact"
+purpose = "purpose.md"
+setup = "setup.siml"
+expected = "expected.txt"
+
+[[expect]]
+form = 0
+result = "(world/project world/diff world/why)"

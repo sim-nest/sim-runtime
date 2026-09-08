@@ -23,7 +23,8 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 | `feature/sim-runtime/typed-lazy-typeclass-dictionaries` | `crate/sim-lib-lang-typed-lazy` | 1 | Represent a typeclass instance as an explicit language-owned evidence record mapping required method names to implementation symbols. |
 | `feature/sim-runtime/prolog-predicate-clause-store` | `crate/sim-lib-lang-prolog` | 1 | Keep each Prolog predicate language-owned as the indexed set of logic-organ clauses resolved through unification and backtracking. |
 | `feature/sim-runtime/class-semantics` | `crate/sim-lib-class` | 3 | Own checked declared-parent class descriptors projected onto the kernel Class protocol, with bounded lineage policies and managed, non-retaining caches for linearizations and derived member views. |
-| `feature/sim-runtime/incremental-query-core` | `crate/sim-incremental-core` | 4 | Provide the generic memo graph and the one proof-producing dataflow fixpoint engine that runtime organs can wrap without depending on SIM value surfaces. |
+| `feature/sim-runtime/incremental-query-core` | `crate/sim-incremental-core` | 4 | Provide the generic memo graph, the one proof-producing dataflow fixpoint engine, and qualified semantic projection over canonical SIM facts. |
+| `feature/sim-runtime/world-projection-product` | `crate/sim-lib-world` | 1 | Load open qualified projectors and expose pure project, diff, and why operations over caller-supplied immutable facts. |
 | `feature/sim-runtime/incremental-query-organ` | `crate/sim-lib-incremental` | 1 | Expose incremental expression queries and immutable proof-backed dataflow analysis views as a loadable SIM organ. |
 | `feature/sim-runtime/capabilities-read-eval` | `crate/sim-lib-core` | 2 | Gate diminished read-eval and surface packing through explicit runtime libraries and capability checks. |
 | `feature/sim-runtime/organs` | `crate/sim-lib-binding` | 1 | Provide binding, function, control, logic, pattern, incremental, mutation, namespace, and sequence organs as reusable runtime behavior. |
@@ -58,6 +59,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 | Surface | Kind | Subject |
 | --- | --- | --- |
 | `cli/study` | `cli` | `crate/sim-lib-study` |
+| `cli/world` | `cli` | `crate/sim-lib-world` |
 | `cli/xtask` | `cli` | `crate/xtask` |
 | `docs/sim-runtime/generated` | `docs` | `doc-set/sim-runtime/generated` |
 
@@ -314,6 +316,12 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 - `crates/sim-lib-study/recipes/README.md`
 - `crates/sim-lib-study/recipes/book.toml`
 - `crates/sim-lib-study/recipes/complete-a-study.md`
+- `crates/sim-lib-world/recipes/01-projection/chapter.toml`
+- `crates/sim-lib-world/recipes/01-projection/world-explain/expected.txt`
+- `crates/sim-lib-world/recipes/01-projection/world-explain/purpose.md`
+- `crates/sim-lib-world/recipes/01-projection/world-explain/recipe.toml`
+- `crates/sim-lib-world/recipes/01-projection/world-explain/setup.siml`
+- `crates/sim-lib-world/recipes/book.toml`
 
 ## Worked Examples
 
@@ -3421,6 +3429,24 @@ fn runtime_crates_have_no_unclassified_shadow_engine() {
         }
     }
 }
+```
+
+### `feature/sim-runtime/world-projection-product`
+
+Specimen `recipe/sim-runtime/crates/sim-lib-world/01-projection/world-explain` is checked by `sh scripts/check-recipes.sh`.
+
+Source `crates/sim-lib-world/recipes/01-projection/world-explain/recipe.toml`:
+
+```toml
+id = "world-explain"
+title = "Project and explain a supplied world fact"
+purpose = "purpose.md"
+setup = "setup.siml"
+expected = "expected.txt"
+
+[[expect]]
+form = 0
+result = "(world/project world/diff world/why)"
 ```
 
 ### `feature/sim-runtime/incremental-query-organ`

@@ -1,6 +1,6 @@
 {
   "generator": "xtask crate-catalog v1",
-  "package_count": 35,
+  "package_count": 36,
   "packages": [
     {
       "description": "Dependency-light incremental query graph with memo cutoff and bounded snapshots.",
@@ -444,6 +444,18 @@
       "publish": "true",
       "readme": "crates/sim-lib-study/README.md",
       "root": "crates/sim-lib-study",
+      "target_kinds": [
+        "lib"
+      ]
+    },
+    {
+      "description": "Loadable read-only semantic projection and explanation surface for SIM.",
+      "generated_readme": true,
+      "manifest": "crates/sim-lib-world/Cargo.toml",
+      "name": "sim-lib-world",
+      "publish": "true",
+      "readme": "crates/sim-lib-world/README.md",
+      "root": "crates/sim-lib-world",
       "target_kinds": [
         "lib"
       ]

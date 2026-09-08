@@ -1,6 +1,6 @@
 # sim-incremental-core
 
-In one line: It is the small, generic calculation engine that remembers what a query read and recomputes only the parts whose evidence changed.
+In one line: It remembers what a calculation read and names exactly which semantic facts can affect a conclusion.
 
 ## What it gives you
 
@@ -10,14 +10,27 @@ names, directory listings, policy revisions, or backend epochs. The engine keeps
 reverse dependency edges, invalidates dependents deterministically, and reuses
 memoized values when dependency stamps and fingerprints still match.
 
+It also owns open semantic projection. A loaded provider receives only a
+Shape-checked immutable selection of canonical facts. Admission binds the exact
+provider code and policy through either reviewed native source plus dependencies
+or a closed deterministic Wasm universe. Semantic digests exclude diagnostic
+envelopes, while federated owner graphs return exact invalidation and causal
+paths. Explicit logical path, glob, and ignore rules reject host path aliases.
+
 ## Why you will be glad
 
 - Nested reads build the dependency graph from actual execution.
 - Equal-priority verification runs in stable key order.
 - Budgets, cycles, cancellation, and snapshots fail with typed errors.
+- Missing qualification, missing confinement, and undeclared reads fail at
+  distinct boundaries.
+- Baseline providers cover source, build, Git, Index, release, ownership, and
+  disclosure-policy facts without closing the registry.
 
 ## Where it fits
 
-The crate is deliberately free of SIM expression, codec, Table, browser, and
-product types. Runtime libraries can wrap it with domain conversion and
-capability checks, while the calculation algorithm stays reusable.
+The memo and dataflow engines remain generic Rust algorithms. The projection
+boundary uses kernel `Datum` and `ContentId` so every loaded library shares one
+canonical semantic identity. It contains no observation adapter, codec, Table,
+browser, command, scheduler, or mutation behavior; products compose it from
+above.

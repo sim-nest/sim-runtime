@@ -1,5 +1,5 @@
 {
-  "card_count": 33,
+  "card_count": 34,
   "cards": [
     {
       "id": "browse/catalog",
@@ -192,6 +192,12 @@
       "kind": "cookbook-recipe",
       "owner": "sim-lib-study",
       "summary": "Seal, schedule, execute, and reconstruct bounded domain-neutral studies."
+    },
+    {
+      "id": "cookbook/world",
+      "kind": "cookbook-recipe",
+      "owner": "sim-lib-world",
+      "summary": "Pure projections, exact invalidation, and causal explanations."
     },
     {
       "id": "registry/catalog",

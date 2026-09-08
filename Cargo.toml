@@ -35,6 +35,7 @@ members = [
   "crates/sim-lib-pattern",
   "crates/sim-lib-sequence",
   "crates/sim-lib-study",
+  "crates/sim-lib-world",
   "crates/sim-lib-standard-core",
   "xtask",
 ]

@@ -1,0 +1,5 @@
+book = "world"
+title = "Semantic World Projection"
+summary = "Pure projections, exact invalidation, and causal explanations."
+order = 410
+chapters = ["01-projection"]

@@ -38,4 +38,5 @@
 | `sim-lib-sequence` | `workspace` | 0 | 0 |
 | `sim-lib-standard-core` | `workspace` | 1 | 0 |
 | `sim-lib-study` | `workspace` | 0 | 0 |
+| `sim-lib-world` | `workspace` | 0 | 0 |
 | `xtask` | `workspace` | 0 | 0 |

@@ -50,6 +50,7 @@ mod engine;
 mod error;
 mod fingerprint;
 mod observation;
+pub mod projection;
 mod query;
 mod snapshot;
 mod state;

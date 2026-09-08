@@ -40,4 +40,5 @@ Generated from Cargo metadata by `xtask crate-catalog v1`.
 | `sim-lib-sequence` | `true` | `custom-build, lib, test` | Sequence operations, lazy streams, and collection transforms for SIM. |
 | `sim-lib-standard-core` | `true` | `cdylib, custom-build, rlib` | Standard distribution core for SIM capabilities, claims, tests, and profiles. |
 | `sim-lib-study` | `true` | `lib` | Domain-neutral durable study lifecycle over sealed coordinates. |
+| `sim-lib-world` | `true` | `lib` | Loadable read-only semantic projection and explanation surface for SIM. |
 | `xtask` | `false` | `bin, lib` | Repository maintenance tasks for sim-runtime. |
