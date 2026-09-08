@@ -135,7 +135,12 @@ owner = "crate/sim-lib-world"
 audiences = ["user", "code", "framework"]
 guidance = "Use sim-lib-world when the caller already has typed observed facts and needs their semantic projection, exact invalidation, or an owner-to-leaf explanation. The product owns no observation, process, network, proof execution, scheduling, or mutation port. Provider kinds remain open; configs pass their declared Shape; semantic digests bind checked config, exact provider code and policy, and consumed facts while excluding diagnostic envelopes. The no-v3 disclosure provider consumes the canonical audit-policy fact only for conclusions that declare it."
 claims_anchors = [
+  "anchor/card/cookbook/world",
+  "anchor/cli/world",
   "anchor/crate/sim-lib-world",
+  "anchor/export/sim-lib-world/cli/main/world",
+  "anchor/export/sim-lib-world/shape/world-config-v1",
+  "anchor/runtime-lib/sim-lib-world/world-command-lib",
 ]
 claims_specimens = [
   "recipe/sim-runtime/crates/sim-lib-world/01-projection/world-explain",
