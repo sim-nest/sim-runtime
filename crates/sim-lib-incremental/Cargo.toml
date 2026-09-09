@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-incremental"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 license = "MPL-2.0"
 description = "Loadable incremental query organ for SIM runtime expressions."
@@ -11,7 +11,7 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 
 [dependencies]
 sim-cookbook = { version = "0.4.0" }
-sim-incremental-core = { version = "0.5.0", path = "../sim-incremental-core" }
+sim-incremental-core = { version = "0.5.1", path = "../sim-incremental-core" }
 sim-kernel = { version = "0.4.0" }
 sim-lib-core = { version = "0.4.0", path = "../sim-lib-core" }
 sim-shape = { version = "0.4.0" }
