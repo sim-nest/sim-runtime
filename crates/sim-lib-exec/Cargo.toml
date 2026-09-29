@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-exec"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2024"
 license = "MPL-2.0"
 description = "Capability-gated bounded process execution for SIM."
@@ -12,9 +12,13 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 [dependencies]
 sim-cookbook = { version = "0.4.0" }
 sim-kernel = { version = "0.4.0" }
+sim-lib-operation-gate = { version = "0.5.0", path = "../sim-lib-operation-gate" }
+sim-cli-core = { version = "0.2.0" }
+sim-storage-port = { version = "0.2.1" }
 
 [dev-dependencies]
 sim-kernel = { version = "0.4.0", features = ["test-support"] }
+sim-lib-journal = { version = "0.3.1" }
 
 [lints]
 workspace = true

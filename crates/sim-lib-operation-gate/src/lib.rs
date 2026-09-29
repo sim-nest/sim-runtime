@@ -1,22 +1,33 @@
 //! Declaration-driven gate for capability-scoped operations.
 //!
-//! The gate contains no domain policy: callers provide a manifest declaration,
-//! exact approval verifier/use adapters, a record sink, and the performer. The
-//! journal-backed [`OperationLifecycle`] adds bounded fenced leases, durable
-//! dispatch, independent postcondition observation, and truthful reconciliation.
+//! Callers supply domain policy: a declaration, exact approval adapters, a sink,
+//! and the performer. [`OperationLifecycle`] adds bounded fenced leases, durable
+//! dispatch, independent observation, and truthful reconciliation.
+//! If preparation cannot be acknowledged, it notifies the original
+//! [`LifecyclePerformer`] before performance. That owner may dispose only
+//! retained resources under existing authority. The callback grants no cleanup,
+//! cancellation, or replay authority; the typed error and uncertainty remain.
 
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
-
 mod durable;
 mod lifecycle;
+mod lifecycle_accepted;
+mod lifecycle_cancellation;
+mod lifecycle_clock;
 mod lifecycle_engine;
+mod lifecycle_observation;
+mod lifecycle_preparation;
 mod lifecycle_project;
 mod lifecycle_record;
+mod lifecycle_release;
+mod lifecycle_reservation;
 mod lifecycle_wire;
 mod operation_error;
 mod operation_service;
 mod operation_wire;
+#[cfg(test)]
+mod semantic_tests;
 
 pub use durable::{
     DispatchId, DurableOperationState, OperationAttempt, OperationAttemptId, OperationDispatch,
@@ -25,13 +36,30 @@ pub use durable::{
 };
 pub use lifecycle::{
     EvidenceSetId, FencedDispatch, FencedDispatchId, LeaseWindow, LifecyclePerformer,
-    LifecyclePerformerResponse, LifecycleReceipt, LifecycleReceiptId, OperationLease,
-    OperationLeaseId, OperationObservation, OperationObservationId, OperationOutcome,
-    OperationOutcomeId, OperationStep, PostconditionObserver, PostconditionRequest,
-    PostconditionResponse,
+    LifecyclePerformerResponse, LifecyclePreparationId, LifecycleReceipt, LifecycleReceiptId,
+    OperationLease, OperationLeaseId, OperationObservation, OperationObservationId,
+    OperationOutcome, OperationOutcomeId, OperationStep, PostconditionObserver,
+    PostconditionRequest, PostconditionResponse,
 };
+pub use lifecycle_accepted::{
+    AcceptedOperation, AcceptedOperationCustody, OperationAcceptanceError,
+    OperationAcceptanceStage, OperationCustodyStage, RetainedOperationAcceptance,
+    RetainedOperationCustody,
+};
+pub use lifecycle_cancellation::{CancellationHandle, CancellationSignal, LifecycleCancellation};
+pub use lifecycle_clock::{LeaseClock, LeaseClockReading};
 pub use lifecycle_engine::OperationLifecycle;
-pub use lifecycle_record::OperationLifecycleRecord;
+pub use lifecycle_preparation::LifecyclePreparation;
+pub use lifecycle_project::{
+    project_verified_lifecycle_extension, project_verified_lifecycle_records,
+};
+pub use lifecycle_record::{
+    ContractVerifiedOperation, OperationLifecycleRecord, VerifiedOperationRecord,
+};
+pub use lifecycle_release::{
+    LifecycleRelease, PreparedReleaseAdmission, ReleaseAction, ReleaseDisposition,
+};
+pub use lifecycle_reservation::LifecycleReservation;
 pub use operation_error::OperationError;
 pub use operation_service::{OperationRecord, OperationService};
 

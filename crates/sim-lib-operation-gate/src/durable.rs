@@ -145,7 +145,7 @@ impl OperationIntent {
         let intended_result = field(fields, "intended-result")?.clone();
         let replay_policy = ReplayPolicy::from_datum(field(fields, "replay-policy")?)?;
         let value = Self::new(operation, target, intended_result, replay_policy)?;
-        if value.canonical_datum() != *datum {
+        if !crate::operation_wire::same_datum(&value.canonical_datum(), datum) {
             return Err(OperationError::NonCanonical("operation intent"));
         }
         Ok(value)
@@ -226,7 +226,7 @@ impl OperationGrant {
         let capability = CapabilityName::new(string_field(fields, "capability")?);
         let authority = field(fields, "authority")?.clone();
         let value = Self::new(operation, capability, authority)?;
-        if value.canonical_datum() != *datum {
+        if !crate::operation_wire::same_datum(&value.canonical_datum(), datum) {
             return Err(OperationError::NonCanonical("operation grant"));
         }
         Ok(value)
@@ -288,7 +288,7 @@ impl OperationAttempt {
         let operation = OperationId(id_from_datum(field(fields, "operation")?)?);
         let ordinal = u64_field(fields, "ordinal")?;
         let value = Self::new(operation, ordinal)?;
-        if value.canonical_datum() != *datum {
+        if !crate::operation_wire::same_datum(&value.canonical_datum(), datum) {
             return Err(OperationError::NonCanonical("operation attempt"));
         }
         Ok(value)
@@ -368,7 +368,7 @@ impl OperationDispatch {
         let grant = OperationGrantId(id_from_datum(field(fields, "grant")?)?);
         let attempt = OperationAttemptId(id_from_datum(field(fields, "attempt")?)?);
         let value = Self::new(operation, grant, attempt)?;
-        if value.canonical_datum() != *datum {
+        if !crate::operation_wire::same_datum(&value.canonical_datum(), datum) {
             return Err(OperationError::NonCanonical("operation dispatch"));
         }
         Ok(value)
@@ -429,7 +429,7 @@ impl PerformerReceipt {
         let dispatch = DispatchId(id_from_datum(field(fields, "dispatch")?)?);
         let raw = field(fields, "raw")?.clone();
         let value = Self::new(dispatch, raw)?;
-        if value.canonical_datum() != *datum {
+        if !crate::operation_wire::same_datum(&value.canonical_datum(), datum) {
             return Err(OperationError::NonCanonical("performer receipt"));
         }
         Ok(value)

@@ -1,14 +1,76 @@
 //! Canonical semantic encoding for lifecycle records.
 
+use crate::LifecyclePreparationId;
 use sim_kernel::{ContentId, Datum, Symbol};
 use sim_lib_journal::{JournalEntry, VerifiedSnapshot};
+
+pub(super) fn with_observation_clock(
+    datum: Datum,
+    clock: Option<&Datum>,
+    reservation: Option<&ContentId>,
+) -> Datum {
+    let datum = match clock {
+        Some(clock) => node(
+            "clocked-observation-v1",
+            vec![("clock", clock.clone()), ("observation", datum)],
+        ),
+        None => datum,
+    };
+    match reservation {
+        Some(reservation) => node(
+            "reserved-observation-v1",
+            vec![
+                ("reservation", id_datum(reservation)),
+                ("observation", datum),
+            ],
+        ),
+        None => datum,
+    }
+}
+
+pub(super) fn with_release(mut datum: Datum, release: Option<&ContentId>, tag: &str) -> Datum {
+    if let Some(release) = release {
+        let Datum::Node {
+            tag: current,
+            fields,
+        } = &mut datum
+        else {
+            unreachable!("canonical node")
+        };
+        *current = Symbol::qualified("operation", tag);
+        fields.push((Symbol::new("release"), id_datum(release)));
+    }
+    datum
+}
+
+pub(super) fn with_preparation(
+    mut datum: Datum,
+    preparation: Option<&LifecyclePreparationId>,
+    tag: &str,
+) -> Datum {
+    if let Some(preparation) = preparation {
+        let Datum::Node {
+            tag: current,
+            fields,
+        } = &mut datum
+        else {
+            unreachable!("canonical node")
+        };
+        *current = Symbol::qualified("operation", tag);
+        fields.push((
+            Symbol::new("preparation"),
+            id_datum(preparation.content_id()),
+        ));
+    }
+    datum
+}
 
 use crate::{
     OperationError, OperationId,
     lifecycle::{
         DISPATCH_TAG, EvidenceSetId, FencedDispatchId, LEASE_TAG, LifecycleReceiptId,
-        OBSERVATION_TAG, OUTCOME_TAG, OperationLeaseId, OperationOutcome, OperationStep,
-        PostconditionRequest, PostconditionResponse, RECEIPT_TAG,
+        OBSERVATION_TAG, OUTCOME_TAG, OperationLeaseId, OperationObservationId, OperationOutcome,
+        OperationStep, PostconditionRequest, PostconditionResponse, RECEIPT_TAG,
     },
     operation_wire::{field, id_datum, id_from_datum, node, node_fields},
 };
@@ -19,16 +81,25 @@ pub(super) fn lease_datum(
     fence: u64,
     acquired_at: u64,
     expires_at: u64,
+    clock: Option<&Datum>,
 ) -> Datum {
+    let mut fields = vec![
+        ("operation", id_datum(operation.content_id())),
+        ("holder", holder.clone()),
+        ("fence", u64_datum(fence)),
+        ("acquired-at", u64_datum(acquired_at)),
+        ("expires-at", u64_datum(expires_at)),
+    ];
+    if let Some(clock) = clock {
+        fields.push(("clock", clock.clone()));
+    }
     node(
-        LEASE_TAG,
-        vec![
-            ("operation", id_datum(operation.content_id())),
-            ("holder", holder.clone()),
-            ("fence", u64_datum(fence)),
-            ("acquired-at", u64_datum(acquired_at)),
-            ("expires-at", u64_datum(expires_at)),
-        ],
+        if clock.is_some() {
+            "bounded-clock-lease-v1"
+        } else {
+            LEASE_TAG
+        },
+        fields,
     )
 }
 pub(super) fn fenced_dispatch_datum(
@@ -49,13 +120,21 @@ pub(super) fn fenced_dispatch_datum(
         ],
     )
 }
-pub(super) fn lifecycle_receipt_datum(dispatch: &FencedDispatchId, raw: &Datum) -> Datum {
-    node(
-        RECEIPT_TAG,
-        vec![
-            ("dispatch", id_datum(dispatch.content_id())),
-            ("raw", raw.clone()),
-        ],
+pub(super) fn lifecycle_receipt_datum(
+    dispatch: &FencedDispatchId,
+    raw: &Datum,
+    release: Option<&ContentId>,
+) -> Datum {
+    with_release(
+        node(
+            RECEIPT_TAG,
+            vec![
+                ("dispatch", id_datum(dispatch.content_id())),
+                ("raw", raw.clone()),
+            ],
+        ),
+        release,
+        "lifecycle-release-receipt-v1",
     )
 }
 pub(super) fn observation_base_datum(
@@ -63,23 +142,42 @@ pub(super) fn observation_base_datum(
     observer: &Datum,
     response: &PostconditionResponse,
 ) -> Datum {
-    node(
-        "observation-evidence-v1",
-        vec![
-            ("operation", id_datum(request.operation.content_id())),
-            ("observer", observer.clone()),
-            ("response", response_datum(response)),
-            (
-                "dispatch",
-                optional_id_datum(request.dispatch.as_ref().map(FencedDispatchId::content_id)),
+    with_observation_clock(
+        with_release(
+            with_preparation(
+                node(
+                    "observation-evidence-v1",
+                    vec![
+                        ("operation", id_datum(request.operation.content_id())),
+                        ("observer", observer.clone()),
+                        ("response", response_datum(response)),
+                        (
+                            "dispatch",
+                            optional_id_datum(
+                                request.dispatch.as_ref().map(FencedDispatchId::content_id),
+                            ),
+                        ),
+                        (
+                            "receipt",
+                            optional_id_datum(
+                                request.receipt.as_ref().map(LifecycleReceiptId::content_id),
+                            ),
+                        ),
+                        (
+                            "last-durable-step",
+                            request.last_durable_step.canonical_datum(),
+                        ),
+                        ("observed-at", u64_datum(request.observed_at)),
+                    ],
+                ),
+                request.preparation.as_ref().map(|value| value.id()),
+                "observation-prepared-evidence-v1",
             ),
-            (
-                "receipt",
-                optional_id_datum(request.receipt.as_ref().map(LifecycleReceiptId::content_id)),
-            ),
-            ("last-durable-step", request.last_durable_step.datum()),
-            ("observed-at", u64_datum(request.observed_at)),
-        ],
+            request.release.as_ref().map(|value| value.id()),
+            "observation-release-evidence-v1",
+        ),
+        request.clock.as_ref(),
+        request.reservation.as_ref().map(|value| value.id()),
     )
 }
 pub(super) fn observation_datum(
@@ -88,24 +186,43 @@ pub(super) fn observation_datum(
     response: &PostconditionResponse,
     evidence: &EvidenceSetId,
 ) -> Datum {
-    node(
-        OBSERVATION_TAG,
-        vec![
-            ("operation", id_datum(request.operation.content_id())),
-            ("observer", observer.clone()),
-            ("response", response_datum(response)),
-            (
-                "dispatch",
-                optional_id_datum(request.dispatch.as_ref().map(FencedDispatchId::content_id)),
+    with_observation_clock(
+        with_release(
+            with_preparation(
+                node(
+                    OBSERVATION_TAG,
+                    vec![
+                        ("operation", id_datum(request.operation.content_id())),
+                        ("observer", observer.clone()),
+                        ("response", response_datum(response)),
+                        (
+                            "dispatch",
+                            optional_id_datum(
+                                request.dispatch.as_ref().map(FencedDispatchId::content_id),
+                            ),
+                        ),
+                        (
+                            "receipt",
+                            optional_id_datum(
+                                request.receipt.as_ref().map(LifecycleReceiptId::content_id),
+                            ),
+                        ),
+                        (
+                            "last-durable-step",
+                            request.last_durable_step.canonical_datum(),
+                        ),
+                        ("observed-at", u64_datum(request.observed_at)),
+                        ("evidence", id_datum(evidence.content_id())),
+                    ],
+                ),
+                request.preparation.as_ref().map(|value| value.id()),
+                "postcondition-prepared-observation-v1",
             ),
-            (
-                "receipt",
-                optional_id_datum(request.receipt.as_ref().map(LifecycleReceiptId::content_id)),
-            ),
-            ("last-durable-step", request.last_durable_step.datum()),
-            ("observed-at", u64_datum(request.observed_at)),
-            ("evidence", id_datum(evidence.content_id())),
-        ],
+            request.release.as_ref().map(|value| value.id()),
+            "postcondition-release-observation-v1",
+        ),
+        request.clock.as_ref(),
+        request.reservation.as_ref().map(|value| value.id()),
     )
 }
 pub(super) fn response_datum(response: &PostconditionResponse) -> Datum {
@@ -160,13 +277,18 @@ pub(super) fn response_from_datum(datum: &Datum) -> Result<PostconditionResponse
     }
     Err(OperationError::NonCanonical("postcondition response"))
 }
-pub(super) fn outcome_datum(operation: &OperationId, outcome: &OperationOutcome) -> Datum {
+pub(super) fn outcome_datum(
+    operation: &OperationId,
+    observation: &OperationObservationId,
+    outcome: &OperationOutcome,
+) -> Datum {
     node(
         OUTCOME_TAG,
         vec![
             ("operation", id_datum(operation.content_id())),
+            ("observation", id_datum(observation.content_id())),
             ("value", outcome_value_datum(outcome)),
-            ("schema", Datum::String("operation/outcome-v1".into())),
+            ("schema", Datum::String("operation/outcome-v2".into())),
         ],
     )
 }
@@ -189,7 +311,7 @@ fn outcome_value_datum(outcome: &OperationOutcome) -> Datum {
         ),
         OperationOutcome::Uncertain { last_durable_step } => node(
             "uncertain-v1",
-            vec![("last-durable-step", last_durable_step.datum())],
+            vec![("last-durable-step", last_durable_step.canonical_datum())],
         ),
     }
 }

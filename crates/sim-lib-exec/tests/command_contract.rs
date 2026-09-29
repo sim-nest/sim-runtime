@@ -43,12 +43,14 @@ fn command(script: &[u8]) -> sim_kernel::Result<CommandSpec> {
         },
     ];
     let limits = SandboxLimits {
-        cpu_seconds: 10,
-        memory_bytes: 256 * 1024 * 1024,
+        cpu: sim_lib_exec::SandboxCpuLimit::PerProcessSeconds(10),
+        memory: sim_lib_exec::SandboxMemoryLimit::PerProcessAddressSpaceBytes(256 * 1024 * 1024),
         wall_time_ms: 5_000,
         process_count: 16,
-        file_count: 1_000,
-        file_bytes: 16 * 1024 * 1024,
+        filesystem: sim_lib_exec::SandboxFilesystemLimit::LogicalTree {
+            entries: 1_000,
+            bytes: 16 * 1024 * 1024,
+        },
         output_bytes: 16 * 1024,
         stdin_bytes: 1,
     };

@@ -107,7 +107,7 @@ pub(crate) fn id_from_datum(datum: &Datum) -> Result<ContentId, OperationError> 
         .try_into()
         .map_err(|_| OperationError::NonCanonical("content id width"))?;
     let id = ContentId::from_bytes(algorithm.clone(), bytes);
-    if id_datum(&id) != *datum {
+    if !same_datum(&id_datum(&id), datum) {
         return Err(OperationError::NonCanonical("content id"));
     }
     Ok(id)
@@ -174,6 +174,20 @@ pub(crate) fn content_id(datum: &Datum) -> Result<ContentId, OperationError> {
     datum
         .content_id()
         .map_err(|_| OperationError::NonCanonical("semantic datum"))
+}
+
+/// Kernel-defined data meaning, independent of named-field/map/set storage order.
+/// Invalid canonical values never compare equal, including to themselves.
+pub(crate) fn same_datum(left: &Datum, right: &Datum) -> bool {
+    matches!((left.canonical_bytes(), right.canonical_bytes()), (Ok(left), Ok(right)) if left == right)
+}
+
+pub(crate) fn same_optional_datum(left: Option<&Datum>, right: Option<&Datum>) -> bool {
+    match (left, right) {
+        (Some(left), Some(right)) => same_datum(left, right),
+        (None, None) => true,
+        _ => false,
+    }
 }
 
 pub(crate) fn render_id(id: &ContentId, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {

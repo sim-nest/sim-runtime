@@ -1,9 +1,9 @@
-use crate::{ArgAtom, ProcessCancellation, ProgramRef, SealedBindings};
-use sim_kernel::{Error, Result};
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    sync::Arc,
+use crate::{
+    ArgAtom, LauncherRegistry, ProcessCancellation, ProgramRef, SandboxInvocation, SandboxLimits,
+    SealedBindings,
 };
+use sim_kernel::{Datum, Error, Result};
+use std::collections::{BTreeMap, BTreeSet};
 
 const MAX_MOUNTS: usize = 64;
 const MAX_STDIN: usize = 16 * 1024 * 1024;
@@ -21,17 +21,17 @@ pub enum SandboxControl {
     Environment,
     /// Host user and session identity.
     Identity,
-    /// CPU time.
+    /// CPU bound using the policy's explicit duration or rate accounting.
     Cpu,
-    /// Address-space memory.
+    /// Memory bound using the policy's explicit address-space or charged accounting.
     Memory,
     /// Monotonic wall time.
     WallTime,
     /// Descendant process count.
     ProcessCount,
-    /// Created file count.
+    /// Filesystem object count using the policy's explicit entry or inode accounting.
     FileCount,
-    /// Created file bytes.
+    /// Filesystem bytes using the policy's explicit logical or allocated accounting.
     FileBytes,
     /// Captured output bytes.
     Output,
@@ -39,6 +39,31 @@ pub enum SandboxControl {
     Stdin,
     /// Descendant cleanup.
     ProcessTree,
+}
+
+impl SandboxControl {
+    /// Stable control name shared with the canonical command wire format.
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        crate::command_wire::control_name(self)
+    }
+
+    pub(crate) const ALL: [Self; 14] = [
+        SandboxControl::Network,
+        SandboxControl::Mounts,
+        SandboxControl::Root,
+        SandboxControl::Environment,
+        SandboxControl::Identity,
+        SandboxControl::Cpu,
+        SandboxControl::Memory,
+        SandboxControl::WallTime,
+        SandboxControl::ProcessCount,
+        SandboxControl::FileCount,
+        SandboxControl::FileBytes,
+        SandboxControl::Output,
+        SandboxControl::Stdin,
+        SandboxControl::ProcessTree,
+    ];
 }
 
 /// Whether absence of a control is fatal or may be reported as unavailable.
@@ -70,27 +95,6 @@ pub struct SandboxMount {
     pub access: MountAccess,
 }
 
-/// Complete bounded resource policy. Zero is invalid for every limit.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SandboxLimits {
-    /// CPU seconds.
-    pub cpu_seconds: u64,
-    /// Address-space bytes.
-    pub memory_bytes: u64,
-    /// Monotonic milliseconds.
-    pub wall_time_ms: u64,
-    /// Maximum process count.
-    pub process_count: u64,
-    /// Maximum files across writable roots.
-    pub file_count: u64,
-    /// Maximum bytes across writable roots.
-    pub file_bytes: u64,
-    /// Shared stdout and stderr cap.
-    pub output_bytes: usize,
-    /// Standard-input cap.
-    pub stdin_bytes: usize,
-}
-
 /// Validated portable sandbox policy, independent of any OS launcher.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SandboxPolicy {
@@ -105,23 +109,16 @@ impl SandboxPolicy {
         mounts: Vec<SandboxMount>,
         limits: SandboxLimits,
     ) -> Result<Self> {
-        let requirements = requirements.into_iter().collect::<BTreeMap<_, _>>();
-        let all = [
-            SandboxControl::Network,
-            SandboxControl::Mounts,
-            SandboxControl::Root,
-            SandboxControl::Environment,
-            SandboxControl::Identity,
-            SandboxControl::Cpu,
-            SandboxControl::Memory,
-            SandboxControl::WallTime,
-            SandboxControl::ProcessCount,
-            SandboxControl::FileCount,
-            SandboxControl::FileBytes,
-            SandboxControl::Output,
-            SandboxControl::Stdin,
-            SandboxControl::ProcessTree,
-        ];
+        let mut classified = BTreeMap::new();
+        for (control, requirement) in requirements {
+            if classified.insert(control, requirement).is_some() {
+                return Err(Error::Eval(
+                    "sandbox control is classified more than once".into(),
+                ));
+            }
+        }
+        let requirements = classified;
+        let all = SandboxControl::ALL;
         if all.iter().any(|c| !requirements.contains_key(c)) {
             return Err(Error::Eval(
                 "sandbox policy must classify every control".into(),
@@ -141,20 +138,7 @@ impl SandboxPolicy {
                 return Err(Error::Eval("invalid or duplicate sandbox mount".into()));
             }
         }
-        if limits.cpu_seconds == 0
-            || limits.memory_bytes == 0
-            || limits.wall_time_ms == 0
-            || limits.process_count == 0
-            || limits.file_count == 0
-            || limits.file_bytes == 0
-            || limits.output_bytes == 0
-            || limits.stdin_bytes == 0
-            || limits.stdin_bytes > MAX_STDIN
-        {
-            return Err(Error::Eval(
-                "sandbox limits must be non-zero and bounded".into(),
-            ));
-        }
+        limits.validate(MAX_STDIN)?;
         Ok(Self {
             requirements,
             mounts,
@@ -235,13 +219,19 @@ pub struct SandboxReport {
 }
 impl SandboxReport {
     /// Returns whether every required control has positive, non-empty evidence.
+    /// Duplicate control records are ambiguous and never constitute proof.
     pub fn proves_required(&self, policy: &SandboxPolicy) -> bool {
+        let mut observed = BTreeMap::new();
+        for evidence in &self.controls {
+            if observed.insert(evidence.control, evidence).is_some() {
+                return false;
+            }
+        }
         policy.requirements.iter().all(|(control, requirement)| {
             *requirement != SandboxRequirement::Required
-                || self
-                    .controls
-                    .iter()
-                    .any(|e| e.control == *control && e.achieved && !e.detail.is_empty())
+                || observed
+                    .get(control)
+                    .is_some_and(|e| e.achieved && !e.detail.trim().is_empty())
         })
     }
 }
@@ -276,6 +266,17 @@ pub enum SandboxAttempt {
     Refused(SandboxRefusal),
     /// Timeout or cancellation with proven cleanup.
     Stopped(SandboxReport),
+    /// Timeout or cancellation with proven cleanup and bounded diagnostic bytes.
+    ///
+    /// Diagnostics are explicitly not completion-qualified; they preserve the
+    /// producer's observed stream prefixes so a later owner can establish that
+    /// a particular hostile specimen actually began before the proved stop.
+    StoppedWithDiagnostics {
+        /// Complete independently observed control and cleanup report.
+        report: SandboxReport,
+        /// Canonical bounded diagnostic projection from the same owner.
+        diagnostics: Datum,
+    },
     /// Dispatched but final state is not provable.
     Unknown(SandboxRefusal),
 }
@@ -290,37 +291,92 @@ pub trait SandboxLauncher: Send + Sync {
         request: &SandboxRequest,
         cancellation: &ProcessCancellation,
     ) -> SandboxAttempt;
-}
-/// Boot-built launcher registry; callers select an identity, never a concrete OS type.
-#[derive(Default)]
-pub struct LauncherRegistry(BTreeMap<String, Arc<dyn SandboxLauncher>>);
-impl LauncherRegistry {
-    /// Registers one unique boot-selected launcher.
-    pub fn register(&mut self, launcher: Arc<dyn SandboxLauncher>) -> Result<()> {
-        let id = launcher.id();
-        if id.is_empty() || self.0.contains_key(id) {
-            return Err(Error::Eval("invalid or duplicate sandbox launcher".into()));
-        }
-        self.0.insert(id.into(), launcher);
-        Ok(())
-    }
-    /// Dispatches through the selected launcher without caller type dispatch.
-    pub fn launch(
+    /// Declares an exact resource destination without acquiring or mutating it.
+    /// The declaration is journaled before resource acquisition is invoked.
+    fn plan_reservation(
         &self,
-        id: &str,
-        request: &SandboxRequest,
-        cancellation: &ProcessCancellation,
+        _invocation: &SandboxInvocation,
+        _request: &SandboxRequest,
+        _cancellation: &ProcessCancellation,
+    ) -> std::result::Result<Datum, Box<SandboxRefusal>> {
+        Err(Box::new(SandboxRefusal {
+            launcher: self.id().into(),
+            reason: "reservation planning is unsupported".into(),
+            report: None,
+        }))
+    }
+    /// Acquires or reconciles only the exact durable reservation destination.
+    ///
+    /// Return only non-secret canonical correlation data. Retain live resource
+    /// authority independently of the caller, including after an error or lost
+    /// acknowledgement. Unsupported preparation refuses without direct launch.
+    fn prepare_reserved(
+        &self,
+        _invocation: &SandboxInvocation,
+        _request: &SandboxRequest,
+        _destination: &Datum,
+        _cancellation: &ProcessCancellation,
+    ) -> std::result::Result<Datum, Box<SandboxRefusal>> {
+        Err(Box::new(SandboxRefusal {
+            launcher: self.id().into(),
+            reason: "sandbox preparation is unsupported".into(),
+            report: None,
+        }))
+    }
+    /// Notifies the original owner of a failed lifecycle acknowledgement.
+    /// This failure notification is separate from payload release and from a
+    /// caller cancellation. Only the original owner can act on retained custody.
+    fn preparation_acknowledgement_failed(
+        &self,
+        _invocation: &SandboxInvocation,
+        _request: &SandboxRequest,
+        _cause: &sim_lib_operation_gate::OperationError,
+    ) -> std::result::Result<(), Box<SandboxRefusal>> {
+        Err(Box::new(SandboxRefusal {
+            launcher: self.id().into(),
+            reason: "original preparation failure disposition is unsupported".into(),
+            report: None,
+        }))
+    }
+    /// Releases an exactly bound reservation after its durable admission.
+    ///
+    /// Revalidate live authority, applicable fencing and cancellation before
+    /// release. A serialized binding alone grants no authority. Completion
+    /// includes the command's declared scratch cleanup under retained custody.
+    /// The default is unknown, never a fallback to direct launch.
+    fn launch_prepared(
+        &self,
+        _invocation: &SandboxInvocation,
+        _request: &SandboxRequest,
+        _binding: &Datum,
+        _cancellation: &ProcessCancellation,
+        _admission: &mut dyn sim_lib_operation_gate::PreparedReleaseAdmission,
     ) -> SandboxAttempt {
-        self.0.get(id).map_or_else(
-            || {
-                SandboxAttempt::Refused(SandboxRefusal {
-                    launcher: id.into(),
-                    reason: "sandbox launcher is not registered".into(),
-                    report: None,
-                })
-            },
-            |v| v.launch(request, cancellation),
-        )
+        SandboxAttempt::Unknown(SandboxRefusal {
+            launcher: self.id().into(),
+            reason: "prepared sandbox release is unsupported".into(),
+            report: None,
+        })
+    }
+    /// Disposes only this original cancelled preparation without payload release.
+    /// The caller supplies the accepted operation's sticky cancellation, not
+    /// new execution authority. Retain original resources through durable stop
+    /// intent, native quiescence and declared scratch cleanup. Missing custody,
+    /// an attempted gate write or uncertain disposition must refuse without retry.
+    /// Success is resource disposition only, never completed payload evidence.
+    /// The default preserves uncertainty and invokes no execution method.
+    fn cancel_prepared(
+        &self,
+        _invocation: &SandboxInvocation,
+        _request: &SandboxRequest,
+        _binding: &Datum,
+        _cancellation: &ProcessCancellation,
+    ) -> std::result::Result<(), Box<SandboxRefusal>> {
+        Err(Box::new(SandboxRefusal {
+            launcher: self.id().into(),
+            reason: "prepared cancellation disposition is unsupported".into(),
+            report: None,
+        }))
     }
 }
 /// Runs an untrusted request and rejects any completion lacking required proof.
@@ -344,6 +400,7 @@ pub fn sandbox_exec(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
     struct Fake(&'static str);
     impl SandboxLauncher for Fake {
         fn id(&self) -> &str {
@@ -414,12 +471,14 @@ mod tests {
                 .map(|c| (c, SandboxRequirement::Required)),
             vec![],
             SandboxLimits {
-                cpu_seconds: 1,
-                memory_bytes: 1,
+                cpu: crate::SandboxCpuLimit::PerProcessSeconds(1),
+                memory: crate::SandboxMemoryLimit::PerProcessAddressSpaceBytes(1),
                 wall_time_ms: 1,
                 process_count: 1,
-                file_count: 1,
-                file_bytes: 1,
+                filesystem: crate::SandboxFilesystemLimit::LogicalTree {
+                    entries: 1,
+                    bytes: 1,
+                },
                 output_bytes: 1,
                 stdin_bytes: 1,
             },
@@ -460,12 +519,14 @@ mod tests {
     #[test]
     fn hostile_paths_stdin_and_arguments_are_validated_without_shell_parsing() {
         let limits = SandboxLimits {
-            cpu_seconds: 1,
-            memory_bytes: 1,
+            cpu: crate::SandboxCpuLimit::PerProcessSeconds(1),
+            memory: crate::SandboxMemoryLimit::PerProcessAddressSpaceBytes(1),
             wall_time_ms: 1,
             process_count: 1,
-            file_count: 1,
-            file_bytes: 1,
+            filesystem: crate::SandboxFilesystemLimit::LogicalTree {
+                entries: 1,
+                bytes: 1,
+            },
             output_bytes: 1,
             stdin_bytes: 1,
         };

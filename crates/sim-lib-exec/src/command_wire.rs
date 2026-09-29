@@ -3,14 +3,15 @@
 use sim_kernel::{ContentId, Datum, NumberLiteral, Symbol};
 
 use crate::{
-    BindingValue, ProcessBudget, SandboxControl, SandboxRequirement, SealedBindings,
+    BindingValue, ProcessBudget, SandboxControl, SandboxCpuLimit, SandboxFilesystemLimit,
+    SandboxMemoryLimit, SandboxRequirement, SealedBindings,
     command::{
         CommandInvocation, CommandReplayPolicy, CommandResource, CommandRoute, NetworkAccess,
         OutputExpectation, OutputState, ResourceAccess,
     },
 };
 
-pub(super) fn node(tag: &str, fields: Vec<(&str, Datum)>) -> Datum {
+pub(crate) fn node(tag: &str, fields: Vec<(&str, Datum)>) -> Datum {
     Datum::Node {
         tag: Symbol::qualified("local-check", tag),
         fields: fields
@@ -19,7 +20,7 @@ pub(super) fn node(tag: &str, fields: Vec<(&str, Datum)>) -> Datum {
             .collect(),
     }
 }
-pub(super) fn id_datum(id: &ContentId) -> Datum {
+pub(crate) fn id_datum(id: &ContentId) -> Datum {
     node(
         "content-id-v1",
         vec![
@@ -34,7 +35,7 @@ pub(super) fn i64_datum(value: i64) -> Datum {
         canonical: value.to_string(),
     })
 }
-fn u64_datum(value: u64) -> Datum {
+pub(crate) fn u64_datum(value: u64) -> Datum {
     Datum::Number(NumberLiteral {
         domain: Symbol::qualified("numbers", "u64"),
         canonical: value.to_string(),
@@ -170,7 +171,7 @@ pub(super) fn route_datum(route: &CommandRoute) -> Datum {
     match route {
         CommandRoute::Process => Datum::Symbol(Symbol::qualified("command-route", "process")),
         CommandRoute::Sandbox { launcher, policy } => node(
-            "sandbox-route-v1",
+            "sandbox-route-v2",
             vec![
                 ("launcher", Datum::String(launcher.clone())),
                 (
@@ -225,19 +226,72 @@ pub(super) fn route_datum(route: &CommandRoute) -> Datum {
                 (
                     "limits",
                     node(
-                        "limits-v1",
+                        "limits-v2",
                         vec![
-                            ("cpu-seconds", u64_datum(policy.limits().cpu_seconds)),
-                            ("memory-bytes", u64_datum(policy.limits().memory_bytes)),
+                            ("cpu", cpu_limit_datum(policy.limits().cpu)),
+                            ("memory", memory_limit_datum(policy.limits().memory)),
                             ("wall-time-ms", u64_datum(policy.limits().wall_time_ms)),
                             ("process-count", u64_datum(policy.limits().process_count)),
-                            ("file-count", u64_datum(policy.limits().file_count)),
-                            ("file-bytes", u64_datum(policy.limits().file_bytes)),
+                            (
+                                "filesystem",
+                                filesystem_limit_datum(policy.limits().filesystem),
+                            ),
                             ("output-bytes", usize_datum(policy.limits().output_bytes)),
                             ("stdin-bytes", usize_datum(policy.limits().stdin_bytes)),
                         ],
                     ),
                 ),
+            ],
+        ),
+    }
+}
+fn cpu_limit_datum(limit: SandboxCpuLimit) -> Datum {
+    match limit {
+        SandboxCpuLimit::PerProcessSeconds(seconds) => node(
+            "cpu-per-process-time-v1",
+            vec![("seconds", u64_datum(seconds))],
+        ),
+        SandboxCpuLimit::Rate {
+            quota_us,
+            period_us,
+        } => node(
+            "cpu-aggregate-rate-v1",
+            vec![
+                ("quota-us", u64_datum(quota_us)),
+                ("period-us", u64_datum(period_us)),
+            ],
+        ),
+    }
+}
+fn memory_limit_datum(limit: SandboxMemoryLimit) -> Datum {
+    match limit {
+        SandboxMemoryLimit::PerProcessAddressSpaceBytes(bytes) => node(
+            "memory-per-process-address-space-v1",
+            vec![("bytes", u64_datum(bytes))],
+        ),
+        SandboxMemoryLimit::Charged { bytes, swap_bytes } => node(
+            "memory-aggregate-charge-v1",
+            vec![
+                ("bytes", u64_datum(bytes)),
+                ("swap-bytes", u64_datum(swap_bytes)),
+            ],
+        ),
+    }
+}
+fn filesystem_limit_datum(limit: SandboxFilesystemLimit) -> Datum {
+    match limit {
+        SandboxFilesystemLimit::LogicalTree { entries, bytes } => node(
+            "filesystem-logical-tree-v1",
+            vec![
+                ("entries", u64_datum(entries)),
+                ("logical-bytes", u64_datum(bytes)),
+            ],
+        ),
+        SandboxFilesystemLimit::Allocated { inodes, bytes } => node(
+            "filesystem-allocated-v1",
+            vec![
+                ("inodes", u64_datum(inodes)),
+                ("allocated-bytes", u64_datum(bytes)),
             ],
         ),
     }
@@ -251,7 +305,7 @@ pub(super) fn replay_datum(replay: CommandReplayPolicy) -> Datum {
         },
     ))
 }
-fn control_name(control: SandboxControl) -> &'static str {
+pub(crate) const fn control_name(control: SandboxControl) -> &'static str {
     match control {
         SandboxControl::Network => "network",
         SandboxControl::Mounts => "mounts",

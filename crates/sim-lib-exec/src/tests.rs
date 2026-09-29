@@ -170,6 +170,58 @@ fn only_not_dispatched_is_retryable() {
 }
 
 #[test]
+fn process_attempt_diagnostics_preserve_every_terminal_distinction() {
+    let completed = |exit, stderr: &str| ProcessAttempt::Completed {
+        receipt: ProcessReceipt {
+            provider: "fixture/process".into(),
+            elapsed_mono_ns: 7,
+            result: ProcResult {
+                stdout: "bounded output".into(),
+                stderr: stderr.into(),
+                exit_code: exit,
+                truncated: false,
+            },
+        },
+    };
+    let first = completed(2, "first failure").canonical_datum();
+    let second = completed(3, "second failure").canonical_datum();
+    assert_ne!(first, second);
+    assert_ne!(first.content_id().unwrap(), second.content_id().unwrap());
+
+    let timeout = ProcessAttempt::StoppedAfterTimeout {
+        receipt: StopReceipt {
+            provider: "fixture/process".into(),
+            elapsed_mono_ns: 9,
+            cleanup: "whole group reaped".into(),
+        },
+    }
+    .canonical_datum();
+    let cancellation = ProcessAttempt::StoppedAfterCancel {
+        receipt: StopReceipt {
+            provider: "fixture/process".into(),
+            elapsed_mono_ns: 9,
+            cleanup: "whole group reaped".into(),
+        },
+    }
+    .canonical_datum();
+    assert_ne!(timeout, cancellation);
+
+    let refused = ProcessAttempt::NotDispatched {
+        refusal: ProcessRefusal::SpawnFailed("native spawn failed".into()),
+    }
+    .canonical_datum();
+    let unknown = ProcessAttempt::UnknownAfterDispatch {
+        evidence: DispatchEvidence {
+            provider: "fixture/process".into(),
+            stage: "post-spawn".into(),
+            detail: "wait result unavailable".into(),
+        },
+    }
+    .canonical_datum();
+    assert_ne!(refused, unknown);
+}
+
+#[test]
 fn cancellation_token_is_shareable() {
     let token = ProcessCancellation::default();
     let other = token.clone();

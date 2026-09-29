@@ -1,4 +1,4 @@
-use sim_kernel::{CapabilityName, Cx, Error, Expr, NumberLiteral, Result, Symbol};
+use sim_kernel::{CapabilityName, Cx, Datum, Error, Expr, NumberLiteral, Result, Symbol};
 use std::{
     collections::BTreeMap,
     sync::{
@@ -211,6 +211,11 @@ pub struct ProcessRequest {
 #[derive(Clone, Debug, Default)]
 /// Cooperative cancellation token shared with the platform adapter.
 pub struct ProcessCancellation(Arc<AtomicBool>);
+impl sim_lib_operation_gate::CancellationSignal for ProcessCancellation {
+    fn request_stop(&self) {
+        self.cancel();
+    }
+}
 impl ProcessCancellation {
     /// Requests cancellation.
     pub fn cancel(&self) {
@@ -327,6 +332,103 @@ impl ProcessAttempt {
     pub fn automatically_retryable(&self) -> bool {
         matches!(self, Self::NotDispatched { .. })
     }
+
+    /// Returns the complete canonical diagnostic record for this exact attempt.
+    ///
+    /// This is evidence only: it grants no retry, cleanup, process, or resource
+    /// authority, and consumers must not infer semantic success from its shape.
+    #[must_use]
+    pub fn canonical_datum(&self) -> Datum {
+        match self {
+            Self::Completed { receipt } => process_node(
+                "process-attempt-completed-v1",
+                vec![
+                    process_field("provider", Datum::String(receipt.provider.clone())),
+                    process_field(
+                        "elapsed-monotonic-nanoseconds",
+                        Datum::String(receipt.elapsed_mono_ns.to_string()),
+                    ),
+                    process_field(
+                        "result",
+                        process_node(
+                            "process-result-v1",
+                            vec![
+                                process_field(
+                                    "stdout",
+                                    Datum::String(receipt.result.stdout.clone()),
+                                ),
+                                process_field(
+                                    "stderr",
+                                    Datum::String(receipt.result.stderr.clone()),
+                                ),
+                                process_field(
+                                    "exit",
+                                    Datum::String(receipt.result.exit_code.to_string()),
+                                ),
+                                process_field("truncated", Datum::Bool(receipt.result.truncated)),
+                            ],
+                        ),
+                    ),
+                ],
+            ),
+            Self::StoppedAfterTimeout { receipt } => stop_datum("timeout", receipt),
+            Self::StoppedAfterCancel { receipt } => stop_datum("cancellation", receipt),
+            Self::NotDispatched { refusal } => {
+                let (kind, detail) = match refusal {
+                    ProcessRefusal::Invalid(detail) => ("invalid", detail),
+                    ProcessRefusal::Refused(detail) => ("refused", detail),
+                    ProcessRefusal::SpawnFailed(detail) => ("spawn-failed", detail),
+                };
+                process_node(
+                    "process-attempt-not-dispatched-v1",
+                    vec![
+                        process_field(
+                            "kind",
+                            Datum::Symbol(Symbol::qualified("process-refusal", kind)),
+                        ),
+                        process_field("detail", Datum::String(detail.clone())),
+                    ],
+                )
+            }
+            Self::UnknownAfterDispatch { evidence } => process_node(
+                "process-attempt-unknown-after-dispatch-v1",
+                vec![
+                    process_field("provider", Datum::String(evidence.provider.clone())),
+                    process_field("stage", Datum::String(evidence.stage.clone())),
+                    process_field("detail", Datum::String(evidence.detail.clone())),
+                ],
+            ),
+        }
+    }
+}
+
+fn stop_datum(cause: &str, receipt: &StopReceipt) -> Datum {
+    process_node(
+        "process-attempt-stopped-v1",
+        vec![
+            process_field(
+                "cause",
+                Datum::Symbol(Symbol::qualified("process-stop", cause)),
+            ),
+            process_field("provider", Datum::String(receipt.provider.clone())),
+            process_field(
+                "elapsed-monotonic-nanoseconds",
+                Datum::String(receipt.elapsed_mono_ns.to_string()),
+            ),
+            process_field("cleanup", Datum::String(receipt.cleanup.clone())),
+        ],
+    )
+}
+
+fn process_node(name: &str, fields: Vec<(Symbol, Datum)>) -> Datum {
+    Datum::Node {
+        tag: Symbol::qualified("exec", name),
+        fields,
+    }
+}
+
+fn process_field(name: &str, value: Datum) -> (Symbol, Datum) {
+    (Symbol::new(name), value)
 }
 /// Runtime-owned seam implemented only by model and physical capsules.
 pub trait ProcessPort: Send + Sync {
@@ -349,7 +451,7 @@ pub fn exec(
         attempt => Err(Error::HostError(format!("exec attempt: {attempt:?}"))),
     }
 }
-fn checked_request(argv: &[String], options: &ExecOptions) -> Result<ProcessRequest> {
+pub(crate) fn checked_request(argv: &[String], options: &ExecOptions) -> Result<ProcessRequest> {
     if options.budget.timeout_ms == 0 {
         return Err(Error::Eval("exec requires a non-zero timeout_ms".into()));
     }

@@ -1,8 +1,18 @@
+// SPDX-License-Identifier: MPL-2.0
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 //! Exact, content-identified local checker command contracts.
 
 use std::{collections::BTreeSet, fmt};
 
 use sim_kernel::{CapabilityName, ContentId, Datum, Error, Result, Symbol};
+
+#[path = "command_decode.rs"]
+mod decode;
+#[path = "command_request_wire.rs"]
+pub(crate) mod request_wire;
 
 use crate::{
     ArgAtom, ProcessBudget, ProgramRef, ProjectRootRef, SandboxControl, SandboxPolicy,
@@ -134,6 +144,48 @@ pub struct CommandResource {
     pub guest_path: String,
     /// Exact access authority.
     pub access: ResourceAccess,
+}
+
+/// One exact input file materialized into the writable working root.
+///
+/// Before the command may run, its owner copies the bytes at `path` inside the
+/// declared read-only resource `resource` to `target` inside the command's
+/// writable working root. Both paths are canonical relative paths. The copy is
+/// part of the command identity; it is how an owned disposable checkout gets
+/// its exact inputs without granting the payload write access to the source.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct CheckoutFile {
+    /// Declared read-only resource holding the input.
+    pub resource: String,
+    /// Relative path of the input inside that resource.
+    pub path: String,
+    /// Relative path of the copy inside the writable working root.
+    pub target: String,
+}
+
+/// Largest number of files one command checkout may materialize.
+pub const MAX_CHECKOUT_FILES: usize = 16;
+
+/// Declares that an interpreter command's script is one field of an owner
+/// manifest held in a declared read-only resource.
+///
+/// The manifest at `path` is a table of entries; the entry in array `table`
+/// whose `name` key equals `name` has a string `field` whose exact bytes are
+/// the command's script. The selection is part of the command identity, and
+/// the owner that runs the command proves the equality from the pinned
+/// manifest before execution.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ManifestSelection {
+    /// Declared read-only resource holding the manifest.
+    pub resource: String,
+    /// Relative path of the manifest inside that resource.
+    pub path: String,
+    /// Array of entries inside the manifest, for example `repo`.
+    pub table: String,
+    /// Value of the selected entry's `name` key.
+    pub name: String,
+    /// String field holding the script, for example `validation_command`.
+    pub field: String,
 }
 
 /// Expected state of one declared output path after execution.
@@ -312,6 +364,8 @@ pub struct CommandSpec {
     network: NetworkAccess,
     route: CommandRoute,
     replay: CommandReplayPolicy,
+    checkout: Vec<CheckoutFile>,
+    manifest: Option<ManifestSelection>,
 }
 
 impl CommandSpec {
@@ -445,6 +499,8 @@ impl CommandSpec {
             network,
             route,
             replay,
+            checkout: Vec::new(),
+            manifest: None,
         };
         value.id = CommandId(
             value
@@ -502,31 +558,206 @@ impl CommandSpec {
     pub const fn replay(&self) -> CommandReplayPolicy {
         self.replay
     }
+    /// Returns the exact input files materialized before execution.
+    pub fn checkout(&self) -> &[CheckoutFile] {
+        &self.checkout
+    }
+    /// Returns the owner manifest field this command's script must equal.
+    pub const fn manifest(&self) -> Option<&ManifestSelection> {
+        self.manifest.as_ref()
+    }
+    /// Binds the interpreter script to one owner manifest field and
+    /// re-derives the command identity.
+    ///
+    /// # Errors
+    /// Refuses a repeated selection, a non-interpreter command, a manifest
+    /// resource that is not declared read-only, a non-canonical path, and a
+    /// table, name or field that is empty, oversized or not a plain key.
+    pub fn with_manifest_selection(mut self, selection: ManifestSelection) -> Result<Self> {
+        if self.manifest.is_some() {
+            return Err(Error::Eval("command manifest is already selected".into()));
+        }
+        if !matches!(self.invocation, CommandInvocation::Interpreter { .. }) {
+            return Err(Error::Eval(
+                "only an interpreter command takes its script from a manifest".into(),
+            ));
+        }
+        let read_only = self.resources.iter().any(|resource| {
+            resource.source == selection.resource && resource.access == ResourceAccess::ReadOnly
+        });
+        let plain = |value: &str| {
+            !value.is_empty()
+                && value.len() <= 128
+                && value
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.'))
+        };
+        if !read_only
+            || !canonical_relative_path(&selection.path)
+            || !plain(&selection.table)
+            || !plain(&selection.name)
+            || !plain(&selection.field)
+        {
+            return Err(Error::Eval("invalid command manifest selection".into()));
+        }
+        self.manifest = Some(selection);
+        self.id = CommandId(
+            self.canonical_without_id()
+                .content_id()
+                .map_err(|_| Error::Eval("command specification is not canonical".into()))?,
+        );
+        Ok(self)
+    }
+    /// Adds an exact input checkout and re-derives the command identity.
+    ///
+    /// # Errors
+    /// Refuses an empty or oversized checkout, a repeated selection, a source
+    /// that is not a declared read-only resource, a working root that is not a
+    /// declared writable resource, a duplicate target, and any path that is not
+    /// a canonical relative path.
+    pub fn with_checkout(mut self, files: Vec<CheckoutFile>) -> Result<Self> {
+        if !self.checkout.is_empty() {
+            return Err(Error::Eval("command checkout is already selected".into()));
+        }
+        if files.is_empty() || files.len() > MAX_CHECKOUT_FILES {
+            return Err(Error::Eval("command checkout size is not finite".into()));
+        }
+        let access = |name: &str| {
+            self.resources
+                .iter()
+                .find(|resource| resource.source == name)
+                .map(|resource| resource.access)
+        };
+        if access(self.root.as_str()) != Some(ResourceAccess::Writable) {
+            return Err(Error::Eval(
+                "command checkout requires a writable working root".into(),
+            ));
+        }
+        let mut targets = BTreeSet::new();
+        for file in &files {
+            // `.sim-` names are reserved for the owner's own scratch records,
+            // such as its acceptance canary and atomic-replace temporaries.
+            let reserved = file.target.split('/').any(|part| part.starts_with(".sim-"));
+            if access(&file.resource) != Some(ResourceAccess::ReadOnly)
+                || !canonical_relative_path(&file.path)
+                || !canonical_relative_path(&file.target)
+                || reserved
+                || !targets.insert(file.target.as_str())
+            {
+                return Err(Error::Eval(
+                    "invalid or duplicate command checkout file".into(),
+                ));
+            }
+        }
+        // A target may not be a directory of another target.
+        if targets.iter().any(|left| {
+            targets.iter().any(|right| {
+                right
+                    .strip_prefix(left)
+                    .is_some_and(|suffix| suffix.starts_with('/'))
+            })
+        }) {
+            return Err(Error::Eval("command checkout targets are nested".into()));
+        }
+        // An output of the working root must be a target itself or unrelated to
+        // every target: a directory above or a path inside a target could never
+        // hold the absent or copied pre-image the owner must record.
+        let nested = |left: &str, right: &str| {
+            right
+                .strip_prefix(left)
+                .is_some_and(|suffix| suffix.starts_with('/'))
+        };
+        if self.outputs.outputs().iter().any(|output| {
+            output.resource == self.root.as_str()
+                && targets.iter().any(|target| {
+                    nested(&output.relative_path, target) || nested(target, &output.relative_path)
+                })
+        }) {
+            return Err(Error::Eval(
+                "command output lies above or inside a checkout target".into(),
+            ));
+        }
+        let mut files = files;
+        files.sort();
+        self.checkout = files;
+        self.id = CommandId(
+            self.canonical_without_id()
+                .content_id()
+                .map_err(|_| Error::Eval("command specification is not canonical".into()))?,
+        );
+        Ok(self)
+    }
     /// Returns the canonical semantic command specification.
     pub fn canonical_datum(&self) -> Datum {
         self.canonical_without_id()
     }
     fn canonical_without_id(&self) -> Datum {
-        node(
-            "command-spec-v1",
-            vec![
-                ("program", Datum::String(self.program.as_str().into())),
-                ("root", Datum::String(self.root.as_str().into())),
-                ("invocation", invocation_datum(&self.invocation)),
-                ("environment", environment_datum(&self.environment)),
-                (
-                    "resources",
-                    Datum::Vector(self.resources.iter().map(resource_datum).collect()),
-                ),
-                ("budget", budget_datum(&self.budget)),
-                ("outputs", self.outputs.canonical_datum()),
-                ("cleanup", self.cleanup.canonical_datum()),
-                ("network", network_datum(&self.network)),
-                ("route", route_datum(&self.route)),
-                ("replay", replay_datum(self.replay)),
-            ],
-        )
+        let mut fields = vec![
+            ("program", Datum::String(self.program.as_str().into())),
+            ("root", Datum::String(self.root.as_str().into())),
+            ("invocation", invocation_datum(&self.invocation)),
+            ("environment", environment_datum(&self.environment)),
+            (
+                "resources",
+                Datum::Vector(self.resources.iter().map(resource_datum).collect()),
+            ),
+            ("budget", budget_datum(&self.budget)),
+            ("outputs", self.outputs.canonical_datum()),
+            ("cleanup", self.cleanup.canonical_datum()),
+            ("network", network_datum(&self.network)),
+            ("route", route_datum(&self.route)),
+            ("replay", replay_datum(self.replay)),
+        ];
+        // A command without a checkout or manifest keeps its original v1 identity.
+        if self.checkout.is_empty() && self.manifest.is_none() {
+            return node("command-spec-v1", fields);
+        }
+        fields.push((
+            "checkout",
+            Datum::Vector(self.checkout.iter().map(checkout_datum).collect()),
+        ));
+        fields.push((
+            "manifest",
+            self.manifest.as_ref().map_or(Datum::Nil, manifest_datum),
+        ));
+        node("command-spec-v2", fields)
     }
+}
+
+fn checkout_datum(file: &CheckoutFile) -> Datum {
+    node(
+        "checkout-file-v1",
+        vec![
+            ("resource", Datum::String(file.resource.clone())),
+            ("path", Datum::String(file.path.clone())),
+            ("target", Datum::String(file.target.clone())),
+        ],
+    )
+}
+
+fn manifest_datum(selection: &ManifestSelection) -> Datum {
+    node(
+        "manifest-selection-v1",
+        vec![
+            ("resource", Datum::String(selection.resource.clone())),
+            ("path", Datum::String(selection.path.clone())),
+            ("table", Datum::String(selection.table.clone())),
+            ("name", Datum::String(selection.name.clone())),
+            ("field", Datum::String(selection.field.clone())),
+        ],
+    )
+}
+
+pub(crate) fn canonical_relative_path(path: &str) -> bool {
+    !path.is_empty()
+        && path.len() <= 1024
+        && !path.starts_with('/')
+        && !path
+            .bytes()
+            .any(|byte| byte == 0 || byte.is_ascii_control())
+        && path
+            .split('/')
+            .all(|part| !part.is_empty() && part != "." && part != "..")
 }
 
 /// Capability-scoped request naming only an installed allowlist entry.
@@ -542,6 +773,9 @@ pub struct LocalCheckRequest {
 /// Explicit bounded lease request supplied to a local checker port.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LocalCheckLease {
+    /// Explicit clock epoch and units for both bounds; absence selects unscoped execution.
+    /// A native checker compares this value with its boot-selected clock.
+    pub clock: Option<Datum>,
     /// Stable holder identity.
     pub holder: Datum,
     /// Inclusive caller-supplied monotonic acquisition tick.
