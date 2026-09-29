@@ -318,6 +318,51 @@ fn checkout_requires_a_writable_working_root() {
     );
 }
 
+#[test]
+fn checkout_requires_a_disposable_scratch_working_root() {
+    // Writable but not named in the cleanup contract's scratch resources: a
+    // checkout command's working root must be scratch that cleanup empties
+    // before independent observation (see retained_output_image's doc
+    // comment), so a writable-but-not-scratch root must still be refused.
+    let command = CommandSpec::new(
+        ProgramRef::new("formatter").unwrap(),
+        ProjectRootRef::new("other-work").unwrap(),
+        CommandInvocation::Argv(vec![]),
+        SealedBindings::empty(),
+        vec![
+            CommandResource {
+                source: "work".into(),
+                guest_path: "/work".into(),
+                access: ResourceAccess::Writable,
+            },
+            CommandResource {
+                source: "other-work".into(),
+                guest_path: "/other-work".into(),
+                access: ResourceAccess::Writable,
+            },
+            CommandResource {
+                source: "owner-source".into(),
+                guest_path: "/source".into(),
+                access: ResourceAccess::ReadOnly,
+            },
+        ],
+        budget(),
+        OutputContract::new([0], vec![]).unwrap(),
+        // Only "work" is disposable scratch; "other-work" is writable but
+        // never emptied by cleanup.
+        CleanupContract::process_group(["work".into()]).unwrap(),
+        NetworkAccess::Scoped(CapabilityName::new("network/none-used")),
+        CommandRoute::Process,
+        CommandReplayPolicy::ExactlyOnce,
+    )
+    .unwrap();
+    assert!(
+        command
+            .with_checkout(vec![seed("lib.rs", "src/lib.rs")])
+            .is_err()
+    );
+}
+
 fn manifest_command(script: &[u8]) -> CommandSpec {
     CommandSpec::new(
         ProgramRef::new("owner-shell").unwrap(),

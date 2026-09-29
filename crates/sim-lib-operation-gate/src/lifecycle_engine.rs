@@ -277,6 +277,7 @@ impl<B: JournalBackend> OperationLifecycle<B> {
             Some(reservation) => Some(performer.prepare_reserved(&dispatch, reservation)?),
             None => performer.prepare(&dispatch)?,
         };
+        let is_direct_perform = binding.is_none();
         let response = if let Some(binding) = binding {
             let acknowledged = (|| {
                 let preparation = LifecyclePreparation::new(dispatch.id().clone(), binding)?
@@ -324,10 +325,23 @@ impl<B: JournalBackend> OperationLifecycle<B> {
                 .find(|value| value.dispatch() == dispatch.id())
                 .map(|value| value.id().clone());
             let receipt = LifecycleReceipt::new(dispatch.id().clone(), raw, release)?;
-            self.append(
-                "lifecycle-receipt-persisted",
-                vec![receipt.canonical_datum()],
-            )?;
+            // The prepared path's own release admission already re-checked
+            // lease liveness atomically at commit time; the direct
+            // (unprepared) path never did, so it needs the same guard here,
+            // right before this operation's effect is durably recorded as
+            // having actually completed.
+            if is_direct_perform {
+                self.append_gated(
+                    "lifecycle-receipt-persisted",
+                    vec![receipt.canonical_datum()],
+                    &operation_lease,
+                )?;
+            } else {
+                self.append(
+                    "lifecycle-receipt-persisted",
+                    vec![receipt.canonical_datum()],
+                )?;
+            }
         }
         let updated = self
             .record(intent.id())?
@@ -337,6 +351,19 @@ impl<B: JournalBackend> OperationLifecycle<B> {
             PostconditionResponse::Satisfied { .. } => OperationOutcome::Verified {
                 evidence: observation.evidence.clone(),
             },
+            // A negative postcondition is not a resource-disposition proof
+            // (same rule the recovery path above already applies): a
+            // preparation or reservation this dispatch created may not have
+            // reached release admission, so treating it as a terminal
+            // Diverged here would strand it rather than let later
+            // custody-backed reconciliation resolve it.
+            PostconditionResponse::NotSatisfied { .. }
+                if !updated.reservations().is_empty() || !updated.preparations().is_empty() =>
+            {
+                OperationOutcome::Uncertain {
+                    last_durable_step: OperationStep::ObservationPersisted,
+                }
+            }
             PostconditionResponse::NotSatisfied { observed, .. } => OperationOutcome::Diverged {
                 observed: observed.clone(),
                 expected: intent.intended_result().clone(),
@@ -490,5 +517,63 @@ impl<B: JournalBackend> OperationLifecycle<B> {
         self.journal
             .publish(lease, expected.as_ref(), objects, vec![entry])?;
         Ok(())
+    }
+
+    /// Same durable write as [`Self::append`], but only for the direct
+    /// (unprepared) perform path: the write still commits either way (the
+    /// journal is append-only and this is not resource-disposition proof
+    /// either), but the operation lease's liveness is re-checked atomically
+    /// at actual commit time, not merely at accept time, matching the same
+    /// [`crate::lifecycle_release::PreparedAdmission::admit`] rule the
+    /// guarded prepared-release path already applies. `operation_lease` is
+    /// this call's own semantic lease, distinct from `self.lease` (the
+    /// journal-fencing writer lease used for the write itself). When no
+    /// engine clock is configured this degrades to a plain [`Self::append`],
+    /// the same no-clock convention [`Self::observe`] already uses -- there
+    /// is nothing to gate against, not a refusal condition.
+    pub(super) fn append_gated(
+        &self,
+        kind: &'static str,
+        datums: Vec<Datum>,
+        operation_lease: &OperationLease,
+    ) -> Result<(), OperationError> {
+        let Some(clock) = self.clock.as_deref() else {
+            return self.append(kind, datums);
+        };
+        let writer = self.lease.as_ref().ok_or(OperationError::NotResumed)?;
+        let objects = datums
+            .into_iter()
+            .map(JournalObject::from_datum)
+            .collect::<Result<Vec<_>, _>>()?;
+        let payloads = objects.iter().map(|object| object.id.clone()).collect();
+        let snapshot = self.journal.verified_snapshot()?;
+        let expected = snapshot.head().cloned();
+        let sequence = expected
+            .as_ref()
+            .map_or(Some(0), |head| head.sequence.checked_add(1))
+            .ok_or(OperationError::SequenceExhausted)?;
+        let entry = JournalEntry::new(
+            sequence,
+            expected.as_ref().map(|head| head.entry.clone()),
+            Symbol::qualified("operation", kind),
+            payloads,
+        );
+        crate::lifecycle_project::validate_extension(&snapshot, &entry, &objects)?;
+        let mut refusal = None;
+        let mut gate = || match clock.read() {
+            Ok(reading)
+                if crate::operation_wire::same_optional_datum(
+                    Some(&reading.domain),
+                    operation_lease.clock(),
+                ) && operation_lease.is_live_at(reading.tick) => {}
+            Ok(_) => refusal = Some(OperationError::InvalidLease),
+            Err(error) => refusal = Some(error),
+        };
+        self.journal
+            .publish_then(writer, expected.as_ref(), objects, vec![entry], &mut gate)?;
+        match refusal {
+            Some(error) => Err(error),
+            None => Ok(()),
+        }
     }
 }

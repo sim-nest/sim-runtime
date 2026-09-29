@@ -247,3 +247,56 @@ fn outcome_must_name_the_exact_observation_it_consumes() {
         ))
     ));
 }
+
+#[test]
+fn a_negative_postcondition_after_release_is_uncertain_not_diverged() {
+    // A negative postcondition is not a resource-disposition proof (the same
+    // rule the recovery path already applies to an existing record): a
+    // preparation or reservation this dispatch created may not have reached
+    // release admission by the time it is independently observed, so a
+    // terminal Diverged here would strand custody rather than let
+    // reconciliation resolve it. This exercises the fresh-dispatch path
+    // (not resume), immediately after perform_prepared, not a later replay.
+    struct AlwaysNotSatisfied;
+    impl PostconditionObserver for AlwaysNotSatisfied {
+        fn identity(&self) -> Datum {
+            Datum::String("fixture/always-not-satisfied-observer".into())
+        }
+        fn observe(&mut self, _: &PostconditionRequest) -> PostconditionResponse {
+            PostconditionResponse::NotSatisfied {
+                observed: Datum::Nil,
+                evidence: Datum::Nil,
+            }
+        }
+    }
+    let backend = Arc::new(CrashBackend::default());
+    let (intent, grant) = fixture(ReplayPolicy::ExactlyOnce);
+    let (mut performer, _) = prepared_ports(backend.clone());
+    let outcome = prepared_lifecycle(backend.clone())
+        .run(
+            &intent,
+            &grant,
+            clock_window("holder/a", 10, 20),
+            &mut performer,
+            &mut AlwaysNotSatisfied,
+        )
+        .unwrap();
+    assert!(
+        matches!(outcome, OperationOutcome::Uncertain { .. }),
+        "a completed release must not be sealed Diverged on a negative postcondition: {outcome:?}"
+    );
+    assert_eq!(
+        performer.releases.load(Ordering::SeqCst),
+        1,
+        "the release genuinely admitted, proving this is not simply the no-custody case"
+    );
+    let record = prepared_lifecycle(backend)
+        .record(intent.id())
+        .unwrap()
+        .unwrap();
+    assert!(
+        matches!(record.outcome(), Some(OperationOutcome::Uncertain { .. })),
+        "the Uncertain outcome itself must be durably persisted, not just returned: {:?}",
+        record.outcome()
+    );
+}

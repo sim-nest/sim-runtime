@@ -261,3 +261,59 @@ fn retained_prepared_success_without_release_never_projects_or_returns_cached_su
     ));
     assert_eq!(performer.releases.load(Ordering::SeqCst), 0);
 }
+
+#[test]
+fn direct_perform_refuses_a_receipt_after_lease_expiry() {
+    // The prepared path's admission already re-checks lease liveness
+    // atomically at release-commit time (see the expiry_after_preparation_*
+    // test in preparation_tests.rs). The direct (unprepared) path -- no
+    // preparation, no reservation -- must apply the same rule at its own
+    // commit point (the receipt), not only validate the window once at
+    // accept time.
+    struct ExpiringPerformer;
+    impl LifecyclePerformer for ExpiringPerformer {
+        fn identity(&self) -> Datum {
+            Datum::String("fixture/expiring-direct-performer".into())
+        }
+        fn perform(&mut self, _: &FencedDispatch) -> LifecyclePerformerResponse {
+            CLOCK_TICK.set(20);
+            LifecyclePerformerResponse::Receipt(Datum::String("fixture/late-payload".into()))
+        }
+    }
+    // Not-satisfied throughout: the pre-dispatch check (before performer.perform
+    // ever runs) needs a real, non-panicking response too, since every call
+    // observes once before attempting dispatch.
+    struct NeverSatisfied;
+    impl PostconditionObserver for NeverSatisfied {
+        fn identity(&self) -> Datum {
+            Datum::String("fixture/never-satisfied-observer".into())
+        }
+        fn observe(&mut self, _: &PostconditionRequest) -> PostconditionResponse {
+            PostconditionResponse::NotSatisfied {
+                observed: Datum::Nil,
+                evidence: Datum::Nil,
+            }
+        }
+    }
+    let backend = Arc::new(CrashBackend::default());
+    let (intent, grant) = fixture(ReplayPolicy::ExactlyOnce);
+    let result = prepared_lifecycle(backend.clone()).run(
+        &intent,
+        &grant,
+        clock_window("holder/a", 10, 20),
+        &mut ExpiringPerformer,
+        &mut NeverSatisfied,
+    );
+    assert!(
+        matches!(result, Err(OperationError::InvalidLease)),
+        "expired direct-perform receipt admitted: {result:?}"
+    );
+    let record = prepared_lifecycle(backend)
+        .record(intent.id())
+        .unwrap()
+        .unwrap();
+    assert!(
+        record.outcome().is_none(),
+        "no outcome may be finalized from a refused commit"
+    );
+}

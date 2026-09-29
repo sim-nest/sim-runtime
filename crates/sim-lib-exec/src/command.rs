@@ -613,8 +613,9 @@ impl CommandSpec {
     /// # Errors
     /// Refuses an empty or oversized checkout, a repeated selection, a source
     /// that is not a declared read-only resource, a working root that is not a
-    /// declared writable resource, a duplicate target, and any path that is not
-    /// a canonical relative path.
+    /// declared writable resource, a working root that is not disposable
+    /// cleanup scratch, a duplicate target, and any path that is not a
+    /// canonical relative path.
     pub fn with_checkout(mut self, files: Vec<CheckoutFile>) -> Result<Self> {
         if !self.checkout.is_empty() {
             return Err(Error::Eval("command checkout is already selected".into()));
@@ -631,6 +632,15 @@ impl CommandSpec {
         if access(self.root.as_str()) != Some(ResourceAccess::Writable) {
             return Err(Error::Eval(
                 "command checkout requires a writable working root".into(),
+            ));
+        }
+        if !self
+            .cleanup
+            .scratch_resources()
+            .contains(self.root.as_str())
+        {
+            return Err(Error::Eval(
+                "command checkout requires its working root to be disposable scratch".into(),
             ));
         }
         let mut targets = BTreeSet::new();
