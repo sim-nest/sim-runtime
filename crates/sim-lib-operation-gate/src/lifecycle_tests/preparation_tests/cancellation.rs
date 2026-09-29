@@ -327,3 +327,63 @@ fn cancellation_is_reachable_while_performer_blocks_after_release() {
         OperationOutcome::Verified { .. }
     ));
 }
+
+#[test]
+fn direct_perform_cancelled_mid_flight_is_uncertain_not_diverged() {
+    // A negative postcondition is not a resource-disposition proof: a
+    // durable cancellation requested during the direct (no preparation, no
+    // reservation) performer's own perform() call, landing before the
+    // outcome is decided, must not seal Diverged -- the recovery path
+    // already treats this exact durable fact as Uncertain for an existing
+    // record; the fresh-dispatch path must match it, with no custody
+    // involved at all, proving this is the cancellation check specifically.
+    struct CancellingPerformer {
+        control: CancellationHandle<CrashBackend>,
+    }
+    impl LifecyclePerformer for CancellingPerformer {
+        fn identity(&self) -> Datum {
+            Datum::String("fixture/cancelling-direct-performer".into())
+        }
+        fn perform(&mut self, _: &FencedDispatch) -> LifecyclePerformerResponse {
+            self.control.request(reason()).unwrap();
+            LifecyclePerformerResponse::Receipt(Datum::String("fixture/raced-payload".into()))
+        }
+    }
+    struct NeverSatisfied;
+    impl PostconditionObserver for NeverSatisfied {
+        fn identity(&self) -> Datum {
+            Datum::String("fixture/never-satisfied-observer".into())
+        }
+        fn observe(&mut self, _: &PostconditionRequest) -> PostconditionResponse {
+            PostconditionResponse::NotSatisfied {
+                observed: Datum::Nil,
+                evidence: Datum::Nil,
+            }
+        }
+    }
+    let backend = Arc::new(CrashBackend::default());
+    let (intent, grant) = fixture(ReplayPolicy::ExactlyOnce);
+    let lifecycle = prepared_lifecycle(backend.clone());
+    let accepted = lifecycle
+        .accept(&intent, &grant, clock_window("holder/a", 10, 20))
+        .unwrap();
+    let control = accepted
+        .cancellation_handle(Arc::new(Stop::default()))
+        .unwrap();
+    let outcome = accepted
+        .run(&mut CancellingPerformer { control }, &mut NeverSatisfied)
+        .unwrap();
+    assert!(
+        matches!(outcome, OperationOutcome::Uncertain { .. }),
+        "a cancellation that raced with a direct perform must not be sealed Diverged: {outcome:?}"
+    );
+    let record = lifecycle.record(intent.id()).unwrap().unwrap();
+    assert!(record.cancellation().is_some());
+    assert!(record.reservations().is_empty());
+    assert!(record.preparations().is_empty());
+    assert!(
+        matches!(record.outcome(), Some(OperationOutcome::Uncertain { .. })),
+        "the Uncertain outcome itself must be durably persisted: {:?}",
+        record.outcome()
+    );
+}

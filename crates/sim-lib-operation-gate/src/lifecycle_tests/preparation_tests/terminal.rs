@@ -300,3 +300,87 @@ fn a_negative_postcondition_after_release_is_uncertain_not_diverged() {
         record.outcome()
     );
 }
+
+#[test]
+fn projector_refuses_a_diverged_outcome_over_unresolved_custody() {
+    // The engine itself now never produces Diverged when a reservation,
+    // preparation, or cancellation is unresolved (see
+    // a_negative_postcondition_after_release_is_uncertain_not_diverged
+    // above). This proves the SAME rule independently at the projection
+    // layer: raw journal storage is policy-neutral, so a canonical
+    // extension claiming Diverged over the identical durable facts must be
+    // rejected on its own, not merely because the engine happens not to
+    // write one.
+    struct AlwaysNotSatisfied;
+    impl PostconditionObserver for AlwaysNotSatisfied {
+        fn identity(&self) -> Datum {
+            Datum::String("fixture/always-not-satisfied-observer".into())
+        }
+        fn observe(&mut self, _: &PostconditionRequest) -> PostconditionResponse {
+            PostconditionResponse::NotSatisfied {
+                observed: Datum::Nil,
+                evidence: Datum::Nil,
+            }
+        }
+    }
+    let backend = Arc::new(CrashBackend::default());
+    let (intent, grant) = fixture(ReplayPolicy::ExactlyOnce);
+    let (mut performer, _) = prepared_ports(backend.clone());
+    let outcome = prepared_lifecycle(backend.clone())
+        .run(
+            &intent,
+            &grant,
+            clock_window("holder/b", 10, 20),
+            &mut performer,
+            &mut AlwaysNotSatisfied,
+        )
+        .unwrap();
+    assert!(matches!(outcome, OperationOutcome::Uncertain { .. }));
+    assert_eq!(performer.releases.load(Ordering::SeqCst), 1);
+    let snapshot = Journal::new(backend).verified_snapshot().unwrap();
+    // The engine wrote Uncertain as its last entry; cut it to reach the
+    // same prefix state (release admitted, observation NotSatisfied, no
+    // outcome yet) that a hostile or buggy writer would also start from.
+    let cut = snapshot.entries().len() - 1;
+    let prefix_entries = snapshot.entries()[..cut].to_vec();
+    let ids = prefix_entries
+        .iter()
+        .flat_map(|entry| entry.payloads.iter())
+        .collect::<std::collections::BTreeSet<_>>();
+    let objects = ids
+        .into_iter()
+        .map(|id| JournalObject::from_datum(snapshot.datum(id).unwrap().clone()).unwrap())
+        .collect();
+    let journal = Journal::new(MemoryBackend::new());
+    let lease = journal.acquire_lease().unwrap();
+    journal
+        .publish(&lease, None, objects, prefix_entries)
+        .unwrap();
+    let prefix = journal.verified_snapshot().unwrap();
+    let record = project_verified_lifecycle_records(&prefix)
+        .unwrap()
+        .remove(intent.id())
+        .unwrap();
+    assert!(
+        !record.reservations().is_empty() || !record.preparations().is_empty(),
+        "fixture must retain genuine unresolved custody, or this test proves nothing"
+    );
+    let forged = crate::lifecycle_record::IdentifiedOutcome::new(
+        intent.id().clone(),
+        record.observations().last().unwrap().id().clone(),
+        OperationOutcome::Diverged {
+            observed: Datum::Nil,
+            expected: intent.intended_result().clone(),
+        },
+    )
+    .unwrap();
+    let (entry, objects) = extension(
+        &prefix,
+        "lifecycle-outcome-persisted",
+        &[forged.canonical_datum()],
+    );
+    assert!(matches!(
+        project_verified_lifecycle_extension(&prefix, &entry, &objects),
+        Err(OperationError::InvalidTransition(_))
+    ));
+}

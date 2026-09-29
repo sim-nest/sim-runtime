@@ -571,7 +571,18 @@ fn project_entries<'a>(
                             observed: observation_value,
                             ..
                         } if crate::operation_wire::same_datum(observation_value, observed)
-                    ) =>
+                    )
+                        // A negative postcondition is not a resource-disposition
+                        // proof: unresolved custody (a reservation, a
+                        // preparation) or a durable cancellation makes a
+                        // sealed Diverged invalid regardless of value
+                        // agreement, matching the engine's own rule for
+                        // producing this outcome in the first place. This is
+                        // enforced again here, independent of the engine, so
+                        // no canonical extension can claim it either.
+                        || record.cancellation.is_some()
+                        || !record.reservations.is_empty()
+                        || !record.preparations.is_empty() =>
                 {
                     return Err(OperationError::InvalidTransition(
                         "diverged expected value mismatch",

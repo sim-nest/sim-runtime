@@ -347,18 +347,28 @@ impl<B: JournalBackend> OperationLifecycle<B> {
             .record(intent.id())?
             .expect("lifecycle remains present");
         let observation = self.observe(&updated, &performer_identity, &window, observer)?;
+        // Re-read after observation, not the `updated` snapshot from before
+        // it: cancellation (durable, via the observer or a concurrent
+        // caller) or a late reservation/preparation admission can land while
+        // `observe` runs, and this decision must see that, not a stale read.
+        let current = self
+            .record(intent.id())?
+            .expect("lifecycle remains present");
         let outcome = match observation.response() {
             PostconditionResponse::Satisfied { .. } => OperationOutcome::Verified {
                 evidence: observation.evidence.clone(),
             },
             // A negative postcondition is not a resource-disposition proof
-            // (same rule the recovery path above already applies): a
-            // preparation or reservation this dispatch created may not have
-            // reached release admission, so treating it as a terminal
-            // Diverged here would strand it rather than let later
-            // custody-backed reconciliation resolve it.
+            // (same rule the recovery path above already applies): custody
+            // this dispatch created (a reservation, a preparation) or a
+            // durable cancellation may not have reached final resolution,
+            // so treating it as a terminal Diverged here would strand it
+            // rather than let later custody-backed reconciliation resolve
+            // it.
             PostconditionResponse::NotSatisfied { .. }
-                if !updated.reservations().is_empty() || !updated.preparations().is_empty() =>
+                if current.cancellation().is_some()
+                    || !current.reservations().is_empty()
+                    || !current.preparations().is_empty() =>
             {
                 OperationOutcome::Uncertain {
                     last_durable_step: OperationStep::ObservationPersisted,
