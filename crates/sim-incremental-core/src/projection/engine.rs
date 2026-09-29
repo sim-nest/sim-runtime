@@ -3,12 +3,19 @@ use std::{
     sync::Arc,
 };
 
+use sim_conformance_core::{
+    LiveCheckerAuthority, LiveCheckerOwner, LiveCheckerReceipt, OwnerBindingId,
+};
 use sim_kernel::{ContentId, Datum, Symbol};
 
 use super::{
     ConfinementEvidence, FederatedClosure, MediatedAccessWitness, ProjectionDigest,
     ProjectionError, ProjectionKindRef, ProjectionProvider, ProjectionResult, ProjectionSpec,
-    ProjectorPolicy, ProjectorQualification, admission::content_id_datum, admission::policy_id,
+    ProjectorPolicy, ProjectorQualification, QualificationError,
+    admission::{
+        NativeSourceEvidence, ProjectorQualificationVerifier, bootstrap_native_source,
+        content_id_datum, policy_id,
+    },
 };
 
 /// Port used to validate a provider configuration through its declared Shape.
@@ -26,6 +33,21 @@ pub struct ProjectionRegistry {
 struct RegisteredProvider {
     identity: super::PackageIdentity,
     provider: Arc<dyn ProjectionProvider>,
+    bootstrap: Option<BootstrapAdmission>,
+}
+
+/// This registry's own live checker owner and dependency identity for one
+/// bootstrap-admitted provider. Never exposed: a caller can only reach it
+/// indirectly, through [`ProjectionRegistry::qualification_for`], which
+/// re-verifies it fresh on every call and hands back an opaque
+/// [`ProjectorQualification`] -- never the owner, authority, or receipt
+/// themselves.
+struct BootstrapAdmission {
+    #[allow(dead_code)] // kept alive: authority/receipt are weak handles into it
+    owner: LiveCheckerOwner,
+    authority: LiveCheckerAuthority,
+    receipt: LiveCheckerReceipt,
+    dependencies: ContentId,
 }
 
 impl ProjectionRegistry {
@@ -44,12 +66,86 @@ impl ProjectionRegistry {
         let kind = provider.kind().clone();
         if self
             .providers
-            .insert(kind.clone(), RegisteredProvider { identity, provider })
+            .insert(
+                kind.clone(),
+                RegisteredProvider {
+                    identity,
+                    provider,
+                    bootstrap: None,
+                },
+            )
             .is_some()
         {
             return Err(ProjectionError::DuplicateProvider(kind));
         }
         Ok(())
+    }
+
+    /// Grants an already-registered provider `EvidenceGrade::Bootstrap`
+    /// native-source admission: proof that its declared code identity
+    /// equals the identity `install_baseline_providers` itself measured, and
+    /// nothing stronger.
+    ///
+    /// `pub(crate)`: only [`super::install_baseline_providers`] calls this,
+    /// using a `code`/`dependencies` pair it computed from its own compiled
+    /// source, never a value a downstream crate supplied. This is the sole
+    /// place in the crate that stores a live checker owner, and the sole
+    /// route by which `kind` can later yield a `TrustedNative`
+    /// qualification via [`Self::qualification_for`].
+    ///
+    /// # Errors
+    /// Refuses if `kind` is not already registered, or if
+    /// [`bootstrap_native_source`] itself refuses.
+    pub(crate) fn admit_bootstrap_native(
+        &mut self,
+        kind: &ProjectionKindRef,
+        owner: OwnerBindingId,
+        code: ContentId,
+        dependencies: ContentId,
+    ) -> Result<(), QualificationError> {
+        let registered = self
+            .providers
+            .get_mut(kind)
+            .ok_or_else(|| QualificationError::Checker(format!("unknown kind {kind:?}")))?;
+        let (checker_owner, authority, receipt) =
+            bootstrap_native_source(owner, code, &registered.identity.code, &dependencies)?;
+        registered.bootstrap = Some(BootstrapAdmission {
+            owner: checker_owner,
+            authority,
+            receipt,
+            dependencies,
+        });
+        Ok(())
+    }
+
+    /// Returns a fresh, independently verified [`ProjectorQualification`] for
+    /// a bootstrap-admitted provider, or `None` if `kind` was never granted
+    /// one via `Self::admit_bootstrap_native` (crate-private).
+    ///
+    /// Re-checks the underlying receipt's currentness on every call (not
+    /// just once, at admission time): a qualification returned here reflects
+    /// this exact moment, not a cached fact from registry construction.
+    ///
+    /// # Errors
+    /// Returns the underlying [`QualificationError`] if the stored receipt
+    /// is no longer current (its owner was dropped, or it was revoked).
+    pub fn qualification_for(
+        &self,
+        kind: &ProjectionKindRef,
+        policy: &ProjectorPolicy,
+    ) -> Option<Result<ProjectorQualification, QualificationError>> {
+        let registered = self.providers.get(kind)?;
+        let bootstrap = registered.bootstrap.as_ref()?;
+        let evidence = NativeSourceEvidence {
+            code: registered.identity.code.clone(),
+            dependencies: bootstrap.dependencies.clone(),
+            receipt: bootstrap.receipt.clone(),
+        };
+        Some(ProjectorQualificationVerifier::trusted_native(
+            policy,
+            evidence,
+            &bootstrap.authority,
+        ))
     }
 
     /// Resolves a loaded provider.

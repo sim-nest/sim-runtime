@@ -90,11 +90,12 @@ fn checker_owner() -> sim_conformance_core::OwnerBindingId {
 }
 
 fn qualification(policy: &ProjectorPolicy, code: &ContentId) -> ProjectorQualification {
+    let dependencies = datum_id("dependencies");
     let (owner, authority, receipt) =
-        bootstrap_native_source(checker_owner(), code.clone(), code).unwrap();
+        bootstrap_native_source(checker_owner(), code.clone(), code, &dependencies).unwrap();
     let evidence = NativeSourceEvidence {
         code: code.clone(),
-        dependencies: datum_id("dependencies"),
+        dependencies,
         receipt,
     };
     let result =
@@ -260,8 +261,9 @@ fn native_purity_requires_review_and_bwrap_is_separate() {
     let policy = policy(&["fact/a"], true);
     let declared = datum_id("native-proc-read-mutant");
     let loaded = datum_id("native-proc-read-mutant-different-build");
+    let dependencies = datum_id("deps");
     assert_eq!(
-        bootstrap_native_source(checker_owner(), declared, &loaded).unwrap_err(),
+        bootstrap_native_source(checker_owner(), declared, &loaded, &dependencies).unwrap_err(),
         QualificationError::NativeCodeMismatch
     );
 
