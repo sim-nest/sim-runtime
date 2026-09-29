@@ -506,3 +506,86 @@ fn a_late_receipt_after_the_observation_leaves_it_stale_for_any_outcome() {
         Err(OperationError::InvalidTransition(_))
     ));
 }
+
+#[test]
+fn re_appending_the_records_own_existing_observation_is_refused_as_a_replay() {
+    // Without this check, a canonical writer could re-emit the record's
+    // own already-recorded observation as a "new" journal entry -- the
+    // observation-persisted branch's own admission checks (dispatch
+    // match, receipt match, etc.) all still pass, since it is byte-
+    // identical to the one already on file. That would re-stamp
+    // generation/observation_generation to the new entry's sequence,
+    // making genuinely stale evidence (recorded before a later lease or
+    // receipt) look fresh again to the generation-based staleness check.
+    struct NoAck;
+    impl LifecyclePerformer for NoAck {
+        fn identity(&self) -> Datum {
+            Datum::String("fixture/no-ack".into())
+        }
+        fn perform(&mut self, _: &FencedDispatch) -> LifecyclePerformerResponse {
+            LifecyclePerformerResponse::AcknowledgementMissing
+        }
+    }
+    struct AlwaysNotSatisfied;
+    impl PostconditionObserver for AlwaysNotSatisfied {
+        fn identity(&self) -> Datum {
+            Datum::String("fixture/always-not-satisfied-observer".into())
+        }
+        fn observe(&mut self, _: &PostconditionRequest) -> PostconditionResponse {
+            PostconditionResponse::NotSatisfied {
+                observed: Datum::Nil,
+                evidence: Datum::Nil,
+            }
+        }
+    }
+
+    let backend = Arc::new(CrashBackend::default());
+    let (intent, grant) = fixture(ReplayPolicy::Idempotent);
+    prepared_lifecycle(backend.clone())
+        .run(
+            &intent,
+            &grant,
+            clock_window("holder/replay", 10, 20),
+            &mut NoAck,
+            &mut AlwaysNotSatisfied,
+        )
+        .unwrap();
+    let snapshot = Journal::new(backend).verified_snapshot().unwrap();
+    let cut = snapshot.entries().len() - 1;
+    let prefix_entries = snapshot.entries()[..cut].to_vec();
+    let prefix_ids = prefix_entries
+        .iter()
+        .flat_map(|entry| entry.payloads.iter())
+        .collect::<std::collections::BTreeSet<_>>();
+    let prefix_objects: Vec<_> = prefix_ids
+        .into_iter()
+        .map(|id| JournalObject::from_datum(snapshot.datum(id).unwrap().clone()).unwrap())
+        .collect();
+    let journal = Journal::new(MemoryBackend::new());
+    let lease = journal.acquire_lease().unwrap();
+    journal
+        .publish(&lease, None, prefix_objects, prefix_entries)
+        .unwrap();
+    let prefix = journal.verified_snapshot().unwrap();
+    let record = project_verified_lifecycle_records(&prefix)
+        .unwrap()
+        .remove(intent.id())
+        .unwrap();
+    assert!(
+        record.outcome().is_none(),
+        "fixture must end before an outcome, or this test proves nothing"
+    );
+    let existing_observation = record.observations().last().unwrap().clone();
+
+    // Re-append the SAME observation (byte-identical, so it passes every
+    // other admission check) as a "new" entry.
+    let (entry, objects) = extension(
+        &prefix,
+        "lifecycle-observation-persisted",
+        &[existing_observation.canonical_datum()],
+    );
+    assert!(matches!(
+        project_verified_lifecycle_extension(&prefix, &entry, &objects),
+        Err(OperationError::InvalidTransition(_))
+    ));
+}

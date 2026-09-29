@@ -257,18 +257,22 @@ fn project_entries<'a>(
                 // most recent fact about this record -- not merely that it
                 // names the record's current last dispatch (a new lease
                 // without a new dispatch would leave that check blind).
+                // Requires positive proof the prior lease's window fully
+                // elapsed (same clock domain, observed_at >= expires_at) --
+                // not merely that the observation's tick numerically fails
+                // is_live_at, which is equally true for an observation from
+                // an unrelated clock, or one that precedes acquisition.
                 if record.observation_generation != Some(record.generation)
                     || !matches!(
                         observation.response(),
                         PostconditionResponse::NotSatisfied { .. }
                     )
-                    || record
-                        .leases
-                        .last()
-                        .is_some_and(|old| old.is_live_at(observation.observed_at()))
+                    || !record.leases.last().is_some_and(|old| {
+                        old.expired_as_of(observation.clock(), observation.observed_at())
+                    })
                 {
                     return Err(OperationError::InvalidTransition(
-                        "retry lease requires a fresh confirmed negative observation over an already-dead prior lease",
+                        "retry lease requires a fresh confirmed negative observation proving the prior lease expired",
                     ));
                 }
             }
@@ -482,6 +486,22 @@ fn project_entries<'a>(
                 OperationError::InvalidTransition("observation before intent"),
             )?;
             require_unfinished(record)?;
+            // Re-appending an observation already present (by id -- the
+            // exact same content) is a replay, not a new fact: without
+            // this, a canonical writer could re-emit the record's own
+            // existing observation as a "new" entry after a retry lease,
+            // which would re-stamp generation/observation_generation to
+            // the new entry's sequence and make genuinely stale evidence
+            // (one that predates the lease) look fresh again.
+            if record
+                .observations
+                .iter()
+                .any(|old| old.id() == observation.id())
+            {
+                return Err(OperationError::InvalidTransition(
+                    "duplicate observation replay",
+                ));
+            }
             if observation.dispatch.as_ref()
                 != record.dispatches.last().map(|dispatch| &dispatch.id)
             {
@@ -657,15 +677,17 @@ fn project_entries<'a>(
                         // preflight observation with no dispatch is not proof
                         // the intended effect was ever attempted and failed.
                         || record.dispatches.is_empty()
-                        // A live lease means the original performer may still
-                        // complete regardless of replay policy; sealing
-                        // Diverged now would be premature even for
-                        // ExactlyOnce, which never gets a retry lease to fall
-                        // back on the way Idempotent does.
-                        || record
-                            .leases
-                            .last()
-                            .is_some_and(|lease| lease.is_live_at(observation.observed_at())) =>
+                        // Diverged requires positive proof the lease's
+                        // window fully elapsed (same clock domain,
+                        // observed_at >= expires_at) -- a live lease means
+                        // the original performer may still complete
+                        // regardless of replay policy, and an observation
+                        // that merely fails is_live_at numerically (an
+                        // unrelated clock, or one that precedes
+                        // acquisition) proves nothing either way.
+                        || !record.leases.last().is_some_and(|lease| {
+                            lease.expired_as_of(observation.clock(), observation.observed_at())
+                        }) =>
                 {
                     return Err(OperationError::InvalidTransition(
                         "diverged expected value mismatch",

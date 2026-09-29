@@ -198,6 +198,23 @@ impl OperationLease {
     pub const fn is_live_at(&self, now: u64) -> bool {
         self.acquired_at <= now && now < self.expires_at
     }
+    /// True only when `clock`/`observed_at` are positive, comparable proof
+    /// that this lease's window has fully elapsed -- not merely that it is
+    /// not currently live.
+    ///
+    /// `!is_live_at(t)` is also true when `t` precedes `acquired_at`
+    /// (before this lease even existed) and gives no meaning at all to a
+    /// `t` from an unrelated clock domain (an incomparable numeric
+    /// coincidence). Neither proves expiry. This requires the SAME domain
+    /// as the lease's own (including the no-clock convention: both absent
+    /// counts as the same domain, matching `same_optional_datum`, since a
+    /// caller-supplied tick with no clock configured at all is still
+    /// anchored to this same lease's own acquisition, not an independent,
+    /// untrusted source) AND a tick at or after `expires_at`.
+    pub fn expired_as_of(&self, clock: Option<&Datum>, observed_at: u64) -> bool {
+        crate::operation_wire::same_optional_datum(self.clock(), clock)
+            && observed_at >= self.expires_at
+    }
     /// Returns the canonical semantic lease value.
     pub fn canonical_datum(&self) -> Datum {
         lease_datum(

@@ -201,15 +201,18 @@ impl<B: JournalBackend> OperationLifecycle<B> {
                         },
                     );
                 }
-                // A live lease means the original performer may still
-                // complete: sealing Diverged now would be premature even for
-                // ExactlyOnce, which has no retry lease to fall back on the
-                // way Idempotent does -- it must wait, not seal a verdict.
-                if record
-                    .leases
-                    .last()
-                    .is_some_and(|lease| lease.is_live_at(observation.observed_at()))
-                {
+                // Proceeding requires positive proof the lease's window
+                // fully elapsed (same clock domain, observed_at >=
+                // expires_at) -- a live lease means the original performer
+                // may still complete, and an observation that merely fails
+                // is_live_at numerically (an unrelated clock, or one that
+                // precedes acquisition) proves nothing either way: sealing
+                // Diverged now would be premature even for ExactlyOnce,
+                // which has no retry lease to fall back on the way
+                // Idempotent does -- it must wait, not seal a verdict.
+                if !record.leases.last().is_some_and(|lease| {
+                    lease.expired_as_of(observation.clock(), observation.observed_at())
+                }) {
                     return self.persist_outcome(
                         intent.id(),
                         observation.id(),
@@ -378,17 +381,20 @@ impl<B: JournalBackend> OperationLifecycle<B> {
                     last_durable_step: OperationStep::ObservationPersisted,
                 }
             }
-            // A live lease means the original performer may still complete:
-            // sealing Diverged now would be premature, for either replay
-            // policy. This mirrors the identical check the recovery path
-            // above applies; here it guards the far more common case, a
-            // negative observation taken immediately after a fresh dispatch
-            // while that dispatch's own lease is still running.
+            // Sealing Diverged requires positive proof the lease's window
+            // fully elapsed (same clock domain, observed_at >= expires_at):
+            // a live lease means the original performer may still
+            // complete, for either replay policy, and an observation that
+            // merely fails is_live_at numerically (an unrelated clock, or
+            // one that precedes acquisition) proves nothing either way.
+            // This mirrors the identical check the recovery path above
+            // applies; here it guards the far more common case, a negative
+            // observation taken immediately after a fresh dispatch while
+            // that dispatch's own lease is still running.
             PostconditionResponse::NotSatisfied { .. }
-                if current
-                    .leases
-                    .last()
-                    .is_some_and(|lease| lease.is_live_at(observation.observed_at())) =>
+                if !current.leases.last().is_some_and(|lease| {
+                    lease.expired_as_of(observation.clock(), observation.observed_at())
+                }) =>
             {
                 OperationOutcome::Uncertain {
                     last_durable_step: OperationStep::ObservationPersisted,
