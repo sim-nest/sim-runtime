@@ -14,7 +14,7 @@ use super::{
     ProjectorPolicy, ProjectorQualification, QualificationError,
     admission::{
         NativeSourceEvidence, ProjectorQualificationVerifier, bootstrap_native_source,
-        content_id_datum, policy_id,
+        content_id_datum,
     },
 };
 
@@ -58,26 +58,29 @@ impl ProjectionRegistry {
     }
 
     /// Loads one provider without changing a central kind enum.
+    ///
+    /// # Errors
+    /// Refuses without changing this registry's state if `kind` is already
+    /// loaded: a caller cannot silently replace an admitted provider (and,
+    /// with it, drop the live checker owner backing its qualification) by
+    /// registering a second one under the same kind.
     pub fn register(
         &mut self,
         identity: super::PackageIdentity,
         provider: Arc<dyn ProjectionProvider>,
     ) -> Result<(), ProjectionError> {
         let kind = provider.kind().clone();
-        if self
-            .providers
-            .insert(
-                kind.clone(),
-                RegisteredProvider {
-                    identity,
-                    provider,
-                    bootstrap: None,
-                },
-            )
-            .is_some()
-        {
+        if self.providers.contains_key(&kind) {
             return Err(ProjectionError::DuplicateProvider(kind));
         }
+        self.providers.insert(
+            kind,
+            RegisteredProvider {
+                identity,
+                provider,
+                bootstrap: None,
+            },
+        );
         Ok(())
     }
 
@@ -119,17 +122,20 @@ impl ProjectionRegistry {
     }
 
     /// Returns a fresh, independently verified [`ProjectorQualification`] for
-    /// a bootstrap-admitted provider, or `None` if `kind` was never granted
-    /// one via `Self::admit_bootstrap_native` (crate-private).
+    /// a bootstrap-admitted provider, bound to `policy` and to this exact
+    /// registered provider instance, or `None` if `kind` was never granted
+    /// one via [`Self::admit_bootstrap_native`].
     ///
-    /// Re-checks the underlying receipt's currentness on every call (not
-    /// just once, at admission time): a qualification returned here reflects
-    /// this exact moment, not a cached fact from registry construction.
+    /// `pub(crate)`, called only from [`ProjectionEngine::project`], at the
+    /// moment of actual dispatch -- never exposed as a detached, replayable
+    /// value a caller could obtain once and present later, to this registry
+    /// or a different one, against a different provider. Re-checks the
+    /// underlying receipt's currentness on every call.
     ///
     /// # Errors
     /// Returns the underlying [`QualificationError`] if the stored receipt
     /// is no longer current (its owner was dropped, or it was revoked).
-    pub fn qualification_for(
+    fn qualification_for(
         &self,
         kind: &ProjectionKindRef,
         policy: &ProjectorPolicy,
@@ -188,17 +194,25 @@ impl<'a> ProjectionEngine<'a> {
     }
 
     /// Runs one qualified projection without acquiring observation or effects.
+    ///
+    /// Qualification is not a caller-suppliable parameter: it is fetched
+    /// from this engine's own bound registry, for this exact registered
+    /// provider instance, at the moment of dispatch. A caller cannot obtain
+    /// a qualification once and replay it later, against this registry
+    /// after the provider changed, or against a different registry
+    /// entirely -- there is no value of that shape for it to hold or pass.
+    ///
+    /// # Errors
+    /// Returns [`ProjectionError::UnqualifiedProjector`] if `spec.kind` was
+    /// never granted bootstrap admission, or if the underlying receipt is no
+    /// longer current.
     pub fn project(
         &self,
         world: &super::ObservedWorld,
         spec: &ProjectionSpec,
         policy: &ProjectorPolicy,
-        qualification: Option<&ProjectorQualification>,
         confinement: Option<ConfinementEvidence>,
     ) -> Result<ProjectionResult, ProjectionError> {
-        let qualification = qualification.ok_or_else(|| {
-            ProjectionError::UnqualifiedProjector("projector qualification is missing".to_owned())
-        })?;
         let (loaded_identity, provider) = self
             .registry
             .get(&spec.kind)
@@ -212,13 +226,15 @@ impl<'a> ProjectionEngine<'a> {
         self.shapes
             .verify(&spec.config_shape, &spec.config)
             .map_err(ProjectionError::InvalidConfig)?;
-        let expected_policy = policy_id(policy)
+        let qualification = self
+            .registry
+            .qualification_for(&spec.kind, policy)
+            .ok_or_else(|| {
+                ProjectionError::UnqualifiedProjector(
+                    "this provider was never granted admission".to_owned(),
+                )
+            })?
             .map_err(|error| ProjectionError::UnqualifiedProjector(error.to_string()))?;
-        if qualification.policy() != &expected_policy {
-            return Err(ProjectionError::UnqualifiedProjector(
-                "qualification policy identity differs".to_owned(),
-            ));
-        }
         if qualification.implementation() != &spec.provider.code {
             return Err(ProjectionError::CodeIdentityMismatch);
         }
@@ -259,7 +275,7 @@ impl<'a> ProjectionEngine<'a> {
         }
         let digest = projection_digest(
             spec,
-            qualification,
+            &qualification,
             &inputs,
             &output.dependencies,
             &output.value,
@@ -279,7 +295,7 @@ impl<'a> ProjectionEngine<'a> {
                 selected: policy.reads.facts().cloned().collect(),
                 accessed,
             },
-            projector_qualification: qualification.clone(),
+            projector_qualification: qualification,
             confinement,
             digest,
             affected,

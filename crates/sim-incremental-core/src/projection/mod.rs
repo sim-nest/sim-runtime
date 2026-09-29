@@ -21,7 +21,7 @@ mod model;
 // `ProjectionRegistry::qualification_for`. See admission.rs's module docs.
 pub use admission::{ClosedWasmEvidence, QualificationError};
 #[cfg(test)]
-use admission::{NativeSourceEvidence, ProjectorQualificationVerifier, bootstrap_native_source};
+use admission::{ProjectorQualificationVerifier, bootstrap_native_source};
 pub use assay::{
     AssayContract, AssayError, AssayOutcome, ControlledDelta, ControlledDeltaClass,
     ExpectedClosure, ExpectedClosureSet, ExpectedClosureViolation, PredictedClosureAssay,

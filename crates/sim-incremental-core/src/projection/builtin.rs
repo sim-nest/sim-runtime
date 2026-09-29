@@ -238,10 +238,28 @@ pub fn install_baseline_providers(
     Ok(registered)
 }
 
+/// Hashes the literal compiled source of every file `SelectFactsProvider`'s
+/// real behavior actually depends on, not `builtin.rs` alone: its `project`
+/// calls into `ProjectionInputs`/`FactId` (`model.rs`), and the admission
+/// path it is registered through lives in `admission.rs`/`engine.rs`.
+///
+/// This still does not cover `sim-kernel`'s `Datum`/`Symbol` behavior, the
+/// Rust compiler, or any other external dependency -- those are covered
+/// only by version/registry identity (`builtin_dependency_identity`), the
+/// same limit ordinary Cargo-based supply-chain identity has everywhere
+/// else in this ecosystem, named here rather than left implicit.
 fn builtin_source_identity() -> Result<ContentId, ProjectionError> {
-    Datum::String(include_str!("builtin.rs").to_owned())
-        .content_id()
-        .map_err(|error| ProjectionError::UnqualifiedProjector(error.to_string()))
+    Datum::String(
+        [
+            include_str!("builtin.rs"),
+            include_str!("model.rs"),
+            include_str!("admission.rs"),
+            include_str!("engine.rs"),
+        ]
+        .concat(),
+    )
+    .content_id()
+    .map_err(|error| ProjectionError::UnqualifiedProjector(error.to_string()))
 }
 
 fn builtin_dependency_identity() -> Result<ContentId, ProjectionError> {

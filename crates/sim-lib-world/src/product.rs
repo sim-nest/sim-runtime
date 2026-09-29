@@ -138,15 +138,6 @@ impl WorldProduct {
         let fact_id = FactId::new(fact)?;
         let world = ObservedWorld::new([(fact_id.clone(), ObservedFact { semantic, envelope })])?;
         let policy = self.policy(fact_id);
-        let kind_ref = ProjectionKindRef::new(kind)?;
-        let qualification = self
-            .state
-            .registry
-            .qualification_for(&kind_ref, &policy)
-            .ok_or_else(|| {
-                WorldError::Qualification(format!("{kind} was never granted bootstrap admission"))
-            })?
-            .map_err(|error| WorldError::Qualification(error.to_string()))?;
         let spec = ProjectionSpec {
             id: content_id(Datum::Node {
                 tag: Symbol::qualified("world", "projection-request-v1"),
@@ -155,14 +146,17 @@ impl WorldProduct {
                     (Symbol::new("fact"), Datum::String(fact.to_owned())),
                 ],
             })?,
-            kind: kind_ref,
+            kind: ProjectionKindRef::new(kind)?,
             config: config(),
             config_shape: self.state.shape.id.clone(),
             provider: self.state.package.clone(),
         };
+        // Qualification is fetched internally by `project`, from this exact
+        // registry, at the moment of dispatch -- not obtained here and
+        // passed in, which would make it a replayable bearer credential.
         let result =
             ProjectionEngine::new(&self.state.registry, &self.state.shape, &self.state.closure)
-                .project(&world, &spec, &policy, Some(&qualification), None)?;
+                .project(&world, &spec, &policy, None)?;
         let value = projection_value(kind, fact, &result);
         Ok(WorldProjection { result, value })
     }

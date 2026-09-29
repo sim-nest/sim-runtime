@@ -89,24 +89,13 @@ fn checker_owner() -> sim_conformance_core::OwnerBindingId {
     sim_conformance_core::OwnerBindingId::from_text("projection/test-owner").unwrap()
 }
 
-fn qualification(policy: &ProjectorPolicy, code: &ContentId) -> ProjectorQualification {
-    let dependencies = datum_id("dependencies");
-    let (owner, authority, receipt) =
-        bootstrap_native_source(checker_owner(), code.clone(), code, &dependencies).unwrap();
-    let evidence = NativeSourceEvidence {
-        code: code.clone(),
-        dependencies,
-        receipt,
-    };
-    let result =
-        ProjectorQualificationVerifier::trusted_native(policy, evidence, &authority).unwrap();
-    drop(owner);
-    result
-}
-
-fn fixture(omit_dependency: bool) -> (ProjectionRegistry, ContentId, ContentId, FederatedClosure) {
+fn fixture(
+    omit_dependency: bool,
+    grant_admission: bool,
+) -> (ProjectionRegistry, ContentId, ContentId, FederatedClosure) {
     let shape = datum_id("shape");
     let code = datum_id("provider-code");
+    let kind = ProjectionKindRef::new("test/first-fact-v1").unwrap();
     let mut registry = ProjectionRegistry::new();
     registry
         .register(
@@ -116,12 +105,22 @@ fn fixture(omit_dependency: bool) -> (ProjectionRegistry, ContentId, ContentId, 
                 code: code.clone(),
             },
             Arc::new(FirstFactProvider {
-                kind: ProjectionKindRef::new("test/first-fact-v1").unwrap(),
+                kind: kind.clone(),
                 shape: shape.clone(),
                 omit_dependency,
             }),
         )
         .unwrap();
+    if grant_admission {
+        registry
+            .admit_bootstrap_native(
+                &kind,
+                checker_owner(),
+                code.clone(),
+                datum_id("dependencies"),
+            )
+            .unwrap();
+    }
     let closure = FederatedClosure::seal(
         [
             FactId::new("fact/a").unwrap(),
@@ -166,7 +165,7 @@ fn spec(shape: ContentId, code: ContentId) -> ProjectionSpec {
 
 #[test]
 fn loaded_provider_needs_no_central_kind_enum_and_explains_exact_closure() {
-    let (registry, shape, code, closure) = fixture(false);
+    let (registry, shape, code, closure) = fixture(false, true);
     assert_eq!(
         registry
             .kinds()
@@ -181,13 +180,7 @@ fn loaded_provider_needs_no_central_kind_enum_and_explains_exact_closure() {
     .unwrap();
     let policy = policy(&["fact/a"], false);
     let result = ProjectionEngine::new(&registry, &ExactShape(shape.clone()), &closure)
-        .project(
-            &world,
-            &spec(shape, code.clone()),
-            &policy,
-            Some(&qualification(&policy, &code)),
-            None,
-        )
+        .project(&world, &spec(shape, code.clone()), &policy, None)
         .unwrap();
     assert_eq!(result.projection, Datum::String("alpha".to_owned()));
     assert_eq!(
@@ -203,20 +196,14 @@ fn loaded_provider_needs_no_central_kind_enum_and_explains_exact_closure() {
 
 #[test]
 fn envelopes_do_not_change_digest_but_semantic_input_does() {
-    let (registry, shape, code, closure) = fixture(false);
+    let (registry, shape, code, closure) = fixture(false, true);
     let project = |semantic: &str, envelope: &str| {
         let world =
             ObservedWorld::new([(FactId::new("fact/a").unwrap(), fact(semantic, envelope))])
                 .unwrap();
         let policy = policy(&["fact/a"], false);
         ProjectionEngine::new(&registry, &ExactShape(shape.clone()), &closure)
-            .project(
-                &world,
-                &spec(shape.clone(), code.clone()),
-                &policy,
-                Some(&qualification(&policy, &code)),
-                None,
-            )
+            .project(&world, &spec(shape.clone(), code.clone()), &policy, None)
             .unwrap()
             .digest
     };
@@ -226,32 +213,20 @@ fn envelopes_do_not_change_digest_but_semantic_input_does() {
 
 #[test]
 fn undeclared_access_and_shape_fail_for_distinct_reasons() {
-    let (registry, shape, code, closure) = fixture(true);
+    let (registry, shape, code, closure) = fixture(true, true);
     let world = ObservedWorld::new([(FactId::new("fact/a").unwrap(), fact("alpha", "diagnostic"))])
         .unwrap();
     let policy = policy(&["fact/a"], false);
     let shapes = ExactShape(shape.clone());
     let engine = ProjectionEngine::new(&registry, &shapes, &closure);
     assert!(matches!(
-        engine.project(
-            &world,
-            &spec(shape.clone(), code.clone()),
-            &policy,
-            Some(&qualification(&policy, &code)),
-            None,
-        ),
+        engine.project(&world, &spec(shape.clone(), code.clone()), &policy, None),
         Err(ProjectionError::UndeclaredAccess { .. })
     ));
-    let mut wrong = spec(shape, code.clone());
+    let mut wrong = spec(shape, code);
     wrong.config_shape = datum_id("other-shape");
     assert_eq!(
-        engine.project(
-            &world,
-            &wrong,
-            &policy,
-            Some(&qualification(&policy, &code)),
-            None,
-        ),
+        engine.project(&world, &wrong, &policy, None),
         Err(ProjectionError::ConfigShapeMismatch)
     );
 }
@@ -267,20 +242,13 @@ fn native_purity_requires_review_and_bwrap_is_separate() {
         QualificationError::NativeCodeMismatch
     );
 
-    let (registry, shape, code, closure) = fixture(false);
+    let (registry, shape, code, closure) = fixture(false, true);
     let world = ObservedWorld::new([(FactId::new("fact/a").unwrap(), fact("alpha", "diagnostic"))])
         .unwrap();
-    let qualification = qualification(&policy, &code);
     let shapes = ExactShape(shape.clone());
     let engine = ProjectionEngine::new(&registry, &shapes, &closure);
     assert!(matches!(
-        engine.project(
-            &world,
-            &spec(shape.clone(), code.clone()),
-            &policy,
-            Some(&qualification),
-            None,
-        ),
+        engine.project(&world, &spec(shape.clone(), code.clone()), &policy, None),
         Err(ProjectionError::UnavailableConfinement(_))
     ));
     assert!(matches!(
@@ -288,7 +256,6 @@ fn native_purity_requires_review_and_bwrap_is_separate() {
             &world,
             &spec(shape, code),
             &policy,
-            Some(&qualification),
             Some(ConfinementEvidence {
                 membrane: "bwrap".to_owned(),
                 policy: datum_id("bwrap-policy"),
@@ -300,34 +267,30 @@ fn native_purity_requires_review_and_bwrap_is_separate() {
 }
 
 #[test]
-fn missing_qualification_and_forged_loaded_identity_are_refused() {
-    let (registry, shape, code, closure) = fixture(false);
+fn never_admitted_and_forged_loaded_identity_are_both_refused() {
+    // Never granted bootstrap admission: no caller-suppliable qualification
+    // exists to work around that anymore, so this is the only way to
+    // reach `UnqualifiedProjector` now.
+    let (registry, shape, code, closure) = fixture(false, false);
     let world =
         ObservedWorld::new([(FactId::new("fact/a").unwrap(), fact("alpha", "host/a"))]).unwrap();
     let policy = policy(&["fact/a"], false);
     let shapes = ExactShape(shape.clone());
     let engine = ProjectionEngine::new(&registry, &shapes, &closure);
     assert!(matches!(
-        engine.project(
-            &world,
-            &spec(shape.clone(), code.clone()),
-            &policy,
-            None,
-            None,
-        ),
+        engine.project(&world, &spec(shape.clone(), code), &policy, None),
         Err(ProjectionError::UnqualifiedProjector(_))
     ));
 
-    let mut forged = spec(shape, code.clone());
+    // Admitted this time, but the spec declares a code identity that
+    // differs from what the registry actually has loaded.
+    let (registry, shape, code, closure) = fixture(false, true);
+    let shapes = ExactShape(shape.clone());
+    let engine = ProjectionEngine::new(&registry, &shapes, &closure);
+    let mut forged = spec(shape, code);
     forged.provider.code = datum_id("forged-code");
     assert_eq!(
-        engine.project(
-            &world,
-            &forged,
-            &policy,
-            Some(&qualification(&policy, &code)),
-            None,
-        ),
+        engine.project(&world, &forged, &policy, None),
         Err(ProjectionError::CodeIdentityMismatch)
     );
 }
@@ -456,4 +419,31 @@ fn federated_closure_refuses_overlap_and_unknown_facts() {
         FederatedClosure::seal([], [graph("a")]),
         Err(ClosureError::UnknownFact { .. })
     ));
+}
+
+#[test]
+fn duplicate_registration_is_refused_and_the_original_provider_survives() {
+    let (mut registry, shape, code, _closure) = fixture(false, true);
+    let kind = ProjectionKindRef::new("test/first-fact-v1").unwrap();
+    let attacker_code = datum_id("attacker-code");
+    let result = registry.register(
+        PackageIdentity {
+            name: "attacker-provider".to_owned(),
+            version: "1.0.0".to_owned(),
+            code: attacker_code,
+        },
+        Arc::new(FirstFactProvider {
+            kind: kind.clone(),
+            shape,
+            omit_dependency: false,
+        }),
+    );
+    assert_eq!(
+        result,
+        Err(ProjectionError::DuplicateProvider(kind.clone()))
+    );
+    // The original provider and its real code identity must still be the
+    // one loaded: registration failure must not have silently replaced it.
+    let (loaded_identity, _provider) = registry.get(&kind).unwrap();
+    assert_eq!(loaded_identity.code, code);
 }
