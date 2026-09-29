@@ -6,19 +6,17 @@ use sim_kernel::{ContentId, Datum, Symbol};
 
 use crate::{
     OperationError, OperationId,
-    lifecycle_wire::{
-        fenced_dispatch_datum, lease_datum, lifecycle_receipt_datum, observation_base_datum,
-        observation_datum, optional_id, optional_id_datum, response_datum, response_from_datum,
-        u64_datum,
-    },
-    operation_wire::{content_id, field, id_datum, id_from_datum, node, node_fields, u64_field},
+    lifecycle_wire::{fenced_dispatch_datum, lease_datum, lifecycle_receipt_datum},
+    operation_wire::{content_id, field, id_from_datum, node_fields, u64_field},
 };
 
 pub(super) const LEASE_TAG: &str = "bounded-lease-v1";
+use crate::LifecyclePreparation;
+pub use crate::lifecycle_observation::OperationObservation;
 pub(super) const DISPATCH_TAG: &str = "fenced-dispatch-v1";
 pub(super) const RECEIPT_TAG: &str = "lifecycle-receipt-v1";
 pub(super) const OBSERVATION_TAG: &str = "postcondition-observation-v1";
-pub(super) const OUTCOME_TAG: &str = "outcome-v1";
+pub(super) const OUTCOME_TAG: &str = "outcome-v2";
 
 macro_rules! semantic_id {
     ($name:ident, $doc:literal) => {
@@ -54,6 +52,10 @@ semantic_id!(
     "Identity of one raw lifecycle performer receipt."
 );
 semantic_id!(
+    LifecyclePreparationId,
+    "Identity of a durable pre-execution resource binding."
+);
+semantic_id!(
     OperationObservationId,
     "Identity of one independent postcondition observation."
 );
@@ -70,6 +72,7 @@ semantic_id!(
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LeaseWindow {
     pub(super) holder: Datum,
+    pub(super) clock: Option<Datum>,
     pub(super) acquired_at: u64,
     pub(super) expires_at: u64,
 }
@@ -82,9 +85,25 @@ impl LeaseWindow {
         }
         Ok(Self {
             holder,
+            clock: None,
             acquired_at,
             expires_at,
         })
+    }
+
+    /// Binds the interval to an explicit canonical epoch and tick-unit identity.
+    pub fn in_clock(mut self, domain: Datum) -> Result<Self, OperationError> {
+        if domain == Datum::Nil {
+            return Err(OperationError::InvalidLease);
+        }
+        content_id(&domain)?;
+        self.clock = Some(domain);
+        Ok(self)
+    }
+
+    /// Returns the explicit clock domain, or unscoped caller-time mode.
+    pub const fn clock(&self) -> Option<&Datum> {
+        self.clock.as_ref()
     }
 
     /// Returns the explicit holder identity.
@@ -109,6 +128,7 @@ pub struct OperationLease {
     pub(super) id: OperationLeaseId,
     pub(super) operation: OperationId,
     pub(super) holder: Datum,
+    pub(super) clock: Option<Datum>,
     pub(super) fence: u64,
     pub(super) acquired_at: u64,
     pub(super) expires_at: u64,
@@ -125,11 +145,12 @@ impl OperationLease {
         if expires_at <= acquired_at {
             return Err(OperationError::InvalidLease);
         }
-        let datum = lease_datum(&operation, &holder, fence, acquired_at, expires_at);
+        let datum = lease_datum(&operation, &holder, fence, acquired_at, expires_at, None);
         Ok(Self {
             id: OperationLeaseId(content_id(&datum)?),
             operation,
             holder,
+            clock: None,
             fence,
             acquired_at,
             expires_at,
@@ -139,6 +160,19 @@ impl OperationLease {
     /// Returns the semantic lease identity.
     pub const fn id(&self) -> &OperationLeaseId {
         &self.id
+    }
+    /// Returns the persisted epoch and tick-unit identity, when scoped.
+    pub const fn clock(&self) -> Option<&Datum> {
+        self.clock.as_ref()
+    }
+
+    pub(super) fn in_clock(mut self, domain: Option<Datum>) -> Result<Self, OperationError> {
+        if domain == Some(Datum::Nil) {
+            return Err(OperationError::InvalidLease);
+        }
+        self.clock = domain;
+        self.id = OperationLeaseId(content_id(&self.canonical_datum())?);
+        Ok(self)
     }
     /// Returns the stable operation protected by the lease.
     pub const fn operation(&self) -> &OperationId {
@@ -164,6 +198,23 @@ impl OperationLease {
     pub const fn is_live_at(&self, now: u64) -> bool {
         self.acquired_at <= now && now < self.expires_at
     }
+    /// True only when `clock`/`observed_at` are positive, comparable proof
+    /// that this lease's window has fully elapsed -- not merely that it is
+    /// not currently live.
+    ///
+    /// `!is_live_at(t)` is also true when `t` precedes `acquired_at`
+    /// (before this lease even existed) and gives no meaning at all to a
+    /// `t` from an unrelated clock domain (an incomparable numeric
+    /// coincidence). Neither proves expiry. This requires the SAME domain
+    /// as the lease's own (including the no-clock convention: both absent
+    /// counts as the same domain, matching `same_optional_datum`, since a
+    /// caller-supplied tick with no clock configured at all is still
+    /// anchored to this same lease's own acquisition, not an independent,
+    /// untrusted source) AND a tick at or after `expires_at`.
+    pub fn expired_as_of(&self, clock: Option<&Datum>, observed_at: u64) -> bool {
+        crate::operation_wire::same_optional_datum(self.clock(), clock)
+            && observed_at >= self.expires_at
+    }
     /// Returns the canonical semantic lease value.
     pub fn canonical_datum(&self) -> Datum {
         lease_datum(
@@ -172,10 +223,20 @@ impl OperationLease {
             self.fence,
             self.acquired_at,
             self.expires_at,
+            self.clock.as_ref(),
         )
     }
     pub(super) fn from_datum(datum: &Datum) -> Result<Self, OperationError> {
-        let fields = node_fields(datum, LEASE_TAG, 5)?;
+        let scoped = matches!(datum, Datum::Node { tag, .. } if tag == &Symbol::qualified("operation", "bounded-clock-lease-v1"));
+        let fields = node_fields(
+            datum,
+            if scoped {
+                "bounded-clock-lease-v1"
+            } else {
+                LEASE_TAG
+            },
+            if scoped { 6 } else { 5 },
+        )?;
         let operation = OperationId(id_from_datum(field(fields, "operation")?)?);
         let holder = field(fields, "holder")?.clone();
         let value = Self::new(
@@ -184,8 +245,13 @@ impl OperationLease {
             u64_field(fields, "fence")?,
             u64_field(fields, "acquired-at")?,
             u64_field(fields, "expires-at")?,
-        )?;
-        if value.canonical_datum() != *datum {
+        )?
+        .in_clock(if scoped {
+            Some(field(fields, "clock")?.clone())
+        } else {
+            None
+        })?;
+        if !crate::operation_wire::same_datum(&value.canonical_datum(), datum) {
             return Err(OperationError::NonCanonical("operation lease"));
         }
         Ok(value)
@@ -264,7 +330,7 @@ impl FencedDispatch {
             OperationLeaseId(id_from_datum(field(fields, "lease")?)?),
             field(fields, "performer")?.clone(),
         )?;
-        if value.canonical_datum() != *datum {
+        if !crate::operation_wire::same_datum(&value.canonical_datum(), datum) {
             return Err(OperationError::NonCanonical("fenced dispatch"));
         }
         Ok(value)
@@ -277,15 +343,21 @@ pub struct LifecycleReceipt {
     pub(super) id: LifecycleReceiptId,
     pub(super) dispatch: FencedDispatchId,
     pub(super) raw: Datum,
+    pub(super) release: Option<sim_kernel::ContentId>,
 }
 
 impl LifecycleReceipt {
-    pub(super) fn new(dispatch: FencedDispatchId, raw: Datum) -> Result<Self, OperationError> {
-        let datum = lifecycle_receipt_datum(&dispatch, &raw);
+    pub(super) fn new(
+        dispatch: FencedDispatchId,
+        raw: Datum,
+        release: Option<sim_kernel::ContentId>,
+    ) -> Result<Self, OperationError> {
+        let datum = lifecycle_receipt_datum(&dispatch, &raw, release.as_ref());
         Ok(Self {
             id: LifecycleReceiptId(content_id(&datum)?),
             dispatch,
             raw,
+            release,
         })
     }
     /// Returns the semantic receipt identity.
@@ -300,17 +372,36 @@ impl LifecycleReceipt {
     pub const fn raw(&self) -> &Datum {
         &self.raw
     }
+    /// Returns the durable release intent visible at acknowledgement, not proof of start.
+    pub const fn release(&self) -> Option<&sim_kernel::ContentId> {
+        self.release.as_ref()
+    }
     /// Returns the canonical receipt value.
     pub fn canonical_datum(&self) -> Datum {
-        lifecycle_receipt_datum(&self.dispatch, &self.raw)
+        lifecycle_receipt_datum(&self.dispatch, &self.raw, self.release.as_ref())
     }
     pub(super) fn from_datum(datum: &Datum) -> Result<Self, OperationError> {
-        let fields = node_fields(datum, RECEIPT_TAG, 2)?;
+        let released = matches!(datum, Datum::Node { tag, .. }
+            if tag == &Symbol::qualified("operation", "lifecycle-release-receipt-v1"));
+        let fields = node_fields(
+            datum,
+            if released {
+                "lifecycle-release-receipt-v1"
+            } else {
+                RECEIPT_TAG
+            },
+            if released { 3 } else { 2 },
+        )?;
         let value = Self::new(
             FencedDispatchId(id_from_datum(field(fields, "dispatch")?)?),
             field(fields, "raw")?.clone(),
+            if released {
+                Some(id_from_datum(field(fields, "release")?)?)
+            } else {
+                None
+            },
         )?;
-        if value.canonical_datum() != *datum {
+        if !crate::operation_wire::same_datum(&value.canonical_datum(), datum) {
             return Err(OperationError::NonCanonical("lifecycle receipt"));
         }
         Ok(value)
@@ -326,6 +417,12 @@ pub enum OperationStep {
     LeaseAcquired,
     /// The performer handoff is durable.
     DispatchPersisted,
+    /// The pre-execution binding is durable; release still requires live admission.
+    PreparationPersisted,
+    /// An exact resource destination is durable before allocation or adoption.
+    ReservationIntentPersisted,
+    /// Release intent is durable; actual start or completion remains unproven.
+    ReleaseIntentPersisted,
     /// The raw performer acknowledgement is durable.
     ReceiptPersisted,
     /// Independent postcondition evidence is durable.
@@ -335,13 +432,17 @@ pub enum OperationStep {
 }
 
 impl OperationStep {
-    pub(super) fn datum(self) -> Datum {
+    /// Returns the canonical semantic step marker shared by evidence projections.
+    pub fn canonical_datum(self) -> Datum {
         Datum::Symbol(Symbol::qualified(
             "operation-step",
             match self {
                 Self::IntentPersisted => "intent-persisted",
                 Self::LeaseAcquired => "lease-acquired",
                 Self::DispatchPersisted => "dispatch-persisted",
+                Self::PreparationPersisted => "preparation-persisted",
+                Self::ReservationIntentPersisted => "reservation-intent-persisted",
+                Self::ReleaseIntentPersisted => "release-intent-persisted",
                 Self::ReceiptPersisted => "receipt-persisted",
                 Self::ObservationPersisted => "observation-persisted",
                 Self::OutcomePersisted => "outcome-persisted",
@@ -356,11 +457,14 @@ impl OperationStep {
             Self::IntentPersisted,
             Self::LeaseAcquired,
             Self::DispatchPersisted,
+            Self::PreparationPersisted,
+            Self::ReservationIntentPersisted,
+            Self::ReleaseIntentPersisted,
             Self::ReceiptPersisted,
             Self::ObservationPersisted,
             Self::OutcomePersisted,
         ] {
-            if step.datum() == Datum::Symbol(value.clone()) {
+            if step.canonical_datum() == Datum::Symbol(value.clone()) {
                 return Ok(step);
             }
         }
@@ -376,11 +480,31 @@ pub struct PostconditionRequest {
     pub(super) expected: Datum,
     pub(super) dispatch: Option<FencedDispatchId>,
     pub(super) receipt: Option<LifecycleReceiptId>,
+    pub(super) preparation: Option<LifecyclePreparation>,
+    pub(super) reservation: Option<crate::LifecycleReservation>,
+    pub(super) release: Option<crate::LifecycleRelease>,
+    pub(super) clock: Option<Datum>,
     pub(super) last_durable_step: OperationStep,
     pub(super) observed_at: u64,
 }
 
 impl PostconditionRequest {
+    /// Returns the durable resource destination, including before preparation.
+    pub const fn reservation(&self) -> Option<&crate::LifecycleReservation> {
+        self.reservation.as_ref()
+    }
+    /// Returns the independently selected epoch and units of the observation tick.
+    pub const fn clock(&self) -> Option<&Datum> {
+        self.clock.as_ref()
+    }
+    /// Returns the exact recorded release intent, not permission to start or replay work.
+    pub const fn release(&self) -> Option<&crate::LifecycleRelease> {
+        self.release.as_ref()
+    }
+    /// Returns the durable binding for the selected dispatch, if one exists.
+    pub const fn preparation(&self) -> Option<&LifecyclePreparation> {
+        self.preparation.as_ref()
+    }
     /// Returns the semantic operation identity.
     pub const fn operation(&self) -> &OperationId {
         &self.operation
@@ -444,6 +568,9 @@ pub enum PostconditionResponse {
 
 /// Effect-free identity plus independently performed postcondition observation.
 pub trait PostconditionObserver {
+    /// Identifies the exact observer authority and acceptance contract.
+    /// Stored success is reusable only under this identity. Distinct acceptance
+    /// semantics require distinct identities, not reinterpretation of evidence.
     /// Returns the stable observer authority identity.
     fn identity(&self) -> Datum;
     /// Observes the postcondition without performing the requested operation.
@@ -463,161 +590,63 @@ pub enum LifecyclePerformerResponse {
 pub trait LifecyclePerformer {
     /// Returns the stable performer authority identity.
     fn identity(&self) -> Datum;
+    /// Declares the exact destination without acquiring or mutating resources.
+    /// The declaration is persisted before `prepare_reserved` is invoked.
+    /// None selects the existing non-intent-first preparation contract.
+    fn plan_reservation(
+        &self,
+        _dispatch: &FencedDispatch,
+    ) -> Result<Option<Datum>, OperationError> {
+        Ok(None)
+    }
+    /// Acquires or reconciles only the named durable destination, without payload.
+    /// The native owner retains custody independently of acknowledgement/caller
+    /// lifetime. Existing uncertain resources must never be replaced or reset.
+    fn prepare_reserved(
+        &mut self,
+        _dispatch: &FencedDispatch,
+        _reservation: &crate::LifecycleReservation,
+    ) -> Result<Datum, OperationError> {
+        Err(OperationError::PreparationUnavailable(Datum::String(
+            "intent-first reservation is unsupported".into(),
+        )))
+    }
+    /// Reserves resources without releasing the requested payload.
+    /// A returned binding is journaled before `perform_prepared` is called.
+    /// Errors retain the durable dispatch barrier and require reconciliation.
+    /// None selects direct execution without claiming a preparation receipt.
+    fn prepare(&mut self, _dispatch: &FencedDispatch) -> Result<Option<Datum>, OperationError> {
+        Ok(None)
+    }
+    /// Notifies the original owner that its returned preparation could not be
+    /// acknowledged by this lifecycle, before any prepared-performance call.
+    /// The owner may dispose only its retained, never-released resources under
+    /// its independent administrative authority. Dispatch/error data cannot
+    /// reconstruct custody, grant cancellation, retry preparation or release.
+    /// Success does not establish payload completion or a cleanup receipt; the
+    /// lifecycle always returns its original acknowledgement failure afterward.
+    /// The default refuses and never falls back to performance.
+    fn preparation_acknowledgement_failed(
+        &mut self,
+        _dispatch: &FencedDispatch,
+        _cause: &OperationError,
+    ) -> Result<(), OperationError> {
+        Err(OperationError::PreparationUnavailable(Datum::String(
+            "original preparation failure disposition is unsupported".into(),
+        )))
+    }
+    /// Releases work only after its exact resource binding is durable.
+    /// The default never falls back to unprepared execution.
+    fn perform_prepared(
+        &mut self,
+        _dispatch: &FencedDispatch,
+        _preparation: &LifecyclePreparation,
+        _admission: &mut dyn crate::PreparedReleaseAdmission,
+    ) -> Result<LifecyclePerformerResponse, OperationError> {
+        Ok(LifecyclePerformerResponse::AcknowledgementMissing)
+    }
     /// Performs the exact durable dispatch once.
     fn perform(&mut self, dispatch: &FencedDispatch) -> LifecyclePerformerResponse;
-}
-
-/// Durable independent observation of one operation postcondition.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct OperationObservation {
-    pub(super) id: OperationObservationId,
-    pub(super) operation: OperationId,
-    pub(super) observer: Datum,
-    pub(super) response: PostconditionResponse,
-    pub(super) dispatch: Option<FencedDispatchId>,
-    pub(super) receipt: Option<LifecycleReceiptId>,
-    pub(super) last_durable_step: OperationStep,
-    pub(super) observed_at: u64,
-    pub(super) evidence: EvidenceSetId,
-}
-
-impl OperationObservation {
-    pub(super) fn new(
-        request: &PostconditionRequest,
-        observer: Datum,
-        response: PostconditionResponse,
-    ) -> Result<Self, OperationError> {
-        let base = observation_base_datum(request, &observer, &response);
-        let evidence = EvidenceSetId(content_id(&node(
-            "evidence-set-v1",
-            vec![("observation", base.clone())],
-        ))?);
-        let datum = observation_datum(request, &observer, &response, &evidence);
-        Ok(Self {
-            id: OperationObservationId(content_id(&datum)?),
-            operation: request.operation.clone(),
-            observer,
-            response,
-            dispatch: request.dispatch.clone(),
-            receipt: request.receipt.clone(),
-            last_durable_step: request.last_durable_step,
-            observed_at: request.observed_at,
-            evidence,
-        })
-    }
-    /// Returns the semantic observation identity.
-    pub const fn id(&self) -> &OperationObservationId {
-        &self.id
-    }
-    /// Returns the stable operation observed.
-    pub const fn operation(&self) -> &OperationId {
-        &self.operation
-    }
-    /// Returns the independent observer identity.
-    pub const fn observer(&self) -> &Datum {
-        &self.observer
-    }
-    /// Returns the typed observation response.
-    pub const fn response(&self) -> &PostconditionResponse {
-        &self.response
-    }
-    /// Returns the dispatch observed, if any.
-    pub const fn dispatch(&self) -> Option<&FencedDispatchId> {
-        self.dispatch.as_ref()
-    }
-    /// Returns the latest raw receipt visible to the observer, if any.
-    pub const fn receipt(&self) -> Option<&LifecycleReceiptId> {
-        self.receipt.as_ref()
-    }
-    /// Returns the last durable step visible to the observer.
-    pub const fn last_durable_step(&self) -> OperationStep {
-        self.last_durable_step
-    }
-    /// Returns the explicit monotonic observation tick.
-    pub const fn observed_at(&self) -> u64 {
-        self.observed_at
-    }
-    /// Returns the evidence-set identity derived from the observation.
-    pub const fn evidence(&self) -> &EvidenceSetId {
-        &self.evidence
-    }
-    /// Returns the canonical semantic observation value.
-    pub fn canonical_datum(&self) -> Datum {
-        self.stored_datum()
-    }
-    pub(super) fn from_datum(datum: &Datum) -> Result<Self, OperationError> {
-        let fields = node_fields(datum, OBSERVATION_TAG, 8)?;
-        let operation = OperationId(id_from_datum(field(fields, "operation")?)?);
-        let observer = field(fields, "observer")?.clone();
-        let response = response_from_datum(field(fields, "response")?)?;
-        let dispatch = optional_id(field(fields, "dispatch")?)?.map(FencedDispatchId);
-        let last_durable_step = OperationStep::from_datum(field(fields, "last-durable-step")?)?;
-        let observed_at = u64_field(fields, "observed-at")?;
-        let receipt = optional_id(field(fields, "receipt")?)?.map(LifecycleReceiptId);
-        let evidence = EvidenceSetId(id_from_datum(field(fields, "evidence")?)?);
-        let evidence_input = node(
-            "observation-evidence-v1",
-            vec![
-                ("operation", id_datum(operation.content_id())),
-                ("observer", observer.clone()),
-                ("response", response_datum(&response)),
-                (
-                    "dispatch",
-                    optional_id_datum(dispatch.as_ref().map(FencedDispatchId::content_id)),
-                ),
-                (
-                    "receipt",
-                    optional_id_datum(receipt.as_ref().map(LifecycleReceiptId::content_id)),
-                ),
-                ("last-durable-step", last_durable_step.datum()),
-                ("observed-at", u64_datum(observed_at)),
-            ],
-        );
-        let expected_evidence = EvidenceSetId(content_id(&node(
-            "evidence-set-v1",
-            vec![("observation", evidence_input)],
-        ))?);
-        if evidence != expected_evidence {
-            return Err(OperationError::NonCanonical("observation evidence set"));
-        }
-        let id = OperationObservationId(content_id(datum)?);
-        let value = Self {
-            id,
-            operation,
-            observer,
-            response,
-            dispatch,
-            receipt,
-            last_durable_step,
-            observed_at,
-            evidence,
-        };
-        if value.stored_datum() != *datum {
-            return Err(OperationError::NonCanonical("operation observation"));
-        }
-        Ok(value)
-    }
-    pub(super) fn stored_datum(&self) -> Datum {
-        node(
-            OBSERVATION_TAG,
-            vec![
-                ("operation", id_datum(self.operation.content_id())),
-                ("observer", self.observer.clone()),
-                ("response", response_datum(&self.response)),
-                (
-                    "dispatch",
-                    optional_id_datum(self.dispatch.as_ref().map(FencedDispatchId::content_id)),
-                ),
-                (
-                    "receipt",
-                    optional_id_datum(self.receipt.as_ref().map(LifecycleReceiptId::content_id)),
-                ),
-                ("last-durable-step", self.last_durable_step.datum()),
-                ("observed-at", u64_datum(self.observed_at)),
-                ("evidence", id_datum(self.evidence.content_id())),
-            ],
-        )
-    }
 }
 
 /// Reconciled semantic operation result.

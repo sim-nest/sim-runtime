@@ -4,6 +4,25 @@ use thiserror::Error;
 /// Typed refusal from durable operation construction, replay, or publication.
 #[derive(Debug, Error)]
 pub enum OperationError {
+    /// An already entered accepted operation cannot dispatch or reconcile again.
+    #[error("accepted operation was already entered")]
+    AcceptanceConsumed,
+    /// A sticky cancellation forbids new execution, not independent observation.
+    #[error("operation cancellation prohibits further execution")]
+    Cancelled,
+    /// Resource reservation is unavailable; the durable dispatch still needs reconciliation.
+    #[error("operation preparation unavailable: {0:?}")]
+    PreparationUnavailable(sim_kernel::Datum),
+    /// Preparation acknowledgement failed and its original owner's disposition
+    /// also refused. Neither error may be erased or converted into completion.
+    #[error("{cause}; preparation failure disposition: {disposition}")]
+    PreparationDisposition {
+        /// Original acknowledgement failure, retained without reclassification.
+        #[source]
+        cause: Box<OperationError>,
+        /// Original owner's refusal to acknowledge failure disposition.
+        disposition: Box<OperationError>,
+    },
     /// An operation name cannot be empty.
     #[error("operation name is empty")]
     EmptyOperation,
@@ -25,6 +44,9 @@ pub enum OperationError {
     /// The postcondition observer was the same authority as the performer.
     #[error("postcondition observer is not independent of the performer")]
     ObserverNotIndependent,
+    /// Stored success was checked by a different observer contract.
+    #[error("operation success requires fresh observation under the selected observer contract")]
+    ObserverMismatch,
     /// Recovery selected a different performer authority for the same operation.
     #[error("operation performer does not match the durable dispatch authority")]
     PerformerMismatch,

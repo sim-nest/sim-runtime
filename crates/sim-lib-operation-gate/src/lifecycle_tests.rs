@@ -7,11 +7,15 @@ use std::sync::{
 
 use sim_kernel::{CapabilityName, ContentId, Datum, Symbol};
 use sim_lib_journal::{
-    Admission, JournalBackend, JournalError, JournalHead, JournalObject, MemoryBackend,
-    StoredDatumRef, StoredState,
+    Admission, Journal, JournalBackend, JournalEntry, JournalError, JournalHead, JournalObject,
+    MemoryBackend, StoredDatumRef, StoredState,
 };
 
 use super::*;
+mod acceptance_custody;
+mod divergence;
+mod preparation_tests;
+mod verified_record;
 
 #[derive(Clone, Copy)]
 struct CrashCut {
@@ -24,9 +28,34 @@ struct CrashBackend {
     inner: MemoryBackend,
     admissions: AtomicUsize,
     cut: Mutex<Option<CrashCut>>,
+    inside_release: AtomicBool,
+    before_admission: Mutex<Option<BeforeAdmission>>,
+}
+
+struct BeforeAdmission {
+    kind: Symbol,
+    action: Box<dyn FnOnce() + Send>,
 }
 
 impl CrashBackend {
+    fn before_admission(&self, admission: &Admission) {
+        let hook = {
+            let mut slot = self.before_admission.lock().unwrap();
+            if slot.as_ref().is_some_and(|hook| {
+                admission
+                    .entries()
+                    .last()
+                    .is_some_and(|entry| entry.kind == hook.kind)
+            }) {
+                slot.take()
+            } else {
+                None
+            }
+        };
+        if let Some(hook) = hook {
+            (hook.action)();
+        }
+    }
     fn crash(&self, admission: usize, after_commit: bool) {
         self.admissions.store(0, Ordering::SeqCst);
         *self.cut.lock().expect("crash cut lock") = Some(CrashCut {
@@ -44,9 +73,14 @@ impl JournalBackend for CrashBackend {
         self.inner.acquire_lease()
     }
     fn read_state(&self) -> Result<StoredState, JournalError> {
+        assert!(
+            !self.inside_release.load(Ordering::SeqCst),
+            "release action reentered its journal"
+        );
         self.inner.read_state()
     }
     fn admit(&self, admission: Admission) -> Result<JournalHead, JournalError> {
+        self.before_admission(&admission);
         let index = self.admissions.fetch_add(1, Ordering::SeqCst) + 1;
         let cut = *self.cut.lock().expect("crash cut lock");
         if cut.is_some_and(|cut| cut.admission == index && !cut.after_commit) {
@@ -60,6 +94,27 @@ impl JournalBackend for CrashBackend {
     }
     fn put_datum(&self, object: JournalObject) -> Result<StoredDatumRef, JournalError> {
         self.inner.put_datum(object)
+    }
+    fn admit_then(
+        &self,
+        admission: Admission,
+        action: &mut dyn sim_lib_journal::CommitAction,
+    ) -> Result<sim_lib_journal::GuardedAdmission, JournalError> {
+        self.before_admission(&admission);
+        let index = self.admissions.fetch_add(1, Ordering::SeqCst) + 1;
+        let cut = *self.cut.lock().expect("crash cut lock");
+        if cut.is_some_and(|cut| cut.admission == index && !cut.after_commit) {
+            return Err(JournalError::InjectedCrash("before release boundary"));
+        }
+        let result = self.inner.admit_then(admission, &mut || {
+            assert!(!self.inside_release.swap(true, Ordering::SeqCst));
+            action.after_commit();
+            self.inside_release.store(false, Ordering::SeqCst);
+        });
+        if result.is_ok() && cut.is_some_and(|cut| cut.admission == index && cut.after_commit) {
+            return Err(JournalError::InjectedCrash("after release boundary"));
+        }
+        result
     }
     fn get_datum(&self, meaning: &ContentId) -> Result<Datum, JournalError> {
         self.inner.get_datum(meaning)
@@ -200,6 +255,100 @@ fn fresh_lifecycle_observes_before_dispatch_and_reconstructs_every_fact() {
 }
 
 #[test]
+fn public_snapshot_projection_accepts_exact_complete_and_prospective_cut() {
+    let backend = Arc::new(CrashBackend::default());
+    let (intent, grant) = fixture(ReplayPolicy::ExactlyOnce);
+    let (mut performer, mut observer, _, _, _) = ports(true);
+    OperationLifecycle::from_shared(backend.clone())
+        .run(
+            &intent,
+            &grant,
+            LeaseWindow::new(Datum::String("holder/a".into()), 10, 20).unwrap(),
+            &mut performer,
+            &mut observer,
+        )
+        .unwrap();
+
+    let full = Journal::new(backend).verified_snapshot().unwrap();
+    let projected = project_verified_lifecycle_records(&full).unwrap();
+    assert!(matches!(
+        projected
+            .get(intent.id())
+            .and_then(OperationLifecycleRecord::outcome),
+        Some(OperationOutcome::Verified { .. })
+    ));
+
+    let prefix_journal = Journal::new(MemoryBackend::new());
+    let lease = prefix_journal.acquire_lease().unwrap();
+    let cut_index = full.entries().len() - 1;
+    let prefix_entries = full.entries()[..cut_index].to_vec();
+    let prefix_ids = prefix_entries
+        .iter()
+        .flat_map(|entry| entry.payloads.iter())
+        .collect::<std::collections::BTreeSet<_>>();
+    let prefix_objects = prefix_ids
+        .into_iter()
+        .map(|id| JournalObject::from_datum(full.datum(id).unwrap().clone()).unwrap())
+        .collect();
+    prefix_journal
+        .publish(&lease, None, prefix_objects, prefix_entries)
+        .unwrap();
+    let prefix = prefix_journal.verified_snapshot().unwrap();
+    let cut = &full.entries()[cut_index];
+    let cut_objects = cut
+        .payloads
+        .iter()
+        .map(|id| JournalObject::from_datum(full.datum(id).unwrap().clone()).unwrap())
+        .collect::<Vec<_>>();
+    let projected = project_verified_lifecycle_extension(&prefix, cut, &cut_objects).unwrap();
+    let record = projected.get(intent.id()).unwrap();
+    assert!(matches!(
+        record.outcome(),
+        Some(OperationOutcome::Verified { .. })
+    ));
+
+    let wrong_sequence = JournalEntry::new(
+        cut.sequence + 1,
+        cut.previous.clone(),
+        cut.kind.clone(),
+        cut.payloads.clone(),
+    );
+    assert!(project_verified_lifecycle_extension(&prefix, &wrong_sequence, &cut_objects).is_err());
+    let unknown = JournalEntry::new(
+        cut.sequence,
+        cut.previous.clone(),
+        Symbol::qualified("operation", "foreign-transition"),
+        cut.payloads.clone(),
+    );
+    assert!(project_verified_lifecycle_extension(&prefix, &unknown, &cut_objects).is_err());
+    let extra = JournalObject::from_datum(Datum::String("unbound".into())).unwrap();
+    let mut extra_objects = cut_objects;
+    extra_objects.push(extra);
+    assert!(project_verified_lifecycle_extension(&prefix, cut, &extra_objects).is_err());
+
+    let foreign_journal = Journal::new(MemoryBackend::new());
+    let foreign_lease = foreign_journal.acquire_lease().unwrap();
+    let foreign_object = JournalObject::from_datum(Datum::String("foreign".into())).unwrap();
+    let foreign_entry = JournalEntry::new(
+        0,
+        None,
+        Symbol::qualified("operation", "foreign-transition"),
+        vec![foreign_object.id.clone()],
+    );
+    foreign_journal
+        .publish(
+            &foreign_lease,
+            None,
+            vec![foreign_object],
+            vec![foreign_entry],
+        )
+        .unwrap();
+    assert!(
+        project_verified_lifecycle_records(&foreign_journal.verified_snapshot().unwrap()).is_err()
+    );
+}
+
+#[test]
 fn already_true_never_acquires_operation_lease_or_calls_performer() {
     let backend = Arc::new(CrashBackend::default());
     let (intent, grant) = fixture(ReplayPolicy::ExactlyOnce);
@@ -308,103 +457,6 @@ fn lost_receipt_reconciles_from_external_state_without_reperformance() {
             .receipts()
             .is_empty()
     );
-}
-
-#[test]
-fn idempotent_retry_requires_expiry_and_observed_absence() {
-    let backend = Arc::new(CrashBackend::default());
-    let (intent, grant) = fixture(ReplayPolicy::Idempotent);
-    let (mut performer, mut observer, calls, effect, _) = ports(false);
-    let first = OperationLifecycle::from_shared(backend.clone())
-        .run(
-            &intent,
-            &grant,
-            LeaseWindow::new(Datum::String("holder/a".into()), 10, 20).unwrap(),
-            &mut performer,
-            &mut observer,
-        )
-        .unwrap();
-    assert!(matches!(first, OperationOutcome::Verified { .. }));
-    assert_eq!(calls.load(Ordering::SeqCst), 1);
-
-    // Use a fresh operation so its first result remains retryable Diverged.
-    let (intent, grant) = OperationIntent::new(
-        "fixture/write/retry",
-        Datum::String("target/b".into()),
-        Datum::String("present".into()),
-        ReplayPolicy::Idempotent,
-    )
-    .and_then(|intent| {
-        OperationGrant::new(
-            intent.id().clone(),
-            CapabilityName::new("fixture/write"),
-            Datum::String("authority/fixture".into()),
-        )
-        .map(|grant| (intent, grant))
-    })
-    .unwrap();
-    effect.store(false, Ordering::SeqCst);
-    struct NoEffect(Arc<AtomicUsize>);
-    impl LifecyclePerformer for NoEffect {
-        fn identity(&self) -> Datum {
-            Datum::String("performer/no-effect".into())
-        }
-        fn perform(&mut self, _: &FencedDispatch) -> LifecyclePerformerResponse {
-            self.0.fetch_add(1, Ordering::SeqCst);
-            LifecyclePerformerResponse::AcknowledgementMissing
-        }
-    }
-    let retry_calls = Arc::new(AtomicUsize::new(0));
-    let mut no_effect = NoEffect(retry_calls.clone());
-    let first = OperationLifecycle::from_shared(backend.clone())
-        .run(
-            &intent,
-            &grant,
-            LeaseWindow::new(Datum::String("holder/a".into()), 100, 120).unwrap(),
-            &mut no_effect,
-            &mut observer,
-        )
-        .unwrap();
-    assert!(matches!(first, OperationOutcome::Diverged { .. }));
-    let before_expiry = OperationLifecycle::from_shared(backend.clone())
-        .run(
-            &intent,
-            &grant,
-            LeaseWindow::new(Datum::String("holder/b".into()), 110, 130).unwrap(),
-            &mut no_effect,
-            &mut observer,
-        )
-        .unwrap();
-    assert!(matches!(before_expiry, OperationOutcome::Uncertain { .. }));
-    assert_eq!(retry_calls.load(Ordering::SeqCst), 1);
-    let rewound_clock = OperationLifecycle::from_shared(backend.clone())
-        .run(
-            &intent,
-            &grant,
-            LeaseWindow::new(Datum::String("holder/rewound".into()), 90, 95).unwrap(),
-            &mut no_effect,
-            &mut observer,
-        )
-        .expect_err("a caller cannot move monotonic lease time backwards");
-    assert!(matches!(rewound_clock, OperationError::InvalidLease));
-    assert_eq!(retry_calls.load(Ordering::SeqCst), 1);
-    let after_expiry = OperationLifecycle::from_shared(backend.clone())
-        .run(
-            &intent,
-            &grant,
-            LeaseWindow::new(Datum::String("holder/c".into()), 121, 140).unwrap(),
-            &mut no_effect,
-            &mut observer,
-        )
-        .unwrap();
-    assert!(matches!(after_expiry, OperationOutcome::Diverged { .. }));
-    assert_eq!(retry_calls.load(Ordering::SeqCst), 2);
-    let record = OperationLifecycle::from_shared(backend)
-        .record(intent.id())
-        .unwrap()
-        .unwrap();
-    assert_eq!(record.dispatches().len(), 2);
-    assert!(record.leases()[1].fence() > record.leases()[0].fence());
 }
 
 #[test]

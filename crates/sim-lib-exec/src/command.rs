@@ -1,8 +1,25 @@
+// SPDX-License-Identifier: MPL-2.0
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 //! Exact, content-identified local checker command contracts.
 
 use std::{collections::BTreeSet, fmt};
 
 use sim_kernel::{CapabilityName, ContentId, Datum, Error, Result, Symbol};
+
+#[path = "command_checkout.rs"]
+mod checkout;
+#[path = "command_decode.rs"]
+mod decode;
+#[path = "command_local_check.rs"]
+mod local_check;
+pub use local_check::{
+    LocalCheckLease, LocalCheckPort, LocalCheckRequest, LocalCheckResult, LocalCheckStatus,
+};
+#[path = "command_request_wire.rs"]
+pub(crate) mod request_wire;
 
 use crate::{
     ArgAtom, ProcessBudget, ProgramRef, ProjectRootRef, SandboxControl, SandboxPolicy,
@@ -134,6 +151,48 @@ pub struct CommandResource {
     pub guest_path: String,
     /// Exact access authority.
     pub access: ResourceAccess,
+}
+
+/// One exact input file materialized into the writable working root.
+///
+/// Before the command may run, its owner copies the bytes at `path` inside the
+/// declared read-only resource `resource` to `target` inside the command's
+/// writable working root. Both paths are canonical relative paths. The copy is
+/// part of the command identity; it is how an owned disposable checkout gets
+/// its exact inputs without granting the payload write access to the source.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct CheckoutFile {
+    /// Declared read-only resource holding the input.
+    pub resource: String,
+    /// Relative path of the input inside that resource.
+    pub path: String,
+    /// Relative path of the copy inside the writable working root.
+    pub target: String,
+}
+
+/// Largest number of files one command checkout may materialize.
+pub const MAX_CHECKOUT_FILES: usize = 16;
+
+/// Declares that an interpreter command's script is one field of an owner
+/// manifest held in a declared read-only resource.
+///
+/// The manifest at `path` is a table of entries; the entry in array `table`
+/// whose `name` key equals `name` has a string `field` whose exact bytes are
+/// the command's script. The selection is part of the command identity, and
+/// the owner that runs the command proves the equality from the pinned
+/// manifest before execution.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ManifestSelection {
+    /// Declared read-only resource holding the manifest.
+    pub resource: String,
+    /// Relative path of the manifest inside that resource.
+    pub path: String,
+    /// Array of entries inside the manifest, for example `repo`.
+    pub table: String,
+    /// Value of the selected entry's `name` key.
+    pub name: String,
+    /// String field holding the script, for example `validation_command`.
+    pub field: String,
 }
 
 /// Expected state of one declared output path after execution.
@@ -312,6 +371,8 @@ pub struct CommandSpec {
     network: NetworkAccess,
     route: CommandRoute,
     replay: CommandReplayPolicy,
+    checkout: Vec<CheckoutFile>,
+    manifest: Option<ManifestSelection>,
 }
 
 impl CommandSpec {
@@ -445,6 +506,8 @@ impl CommandSpec {
             network,
             route,
             replay,
+            checkout: Vec::new(),
+            manifest: None,
         };
         value.id = CommandId(
             value
@@ -502,161 +565,83 @@ impl CommandSpec {
     pub const fn replay(&self) -> CommandReplayPolicy {
         self.replay
     }
+    /// Returns the exact input files materialized before execution.
+    pub fn checkout(&self) -> &[CheckoutFile] {
+        &self.checkout
+    }
+    /// Returns the owner manifest field this command's script must equal.
+    pub const fn manifest(&self) -> Option<&ManifestSelection> {
+        self.manifest.as_ref()
+    }
     /// Returns the canonical semantic command specification.
     pub fn canonical_datum(&self) -> Datum {
         self.canonical_without_id()
     }
     fn canonical_without_id(&self) -> Datum {
-        node(
-            "command-spec-v1",
-            vec![
-                ("program", Datum::String(self.program.as_str().into())),
-                ("root", Datum::String(self.root.as_str().into())),
-                ("invocation", invocation_datum(&self.invocation)),
-                ("environment", environment_datum(&self.environment)),
-                (
-                    "resources",
-                    Datum::Vector(self.resources.iter().map(resource_datum).collect()),
-                ),
-                ("budget", budget_datum(&self.budget)),
-                ("outputs", self.outputs.canonical_datum()),
-                ("cleanup", self.cleanup.canonical_datum()),
-                ("network", network_datum(&self.network)),
-                ("route", route_datum(&self.route)),
-                ("replay", replay_datum(self.replay)),
-            ],
-        )
-    }
-}
-
-/// Capability-scoped request naming only an installed allowlist entry.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LocalCheckRequest {
-    packet: PacketRef,
-    command: CommandId,
-    source: BuildSourceRef,
-    grant: CapabilityGrantRef,
-    network_grant: Option<(CapabilityName, CapabilityGrantRef)>,
-}
-
-/// Explicit bounded lease request supplied to a local checker port.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LocalCheckLease {
-    /// Stable holder identity.
-    pub holder: Datum,
-    /// Inclusive caller-supplied monotonic acquisition tick.
-    pub acquired_at: u64,
-    /// Exclusive caller-supplied monotonic expiry tick.
-    pub expires_at: u64,
-}
-
-/// Portable projection of the durable operation outcome.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum LocalCheckStatus {
-    /// The exact postcondition existed before dispatch.
-    AlreadyTrue,
-    /// An independent observer verified the postcondition after dispatch.
-    Verified,
-    /// An independent observer found a different postcondition.
-    Diverged,
-    /// Available facts cannot establish completion or safe replay.
-    Uncertain,
-    /// Admission or lifecycle validation refused the request.
-    Refused,
-}
-
-/// Stable checker-facing response without native process or path values.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LocalCheckResult {
-    /// Semantic operation identity, when canonical admission succeeded.
-    pub operation: Option<String>,
-    /// Portable lifecycle outcome.
-    pub status: LocalCheckStatus,
-    /// Canonical outcome evidence or typed refusal detail.
-    pub evidence: Datum,
-}
-
-/// Portable checker seam; packet tooling never constructs a native command.
-pub trait LocalCheckPort: Send {
-    /// Executes or reconciles one installed exact command under a bounded lease.
-    fn check(
-        &mut self,
-        request: &LocalCheckRequest,
-        lease: &LocalCheckLease,
-        cancellation: &crate::ProcessCancellation,
-    ) -> LocalCheckResult;
-}
-
-impl LocalCheckRequest {
-    /// Creates a request that cannot alter the installed command bytes or policy.
-    pub fn new(
-        packet: PacketRef,
-        command: CommandId,
-        source: BuildSourceRef,
-        grant: CapabilityGrantRef,
-    ) -> Self {
-        Self {
-            packet,
-            command,
-            source,
-            grant,
-            network_grant: None,
+        let mut fields = vec![
+            ("program", Datum::String(self.program.as_str().into())),
+            ("root", Datum::String(self.root.as_str().into())),
+            ("invocation", invocation_datum(&self.invocation)),
+            ("environment", environment_datum(&self.environment)),
+            (
+                "resources",
+                Datum::Vector(self.resources.iter().map(resource_datum).collect()),
+            ),
+            ("budget", budget_datum(&self.budget)),
+            ("outputs", self.outputs.canonical_datum()),
+            ("cleanup", self.cleanup.canonical_datum()),
+            ("network", network_datum(&self.network)),
+            ("route", route_datum(&self.route)),
+            ("replay", replay_datum(self.replay)),
+        ];
+        // A command without a checkout or manifest keeps its original v1 identity.
+        if self.checkout.is_empty() && self.manifest.is_none() {
+            return node("command-spec-v1", fields);
         }
+        fields.push((
+            "checkout",
+            Datum::Vector(self.checkout.iter().map(checkout_datum).collect()),
+        ));
+        fields.push((
+            "manifest",
+            self.manifest.as_ref().map_or(Datum::Nil, manifest_datum),
+        ));
+        node("command-spec-v2", fields)
     }
-    /// Adds authority for the exact separately scoped network capability.
-    #[must_use]
-    pub fn with_network_grant(
-        mut self,
-        capability: CapabilityName,
-        grant: CapabilityGrantRef,
-    ) -> Self {
-        self.network_grant = Some((capability, grant));
-        self
-    }
-    /// Returns the implementation packet identity.
-    pub const fn packet(&self) -> &PacketRef {
-        &self.packet
-    }
-    /// Returns the installed exact command identity.
-    pub const fn command(&self) -> &CommandId {
-        &self.command
-    }
-    /// Returns the sealed build-source identity.
-    pub const fn source(&self) -> &BuildSourceRef {
-        &self.source
-    }
-    /// Returns the least-authority grant identity.
-    pub const fn grant(&self) -> &CapabilityGrantRef {
-        &self.grant
-    }
-    /// Returns the separately scoped network capability and grant, when supplied.
-    pub const fn network_grant(&self) -> Option<&(CapabilityName, CapabilityGrantRef)> {
-        self.network_grant.as_ref()
-    }
-    /// Returns the request's canonical semantic value.
-    pub fn canonical_datum(&self) -> Datum {
-        node(
-            "local-check-request-v1",
-            vec![
-                ("packet", Datum::String(self.packet.as_str().into())),
-                ("command", id_datum(self.command.content_id())),
-                ("source", Datum::String(self.source.as_str().into())),
-                ("grant", Datum::String(self.grant.as_str().into())),
-                (
-                    "network-grant",
-                    self.network_grant
-                        .as_ref()
-                        .map_or(Datum::Nil, |(capability, grant)| {
-                            node(
-                                "network-grant-v1",
-                                vec![
-                                    ("capability", Datum::String(capability.as_str().into())),
-                                    ("grant", Datum::String(grant.as_str().into())),
-                                ],
-                            )
-                        }),
-                ),
-            ],
-        )
-    }
+}
+
+fn checkout_datum(file: &CheckoutFile) -> Datum {
+    node(
+        "checkout-file-v1",
+        vec![
+            ("resource", Datum::String(file.resource.clone())),
+            ("path", Datum::String(file.path.clone())),
+            ("target", Datum::String(file.target.clone())),
+        ],
+    )
+}
+
+fn manifest_datum(selection: &ManifestSelection) -> Datum {
+    node(
+        "manifest-selection-v1",
+        vec![
+            ("resource", Datum::String(selection.resource.clone())),
+            ("path", Datum::String(selection.path.clone())),
+            ("table", Datum::String(selection.table.clone())),
+            ("name", Datum::String(selection.name.clone())),
+            ("field", Datum::String(selection.field.clone())),
+        ],
+    )
+}
+
+pub(crate) fn canonical_relative_path(path: &str) -> bool {
+    !path.is_empty()
+        && path.len() <= 1024
+        && !path.starts_with('/')
+        && !path
+            .bytes()
+            .any(|byte| byte == 0 || byte.is_ascii_control())
+        && path
+            .split('/')
+            .all(|part| !part.is_empty() && part != "." && part != "..")
 }
