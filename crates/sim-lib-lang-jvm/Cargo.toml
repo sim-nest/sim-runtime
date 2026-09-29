@@ -28,11 +28,11 @@ sim-shape = { version = "0.4.0" }
 sim-kernel = { version = "0.4.0", features = ["test-support"] }
 sim-lib-binding = { version = "0.3.0", path = "../sim-lib-binding" }
 sim-lib-logic = { version = "0.3.0", path = "../sim-lib-logic" }
-toml = "0.8"
+toml = "1.1"
 
 [build-dependencies]
 sim-codec-classfile = { version = "0.2.0" }
-toml = "0.8"
+toml = "1.1"
 
 [lints]
 workspace = true
