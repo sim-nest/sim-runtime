@@ -181,6 +181,8 @@ fn project_entries<'a>(
                 observations: vec![],
                 outcome: None,
                 last_step: OperationStep::IntentPersisted,
+                generation: entry.sequence,
+                observation_generation: None,
             };
             if operations.insert(intent.id().clone(), record).is_some() {
                 return Err(OperationError::DuplicateIntent);
@@ -201,6 +203,7 @@ fn project_entries<'a>(
                 ));
             }
             record.cancellation = Some(cancellation);
+            record.generation = entry.sequence;
         } else if entry.kind == Symbol::qualified("operation", "lifecycle-lease-acquired") {
             require_payloads(entry, 1)?;
             let lease = OperationLease::from_datum(datum(&entry.payloads[0])?)?;
@@ -246,7 +249,15 @@ fn project_entries<'a>(
                         .ok_or(OperationError::InvalidTransition(
                             "retry lease requires a prior observation",
                         ))?;
-                if observation.dispatch.as_ref() != record.dispatches.last().map(|d| &d.id)
+                // Freshness: nothing has touched this record since the
+                // observation was itself recorded. record.generation is
+                // stamped on every state-advancing entry; observation_generation
+                // captures its value when the current observation was
+                // recorded. Equal means the observation is still the single
+                // most recent fact about this record -- not merely that it
+                // names the record's current last dispatch (a new lease
+                // without a new dispatch would leave that check blind).
+                if record.observation_generation != Some(record.generation)
                     || !matches!(
                         observation.response(),
                         PostconditionResponse::NotSatisfied { .. }
@@ -263,6 +274,7 @@ fn project_entries<'a>(
             }
             record.leases.push(lease);
             record.last_step = OperationStep::LeaseAcquired;
+            record.generation = entry.sequence;
         } else if entry.kind == Symbol::qualified("operation", "lifecycle-dispatch-persisted") {
             require_payloads(entry, 2)?;
             let dispatch = FencedDispatch::from_datum(datum(&entry.payloads[0])?)?;
@@ -314,6 +326,7 @@ fn project_entries<'a>(
             record.attempts.push(attempt);
             record.dispatches.push(dispatch);
             record.last_step = OperationStep::DispatchPersisted;
+            record.generation = entry.sequence;
         } else if entry.kind
             == Symbol::qualified("operation", "lifecycle-reservation-intent-persisted")
         {
@@ -346,6 +359,7 @@ fn project_entries<'a>(
             }
             record.reservations.push(reservation);
             record.last_step = OperationStep::ReservationIntentPersisted;
+            record.generation = entry.sequence;
         } else if entry.kind == Symbol::qualified("operation", "lifecycle-preparation-persisted") {
             require_payloads(entry, 1)?;
             let preparation = LifecyclePreparation::from_datum(datum(&entry.payloads[0])?)?;
@@ -384,6 +398,7 @@ fn project_entries<'a>(
             }
             record.preparations.push(preparation);
             record.last_step = OperationStep::PreparationPersisted;
+            record.generation = entry.sequence;
         } else if entry.kind == Symbol::qualified("operation", "lifecycle-release-intent-persisted")
         {
             require_payloads(entry, 1)?;
@@ -423,6 +438,7 @@ fn project_entries<'a>(
             }
             record.releases.push(release);
             record.last_step = OperationStep::ReleaseIntentPersisted;
+            record.generation = entry.sequence;
         } else if entry.kind == Symbol::qualified("operation", "lifecycle-receipt-persisted") {
             require_payloads(entry, 1)?;
             let receipt = LifecycleReceipt::from_datum(datum(&entry.payloads[0])?)?;
@@ -458,6 +474,7 @@ fn project_entries<'a>(
             }
             record.receipts.push(receipt);
             record.last_step = OperationStep::ReceiptPersisted;
+            record.generation = entry.sequence;
         } else if entry.kind == Symbol::qualified("operation", "lifecycle-observation-persisted") {
             require_payloads(entry, 1)?;
             let observation = OperationObservation::from_datum(datum(&entry.payloads[0])?)?;
@@ -556,6 +573,8 @@ fn project_entries<'a>(
             }
             record.observations.push(observation);
             record.last_step = OperationStep::ObservationPersisted;
+            record.generation = entry.sequence;
+            record.observation_generation = Some(entry.sequence);
         } else if entry.kind == Symbol::qualified("operation", "lifecycle-outcome-persisted") {
             require_payloads(entry, 1)?;
             let outcome = IdentifiedOutcome::from_datum(datum(&entry.payloads[0])?)?;
@@ -575,15 +594,18 @@ fn project_entries<'a>(
                 ));
             }
             // Being the record's last observation is not enough: a later
-            // lease/dispatch (a retry) can be admitted without ever being
-            // observed, leaving a stale earlier observation as the record's
-            // only one. Require it still names the record's current last
-            // dispatch, so no state-advancing transition happened after it.
-            if observation.dispatch.as_ref()
-                != record.dispatches.last().map(|dispatch| &dispatch.id)
-            {
+            // lease, dispatch, reservation, preparation, or release (a
+            // retry, or custody progress) can be admitted without ever
+            // being observed, leaving a stale earlier observation as the
+            // record's only one. record.generation is stamped on every
+            // state-advancing entry; observation_generation captures its
+            // value when the current observation was recorded. Equal means
+            // no state-advancing transition happened after it -- checked
+            // once here, generically, rather than by comparing individual
+            // derived facts (dispatch identity) against each other.
+            if record.observation_generation != Some(record.generation) {
                 return Err(OperationError::InvalidTransition(
-                    "outcome observation is stale: a later dispatch has since been admitted",
+                    "outcome observation is stale: a later transition has since been admitted",
                 ));
             }
             match &outcome.outcome {
@@ -685,6 +707,7 @@ fn project_entries<'a>(
             }
             record.outcome = Some(outcome);
             record.last_step = OperationStep::OutcomePersisted;
+            record.generation = entry.sequence;
         }
     }
     Ok(operations)

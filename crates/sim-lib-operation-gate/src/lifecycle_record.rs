@@ -69,6 +69,21 @@ pub struct OperationLifecycleRecord {
     pub(super) observations: Vec<OperationObservation>,
     pub(super) outcome: Option<IdentifiedOutcome>,
     pub(super) last_step: OperationStep,
+    /// The journal sequence number of the most recent entry that touched
+    /// this operation (any kind), including the intent itself. Monotonic
+    /// per record. Not the journal's global head sequence -- this
+    /// operation's own most recent entry only.
+    pub(super) generation: u64,
+    /// `generation`'s value at the moment the record's current
+    /// `observations.last()` was itself recorded. Equal to `generation`
+    /// exactly when that observation is still the single most recent fact
+    /// about this record; less than it the instant anything else (a new
+    /// lease, dispatch, reservation, preparation, release, or receipt) is
+    /// recorded afterward. This is the one durable, monotonic basis for
+    /// "is this observation still current" -- checked by equality, not by
+    /// comparing individual derived fields (dispatch identity, tick
+    /// values) against each other one at a time.
+    pub(super) observation_generation: Option<u64>,
 }
 
 /// One operation projection bound to the head of the exact verified journal read.

@@ -384,3 +384,125 @@ fn projector_refuses_a_diverged_outcome_over_unresolved_custody() {
         Err(OperationError::InvalidTransition(_))
     ));
 }
+
+#[test]
+fn a_late_receipt_after_the_observation_leaves_it_stale_for_any_outcome() {
+    // A receipt is not required to arrive before its dispatch's own
+    // observation -- AcknowledgementMissing observed first, a late receipt
+    // second, is a real sequence the projector's own per-entry admission
+    // rules already permit (neither checks last_step). That means a
+    // canonical outcome still citing the pre-receipt observation is stale:
+    // it was taken before the receipt existed, so it cannot speak to
+    // whatever the receipt's own content now durably records. Naming the
+    // record's current last dispatch (the older, narrower check) does not
+    // catch this, because the receipt never changes which dispatch is
+    // last -- only the record's generation-based freshness check does.
+    struct NoAck;
+    impl LifecyclePerformer for NoAck {
+        fn identity(&self) -> Datum {
+            Datum::String("fixture/no-ack".into())
+        }
+        fn perform(&mut self, _: &FencedDispatch) -> LifecyclePerformerResponse {
+            LifecyclePerformerResponse::AcknowledgementMissing
+        }
+    }
+    struct AlwaysNotSatisfied;
+    impl PostconditionObserver for AlwaysNotSatisfied {
+        fn identity(&self) -> Datum {
+            Datum::String("fixture/always-not-satisfied-observer".into())
+        }
+        fn observe(&mut self, _: &PostconditionRequest) -> PostconditionResponse {
+            PostconditionResponse::NotSatisfied {
+                observed: Datum::Nil,
+                evidence: Datum::Nil,
+            }
+        }
+    }
+
+    let backend = Arc::new(CrashBackend::default());
+    let (intent, grant) = fixture(ReplayPolicy::Idempotent);
+    prepared_lifecycle(backend.clone())
+        .run(
+            &intent,
+            &grant,
+            clock_window("holder/late-receipt", 10, 20),
+            &mut NoAck,
+            &mut AlwaysNotSatisfied,
+        )
+        .unwrap();
+    let snapshot = Journal::new(backend).verified_snapshot().unwrap();
+
+    // Cut the engine's own sealed outcome, reaching the same prefix (a
+    // dispatch, no receipt, one NotSatisfied observation, no outcome yet)
+    // a hostile or buggy writer would also start from.
+    let cut = snapshot.entries().len() - 1;
+    let prefix_entries = snapshot.entries()[..cut].to_vec();
+    let prefix_ids = prefix_entries
+        .iter()
+        .flat_map(|entry| entry.payloads.iter())
+        .collect::<std::collections::BTreeSet<_>>();
+    let prefix_objects: Vec<_> = prefix_ids
+        .into_iter()
+        .map(|id| JournalObject::from_datum(snapshot.datum(id).unwrap().clone()).unwrap())
+        .collect();
+    let journal = Journal::new(MemoryBackend::new());
+    let lease = journal.acquire_lease().unwrap();
+    journal
+        .publish(&lease, None, prefix_objects, prefix_entries)
+        .unwrap();
+    let prefix = journal.verified_snapshot().unwrap();
+    let record = project_verified_lifecycle_records(&prefix)
+        .unwrap()
+        .remove(intent.id())
+        .unwrap();
+    assert!(
+        record.outcome().is_none(),
+        "fixture must end before an outcome, or this test proves nothing"
+    );
+    let stale_observation = record.observations().last().unwrap().clone();
+    let dispatch_id = record.dispatches().last().unwrap().id().clone();
+
+    // Forge the late receipt and admit it for real -- the projector's own
+    // rules permit it, matching the scenario's own premise.
+    let receipt =
+        crate::lifecycle::LifecycleReceipt::new(dispatch_id, Datum::String("late".into()), None)
+            .unwrap();
+    let (receipt_entry, receipt_objects) = extension(
+        &prefix,
+        "lifecycle-receipt-persisted",
+        &[receipt.canonical_datum()],
+    );
+    project_verified_lifecycle_extension(&prefix, &receipt_entry, &receipt_objects)
+        .expect("a late receipt is a legal admission on its own");
+    let receipt_lease = journal.acquire_lease().unwrap();
+    journal
+        .publish(
+            &receipt_lease,
+            prefix.head().cloned().as_ref(),
+            receipt_objects,
+            vec![receipt_entry],
+        )
+        .unwrap();
+    let with_receipt = journal.verified_snapshot().unwrap();
+
+    // Now forge an outcome citing the observation that predates the
+    // receipt -- still the record's ONLY observation, still naming its
+    // current last dispatch, but no longer the record's freshest fact.
+    let forged = crate::lifecycle_record::IdentifiedOutcome::new(
+        intent.id().clone(),
+        stale_observation.id().clone(),
+        OperationOutcome::Uncertain {
+            last_durable_step: OperationStep::ReceiptPersisted,
+        },
+    )
+    .unwrap();
+    let (outcome_entry, outcome_objects) = extension(
+        &with_receipt,
+        "lifecycle-outcome-persisted",
+        &[forged.canonical_datum()],
+    );
+    assert!(matches!(
+        project_verified_lifecycle_extension(&with_receipt, &outcome_entry, &outcome_objects),
+        Err(OperationError::InvalidTransition(_))
+    ));
+}
