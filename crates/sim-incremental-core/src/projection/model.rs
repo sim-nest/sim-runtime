@@ -278,8 +278,23 @@ pub struct QualifiedRuntime {
 }
 
 /// One of the two projector admission routes allowed by the roadmap.
+///
+/// This is a wrapper around a crate-private variant enum, not a public enum
+/// itself: `ProjectorQualificationKind` cannot be named from outside
+/// `sim-incremental-core`, so no external caller can write a
+/// `ProjectorQualification` struct literal or match into its variants.
+/// The only way to obtain one is through this crate's own admission logic
+/// (`admission::trusted_native`/`closed_wasm`, both `pub(crate)`, reached
+/// only from inside `ProjectionEngine::project` itself, at the moment of
+/// dispatch). A caller can hold this value (it appears in
+/// [`ProjectionResult::projector_qualification`]) and clone it, but never
+/// assemble one from its own claimed evidence, and never pass one back in:
+/// `project` does not accept a qualification argument.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ProjectorQualification {
+pub struct ProjectorQualification(pub(crate) ProjectorQualificationKind);
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ProjectorQualificationKind {
     /// Exact reviewed native code and dependency closure.
     TrustedNative {
         /// Qualified source closure.
@@ -288,6 +303,10 @@ pub enum ProjectorQualification {
         policy: ContentId,
     },
     /// Closed wasm module with verified imports and runtime behavior.
+    ///
+    /// Unconstructed by any real caller yet; see `admission::closed_wasm`'s
+    /// doc comment for why this is a tracked deferral, not dead code.
+    #[allow(dead_code)]
     ClosedWasm {
         /// Exact semantic module identity.
         module: ContentId,
@@ -304,16 +323,22 @@ pub enum ProjectorQualification {
 
 impl ProjectorQualification {
     pub(crate) fn implementation(&self) -> &ContentId {
-        match self {
-            Self::TrustedNative { source, .. } => &source.code,
-            Self::ClosedWasm { module, .. } => module,
+        match &self.0 {
+            ProjectorQualificationKind::TrustedNative { source, .. } => &source.code,
+            ProjectorQualificationKind::ClosedWasm { module, .. } => module,
         }
     }
 
     pub(crate) fn policy(&self) -> &ContentId {
-        match self {
-            Self::TrustedNative { policy, .. } | Self::ClosedWasm { policy, .. } => policy,
+        match &self.0 {
+            ProjectorQualificationKind::TrustedNative { policy, .. }
+            | ProjectorQualificationKind::ClosedWasm { policy, .. } => policy,
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn is_trusted_native(&self) -> bool {
+        matches!(self.0, ProjectorQualificationKind::TrustedNative { .. })
     }
 }
 

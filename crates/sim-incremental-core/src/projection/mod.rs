@@ -14,9 +14,14 @@ mod engine;
 mod graph;
 mod model;
 
-pub use admission::{
-    ClosedWasmEvidence, NativeSourceEvidence, ProjectorQualificationVerifier, QualificationError,
-};
+// NativeSourceEvidence, ProjectorQualificationVerifier, and
+// bootstrap_native_source are `pub(crate)`, deliberately not re-exported: no
+// downstream crate can construct evidence, call the verifier, or mint a
+// bootstrap receipt. The only route to a ProjectorQualification is
+// `ProjectionRegistry::qualification_for`. See admission.rs's module docs.
+pub use admission::{ClosedWasmEvidence, QualificationError};
+#[cfg(test)]
+use admission::{ProjectorQualificationVerifier, bootstrap_native_source};
 pub use assay::{
     AssayContract, AssayError, AssayOutcome, ControlledDelta, ControlledDeltaClass,
     ExpectedClosure, ExpectedClosureSet, ExpectedClosureViolation, PredictedClosureAssay,
@@ -38,6 +43,9 @@ pub use model::{
     ProjectionKindRef, ProjectionOutput, ProjectionProvider, ProjectionResult, ProjectionSpec,
     ProjectorPolicy, ProjectorQualification, QualifiedRuntime, QualifiedSourceClosure,
 };
+// ProjectorQualificationKind is `pub(crate)`: only this crate's own admission
+// logic constructs a ProjectorQualification's contents. Not re-exported.
+use model::ProjectorQualificationKind;
 
 #[cfg(test)]
 mod assay_tests;

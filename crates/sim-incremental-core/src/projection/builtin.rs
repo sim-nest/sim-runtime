@@ -1,6 +1,7 @@
 use std::{collections::BTreeSet, sync::Arc};
 
 use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
+use sim_conformance_core::OwnerBindingId;
 use sim_kernel::{ContentId, Datum, Symbol};
 
 use super::{
@@ -188,17 +189,87 @@ impl ProjectionProvider for SelectFactsProvider {
     }
 }
 
-/// Installs every baseline kind into an open registry.
+/// Installs every baseline kind into an open registry, and grants each one
+/// real, honest `EvidenceGrade::Bootstrap` native-source admission.
+///
+/// Returns the [`PackageIdentity`] actually registered, which the caller
+/// must reuse for every later [`super::ProjectionSpec`] built against these
+/// kinds: its `code` is NOT `package.code` (a caller-supplied claim this
+/// function does not trust for admission purposes) but a fresh identity this
+/// function computes itself from `include_str!("builtin.rs")` -- the literal
+/// compiled source of [`SelectFactsProvider`]. Mutating that source changes
+/// this identity automatically; a caller cannot claim a code identity this
+/// function did not itself measure.
+///
+/// `dependencies` is likewise computed here, from this crate's own
+/// `CARGO_PKG_VERSION` -- always current by construction, never a
+/// hand-maintained string that can go stale. It does not enumerate the full
+/// transitive dependency closure; that is a known, named limitation, not a
+/// silent one.
+///
+/// # Errors
+/// Returns [`ProjectionError::UnqualifiedProjector`] if granting bootstrap
+/// admission fails for any kind (it should not, absent a bug here).
 pub fn install_baseline_providers(
     registry: &mut ProjectionRegistry,
     config_shape: ContentId,
     package: PackageIdentity,
-) -> Result<(), ProjectionError> {
+) -> Result<PackageIdentity, ProjectionError> {
+    let code = builtin_source_identity()?;
+    let dependencies = builtin_dependency_identity()?;
+    let owner_binding = OwnerBindingId::from_text("sim-incremental-core/projection/builtin")
+        .map_err(|error| ProjectionError::UnqualifiedProjector(error.to_string()))?;
+    let registered = PackageIdentity { code, ..package };
     for kind in BASELINE_PROJECTION_KINDS {
+        let kind_ref = ProjectionKindRef::new(*kind)?;
         registry.register(
-            package.clone(),
+            registered.clone(),
             Arc::new(SelectFactsProvider::new(*kind, config_shape.clone())?),
         )?;
+        registry
+            .admit_bootstrap_native(
+                &kind_ref,
+                owner_binding.clone(),
+                registered.code.clone(),
+                dependencies.clone(),
+            )
+            .map_err(|error| ProjectionError::UnqualifiedProjector(error.to_string()))?;
     }
-    Ok(())
+    Ok(registered)
+}
+
+/// Hashes the literal compiled source of every file `SelectFactsProvider`'s
+/// real behavior actually depends on, not `builtin.rs` alone: its `project`
+/// calls into `ProjectionInputs`/`FactId` (`model.rs`), and the admission
+/// path it is registered through lives in `admission.rs`/`engine.rs`.
+///
+/// This still does not cover `sim-kernel`'s `Datum`/`Symbol` behavior, the
+/// Rust compiler, or any other external dependency -- those are covered
+/// only by version/registry identity (`builtin_dependency_identity`), the
+/// same limit ordinary Cargo-based supply-chain identity has everywhere
+/// else in this ecosystem, named here rather than left implicit.
+fn builtin_source_identity() -> Result<ContentId, ProjectionError> {
+    Datum::String(
+        [
+            include_str!("builtin.rs"),
+            include_str!("model.rs"),
+            include_str!("admission.rs"),
+            include_str!("engine.rs"),
+        ]
+        .concat(),
+    )
+    .content_id()
+    .map_err(|error| ProjectionError::UnqualifiedProjector(error.to_string()))
+}
+
+fn builtin_dependency_identity() -> Result<ContentId, ProjectionError> {
+    Datum::Node {
+        tag: Symbol::qualified("world", "native-dependency-closure-v1"),
+        fields: vec![(
+            Symbol::new("sim-incremental-core"),
+            Datum::String(env!("CARGO_PKG_VERSION").to_owned()),
+        )],
+    }
+    .content_id()
+    .map_err(|error| ProjectionError::UnqualifiedProjector(error.to_string()))
 }

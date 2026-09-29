@@ -2,12 +2,12 @@ use std::{collections::BTreeSet, sync::Arc};
 
 use sim_incremental_core::projection::{
     ConclusionId, DeclaredInputSelector, DeterministicImportManifest, ExecutionSemantics, FactId,
-    FederatedClosure, NativeSourceEvidence, ObservedFact, ObservedWorld, OwnerProjectionGraph,
-    PackageIdentity, ProjectionBudget, ProjectionDigest, ProjectionEngine, ProjectionError,
-    ProjectionKindRef, ProjectionRegistry, ProjectionResult, ProjectionSpec, ProjectorPolicy,
-    ProjectorQualificationVerifier, install_baseline_providers,
+    FederatedClosure, ObservedFact, ObservedWorld, OwnerProjectionGraph, PackageIdentity,
+    ProjectionBudget, ProjectionDigest, ProjectionEngine, ProjectionError, ProjectionKindRef,
+    ProjectionRegistry, ProjectionResult, ProjectionSpec, ProjectorPolicy,
+    install_baseline_providers,
 };
-use sim_kernel::{ContentId, Datum, Symbol};
+use sim_kernel::{Datum, Symbol};
 
 use crate::provider::{PROVIDER_SOURCE, WorldConfigShape, config, content_id};
 
@@ -80,13 +80,18 @@ impl WorldProduct {
     pub fn bundled() -> Result<Self, WorldError> {
         let code = content_id(Datum::String(PROVIDER_SOURCE.to_owned()))?;
         let shape_id = content_id(Datum::String("shape/world-config-v1".to_owned()))?;
-        let package = PackageIdentity {
+        let requested = PackageIdentity {
             name: env!("CARGO_PKG_NAME").to_owned(),
             version: env!("CARGO_PKG_VERSION").to_owned(),
             code,
         };
         let mut registry = ProjectionRegistry::new();
-        install_baseline_providers(&mut registry, shape_id.clone(), package.clone())?;
+        // The registered identity's `code` is NOT `requested.code`: it is
+        // computed inside sim-incremental-core itself, from the real
+        // compiled source of the provider it installs. Every later
+        // ProjectionSpec must use THIS identity, not `requested`, or
+        // ProjectionEngine::project's own code-identity check refuses it.
+        let package = install_baseline_providers(&mut registry, shape_id.clone(), requested)?;
         let source = FactId::new(SOURCE_FACT)?;
         let disclosure = FactId::new(DISCLOSURE_FACT)?;
         let closure = FederatedClosure::seal(
@@ -133,19 +138,6 @@ impl WorldProduct {
         let fact_id = FactId::new(fact)?;
         let world = ObservedWorld::new([(fact_id.clone(), ObservedFact { semantic, envelope })])?;
         let policy = self.policy(fact_id);
-        let qualification = ProjectorQualificationVerifier::trusted_native(
-            &policy,
-            NativeSourceEvidence {
-                code: self.state.package.code.clone(),
-                dependencies: dependency_closure_id()?,
-                review: review_id()?,
-                source_and_dependencies_reviewed: true,
-                ambient_io_closed: true,
-                hidden_state_reviewed: true,
-                loaded_code_matches: true,
-            },
-        )
-        .map_err(|error| WorldError::Qualification(error.to_string()))?;
         let spec = ProjectionSpec {
             id: content_id(Datum::Node {
                 tag: Symbol::qualified("world", "projection-request-v1"),
@@ -159,9 +151,12 @@ impl WorldProduct {
             config_shape: self.state.shape.id.clone(),
             provider: self.state.package.clone(),
         };
+        // Qualification is fetched internally by `project`, from this exact
+        // registry, at the moment of dispatch -- not obtained here and
+        // passed in, which would make it a replayable bearer credential.
         let result =
             ProjectionEngine::new(&self.state.registry, &self.state.shape, &self.state.closure)
-                .project(&world, &spec, &policy, Some(&qualification), None)?;
+                .project(&world, &spec, &policy, None)?;
         let value = projection_value(kind, fact, &result);
         Ok(WorldProjection { result, value })
     }
@@ -264,34 +259,6 @@ fn ensure_pair(kind: &str, fact: &str) -> Result<(), WorldError> {
             fact: fact.to_owned(),
         })
     }
-}
-
-fn dependency_closure_id() -> Result<ContentId, ProjectionError> {
-    content_id(Datum::Node {
-        tag: Symbol::qualified("world", "native-dependency-closure-v1"),
-        fields: vec![
-            (
-                Symbol::new("sim-incremental-core"),
-                Datum::String("0.5.0".to_owned()),
-            ),
-            (Symbol::new("sim-kernel"), Datum::String("0.4.0".to_owned())),
-        ],
-    })
-}
-
-fn review_id() -> Result<ContentId, ProjectionError> {
-    content_id(Datum::Node {
-        tag: Symbol::qualified("world", "native-review-v1"),
-        fields: vec![
-            (
-                Symbol::new("source"),
-                Datum::String(PROVIDER_SOURCE.to_owned()),
-            ),
-            (Symbol::new("io-ports"), Datum::Vector(Vec::new())),
-            (Symbol::new("unsafe"), Datum::Bool(false)),
-            (Symbol::new("mutable-state"), Datum::Bool(false)),
-        ],
-    })
 }
 
 fn projection_value(kind: &str, fact: &str, result: &ProjectionResult) -> Datum {
