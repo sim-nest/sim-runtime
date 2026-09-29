@@ -225,6 +225,42 @@ fn project_entries<'a>(
                     "overlapping or stale operation lease",
                 ));
             }
+            // A second lease over an existing dispatch is a retry. ExactlyOnce
+            // never retries. Idempotent may retry only after an observation
+            // made against the exact prior dispatch independently confirmed a
+            // negative postcondition while the prior lease was already dead --
+            // matching the engine's own precondition for falling through to a
+            // fresh attempt, enforced here so no canonical extension can skip
+            // it. Unresolved custody (reservation/preparation) and durable
+            // cancellation are already refused above for every lease.
+            if !record.dispatches.is_empty() {
+                if record.intent.replay_policy() != ReplayPolicy::Idempotent {
+                    return Err(OperationError::InvalidTransition(
+                        "replay policy forbids a retry lease",
+                    ));
+                }
+                let observation =
+                    record
+                        .observations
+                        .last()
+                        .ok_or(OperationError::InvalidTransition(
+                            "retry lease requires a prior observation",
+                        ))?;
+                if observation.dispatch.as_ref() != record.dispatches.last().map(|d| &d.id)
+                    || !matches!(
+                        observation.response(),
+                        PostconditionResponse::NotSatisfied { .. }
+                    )
+                    || record
+                        .leases
+                        .last()
+                        .is_some_and(|old| old.is_live_at(observation.observed_at()))
+                {
+                    return Err(OperationError::InvalidTransition(
+                        "retry lease requires a fresh confirmed negative observation over an already-dead prior lease",
+                    ));
+                }
+            }
             record.leases.push(lease);
             record.last_step = OperationStep::LeaseAcquired;
         } else if entry.kind == Symbol::qualified("operation", "lifecycle-dispatch-persisted") {
@@ -538,6 +574,18 @@ fn project_entries<'a>(
                     "outcome observation mismatch",
                 ));
             }
+            // Being the record's last observation is not enough: a later
+            // lease/dispatch (a retry) can be admitted without ever being
+            // observed, leaving a stale earlier observation as the record's
+            // only one. Require it still names the record's current last
+            // dispatch, so no state-advancing transition happened after it.
+            if observation.dispatch.as_ref()
+                != record.dispatches.last().map(|dispatch| &dispatch.id)
+            {
+                return Err(OperationError::InvalidTransition(
+                    "outcome observation is stale: a later dispatch has since been admitted",
+                ));
+            }
             match &outcome.outcome {
                 OperationOutcome::AlreadyTrue { evidence }
                     if !matches!(
@@ -582,7 +630,20 @@ fn project_entries<'a>(
                         // no canonical extension can claim it either.
                         || record.cancellation.is_some()
                         || !record.reservations.is_empty()
-                        || !record.preparations.is_empty() =>
+                        || !record.preparations.is_empty()
+                        // Diverged requires an actual attempt: a bare negative
+                        // preflight observation with no dispatch is not proof
+                        // the intended effect was ever attempted and failed.
+                        || record.dispatches.is_empty()
+                        // A live lease means the original performer may still
+                        // complete regardless of replay policy; sealing
+                        // Diverged now would be premature even for
+                        // ExactlyOnce, which never gets a retry lease to fall
+                        // back on the way Idempotent does.
+                        || record
+                            .leases
+                            .last()
+                            .is_some_and(|lease| lease.is_live_at(observation.observed_at())) =>
                 {
                     return Err(OperationError::InvalidTransition(
                         "diverged expected value mismatch",

@@ -8,10 +8,10 @@ use std::sync::{
 use sim_kernel::{CapabilityName, Datum};
 use sim_lib_journal::MemoryBackend;
 use sim_lib_operation_gate::{
-    CancellationSignal, ContractVerifiedOperation, FencedDispatch, LeaseWindow, LifecyclePerformer,
-    LifecyclePerformerResponse, OperationGrant, OperationIntent, OperationLifecycle,
-    OperationOutcome, OperationStep, PostconditionObserver, PostconditionRequest,
-    PostconditionResponse,
+    CancellationSignal, ContractVerifiedOperation, FencedDispatch, LeaseClock, LeaseClockReading,
+    LeaseWindow, LifecyclePerformer, LifecyclePerformerResponse, OperationGrant, OperationIntent,
+    OperationLifecycle, OperationOutcome, OperationStep, PostconditionObserver,
+    PostconditionRequest, PostconditionResponse,
 };
 
 use crate::{
@@ -138,15 +138,42 @@ impl PostconditionObserver for UnavailableObserver {
     }
 }
 
-struct AcknowledgedNoEffect;
+thread_local! { static CLOCK_TICK: std::cell::Cell<u64> = const { std::cell::Cell::new(10) }; }
 
-impl LifecyclePerformer for AcknowledgedNoEffect {
+fn shared_tick_domain() -> Datum {
+    Datum::String("fixture/shared-ticks".into())
+}
+
+struct SharedTickClock;
+
+impl LeaseClock for SharedTickClock {
+    fn read(&self) -> Result<LeaseClockReading, sim_lib_operation_gate::OperationError> {
+        Ok(LeaseClockReading {
+            domain: shared_tick_domain(),
+            tick: CLOCK_TICK.get(),
+        })
+    }
+}
+
+/// Performs with no effect, but advances the shared clock past its own lease's
+/// expiry first -- simulating a negative observation genuinely taken after the
+/// attempt's window elapsed, not merely at the instant of dispatch.
+struct ExpiringNoEffect;
+
+impl LifecyclePerformer for ExpiringNoEffect {
     fn identity(&self) -> Datum {
-        Datum::String("performer/no-effect".into())
+        Datum::String("performer/no-effect-expiring".into())
     }
 
-    fn perform(&mut self, dispatch: &FencedDispatch) -> LifecyclePerformerResponse {
-        LifecyclePerformerResponse::Receipt(Datum::String(dispatch.id().to_string()))
+    fn perform(&mut self, _dispatch: &FencedDispatch) -> LifecyclePerformerResponse {
+        // No receipt: a durably gated receipt commit would itself refuse once
+        // the lease is dead (the direct-perform path's own round-2 guard),
+        // short-circuiting before the observation this test wants to exercise
+        // ever runs. A lost acknowledgement is the realistic way a live
+        // dispatch's postcondition ends up observed only after its lease
+        // expired.
+        CLOCK_TICK.set(20);
+        LifecyclePerformerResponse::AcknowledgementMissing
     }
 }
 
@@ -328,27 +355,32 @@ fn durable_negative_observation_projects_diverged_not_pending_or_refused() {
     let backend = Arc::new(MemoryBackend::new());
     let (request, command) = request();
     let (intent, grant) = operation(&request, &command);
+    CLOCK_TICK.set(10);
     let outcome = OperationLifecycle::from_shared(backend.clone())
+        .with_clock(Arc::new(SharedTickClock))
         .run(
             &intent,
             &grant,
-            LeaseWindow::new(Datum::String("holder/a".into()), 10, 20).unwrap(),
-            &mut AcknowledgedNoEffect,
+            LeaseWindow::new(Datum::String("holder/a".into()), 10, 20)
+                .unwrap()
+                .in_clock(shared_tick_domain())
+                .unwrap(),
+            &mut ExpiringNoEffect,
             &mut NegativeObserver,
         )
         .unwrap();
+    // A negative observation taken while the dispatch's own lease is still
+    // live cannot be sealed Diverged: the performer may still complete. This
+    // fixture's performer advances the clock past that lease's expiry before
+    // returning, so the observation genuinely postdates it and Diverged is
+    // reached honestly, not merely because no clock was configured to notice
+    // the difference.
     assert!(matches!(outcome, OperationOutcome::Diverged { .. }));
 
     let read = OperationLifecycle::from_shared(backend.clone())
         .verified_record(intent.id())
         .unwrap();
-    let retained = contract_verified(
-        backend,
-        &intent,
-        &grant,
-        AcknowledgedNoEffect,
-        NegativeObserver,
-    );
+    let retained = contract_verified(backend, &intent, &grant, ExpiringNoEffect, NegativeObserver);
     let projected =
         LocalCheckReconciliation::from_contract_verified_operation(&request, &command, &retained)
             .unwrap();

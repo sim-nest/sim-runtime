@@ -493,6 +493,27 @@ fn terminal_idempotent_divergence_never_reopens_the_same_operation() {
     })
     .unwrap();
     effect.store(false, Ordering::SeqCst);
+    // A negative observation taken at the exact instant of dispatch cannot
+    // certify Diverged -- the dispatch's own lease is still live at that
+    // instant by construction. This fixture's performer advances a shared
+    // clock past its lease's expiry before returning, so the setup's first
+    // outcome is a genuine (not merely same-tick-coincidental) Diverged; the
+    // rest of this test cares only that it seals and never reopens.
+    thread_local! {
+        static DIVERGENCE_TICK: std::cell::Cell<u64> = const { std::cell::Cell::new(100) };
+    }
+    fn divergence_clock_domain() -> Datum {
+        Datum::String("fixture/divergence-ticks".into())
+    }
+    struct DivergenceClock;
+    impl LeaseClock for DivergenceClock {
+        fn read(&self) -> Result<LeaseClockReading, OperationError> {
+            Ok(LeaseClockReading {
+                domain: divergence_clock_domain(),
+                tick: DIVERGENCE_TICK.get(),
+            })
+        }
+    }
     struct NoEffect(Arc<AtomicUsize>);
     impl LifecyclePerformer for NoEffect {
         fn identity(&self) -> Datum {
@@ -500,16 +521,22 @@ fn terminal_idempotent_divergence_never_reopens_the_same_operation() {
         }
         fn perform(&mut self, _: &FencedDispatch) -> LifecyclePerformerResponse {
             self.0.fetch_add(1, Ordering::SeqCst);
+            DIVERGENCE_TICK.set(120);
             LifecyclePerformerResponse::AcknowledgementMissing
         }
     }
     let retry_calls = Arc::new(AtomicUsize::new(0));
     let mut no_effect = NoEffect(retry_calls.clone());
+    DIVERGENCE_TICK.set(100);
     let first = OperationLifecycle::from_shared(backend.clone())
+        .with_clock(Arc::new(DivergenceClock))
         .run(
             &intent,
             &grant,
-            LeaseWindow::new(Datum::String("holder/a".into()), 100, 120).unwrap(),
+            LeaseWindow::new(Datum::String("holder/a".into()), 100, 120)
+                .unwrap()
+                .in_clock(divergence_clock_domain())
+                .unwrap(),
             &mut no_effect,
             &mut observer,
         )
