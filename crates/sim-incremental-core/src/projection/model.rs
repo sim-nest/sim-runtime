@@ -285,9 +285,11 @@ pub struct QualifiedRuntime {
 /// `ProjectorQualification` struct literal or match into its variants.
 /// The only way to obtain one is through this crate's own admission logic
 /// (`admission::trusted_native`/`closed_wasm`, both `pub(crate)`, reached
-/// only via [`super::ProjectionRegistry::qualification_for`]). A caller can
-/// hold this value, clone it, and pass it back into `ProjectionEngine::project`,
-/// but never assemble one from its own claimed evidence.
+/// only from inside `ProjectionEngine::project` itself, at the moment of
+/// dispatch). A caller can hold this value (it appears in
+/// [`ProjectionResult::projector_qualification`]) and clone it, but never
+/// assemble one from its own claimed evidence, and never pass one back in:
+/// `project` does not accept a qualification argument.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProjectorQualification(pub(crate) ProjectorQualificationKind);
 
