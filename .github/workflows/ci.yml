@@ -92,14 +92,24 @@ jobs:
       - name: repo-contract --check (same hosted-toolchain limit as simdoc --check above)
         continue-on-error: true
         run: cargo run -p xtask -- repo-contract --check --repo .
-        # repo-contract's shared implementation performs the same
-        # toolchain-identity verification simdoc --check does (confirmed:
-        # fails with the identical "no toolchain matches the committed
-        # identity" error, not its own contract-checking logic). Same
-        # guest-only treatment; validation-matrix and crate-catalog below
-        # do not hit this and remain required.
-      - run: cargo run -p xtask -- validation-matrix --check --repo .
-      - run: cargo run -p xtask -- crate-catalog --check --repo .
+      - name: validation-matrix --check (same hosted-toolchain limit as simdoc --check above)
+        continue-on-error: true
+        run: cargo run -p xtask -- validation-matrix --check --repo .
+      - name: crate-catalog --check (same hosted-toolchain limit as simdoc --check above)
+        continue-on-error: true
+        run: cargo run -p xtask -- crate-catalog --check --repo .
+        # repo-contract, validation-matrix, and crate-catalog all route
+        # through sim-tooling's shared simdoc_route::run_forwarded, which
+        # performs the identical simdoc_pin toolchain-identity verification
+        # simdoc --check does (confirmed via sim-tooling's src/dispatch.rs:
+        # all three commands are forwarded to the same locked simdoc
+        # engine, not served by independent contract-checking logic).
+        # All four steps are guest-only for the same reason; none of them
+        # can pass on hosted CI regardless of invocation path. (An earlier
+        # version of this comment claimed validation-matrix and
+        # crate-catalog were unaffected -- that was based on a local test
+        # against a dev toolchain that happened to already match the pin,
+        # not on hosted CI; it was wrong and is corrected here.)
 
   check:
     name: check
