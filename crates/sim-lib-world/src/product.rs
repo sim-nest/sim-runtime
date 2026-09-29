@@ -1,11 +1,14 @@
 use std::{collections::BTreeSet, sync::Arc};
 
+use sim_conformance_core::{
+    LiveCheckerAuthority, LiveCheckerOwner, LiveCheckerReceipt, OwnerBindingId,
+};
 use sim_incremental_core::projection::{
     ConclusionId, DeclaredInputSelector, DeterministicImportManifest, ExecutionSemantics, FactId,
     FederatedClosure, NativeSourceEvidence, ObservedFact, ObservedWorld, OwnerProjectionGraph,
     PackageIdentity, ProjectionBudget, ProjectionDigest, ProjectionEngine, ProjectionError,
     ProjectionKindRef, ProjectionRegistry, ProjectionResult, ProjectionSpec, ProjectorPolicy,
-    ProjectorQualificationVerifier, install_baseline_providers,
+    ProjectorQualificationVerifier, bootstrap_native_source, install_baseline_providers,
 };
 use sim_kernel::{ContentId, Datum, Symbol};
 
@@ -67,6 +70,13 @@ struct WorldState {
     shape: WorldConfigShape,
     closure: FederatedClosure,
     package: PackageIdentity,
+    // Kept alive for the product's lifetime: `checker_authority` and
+    // `checker_receipt` are weak handles into this owner. Never read
+    // directly outside construction; its liveness is what matters.
+    #[allow(dead_code)]
+    checker_owner: LiveCheckerOwner,
+    checker_authority: LiveCheckerAuthority,
+    checker_receipt: LiveCheckerReceipt,
 }
 
 /// Pure read-only product for semantic projection, diff, and explanation.
@@ -111,12 +121,22 @@ impl WorldProduct {
             ],
         )
         .map_err(|error| WorldError::Qualification(error.to_string()))?;
+        let (checker_owner, checker_authority, checker_receipt) = bootstrap_native_source(
+            OwnerBindingId::from_text("sim-runtime/sim-lib-world")
+                .map_err(|error| WorldError::Qualification(error.to_string()))?,
+            package.code.clone(),
+            &package.code,
+        )
+        .map_err(|error| WorldError::Qualification(error.to_string()))?;
         Ok(Self {
             state: Arc::new(WorldState {
                 registry,
                 shape: WorldConfigShape { id: shape_id },
                 closure,
                 package,
+                checker_owner,
+                checker_authority,
+                checker_receipt,
             }),
         })
     }
@@ -138,12 +158,9 @@ impl WorldProduct {
             NativeSourceEvidence {
                 code: self.state.package.code.clone(),
                 dependencies: dependency_closure_id()?,
-                review: review_id()?,
-                source_and_dependencies_reviewed: true,
-                ambient_io_closed: true,
-                hidden_state_reviewed: true,
-                loaded_code_matches: true,
+                receipt: self.state.checker_receipt.clone(),
             },
+            &self.state.checker_authority,
         )
         .map_err(|error| WorldError::Qualification(error.to_string()))?;
         let spec = ProjectionSpec {
@@ -275,21 +292,6 @@ fn dependency_closure_id() -> Result<ContentId, ProjectionError> {
                 Datum::String("0.5.0".to_owned()),
             ),
             (Symbol::new("sim-kernel"), Datum::String("0.4.0".to_owned())),
-        ],
-    })
-}
-
-fn review_id() -> Result<ContentId, ProjectionError> {
-    content_id(Datum::Node {
-        tag: Symbol::qualified("world", "native-review-v1"),
-        fields: vec![
-            (
-                Symbol::new("source"),
-                Datum::String(PROVIDER_SOURCE.to_owned()),
-            ),
-            (Symbol::new("io-ports"), Datum::Vector(Vec::new())),
-            (Symbol::new("unsafe"), Datum::Bool(false)),
-            (Symbol::new("mutable-state"), Datum::Bool(false)),
         ],
     })
 }

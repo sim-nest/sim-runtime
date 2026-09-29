@@ -85,20 +85,22 @@ fn policy(facts: &[&str], confinement: bool) -> ProjectorPolicy {
     }
 }
 
+fn checker_owner() -> sim_conformance_core::OwnerBindingId {
+    sim_conformance_core::OwnerBindingId::from_text("projection/test-owner").unwrap()
+}
+
 fn qualification(policy: &ProjectorPolicy, code: &ContentId) -> ProjectorQualification {
-    ProjectorQualificationVerifier::trusted_native(
-        policy,
-        NativeSourceEvidence {
-            code: code.clone(),
-            dependencies: datum_id("dependencies"),
-            review: datum_id("review"),
-            source_and_dependencies_reviewed: true,
-            ambient_io_closed: true,
-            hidden_state_reviewed: true,
-            loaded_code_matches: true,
-        },
-    )
-    .unwrap()
+    let (owner, authority, receipt) =
+        bootstrap_native_source(checker_owner(), code.clone(), code).unwrap();
+    let evidence = NativeSourceEvidence {
+        code: code.clone(),
+        dependencies: datum_id("dependencies"),
+        receipt,
+    };
+    let result =
+        ProjectorQualificationVerifier::trusted_native(policy, evidence, &authority).unwrap();
+    drop(owner);
+    result
 }
 
 fn fixture(omit_dependency: bool) -> (ProjectionRegistry, ContentId, ContentId, FederatedClosure) {
@@ -256,19 +258,11 @@ fn undeclared_access_and_shape_fail_for_distinct_reasons() {
 #[test]
 fn native_purity_requires_review_and_bwrap_is_separate() {
     let policy = policy(&["fact/a"], true);
-    let code = datum_id("native-proc-read-mutant");
-    let evidence = NativeSourceEvidence {
-        code,
-        dependencies: datum_id("deps"),
-        review: datum_id("review"),
-        source_and_dependencies_reviewed: true,
-        ambient_io_closed: false,
-        hidden_state_reviewed: true,
-        loaded_code_matches: true,
-    };
+    let declared = datum_id("native-proc-read-mutant");
+    let loaded = datum_id("native-proc-read-mutant-different-build");
     assert_eq!(
-        ProjectorQualificationVerifier::trusted_native(&policy, evidence),
-        Err(QualificationError::NativeAmbientInput)
+        bootstrap_native_source(checker_owner(), declared, &loaded).unwrap_err(),
+        QualificationError::NativeCodeMismatch
     );
 
     let (registry, shape, code, closure) = fixture(false);

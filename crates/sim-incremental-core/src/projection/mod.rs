@@ -16,6 +16,7 @@ mod model;
 
 pub use admission::{
     ClosedWasmEvidence, NativeSourceEvidence, ProjectorQualificationVerifier, QualificationError,
+    bootstrap_native_source, native_source_review_scope,
 };
 pub use assay::{
     AssayContract, AssayError, AssayOutcome, ControlledDelta, ControlledDeltaClass,
