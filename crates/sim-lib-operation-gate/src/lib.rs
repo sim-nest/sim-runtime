@@ -19,6 +19,7 @@ mod lifecycle_engine;
 mod lifecycle_observation;
 mod lifecycle_preparation;
 mod lifecycle_project;
+mod lifecycle_project_validate;
 mod lifecycle_record;
 mod lifecycle_release;
 mod lifecycle_reservation;
@@ -28,7 +29,6 @@ mod operation_service;
 mod operation_wire;
 #[cfg(test)]
 mod semantic_tests;
-
 pub use durable::{
     DispatchId, DurableOperationState, OperationAttempt, OperationAttemptId, OperationDispatch,
     OperationGrant, OperationGrantId, OperationId, OperationIntent, OperationIntentId,
