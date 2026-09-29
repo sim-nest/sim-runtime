@@ -69,7 +69,13 @@ jobs:
       - run: cargo doc --workspace --no-deps
         env:
           RUSTDOCFLAGS: -D warnings
-      - run: cargo run -p xtask -- simdoc --check
+      - run: cargo run --locked --manifest-path sim-tooling/crates/simdoc/Cargo.toml -- simdoc --check
+        # simdoc now lives in its own isolated resolver root (sim-tooling's
+        # shared xtask dispatch deliberately refuses the old routed
+        # invocation since the 2026-09-29 reconciliation -- see
+        # sim-tooling's src/dispatch.rs). Invoked directly here instead,
+        # against the sibling checkout already fetched above.
+
       - run: cargo run -p xtask -- repo-contract --check --repo .
       - run: cargo run -p xtask -- validation-matrix --check --repo .
       - run: cargo run -p xtask -- crate-catalog --check --repo .
