@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-lang-jvm"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2024"
 license = "MPL-2.0"
 description = "Manifest-frozen JVM runtime profile for SIM."
@@ -12,7 +12,7 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 [dependencies]
 sim-codec-classfile = { version = "0.2.0" }
 sim-kernel = { version = "0.4.0" }
-sim-incremental-core = { version = "0.5.0", path = "../sim-incremental-core" }
+sim-incremental-core = { version = "0.5.1", path = "../sim-incremental-core" }
 sim-lib-class = { version = "0.3.0", path = "../sim-lib-class" }
 sim-lib-control = { version = "0.3.0", path = "../sim-lib-control" }
 sim-lib-core = { version = "0.4.0", path = "../sim-lib-core" }

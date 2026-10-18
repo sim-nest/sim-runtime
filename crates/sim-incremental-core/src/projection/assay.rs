@@ -489,11 +489,58 @@ pub enum ExpectedClosureViolation {
 
 impl std::fmt::Display for AssayError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "{self:?}")
+        match self {
+            Self::InvalidDeltaId => formatter.write_str("controlled delta id must not be empty"),
+            Self::DuplicateDelta => {
+                formatter.write_str("frozen expected closure contains a duplicate delta")
+            }
+            Self::IncompleteDeltaSet(actual) => write!(
+                formatter,
+                "stage-one assay requires the exact ordered D1-D6 set; received {actual}"
+            ),
+            Self::UnknownDelta(delta) => {
+                write!(
+                    formatter,
+                    "controlled delta {delta} is absent from the frozen oracle"
+                )
+            }
+            Self::InvalidExpectedClosure { delta, reason } => write!(
+                formatter,
+                "expected closure for {delta} violates {}",
+                reason.as_str()
+            ),
+            Self::SemanticNoOpCarriesChangedFacts(delta) => write!(
+                formatter,
+                "semantic no-op {delta} declares changed semantic facts"
+            ),
+            Self::Canonical(message) => {
+                write!(
+                    formatter,
+                    "canonical assay evidence could not be constructed: {message}"
+                )
+            }
+            Self::RepairRequired(repairs) => write!(
+                formatter,
+                "stage-one prediction for {} requires {} projection repair item(s)",
+                repairs.delta,
+                repairs.items.len()
+            ),
+        }
     }
 }
 
 impl std::error::Error for AssayError {}
+
+impl ExpectedClosureViolation {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::InconsistentDenominatorOrCeiling => "denominator-or-ceiling",
+            Self::NoChangeContract => "no-change-contract",
+            Self::UnaffectedFloor => "unaffected-floor",
+            Self::PresentationOnlyContract => "presentation-only-contract",
+        }
+    }
+}
 
 fn content_id_datum(id: &ContentId) -> Datum {
     Datum::Node {

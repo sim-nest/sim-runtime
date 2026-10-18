@@ -20,7 +20,7 @@ paths. Explicit logical path, glob, and ignore rules reject host path aliases.
 The stage-one closure assay compares D1-D6 predictions with an independently
 frozen oracle. Each report states its declared-conclusion denominator, exact
 affected and unaffected sets, explanation paths, semantic journal delta, and
-planned starts without executing proof or claiming receipt reuse. Failed rows
+predicted work starts without executing proof or claiming receipt reuse. Failed rows
 emit a canonical bounded repair set; a third unchanged failure requires an
 architecture review and maintainer direction before a higher rung can open.
 
