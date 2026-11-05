@@ -130,10 +130,10 @@ supports = [
 [[feature]]
 id = "feature/sim-runtime/world-projection-product"
 title = "Read-only world projection and explanation"
-summary = "Load open qualified projectors and expose pure project, diff, and why operations over caller-supplied immutable facts."
+summary = "Load open qualified projectors and expose pure project, diff, why, compose, read-only custody, and resident cached why over caller-supplied immutable facts."
 owner = "crate/sim-lib-world"
 audiences = ["user", "code", "framework"]
-guidance = "Use sim-lib-world when the caller already has typed observed facts and needs their semantic projection, exact invalidation, or an owner-to-leaf explanation. The product owns no observation, process, network, proof execution, scheduling, or mutation port. Provider kinds remain open; configs pass their declared Shape; semantic digests bind checked config, exact provider code and policy, and consumed facts while excluding diagnostic envelopes. The no-v3 disclosure provider consumes the canonical audit-policy fact only for conclusions that declare it."
+guidance = "Use sim-lib-world when the caller already has typed observed facts and needs their semantic projection, exact invalidation, or an owner-to-leaf explanation. The product owns no observation, process, network, proof execution, scheduling, or mutation port. Provider kinds remain open; configs pass their declared Shape; semantic digests bind checked config, exact provider code and policy, and consumed facts while excluding diagnostic envelopes. The no-v3 disclosure provider consumes the canonical audit-policy fact only for conclusions that declare it. The loaded command composes those calls under the model-domain grant, reports read-only custody from its manifest, refuses an unsupported kind and fact pair or a malformed call with a stable reason, and answers resident cached why from one sealed snapshot."
 claims_anchors = [
   "anchor/card/cookbook/world",
   "anchor/cli/world",
@@ -801,7 +801,7 @@ task = "Project supplied world facts and explain their exact affected closure"
 audiences = ["user", "code", "framework"]
 steps = [
   { feature = "feature/sim-runtime/incremental-query-core", why = "The core owns open provider admission, immutable selected inputs, semantic digests, federated owner graphs, and exact explanations." },
-  { feature = "feature/sim-runtime/world-projection-product", why = "The loaded world product exposes project, diff, and why without acquiring observation or mutation authority." },
+  { feature = "feature/sim-runtime/world-projection-product", why = "The loaded world product exposes project, diff, why, and compose, refuses an unsupported pair or a malformed call, reports read-only custody, and answers resident cached why without observation or mutation authority." },
   { specimen = "recipe/sim-runtime/crates/sim-lib-world/01-projection/world-explain", why = "The checked recipe reaches the stable loaded operations over caller-supplied facts." },
 ]
 

@@ -1,8 +1,15 @@
+// SPDX-License-Identifier: MPL-2.0
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 use std::time::{Duration, Instant};
 
-use sim_kernel::{Datum, Export, Lib};
+use sim_incremental_core::projection::{ConclusionId, FactId};
+use sim_kernel::{CapabilityName, Datum, Dependency, Export, Lib, Symbol};
 
 use super::*;
+use crate::query::{self, nearest_rank_p95};
 
 #[test]
 fn bundled_product_projects_and_preserves_envelope_independence() {
@@ -73,6 +80,16 @@ fn why_is_exact_cached_and_has_no_effect_route() {
 }
 
 #[test]
+fn model_load_requires_provider_loader_and_artifact() {
+    let missing = WorldCommandLib::for_model_load(ModelDomainLoad {
+        provider: String::new(),
+        loader: "loader/static-v1".to_owned(),
+        artifact: "lib/world-command".to_owned(),
+    });
+    assert!(missing.is_err());
+}
+
+#[test]
 fn command_is_a_loaded_world_entrypoint_without_capabilities() {
     let command = WorldCommandLib::new().unwrap();
     let manifest = command.manifest();
@@ -82,4 +99,94 @@ fn command_is_a_loaded_world_entrypoint_without_capabilities() {
         export,
         Export::Function { symbol, .. } if symbol.to_string() == "cli/main/world"
     )));
+}
+
+#[test]
+fn unknown_pair_is_unsupported_and_hostile_text_stays_data() {
+    let product = WorldProduct::bundled().unwrap();
+    let error = product
+        .project(
+            "no-such/kind",
+            "no-such/fact",
+            Datum::String("mutated".to_owned()),
+            None,
+        )
+        .unwrap_err();
+    assert!(matches!(error, WorldError::UnsupportedPair { .. }));
+    let projected = product
+        .project(
+            "world/public-api-v1",
+            SOURCE_FACT,
+            Datum::String("#(mutate world)".to_owned()),
+            None,
+        )
+        .unwrap();
+    assert_eq!(product.effect_calls(), 0);
+    assert!(crate::command::render(&projected.value).contains("\"#(mutate world)\""));
+}
+
+#[test]
+fn read_only_record_renders_supplied_manifest_lists() {
+    let record = query::read_only_record(
+        0,
+        &[CapabilityName::new("table.fs.read")],
+        &[Dependency {
+            id: Symbol::qualified("lib", "example"),
+            minimum_version: None,
+        }],
+    );
+    assert_eq!(
+        crate::command::render(&record),
+        "#(world/read-only-v1 (effects 0) (capabilities [\"table.fs.read\"]) (requires [\"lib/example\"]) (resident true))"
+    );
+}
+
+#[test]
+fn resident_snapshot_has_the_cached_query_denominator() {
+    assert_eq!(nearest_rank_p95(200), 189);
+    let snapshot = query::seal_resident_why().unwrap();
+    assert_eq!(snapshot.records, 100_000);
+    assert_eq!(snapshot.units, 10_000);
+    assert_eq!(snapshot.closure.conclusions().len(), 10_000);
+    let first = ConclusionId::new("conclusion/unit-000000").unwrap();
+    let last = ConclusionId::new("conclusion/unit-009999").unwrap();
+    let fact0 = FactId::new("fact/000000").unwrap();
+    let fact10 = FactId::new("fact/000010").unwrap();
+    let fact_last_start = FactId::new("fact/099990").unwrap();
+    let fact_last = FactId::new("fact/099999").unwrap();
+    assert!(snapshot.closure.depends_on(&first, &fact0));
+    assert!(!snapshot.closure.depends_on(&first, &fact10));
+    assert!(snapshot.closure.depends_on(&last, &fact_last_start));
+    assert!(snapshot.closure.depends_on(&last, &fact_last));
+    assert!(snapshot.closure.contains_fact(&fact_last));
+    assert!(
+        !snapshot
+            .closure
+            .contains_fact(&FactId::new("fact/100000").unwrap())
+    );
+    let explanation = snapshot.closure.explain(&first, &fact0).unwrap();
+    assert_eq!(
+        explanation.path,
+        vec![
+            "owner/sim-runtime/sim-lib-world".to_owned(),
+            "conclusion/conclusion/unit-000000".to_owned(),
+            "fact/fact/000000".to_owned(),
+        ]
+    );
+}
+
+#[test]
+fn measure_why_reports_the_resident_query() {
+    let measured = query::measure_why(4).unwrap();
+    assert!(measured.within_ceiling);
+    let rendered = crate::command::render(&measured.record);
+    assert!(rendered.starts_with("#(world/query-latency-v1 "));
+    assert!(rendered.contains("(command \"why\")"));
+    assert!(rendered.contains("(records 100000)"));
+    assert!(rendered.contains("(units 10000)"));
+    assert!(rendered.contains("(warmups 20)"));
+    assert!(rendered.contains("(samples 200)"));
+    assert!(rendered.contains("(effects 4)"));
+    assert!(rendered.contains("(subprocesses 0)"));
+    assert!(rendered.contains("(resident true)"));
 }
