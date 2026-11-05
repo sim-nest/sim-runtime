@@ -8,11 +8,14 @@
 //! The product receives already observed semantic facts from its caller. It can
 //! project, compare, and explain those facts, but has no observation, process,
 //! network, clock, random, mutation, or proof-execution port. The loaded command
-//! reports that custody, refuses an unsupported pair or a malformed call, and
-//! measures resident cached why from one sealed snapshot.
+//! reports that custody, refuses an unsupported pair or a malformed call,
+//! measures resident cached why from one sealed snapshot, and reports
+//! projection sensitivity from provider-read baseline and variant bytes.
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
+mod assay;
+mod assay_mutant;
 mod command;
 mod grant;
 mod product;

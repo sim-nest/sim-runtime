@@ -175,6 +175,7 @@ impl WorldEntrypoint {
             {
                 self.measure_outcome()
             }
+            Some("assay") if argv.len() == 2 => self.assay_outcome(),
             _ => Ok(Outcome::Refused {
                 call: "usage".to_owned(),
                 reason: "usage".to_owned(),
@@ -203,6 +204,12 @@ impl WorldEntrypoint {
         } else {
             Ok(Outcome::OverCeiling(measured.record))
         }
+    }
+
+    fn assay_outcome(&self) -> Result<Outcome> {
+        crate::assay::observe()
+            .map(|observation| Outcome::Value(crate::assay::observation_record(&observation)))
+            .map_err(eval_error)
     }
 
     fn read_only_value(&self) -> Datum {
@@ -250,7 +257,7 @@ impl WorldEntrypoint {
     }
 }
 
-const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why";
+const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | assay";
 
 fn refusal(call: &str, reason: &str) -> Datum {
     Datum::Node {

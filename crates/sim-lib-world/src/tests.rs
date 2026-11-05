@@ -190,3 +190,189 @@ fn measure_why_reports_the_resident_query() {
     assert!(rendered.contains("(subprocesses 0)"));
     assert!(rendered.contains("(resident true)"));
 }
+
+struct OracleRow {
+    delta: &'static str,
+    changed: &'static [&'static str],
+    affected: &'static [&'static str],
+    basis: u16,
+    revision: u64,
+}
+
+fn oracle() -> [OracleRow; 6] {
+    [
+        OracleRow {
+            delta: "D1",
+            changed: &[],
+            affected: &[],
+            basis: 10_000,
+            revision: 0,
+        },
+        OracleRow {
+            delta: "D2",
+            changed: &["change/private-implementation"],
+            affected: &["conclusion/01", "conclusion/02"],
+            basis: 9_500,
+            revision: 0,
+        },
+        OracleRow {
+            delta: "D3",
+            changed: &["change/public-api"],
+            affected: &[
+                "conclusion/03",
+                "conclusion/04",
+                "conclusion/05",
+                "conclusion/06",
+                "conclusion/07",
+                "conclusion/08",
+                "conclusion/09",
+                "conclusion/10",
+            ],
+            basis: 8_000,
+            revision: 0,
+        },
+        OracleRow {
+            delta: "D4",
+            changed: &[
+                "change/control-pins",
+                "change/head-a",
+                "change/head-b",
+                "change/head-c",
+            ],
+            affected: &[
+                "conclusion/11",
+                "conclusion/12",
+                "conclusion/13",
+                "conclusion/14",
+                "conclusion/15",
+                "conclusion/16",
+                "conclusion/17",
+                "conclusion/18",
+                "conclusion/19",
+                "conclusion/20",
+                "conclusion/21",
+                "conclusion/22",
+            ],
+            basis: 7_000,
+            revision: 0,
+        },
+        OracleRow {
+            delta: "D5",
+            changed: &["change/checker-alpha", "change/proof-code-alpha"],
+            affected: &[
+                "conclusion/23",
+                "conclusion/24",
+                "conclusion/25",
+                "conclusion/26",
+            ],
+            basis: 9_000,
+            revision: 0,
+        },
+        OracleRow {
+            delta: "D6",
+            changed: &[],
+            affected: &[],
+            basis: 10_000,
+            revision: 1,
+        },
+    ]
+}
+
+fn names<T: std::fmt::Display>(values: &std::collections::BTreeSet<T>) -> Vec<String> {
+    values.iter().map(ToString::to_string).collect()
+}
+
+fn owned(values: &[&str]) -> Vec<String> {
+    values.iter().copied().map(str::to_owned).collect()
+}
+
+#[test]
+fn assay_matches_the_frozen_oracle_and_measures_provider_reads() {
+    let batch = crate::assay::read_semantics().unwrap();
+    assert_eq!(batch.effects, 0);
+    assert_eq!(batch.subprocesses, 0);
+    assert_eq!(batch.requests, u64::try_from(batch.facts).unwrap() * 2 * 6);
+    assert_eq!(batch.facts, 50);
+    let observation = crate::assay::judge(&batch, None).unwrap();
+    assert_eq!(observation.denominator, 40);
+    assert_eq!(observation.subject.len(), 64);
+    for (row, expected) in observation.rows.iter().zip(oracle()) {
+        assert_eq!(row.delta, expected.delta);
+        assert_eq!(names(&row.changed), owned(expected.changed));
+        assert_eq!(names(&row.affected), owned(expected.affected));
+        assert_eq!(row.unaffected_basis_points, expected.basis);
+        assert_eq!(row.revision_delta, expected.revision);
+        assert!(!row.carried_state);
+        assert_eq!(row.planned_starts, expected.affected.len());
+        assert_eq!(row.journal_records, expected.changed.len());
+        assert_eq!(row.explanations.len(), expected.affected.len());
+    }
+    let rendered = crate::command::render(&observation.rows[1].explanations[0]);
+    assert!(rendered.contains("\"owner/owner/01\""));
+    assert!(rendered.contains("\"conclusion/conclusion/01\""));
+    assert!(rendered.contains("\"fact/change/private-implementation\""));
+    let again = crate::assay::read_semantics().unwrap();
+    assert_eq!(again.subject, batch.subject);
+}
+
+#[test]
+fn assay_mutants_miss_the_frozen_oracle() {
+    let batch = crate::assay::read_semantics().unwrap();
+    let sound = crate::assay::judge(&batch, None).unwrap();
+    assert!(oracle_match(&sound));
+    for declaration in 1..=40 {
+        let mutant = crate::assay::judge(
+            &batch,
+            Some(crate::assay::GraphMutation::Declaration(declaration)),
+        )
+        .unwrap();
+        assert!(
+            !oracle_match(&mutant),
+            "declaration mutant {declaration} survived"
+        );
+    }
+    for declaration in 1..=40 {
+        let edges = 1 + usize::from(declaration <= 26);
+        for edge in 0..edges {
+            let mutant = crate::assay::judge(
+                &batch,
+                Some(crate::assay::GraphMutation::Edge(declaration, edge)),
+            )
+            .unwrap();
+            assert!(
+                !oracle_match(&mutant),
+                "edge mutant {declaration}:{edge} survived"
+            );
+        }
+    }
+    assert!(
+        crate::assay::refuse_undeclared_read(
+            "conclusion/40",
+            &["stable/40", "change/private-implementation"]
+        )
+        .is_err()
+    );
+    assert!(
+        crate::assay::refuse_undeclared_read(
+            "conclusion/01",
+            &["stable/01", "change/private-implementation"]
+        )
+        .is_ok()
+    );
+}
+
+fn oracle_match(observation: &crate::assay::AssayObservation) -> bool {
+    observation.denominator == 40
+        && observation.rows.len() == oracle().len()
+        && observation
+            .rows
+            .iter()
+            .zip(oracle())
+            .all(|(row, expected)| {
+                row.delta == expected.delta
+                    && names(&row.changed) == owned(expected.changed)
+                    && names(&row.affected) == owned(expected.affected)
+                    && row.revision_delta == expected.revision
+                    && !row.carried_state
+            })
+}
