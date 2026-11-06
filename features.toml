@@ -149,6 +149,19 @@ composes = ["crate/sim-incremental-core", "crate/sim-run-core"]
 supports = ["feature/sim-runtime/incremental-query-core"]
 
 [[feature]]
+id = "feature/sim-runtime/portable-proof-product"
+title = "Portable proof execution and cold reuse"
+summary = "Execute every selected pure proof on the sealed subject with reuse disabled, then compare a later reuse decision with those cold results."
+owner = "crate/sim-lib-world"
+audiences = ["user", "code", "framework"]
+guidance = "Use the prove command to plan, run, explain, and resume proof over the sealed portable subject. Cold execution runs every selected pure check. Reuse is accepted only when the cold digest is unchanged and the receipt claims no input the run did not read. A native worker leaf and a native assay leaf stay outside the denominator. An unknown required leaf is a gap. Status and why answer from a resident sealed snapshot and start no process."
+claims_anchors = [
+  "anchor/crate/sim-lib-world",
+]
+composes = ["crate/sim-incremental-core", "crate/sim-run-core"]
+supports = ["feature/sim-runtime/world-projection-product"]
+
+[[feature]]
 id = "feature/sim-runtime/incremental-query-organ"
 title = "Incremental query organ"
 summary = "Expose incremental expression queries and immutable proof-backed dataflow analysis views as a loadable SIM organ."

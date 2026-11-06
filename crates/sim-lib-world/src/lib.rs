@@ -21,7 +21,9 @@
 //! an unsupported pair or a malformed call, measures resident cached why from
 //! one sealed snapshot, reports projection sensitivity from provider-read
 //! baseline and variant bytes, and returns a deterministic proof plan for one
-//! sealed in-memory subject.
+//! sealed in-memory subject. The prove command executes every selected pure
+//! check on that sealed subject with reuse disabled, then compares a reuse
+//! decision with those cold digests.
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
@@ -33,6 +35,8 @@ mod grant;
 mod observe;
 mod plan;
 mod product;
+mod prove;
+mod prove_command;
 mod provider;
 mod query;
 mod seal;
@@ -42,6 +46,7 @@ pub use product::{
     DISCLOSURE_CONCLUSION, DISCLOSURE_FACT, SOURCE_CONCLUSION, SOURCE_FACT, WorldError,
     WorldProduct, WorldProjection,
 };
+pub use prove_command::{PROVE_VERB, ProveCommandLib};
 
 #[cfg(test)]
 mod fixture_tests;
@@ -49,6 +54,8 @@ mod fixture_tests;
 mod observe_tests;
 #[cfg(test)]
 mod plan_tests;
+#[cfg(test)]
+mod prove_tests;
 #[cfg(test)]
 mod seal_tests;
 #[cfg(test)]

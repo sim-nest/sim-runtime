@@ -15,4 +15,4 @@ In one line: Ask which supplied facts matter, compare their semantic effect, and
 
 ## Where it fits
 
-This product owns projection and explanation over facts already supplied by an observer. It has no observation, proof execution, scheduling, process, network, or mutation authority. Later products can reuse its core contracts without depending on this user-facing adapter.
+World commands own projection and explanation over facts already supplied by an observer. Prove commands run every selected pure check on that sealed subject, then compare reuse with the cold results. Neither path observes a host, schedules work, starts a process, uses the network, or mutates state. A native worker leaf stays outside the selected proof set. Later products can reuse its core contracts without depending on this user-facing adapter.

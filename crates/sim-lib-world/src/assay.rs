@@ -280,7 +280,7 @@ fn string_set<'a>(values: impl Iterator<Item = &'a str>) -> Datum {
     )
 }
 
-fn project_fact(
+pub(crate) fn project_fact(
     engine: &ProjectionEngine<'_>,
     package: &PackageIdentity,
     shape: &WorldConfigShape,
@@ -324,7 +324,9 @@ fn project_fact(
     Ok(engine.project(&world, &spec, &policy, None)?.projection)
 }
 
-fn seal_subject(mutation: Option<GraphMutation>) -> Result<FederatedClosure, WorldError> {
+pub(crate) fn seal_subject(
+    mutation: Option<GraphMutation>,
+) -> Result<FederatedClosure, WorldError> {
     let facts = universe()?;
     let mut by_owner = BTreeMap::<String, Vec<(ConclusionId, BTreeSet<FactId>)>>::new();
     for index in 1..=40 {
@@ -379,7 +381,7 @@ fn seal_subject(mutation: Option<GraphMutation>) -> Result<FederatedClosure, Wor
         .map_err(|error| WorldError::Qualification(error.to_string()))
 }
 
-fn universe() -> Result<Vec<FactId>, WorldError> {
+pub(crate) fn universe() -> Result<Vec<FactId>, WorldError> {
     let mut names = Vec::new();
     for index in 1..=40 {
         names.push(format!("stable/{index:02}"));
@@ -407,7 +409,7 @@ fn scenario_fact(index: usize) -> Option<&'static str> {
     }
 }
 
-fn baseline_bytes(fact: &str) -> String {
+pub(crate) fn baseline_bytes(fact: &str) -> String {
     if fact == "present/order" {
         "beta\nalpha".to_owned()
     } else {
@@ -415,7 +417,7 @@ fn baseline_bytes(fact: &str) -> String {
     }
 }
 
-fn variant_bytes(delta: &str, fact: &str) -> String {
+pub(crate) fn variant_bytes(delta: &str, fact: &str) -> String {
     match (delta, fact) {
         ("D1", "stable/40") => "baseline stable/40 ".to_owned(),
         ("D2", "change/private-implementation") => "edited private implementation".to_owned(),
