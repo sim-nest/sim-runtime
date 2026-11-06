@@ -10,6 +10,7 @@ use sim_kernel::{
     Linker, LoadCx, Object, ObjectCompat, Result, Symbol, Value, Version,
 };
 
+use crate::canary;
 use crate::deliver;
 use crate::grant::{self, ModelDomainGrant};
 use crate::observe;
@@ -232,6 +233,16 @@ impl WorldEntrypoint {
             Some("deliver-why") if argv.len() == 4 => deliver::why(&argv[2], &argv[3])
                 .map(Outcome::Value)
                 .map_err(eval_error),
+            Some("canary") if argv.len() == 6 => {
+                canary::run(&argv[2], &argv[3], &argv[4], &argv[5], "issued")
+                    .map(Outcome::Value)
+                    .map_err(eval_error)
+            }
+            Some("canary") if argv.len() == 7 => {
+                canary::run(&argv[2], &argv[3], &argv[4], &argv[5], &argv[6])
+                    .map(Outcome::Value)
+                    .map_err(eval_error)
+            }
             Some("plan") => self.plan_outcome(&argv[2..]),
             _ => Ok(Outcome::Refused {
                 call: "usage".to_owned(),
@@ -396,7 +407,7 @@ impl WorldEntrypoint {
     }
 }
 
-const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | measure plan | measure seal | assay | plan [text|card] [CONTINUATION] | snapshot BATCH SELECTOR | snapshot-diff BEFORE AFTER SELECTOR | service REALIZATION SELECTOR | service-plan REALIZATION [SELECTOR DESIRED] | release-plan REALIZATION [SELECTOR DESIRED] | release-status REALIZATION | release-why REALIZATION SELECTOR | deliver REALIZATION [SELECTOR DESIRED] | deliver-status REALIZATION | deliver-why REALIZATION SELECTOR | seal [BATCH [TARGET]] | universe [BATCH [TARGET]] | seal-diff BEFORE AFTER [TARGET]";
+const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | measure plan | measure seal | assay | plan [text|card] [CONTINUATION] | snapshot BATCH SELECTOR | snapshot-diff BEFORE AFTER SELECTOR | service REALIZATION SELECTOR | service-plan REALIZATION [SELECTOR DESIRED] | release-plan REALIZATION [SELECTOR DESIRED] | release-status REALIZATION | release-why REALIZATION SELECTOR | deliver REALIZATION [SELECTOR DESIRED] | deliver-status REALIZATION | deliver-why REALIZATION SELECTOR | canary REALIZATION SOURCE DESTINATION PURPOSE [issued|spent] | seal [BATCH [TARGET]] | universe [BATCH [TARGET]] | seal-diff BEFORE AFTER [TARGET]";
 
 fn refusal(call: &str, reason: &str) -> Datum {
     Datum::Node {

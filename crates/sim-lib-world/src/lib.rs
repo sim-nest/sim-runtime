@@ -26,6 +26,11 @@
 //! lagging registry, stale observation, denied reading, partial result,
 //! uncertain reading, or unavailable receiver uncertain. Recovery observes
 //! before any further performance. The model sink publishes nothing. A
+//! model delivery canary places one validated source head onto a fresh
+//! model branch under a separate purpose grant. It runs once, recovers,
+//! and repeats the reconciliation with no further performance. A wrong or
+//! consumed purpose grant refuses. No public branch, tag, package, or
+//! merge is touched. A
 //! caller-named batch carries its
 //! own provider rows, nested resolver roots, generated input, and proof
 //! declarations through the same commands. An undeclared provider returns a
@@ -44,6 +49,7 @@
 
 mod assay;
 mod assay_mutant;
+mod canary;
 mod command;
 mod deliver;
 mod fixture;
@@ -66,6 +72,8 @@ pub use product::{
 };
 pub use prove_command::{PROVE_VERB, ProveCommandLib};
 
+#[cfg(test)]
+mod canary_tests;
 #[cfg(test)]
 mod deliver_tests;
 #[cfg(test)]
