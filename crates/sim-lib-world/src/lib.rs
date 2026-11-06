@@ -11,10 +11,13 @@
 //! snapshot-diff read one sealed model batch through the domain port named by
 //! the selector. Semantic identity binds freshness, provenance, and policy and
 //! excludes diagnostic envelopes. A native realization returns unavailable and
-//! does not read the model batch or a host. Seal and universe enumerate the
-//! resolver inputs captured for this crate, admit only verified inputs, and
-//! refuse a missing, corrupt, wrong-target, or stub-only compiling input
-//! before any compiler opens. The loaded command reports that custody, refuses
+//! does not read the model batch or a host. A caller-named batch carries its
+//! own provider rows, nested resolver roots, generated input, and proof
+//! declarations through the same commands. An undeclared provider returns a
+//! gap. A model remote stays unavailable and is not contacted. Seal and
+//! universe enumerate the resolver inputs captured for this crate, admit only
+//! verified inputs, and refuse a missing, corrupt, wrong-target, or stub-only
+//! compiling input before any compiler opens. The loaded command reports that custody, refuses
 //! an unsupported pair or a malformed call, measures resident cached why from
 //! one sealed snapshot, reports projection sensitivity from provider-read
 //! baseline and variant bytes, and returns a deterministic proof plan for one
@@ -25,6 +28,7 @@
 mod assay;
 mod assay_mutant;
 mod command;
+mod fixture;
 mod grant;
 mod observe;
 mod plan;
@@ -39,6 +43,8 @@ pub use product::{
     WorldProduct, WorldProjection,
 };
 
+#[cfg(test)]
+mod fixture_tests;
 #[cfg(test)]
 mod observe_tests;
 #[cfg(test)]

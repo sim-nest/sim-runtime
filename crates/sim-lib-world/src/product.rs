@@ -99,8 +99,29 @@ impl WorldProduct {
         let package = install_baseline_providers(&mut registry, shape_id.clone(), requested)?;
         let source = FactId::new(SOURCE_FACT)?;
         let disclosure = FactId::new(DISCLOSURE_FACT)?;
+        let proofs = crate::fixture::proofs();
+        let Some(first) = proofs.first() else {
+            return Err(WorldError::Qualification(
+                "caller-named proofs are empty".to_owned(),
+            ));
+        };
+        if proofs
+            .iter()
+            .any(|proof| proof.owner != first.owner || proof.conclusion != first.conclusion)
+        {
+            return Err(WorldError::Qualification(
+                "caller-named proofs name more than one owner".to_owned(),
+            ));
+        }
+        let mut universe = vec![source.clone(), disclosure.clone()];
+        let mut named_facts = BTreeSet::new();
+        for proof in proofs {
+            let fact = FactId::new(proof.fact)?;
+            universe.push(fact.clone());
+            named_facts.insert(fact);
+        }
         let closure = FederatedClosure::seal(
-            [source.clone(), disclosure.clone()],
+            universe,
             [
                 OwnerProjectionGraph::new(
                     "sim-runtime/sim-lib-world",
@@ -116,6 +137,11 @@ impl WorldProduct {
                         ConclusionId::new(DISCLOSURE_CONCLUSION)?,
                         BTreeSet::from([source, disclosure]),
                     )],
+                )
+                .map_err(|error| WorldError::Qualification(error.to_string()))?,
+                OwnerProjectionGraph::new(
+                    first.owner,
+                    [(ConclusionId::new(first.conclusion)?, named_facts)],
                 )
                 .map_err(|error| WorldError::Qualification(error.to_string()))?,
             ],
@@ -257,10 +283,15 @@ pub(crate) fn explanation_value(explanation: Explanation) -> Datum {
 }
 
 fn ensure_pair(kind: &str, fact: &str) -> Result<(), WorldError> {
-    if matches!(
-        (kind, fact),
-        (SOURCE_KIND, SOURCE_FACT) | (DISCLOSURE_KIND, DISCLOSURE_FACT)
-    ) {
+    let declared = crate::fixture::proofs()
+        .iter()
+        .any(|proof| proof.kind == kind && proof.fact == fact);
+    if declared
+        || matches!(
+            (kind, fact),
+            (SOURCE_KIND, SOURCE_FACT) | (DISCLOSURE_KIND, DISCLOSURE_FACT)
+        )
+    {
         Ok(())
     } else {
         Err(WorldError::UnsupportedPair {

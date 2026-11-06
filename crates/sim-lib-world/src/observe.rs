@@ -6,7 +6,9 @@
 //! Explicit observation of one sealed model batch through domain ports.
 //!
 //! Filesystem, process, Git, registry, and CI facts stay with the port named
-//! by the selector. Semantic identity binds freshness, provenance, and policy.
+//! by the selector. A caller-named batch reads the ports declared by its rows,
+//! and an undeclared provider returns a gap. Semantic identity binds freshness,
+//! provenance, and policy.
 //! Diagnostic envelopes stay outside that identity. A native realization
 //! returns unavailable and does not read the model batch.
 
@@ -100,10 +102,13 @@ pub(crate) fn snapshot(batch: &str, selector: &str) -> Result<Datum, WorldError>
     if selector.is_empty() {
         return Ok(gap("empty-selector", batch, selector));
     }
-    let Some(kind) = kind_of(batch) else {
+    let Some(source) = source_of(batch) else {
         return Ok(gap("unknown-batch", batch, selector));
     };
-    let described = describe(kind, selector)?;
+    if missing_capability(&source, selector) {
+        return Ok(gap("missing-capability", batch, selector));
+    }
+    let described = describe_source(&source, selector)?;
     Ok(snapshot_datum(batch, selector, &described))
 }
 
@@ -117,14 +122,17 @@ pub(crate) fn diff(before: &str, after: &str, selector: &str) -> Result<Datum, W
     if selector.is_empty() {
         return Ok(gap("empty-selector", before, selector));
     }
-    let Some(left_kind) = kind_of(before) else {
+    let Some(left_source) = source_of(before) else {
         return Ok(gap("unknown-batch", before, selector));
     };
-    let Some(right_kind) = kind_of(after) else {
+    let Some(right_source) = source_of(after) else {
         return Ok(gap("unknown-batch", after, selector));
     };
-    let left = describe(left_kind, selector)?;
-    let right = describe(right_kind, selector)?;
+    if missing_capability(&left_source, selector) || missing_capability(&right_source, selector) {
+        return Ok(gap("missing-capability", before, selector));
+    }
+    let left = describe_source(&left_source, selector)?;
+    let right = describe_source(&right_source, selector)?;
     if left.semantic == right.semantic {
         return Ok(diff_datum(before, after, selector, None, None));
     }
@@ -147,20 +155,75 @@ fn kind_of(batch: &str) -> Option<Kind> {
     }
 }
 
+enum Source {
+    Kind(Kind),
+    Rows(&'static [crate::fixture::Row]),
+}
+
+fn source_of(batch: &str) -> Option<Source> {
+    if let Some(rows) = crate::fixture::rows(batch) {
+        return Some(Source::Rows(rows));
+    }
+    kind_of(batch).map(Source::Kind)
+}
+
+fn missing_capability(source: &Source, selector: &str) -> bool {
+    let Source::Rows(rows) = source else {
+        return false;
+    };
+    let Some((prefix, _)) = selector.split_once('/') else {
+        return true;
+    };
+    !rows.iter().any(|row| row.port == prefix)
+}
+
+fn describe_source(source: &Source, selector: &str) -> Result<Description, WorldError> {
+    match source {
+        Source::Kind(kind) => describe(*kind, selector),
+        Source::Rows(rows) => {
+            let found = rows
+                .iter()
+                .find(|row| row.selector == selector)
+                .map(|row| Semantic {
+                    port: row.port,
+                    selector: row.selector,
+                    status: row.status,
+                    value: row.value,
+                });
+            let declared = selector.split_once('/').map(|(prefix, _)| prefix);
+            describe_row(found, selector, "model-log", declared)
+        }
+    }
+}
+
 fn describe(kind: Kind, selector: &str) -> Result<Description, WorldError> {
     if kind == Kind::Native {
         return native_description(selector);
     }
-    let found = sealed(kind, selector);
+    describe_row(sealed(kind, selector), selector, envelope_text(kind), None)
+}
+
+fn describe_row(
+    found: Option<Semantic>,
+    selector: &str,
+    envelope: &str,
+    declared_port: Option<&str>,
+) -> Result<Description, WorldError> {
     if let Some(row) = found {
         bind_row(row)?;
-        if known_port(selector) != Some(row.port) {
+        if let Some(prefix) = declared_port
+            && row.port != prefix
+        {
+            return Err(WorldError::Qualification(format!(
+                "selector {selector} escapes its port"
+            )));
+        } else if declared_port.is_none() && known_port(selector) != Some(row.port) {
             return Err(WorldError::Qualification(format!(
                 "selector {selector} escapes its port"
             )));
         }
     }
-    let port = known_port(selector);
+    let port = declared_port.or_else(|| known_port(selector));
     let status = found.map(|row| row.status).unwrap_or("absent");
     let value = found.and_then(|row| row.value);
     let provenance = match found {
@@ -194,7 +257,7 @@ fn describe(kind: Kind, selector: &str) -> Result<Description, WorldError> {
         semantic_id,
         selector: selector.to_owned(),
         status: status.to_owned(),
-        envelope: envelope_text(kind).to_owned(),
+        envelope: envelope.to_owned(),
         matched: found.is_some(),
         port_called: port.map(str::to_owned),
         read: port.map(|_| selector.to_owned()),

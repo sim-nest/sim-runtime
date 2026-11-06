@@ -145,6 +145,9 @@ member /work/sim-runtime/nested path nested-crate 0.1.0 crates/nested 123456 pat
 ";
 
 pub(super) fn batch_text(name: &str) -> Result<Option<String>, WorldError> {
+    if let Some(text) = crate::fixture::seal_text(name) {
+        return Ok(Some(text.to_owned()));
+    }
     let text = match name {
         "owning" => Some(OWNING.to_owned()),
         "changed" => Some(changed_owning()?),
