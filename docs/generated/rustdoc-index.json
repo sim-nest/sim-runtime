@@ -244,7 +244,7 @@
       "group": "workspace",
       "manifest": "crates/sim-lib-world/Cargo.toml",
       "package": "sim-lib-world",
-      "summary": "Loadable read-only world projection and explanation product."
+      "summary": "Loadable read-only world projection, explanation, and planning product."
     },
     {
       "crate_name": "xtask",

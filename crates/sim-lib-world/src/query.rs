@@ -17,9 +17,9 @@ use crate::product::explanation_value;
 const RESIDENT_RECORDS: usize = 100_000;
 const RESIDENT_UNITS: usize = 10_000;
 const FACTS_PER_UNIT: usize = 10;
-const WARMUPS: usize = 20;
-const SAMPLES: usize = 200;
-const CEILING_MS: u64 = 200;
+pub(crate) const WARMUPS: usize = 20;
+pub(crate) const SAMPLES: usize = 200;
+pub(crate) const CEILING_MS: u64 = 200;
 
 pub(crate) struct ResidentSnapshot {
     pub(crate) closure: FederatedClosure,
@@ -126,7 +126,7 @@ pub(crate) fn measure_why(effects: usize) -> Result<MeasuredWhy, WorldError> {
     samples.sort_unstable();
     let p95_ms = u64::try_from(samples[nearest_rank_p95(SAMPLES)].as_millis()).unwrap_or(u64::MAX);
     Ok(MeasuredWhy {
-        record: latency_record(&snapshot, p95_ms, effects),
+        record: latency_record("why", snapshot.records, snapshot.units, p95_ms, effects),
         within_ceiling: p95_ms <= CEILING_MS,
     })
 }
@@ -142,19 +142,19 @@ fn render_explain(
     Ok(render(&explanation_value(explanation)))
 }
 
-fn latency_record(snapshot: &ResidentSnapshot, p95_ms: u64, effects: usize) -> Datum {
+pub(crate) fn latency_record(
+    command: &str,
+    records: usize,
+    units: usize,
+    p95_ms: u64,
+    effects: usize,
+) -> Datum {
     Datum::Node {
         tag: Symbol::qualified("world", "query-latency-v1"),
         fields: vec![
-            (Symbol::new("command"), Datum::String("why".to_owned())),
-            (
-                Symbol::new("records"),
-                count_datum(usize_count(snapshot.records)),
-            ),
-            (
-                Symbol::new("units"),
-                count_datum(usize_count(snapshot.units)),
-            ),
+            (Symbol::new("command"), Datum::String(command.to_owned())),
+            (Symbol::new("records"), count_datum(usize_count(records))),
+            (Symbol::new("units"), count_datum(usize_count(units))),
             (Symbol::new("warmups"), count_datum(usize_count(WARMUPS))),
             (Symbol::new("samples"), count_datum(usize_count(SAMPLES))),
             (Symbol::new("p95-ms"), count_datum(p95_ms)),

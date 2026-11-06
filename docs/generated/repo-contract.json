@@ -3069,14 +3069,14 @@
           "target": null
         }
       ],
-      "description": "Loadable read-only semantic projection and explanation surface for SIM.",
+      "description": "Loadable read-only semantic projection, explanation, and planning surface for SIM.",
       "features": [],
       "group": "workspace",
       "manifest": "crates/sim-lib-world/Cargo.toml",
       "name": "sim-lib-world",
       "publish": "true",
       "root": "crates/sim-lib-world",
-      "rustdoc_summary": "Loadable read-only world projection and explanation product.",
+      "rustdoc_summary": "Loadable read-only world projection, explanation, and planning product.",
       "target_kinds": [
         "lib"
       ],
@@ -3137,10 +3137,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-16T00:13:38+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "30f354ee8a30d6d132a5b11421729a6c29509813",
+    "git_commit": "889076052d5253a3a9befbe79040252abd0067a8",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "30f354ee8a30d6d132a5b11421729a6c29509813",
+    "source_commit": "889076052d5253a3a9befbe79040252abd0067a8",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -3153,9 +3153,9 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "df977fa3164de414",
+    "workspace_hash": "bdf570c1504663a7",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 765,
+    "workspace_hash_input_count": 767,
     "workspace_hash_inputs": [
       "Cargo.toml",
       "crates/sim-incremental-core/Cargo.toml",
@@ -3916,6 +3916,8 @@
       "crates/sim-lib-world/src/command.rs",
       "crates/sim-lib-world/src/grant.rs",
       "crates/sim-lib-world/src/lib.rs",
+      "crates/sim-lib-world/src/plan.rs",
+      "crates/sim-lib-world/src/plan_tests.rs",
       "crates/sim-lib-world/src/product.rs",
       "crates/sim-lib-world/src/provider.rs",
       "crates/sim-lib-world/src/query.rs",

@@ -11,6 +11,7 @@ use sim_kernel::{
 };
 
 use crate::grant::{self, ModelDomainGrant};
+use crate::plan::{self, View};
 use crate::query;
 use crate::{WorldError, WorldProduct};
 
@@ -145,7 +146,7 @@ impl Callable for WorldEntrypoint {
 enum Outcome {
     Value(Datum),
     Refused { call: String, reason: String },
-    OverCeiling(Datum),
+    OverCeiling { value: Datum, command: &'static str },
 }
 
 impl WorldEntrypoint {
@@ -170,12 +171,16 @@ impl WorldEntrypoint {
                 .map(Outcome::Value)
                 .map_err(eval_error),
             Some("read-only") if argv.len() == 2 => Ok(Outcome::Value(self.read_only_value())),
-            Some("measure")
-                if argv.len() == 3 && argv.get(2).map(String::as_str) == Some("why") =>
-            {
-                self.measure_outcome()
-            }
+            Some("measure") if argv.len() == 3 => match argv[2].as_str() {
+                "why" => self.measure_outcome(),
+                "plan" => self.measure_plan_outcome(),
+                _ => Ok(Outcome::Refused {
+                    call: "usage".to_owned(),
+                    reason: "usage".to_owned(),
+                }),
+            },
             Some("assay") if argv.len() == 2 => self.assay_outcome(),
+            Some("plan") => self.plan_outcome(&argv[2..]),
             _ => Ok(Outcome::Refused {
                 call: "usage".to_owned(),
                 reason: "usage".to_owned(),
@@ -202,8 +207,44 @@ impl WorldEntrypoint {
         if measured.within_ceiling {
             Ok(Outcome::Value(measured.record))
         } else {
-            Ok(Outcome::OverCeiling(measured.record))
+            Ok(Outcome::OverCeiling {
+                value: measured.record,
+                command: "why",
+            })
         }
+    }
+
+    fn measure_plan_outcome(&self) -> Result<Outcome> {
+        let measured = plan::measure(self.product.effect_calls()).map_err(eval_error)?;
+        if measured.within_ceiling {
+            Ok(Outcome::Value(measured.record))
+        } else {
+            Ok(Outcome::OverCeiling {
+                value: measured.record,
+                command: "plan",
+            })
+        }
+    }
+
+    fn plan_outcome(&self, args: &[String]) -> Result<Outcome> {
+        let parsed = match args {
+            [] => Some((View::Expression, None)),
+            [view] if view == "text" => Some((View::Text, None)),
+            [view] if view == "card" => Some((View::Card, None)),
+            [view, token] if view == "text" => Some((View::Text, Some(token.as_str()))),
+            [view, token] if view == "card" => Some((View::Card, Some(token.as_str()))),
+            [token] => Some((View::Expression, Some(token.as_str()))),
+            _ => None,
+        };
+        let Some((view, token)) = parsed else {
+            return Ok(Outcome::Refused {
+                call: "usage".to_owned(),
+                reason: "usage".to_owned(),
+            });
+        };
+        plan::open(view, token)
+            .map(Outcome::Value)
+            .map_err(eval_error)
     }
 
     fn assay_outcome(&self) -> Result<Outcome> {
@@ -231,11 +272,11 @@ impl WorldEntrypoint {
                 self.emit(&value);
                 cx.factory().bool(true)
             }
-            Outcome::OverCeiling(value) => {
+            Outcome::OverCeiling { value, command } => {
                 self.emit(&value);
-                Err(Error::Eval(
-                    "world cached why p95 exceeded 200 ms".to_owned(),
-                ))
+                Err(Error::Eval(format!(
+                    "world cached {command} p95 exceeded 200 ms"
+                )))
             }
             Outcome::Refused { call, reason } => {
                 println!("{}", render(&refusal(&call, &reason)));
@@ -257,7 +298,7 @@ impl WorldEntrypoint {
     }
 }
 
-const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | assay";
+const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | measure plan | assay | plan [text|card] [CONTINUATION]";
 
 fn refusal(call: &str, reason: &str) -> Datum {
     Datum::Node {
