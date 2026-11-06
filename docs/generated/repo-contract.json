@@ -3069,7 +3069,7 @@
           "target": null
         }
       ],
-      "description": "Loadable read-only semantic projection, explanation, and planning surface for SIM.",
+      "description": "Loadable read-only semantic projection, explanation, planning, and explicit model observation surface for SIM.",
       "features": [],
       "group": "workspace",
       "manifest": "crates/sim-lib-world/Cargo.toml",
@@ -3137,10 +3137,10 @@
     "generated_by": "cargo run -p xtask -- simdoc",
     "generation_timestamp": "2026-07-16T00:13:38+02:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "889076052d5253a3a9befbe79040252abd0067a8",
+    "git_commit": "d0e17506ab14b649c3ec5f66c404e143031b4ffd",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "889076052d5253a3a9befbe79040252abd0067a8",
+    "source_commit": "d0e17506ab14b649c3ec5f66c404e143031b4ffd",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -3153,9 +3153,9 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "bdf570c1504663a7",
+    "workspace_hash": "75c32fcc10949e0e",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 767,
+    "workspace_hash_input_count": 769,
     "workspace_hash_inputs": [
       "Cargo.toml",
       "crates/sim-incremental-core/Cargo.toml",
@@ -3916,6 +3916,8 @@
       "crates/sim-lib-world/src/command.rs",
       "crates/sim-lib-world/src/grant.rs",
       "crates/sim-lib-world/src/lib.rs",
+      "crates/sim-lib-world/src/observe.rs",
+      "crates/sim-lib-world/src/observe_tests.rs",
       "crates/sim-lib-world/src/plan.rs",
       "crates/sim-lib-world/src/plan_tests.rs",
       "crates/sim-lib-world/src/product.rs",

@@ -11,6 +11,7 @@ use sim_kernel::{
 };
 
 use crate::grant::{self, ModelDomainGrant};
+use crate::observe;
 use crate::plan::{self, View};
 use crate::query;
 use crate::{WorldError, WorldProduct};
@@ -180,6 +181,12 @@ impl WorldEntrypoint {
                 }),
             },
             Some("assay") if argv.len() == 2 => self.assay_outcome(),
+            Some("snapshot") if argv.len() == 4 => observe::snapshot(&argv[2], &argv[3])
+                .map(Outcome::Value)
+                .map_err(eval_error),
+            Some("snapshot-diff") if argv.len() == 5 => observe::diff(&argv[2], &argv[3], &argv[4])
+                .map(Outcome::Value)
+                .map_err(eval_error),
             Some("plan") => self.plan_outcome(&argv[2..]),
             _ => Ok(Outcome::Refused {
                 call: "usage".to_owned(),
@@ -298,7 +305,7 @@ impl WorldEntrypoint {
     }
 }
 
-const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | measure plan | assay | plan [text|card] [CONTINUATION]";
+const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | measure plan | assay | plan [text|card] [CONTINUATION] | snapshot BATCH SELECTOR | snapshot-diff BEFORE AFTER SELECTOR";
 
 fn refusal(call: &str, reason: &str) -> Datum {
     Datum::Node {

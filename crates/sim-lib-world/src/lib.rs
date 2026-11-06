@@ -6,13 +6,16 @@
 //! Loadable read-only world projection, explanation, and planning product.
 //!
 //! The product receives already observed semantic facts from its caller. It can
-//! project, compare, explain, and plan those facts, but has no observation,
-//! process, network, clock, random, mutation, or proof-execution port. The
-//! loaded command reports that custody, refuses an unsupported pair or a
-//! malformed call, measures resident cached why from one sealed snapshot,
-//! reports projection sensitivity from provider-read baseline and variant
-//! bytes, and returns a deterministic proof plan for one sealed in-memory
-//! subject. A cached plan query starts no observation and no process.
+//! project, compare, explain, and plan those facts. Projection, diff, why, and
+//! plan start no observation and no process. Explicit snapshot and
+//! snapshot-diff read one sealed model batch through the domain port named by
+//! the selector. Semantic identity binds freshness, provenance, and policy and
+//! excludes diagnostic envelopes. A native realization returns unavailable and
+//! does not read the model batch or a host. The loaded command reports that
+//! custody, refuses an unsupported pair or a malformed call, measures resident
+//! cached why from one sealed snapshot, reports projection sensitivity from
+//! provider-read baseline and variant bytes, and returns a deterministic proof
+//! plan for one sealed in-memory subject.
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
@@ -20,6 +23,7 @@ mod assay;
 mod assay_mutant;
 mod command;
 mod grant;
+mod observe;
 mod plan;
 mod product;
 mod provider;
@@ -31,6 +35,8 @@ pub use product::{
     WorldProduct, WorldProjection,
 };
 
+#[cfg(test)]
+mod observe_tests;
 #[cfg(test)]
 mod plan_tests;
 #[cfg(test)]
