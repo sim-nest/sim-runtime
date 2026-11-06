@@ -20,6 +20,12 @@
 //! reconciliation, its reason, and the audit disclosure. It omits a completed
 //! fact, keeps an uncertain original, and refuses a private value. Status and
 //! why read that plan. A plan with nothing remaining causes no effect. A
+//! delivery qualification runs that plan through the durable operation
+//! lifecycle against the bound model service. It omits performance for a
+//! completed fact, blocks on a divergent value or a wrong tag, and keeps a
+//! lagging registry, stale observation, denied reading, partial result,
+//! uncertain reading, or unavailable receiver uncertain. Recovery observes
+//! before any further performance. The model sink publishes nothing. A
 //! caller-named batch carries its
 //! own provider rows, nested resolver roots, generated input, and proof
 //! declarations through the same commands. An undeclared provider returns a
@@ -39,6 +45,7 @@
 mod assay;
 mod assay_mutant;
 mod command;
+mod deliver;
 mod fixture;
 mod grant;
 mod observe;
@@ -59,6 +66,8 @@ pub use product::{
 };
 pub use prove_command::{PROVE_VERB, ProveCommandLib};
 
+#[cfg(test)]
+mod deliver_tests;
 #[cfg(test)]
 mod fixture_tests;
 #[cfg(test)]
