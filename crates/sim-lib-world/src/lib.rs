@@ -11,7 +11,12 @@
 //! snapshot-diff read one sealed model batch through the domain port named by
 //! the selector. Semantic identity binds freshness, provenance, and policy and
 //! excludes diagnostic envelopes. A native realization returns unavailable and
-//! does not read the model batch or a host. A caller-named batch carries its
+//! does not read the model batch or a host. Service observation reads exact
+//! branch, tag, direct, and peeled targets, package checksums, and CI and
+//! mirror facts from a named model port. A plan omits a current match, retains
+//! a divergent or unknown fact, and does not mutate the reading. A native or
+//! real-service request does not consult those model facts. Provenance remains
+//! when the reading is encoded and decoded. A caller-named batch carries its
 //! own provider rows, nested resolver roots, generated input, and proof
 //! declarations through the same commands. An undeclared provider returns a
 //! gap. A model remote stays unavailable and is not contacted. Seal and
@@ -40,6 +45,7 @@ mod prove_command;
 mod provider;
 mod query;
 mod seal;
+mod service;
 
 pub use command::{ModelDomainLoad, WORLD_VERB, WorldCommandLib};
 pub use product::{
@@ -58,5 +64,7 @@ mod plan_tests;
 mod prove_tests;
 #[cfg(test)]
 mod seal_tests;
+#[cfg(test)]
+mod service_tests;
 #[cfg(test)]
 mod tests;
