@@ -16,7 +16,11 @@
 //! mirror facts from a named model port. A plan omits a current match, retains
 //! a divergent or unknown fact, and does not mutate the reading. A native or
 //! real-service request does not consult those model facts. Provenance remains
-//! when the reading is encoded and decoded. A caller-named batch carries its
+//! when the reading is encoded and decoded. A release plan names each remaining
+//! reconciliation, its reason, and the audit disclosure. It omits a completed
+//! fact, keeps an uncertain original, and refuses a private value. Status and
+//! why read that plan. A plan with nothing remaining causes no effect. A
+//! caller-named batch carries its
 //! own provider rows, nested resolver roots, generated input, and proof
 //! declarations through the same commands. An undeclared provider returns a
 //! gap. A model remote stays unavailable and is not contacted. Seal and
@@ -44,6 +48,7 @@ mod prove;
 mod prove_command;
 mod provider;
 mod query;
+mod release;
 mod seal;
 mod service;
 
@@ -62,6 +67,8 @@ mod observe_tests;
 mod plan_tests;
 #[cfg(test)]
 mod prove_tests;
+#[cfg(test)]
+mod release_tests;
 #[cfg(test)]
 mod seal_tests;
 #[cfg(test)]

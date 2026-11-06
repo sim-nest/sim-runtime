@@ -14,6 +14,7 @@ use crate::grant::{self, ModelDomainGrant};
 use crate::observe;
 use crate::plan::{self, View};
 use crate::query;
+use crate::release;
 use crate::seal;
 use crate::service;
 use crate::{WorldError, WorldProduct};
@@ -204,6 +205,20 @@ impl WorldEntrypoint {
                     .map(Outcome::Value)
                     .map_err(eval_error)
             }
+            Some("release-plan") if argv.len() == 3 => release::plan_catalog(&argv[2])
+                .map(Outcome::Value)
+                .map_err(eval_error),
+            Some("release-plan") if argv.len() == 5 => {
+                release::plan_one(&argv[2], &argv[3], &argv[4])
+                    .map(Outcome::Value)
+                    .map_err(eval_error)
+            }
+            Some("release-status") if argv.len() == 3 => release::status(&argv[2])
+                .map(Outcome::Value)
+                .map_err(eval_error),
+            Some("release-why") if argv.len() == 4 => release::why(&argv[2], &argv[3])
+                .map(Outcome::Value)
+                .map_err(eval_error),
             Some("plan") => self.plan_outcome(&argv[2..]),
             _ => Ok(Outcome::Refused {
                 call: "usage".to_owned(),
@@ -368,7 +383,7 @@ impl WorldEntrypoint {
     }
 }
 
-const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | measure plan | measure seal | assay | plan [text|card] [CONTINUATION] | snapshot BATCH SELECTOR | snapshot-diff BEFORE AFTER SELECTOR | service REALIZATION SELECTOR | service-plan REALIZATION [SELECTOR DESIRED] | seal [BATCH [TARGET]] | universe [BATCH [TARGET]] | seal-diff BEFORE AFTER [TARGET]";
+const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | measure plan | measure seal | assay | plan [text|card] [CONTINUATION] | snapshot BATCH SELECTOR | snapshot-diff BEFORE AFTER SELECTOR | service REALIZATION SELECTOR | service-plan REALIZATION [SELECTOR DESIRED] | release-plan REALIZATION [SELECTOR DESIRED] | release-status REALIZATION | release-why REALIZATION SELECTOR | seal [BATCH [TARGET]] | universe [BATCH [TARGET]] | seal-diff BEFORE AFTER [TARGET]";
 
 fn refusal(call: &str, reason: &str) -> Datum {
     Datum::Node {
