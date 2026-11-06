@@ -449,7 +449,7 @@
       ]
     },
     {
-      "description": "Loadable read-only semantic projection, explanation, planning, and explicit model observation surface for SIM.",
+      "description": "Loadable read-only semantic projection, explanation, planning, explicit model observation, and source-seal surface for SIM.",
       "generated_readme": true,
       "manifest": "crates/sim-lib-world/Cargo.toml",
       "name": "sim-lib-world",
@@ -457,6 +457,7 @@
       "readme": "crates/sim-lib-world/README.md",
       "root": "crates/sim-lib-world",
       "target_kinds": [
+        "custom-build",
         "lib"
       ]
     },

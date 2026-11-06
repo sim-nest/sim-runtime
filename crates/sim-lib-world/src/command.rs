@@ -14,6 +14,7 @@ use crate::grant::{self, ModelDomainGrant};
 use crate::observe;
 use crate::plan::{self, View};
 use crate::query;
+use crate::seal;
 use crate::{WorldError, WorldProduct};
 
 /// CLI verb contributed by this loaded library.
@@ -175,11 +176,15 @@ impl WorldEntrypoint {
             Some("measure") if argv.len() == 3 => match argv[2].as_str() {
                 "why" => self.measure_outcome(),
                 "plan" => self.measure_plan_outcome(),
+                "seal" => self.measure_seal_outcome(),
                 _ => Ok(Outcome::Refused {
                     call: "usage".to_owned(),
                     reason: "usage".to_owned(),
                 }),
             },
+            Some("seal") => self.seal_command(&argv[2..], false),
+            Some("universe") => self.seal_command(&argv[2..], true),
+            Some("seal-diff") => self.seal_diff_command(&argv[2..]),
             Some("assay") if argv.len() == 2 => self.assay_outcome(),
             Some("snapshot") if argv.len() == 4 => observe::snapshot(&argv[2], &argv[3])
                 .map(Outcome::Value)
@@ -219,6 +224,52 @@ impl WorldEntrypoint {
                 command: "why",
             })
         }
+    }
+
+    fn measure_seal_outcome(&self) -> Result<Outcome> {
+        seal::measure(self.product.effect_calls())
+            .map(Outcome::Value)
+            .map_err(eval_error)
+    }
+
+    fn seal_command(&self, args: &[String], universe: bool) -> Result<Outcome> {
+        let parsed = match args {
+            [] => Some(("owning", None)),
+            [batch] => Some((batch.as_str(), None)),
+            [batch, target] => Some((batch.as_str(), Some(target.as_str()))),
+            _ => None,
+        };
+        let Some((batch, target)) = parsed else {
+            return Ok(Outcome::Refused {
+                call: "usage".to_owned(),
+                reason: "usage".to_owned(),
+            });
+        };
+        let value = if universe {
+            seal::universe(batch, target)
+        } else {
+            seal::open(batch, target)
+        };
+        value.map(Outcome::Value).map_err(eval_error)
+    }
+
+    fn seal_diff_command(&self, args: &[String]) -> Result<Outcome> {
+        let parsed = match args {
+            [before, after] => Some((before.as_str(), after.as_str(), None)),
+            [before, after, target] => {
+                Some((before.as_str(), after.as_str(), Some(target.as_str())))
+            }
+            _ => None,
+        };
+        let Some((before, after, target)) = parsed else {
+            return Ok(Outcome::Refused {
+                call: "usage".to_owned(),
+                reason: "usage".to_owned(),
+            });
+        };
+        seal::diff(before, after, target)
+            .map(Outcome::Value)
+            .map_err(eval_error)
     }
 
     fn measure_plan_outcome(&self) -> Result<Outcome> {
@@ -305,7 +356,7 @@ impl WorldEntrypoint {
     }
 }
 
-const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | measure plan | assay | plan [text|card] [CONTINUATION] | snapshot BATCH SELECTOR | snapshot-diff BEFORE AFTER SELECTOR";
+const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | measure plan | measure seal | assay | plan [text|card] [CONTINUATION] | snapshot BATCH SELECTOR | snapshot-diff BEFORE AFTER SELECTOR | seal [BATCH [TARGET]] | universe [BATCH [TARGET]] | seal-diff BEFORE AFTER [TARGET]";
 
 fn refusal(call: &str, reason: &str) -> Datum {
     Datum::Node {
