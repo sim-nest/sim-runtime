@@ -3,7 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! Enumerate the workspace that compiles this crate.
+//! Enumerate the workspace, or the extracted package, that compiles this crate.
 //!
 //! The loaded command seals the emitted input text offline. This build script
 //! is the compiler's enumeration of that workspace: locks, member manifests,
@@ -38,20 +38,17 @@ fn main() {
     );
 
     let manifest_dir = PathBuf::from(env_var("CARGO_MANIFEST_DIR"));
-    let root = manifest_dir
-        .parent()
-        .and_then(Path::parent)
-        .expect("workspace root")
-        .canonicalize()
-        .expect("canonicalize workspace root");
-    let workspace_toml = fs::read_to_string(root.join("Cargo.toml")).expect("workspace manifest");
-    let (resolver, members) = parse::parse_workspace(&workspace_toml);
+    let compiling = parse::compiling_root(&manifest_dir);
+    let root = compiling.root;
+    let workspace_toml = compiling.manifest;
+    let resolver = compiling.resolver;
+    let members = compiling.members;
     assert!(!members.is_empty(), "workspace members");
     assert!(
         members
             .iter()
-            .any(|member| member == "crates/sim-lib-world"),
-        "sim-lib-world is a workspace member"
+            .any(|member| member == "crates/sim-lib-world" || member == "."),
+        "sim-lib-world is the compiling package"
     );
 
     let mut locks = Vec::new();
@@ -175,7 +172,11 @@ fn main() {
     let mut activate_lines = Vec::new();
     let mut patch_lines = Vec::new();
     for member in &members {
-        let manifest = root.join(member).join("Cargo.toml");
+        let manifest = if member == "." {
+            root.join("Cargo.toml")
+        } else {
+            root.join(member).join("Cargo.toml")
+        };
         println!("cargo:rerun-if-changed={}", manifest.display());
         let text = fs::read_to_string(&manifest).expect("member manifest");
         let (package, features, activates) = parse::parse_member_manifest(&text);

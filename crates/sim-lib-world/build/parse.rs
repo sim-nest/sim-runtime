@@ -5,7 +5,95 @@
 
 //! Workspace, member, and lock parsers for the owning input text.
 
+use std::fs;
+use std::path::{Path, PathBuf};
+
 use super::Pkg;
+
+pub(super) struct CompilingRoot {
+    pub(super) root: PathBuf,
+    pub(super) manifest: String,
+    pub(super) resolver: String,
+    pub(super) members: Vec<String>,
+}
+
+/// The workspace that lists this crate, or the extracted package root.
+///
+/// `cargo publish` verifies a directory that is not two parents below the
+/// workspace. That manifest has no `[workspace]` table.
+pub(super) fn compiling_root(manifest_dir: &Path) -> CompilingRoot {
+    if let Some(found) = workspace_compiling_root(manifest_dir) {
+        return found;
+    }
+    package_compiling_root(manifest_dir)
+}
+
+fn workspace_compiling_root(manifest_dir: &Path) -> Option<CompilingRoot> {
+    let root = manifest_dir.parent()?.parent()?.canonicalize().ok()?;
+    let manifest = fs::read_to_string(root.join("Cargo.toml")).ok()?;
+    if !workspace_members(&manifest)
+        .iter()
+        .any(|member| member == "crates/sim-lib-world")
+    {
+        return None;
+    }
+    let (resolver, members) = parse_workspace(&manifest);
+    Some(CompilingRoot {
+        root,
+        manifest,
+        resolver,
+        members,
+    })
+}
+
+fn package_compiling_root(manifest_dir: &Path) -> CompilingRoot {
+    let root = manifest_dir
+        .canonicalize()
+        .unwrap_or_else(|error| panic!("canonicalize package root: {error}"));
+    let path = root.join("Cargo.toml");
+    let manifest = fs::read_to_string(&path)
+        .unwrap_or_else(|error| panic!("package manifest {}: {error}", path.display()));
+    let (name, _) = package_identity(&manifest)
+        .unwrap_or_else(|| panic!("package identity in {}", path.display()));
+    assert_eq!(name, "sim-lib-world", "compiling package");
+    let resolver = package_resolver(&manifest);
+    CompilingRoot {
+        root,
+        manifest,
+        resolver,
+        members: vec![".".to_owned()],
+    }
+}
+
+fn package_resolver(text: &str) -> String {
+    let mut section = String::new();
+    let mut resolver = String::new();
+    let mut edition = String::new();
+    for line in text.lines() {
+        let trim = line.trim();
+        if let Some(header) = section_header(trim) {
+            section = header;
+            continue;
+        }
+        if section != "package" {
+            continue;
+        }
+        if let Some(value) = quoted_assign(trim, "resolver") {
+            resolver = value;
+        } else if let Some(value) = quoted_assign(trim, "edition") {
+            edition = value;
+        }
+    }
+    if !resolver.is_empty() {
+        return resolver;
+    }
+    match edition.as_str() {
+        "2024" => "3".to_owned(),
+        "2021" => "2".to_owned(),
+        "2018" | "2015" => "1".to_owned(),
+        other => panic!("package edition {other} has no resolver"),
+    }
+}
 
 pub(super) fn parse_workspace(text: &str) -> (String, Vec<String>) {
     let mut section = String::new();
