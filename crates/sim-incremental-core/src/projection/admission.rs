@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: MPL-2.0
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 use std::{error::Error, fmt};
 
 use sim_conformance_core::{
@@ -202,16 +207,15 @@ fn native_source_review_scope() -> Result<CheckScopeId, QualificationError> {
     CheckScopeId::from_text("projection/native-source-review-v1").map_err(checker_error)
 }
 
-/// Boots a fresh checker owner and issues the only kind of native-source
-/// receipt available before NV12.06's full external-review checker chain
-/// exists: proof that the code and dependency identity about to execute are
-/// exactly the code and dependency identity that were declared, at
+/// Boots a fresh checker owner and issues the native-source receipt that
+/// proves the code and dependency identity about to execute are exactly the
+/// code and dependency identity that were declared, at
 /// [`EvidenceGrade::Bootstrap`], carrying no cross-world reuse authority.
 ///
-/// `pub(crate)`: the only caller is [`super::install_baseline_providers`],
-/// which supplies `declared_code`/`loaded_code` it computed itself from its
-/// own compiled source (see that function), never a value a downstream
-/// crate passed in. This mechanically checks exactly one fact --
+/// `pub(crate)`: only this crate's projection installers call this. They
+/// supply `declared_code` and `loaded_code` computed from their own compiled
+/// source, never a value a downstream crate passed in. This mechanically
+/// checks exactly one fact --
 /// `declared_code == loaded_code` -- and certifies nothing about hidden
 /// state, ambient I/O, or FFI. A caller needing those stronger claims must
 /// obtain them from a real, externally owned checker instead; this route

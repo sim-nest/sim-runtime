@@ -1,15 +1,20 @@
+// SPDX-License-Identifier: MPL-2.0
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 use std::{collections::BTreeSet, sync::Arc};
 
 use sim_incremental_core::projection::{
-    ConclusionId, DeclaredInputSelector, DeterministicImportManifest, ExecutionSemantics, FactId,
-    FederatedClosure, ObservedFact, ObservedWorld, OwnerProjectionGraph, PackageIdentity,
-    ProjectionBudget, ProjectionDigest, ProjectionEngine, ProjectionError, ProjectionKindRef,
-    ProjectionRegistry, ProjectionResult, ProjectionSpec, ProjectorPolicy,
+    ConclusionId, DeclaredInputSelector, DeterministicImportManifest, ExecutionSemantics,
+    Explanation, FactId, FederatedClosure, ObservedFact, ObservedWorld, OwnerProjectionGraph,
+    PackageIdentity, ProjectionBudget, ProjectionDigest, ProjectionEngine, ProjectionError,
+    ProjectionKindRef, ProjectionRegistry, ProjectionResult, ProjectionSpec, ProjectorPolicy,
     install_baseline_providers,
 };
 use sim_kernel::{Datum, Symbol};
 
-use crate::provider::{PROVIDER_SOURCE, WorldConfigShape, config, content_id};
+use crate::provider::{PROVIDER_SOURCE, WorldConfigShape, config, config_symbol, content_id};
 
 /// Semantic source fact used by the bundled reference world.
 pub const SOURCE_FACT: &str = "source/public-api";
@@ -94,8 +99,29 @@ impl WorldProduct {
         let package = install_baseline_providers(&mut registry, shape_id.clone(), requested)?;
         let source = FactId::new(SOURCE_FACT)?;
         let disclosure = FactId::new(DISCLOSURE_FACT)?;
+        let proofs = crate::fixture::proofs();
+        let Some(first) = proofs.first() else {
+            return Err(WorldError::Qualification(
+                "caller-named proofs are empty".to_owned(),
+            ));
+        };
+        if proofs
+            .iter()
+            .any(|proof| proof.owner != first.owner || proof.conclusion != first.conclusion)
+        {
+            return Err(WorldError::Qualification(
+                "caller-named proofs name more than one owner".to_owned(),
+            ));
+        }
+        let mut universe = vec![source.clone(), disclosure.clone()];
+        let mut named_facts = BTreeSet::new();
+        for proof in proofs {
+            let fact = FactId::new(proof.fact)?;
+            universe.push(fact.clone());
+            named_facts.insert(fact);
+        }
         let closure = FederatedClosure::seal(
-            [source.clone(), disclosure.clone()],
+            universe,
             [
                 OwnerProjectionGraph::new(
                     "sim-runtime/sim-lib-world",
@@ -111,6 +137,11 @@ impl WorldProduct {
                         ConclusionId::new(DISCLOSURE_CONCLUSION)?,
                         BTreeSet::from([source, disclosure]),
                     )],
+                )
+                .map_err(|error| WorldError::Qualification(error.to_string()))?,
+                OwnerProjectionGraph::new(
+                    first.owner,
+                    [(ConclusionId::new(first.conclusion)?, named_facts)],
                 )
                 .map_err(|error| WorldError::Qualification(error.to_string()))?,
             ],
@@ -200,23 +231,7 @@ impl WorldProduct {
             .closure
             .explain(&ConclusionId::new(conclusion)?, &FactId::new(fact)?)
             .map_err(|error| WorldError::Qualification(error.to_string()))?;
-        Ok(Datum::Node {
-            tag: Symbol::qualified("world", "explanation-v1"),
-            fields: vec![
-                (
-                    Symbol::new("conclusion"),
-                    Datum::String(explanation.conclusion.as_str().to_owned()),
-                ),
-                (
-                    Symbol::new("fact"),
-                    Datum::String(explanation.fact.as_str().to_owned()),
-                ),
-                (
-                    Symbol::new("path"),
-                    Datum::Vector(explanation.path.into_iter().map(Datum::String).collect()),
-                ),
-            ],
-        })
+        Ok(explanation_value(explanation))
     }
 
     /// Reports effect invocations owned by this product; the value is always zero.
@@ -247,11 +262,36 @@ impl WorldProduct {
     }
 }
 
+pub(crate) fn explanation_value(explanation: Explanation) -> Datum {
+    Datum::Node {
+        tag: Symbol::qualified("world", "explanation-v1"),
+        fields: vec![
+            (
+                Symbol::new("conclusion"),
+                Datum::String(explanation.conclusion.as_str().to_owned()),
+            ),
+            (
+                Symbol::new("fact"),
+                Datum::String(explanation.fact.as_str().to_owned()),
+            ),
+            (
+                Symbol::new("path"),
+                Datum::Vector(explanation.path.into_iter().map(Datum::String).collect()),
+            ),
+        ],
+    }
+}
+
 fn ensure_pair(kind: &str, fact: &str) -> Result<(), WorldError> {
-    if matches!(
-        (kind, fact),
-        (SOURCE_KIND, SOURCE_FACT) | (DISCLOSURE_KIND, DISCLOSURE_FACT)
-    ) {
+    let declared = crate::fixture::proofs()
+        .iter()
+        .any(|proof| proof.kind == kind && proof.fact == fact);
+    if declared
+        || matches!(
+            (kind, fact),
+            (SOURCE_KIND, SOURCE_FACT) | (DISCLOSURE_KIND, DISCLOSURE_FACT)
+        )
+    {
         Ok(())
     } else {
         Err(WorldError::UnsupportedPair {
@@ -278,6 +318,10 @@ fn projection_value(kind: &str, fact: &str, result: &ProjectionResult) -> Datum 
                         .map(|id| Datum::String(id.as_str().to_owned()))
                         .collect(),
                 ),
+            ),
+            (
+                Symbol::new("shape"),
+                Datum::String(config_symbol().as_qualified_str()),
             ),
         ],
     }

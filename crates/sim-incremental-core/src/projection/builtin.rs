@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: MPL-2.0
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 use std::{collections::BTreeSet, sync::Arc};
 
 use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
@@ -260,6 +265,110 @@ fn builtin_source_identity() -> Result<ContentId, ProjectionError> {
     )
     .content_id()
     .map_err(|error| ProjectionError::UnqualifiedProjector(error.to_string()))
+}
+
+/// Open kind whose provider reads raw text and emits canonical semantic text.
+pub const SEMANTIC_TEXT_KIND: &str = "world/semantic-text-v1";
+
+/// Provider that reads raw text facts and returns their canonical lines.
+///
+/// Canonical text trims each line, drops empty lines, sorts the remaining
+/// lines, and joins them with one newline. Callers compare that output.
+/// Raw spacing and line order stay outside the semantic value.
+struct SemanticTextProvider {
+    kind: ProjectionKindRef,
+    config_shape: ContentId,
+}
+
+impl SemanticTextProvider {
+    fn new(config_shape: ContentId) -> Result<Self, ProjectionError> {
+        Ok(Self {
+            kind: ProjectionKindRef::new(SEMANTIC_TEXT_KIND)?,
+            config_shape,
+        })
+    }
+}
+
+impl ProjectionProvider for SemanticTextProvider {
+    fn kind(&self) -> &ProjectionKindRef {
+        &self.kind
+    }
+
+    fn config_shape(&self) -> &ContentId {
+        &self.config_shape
+    }
+
+    fn project(
+        &self,
+        inputs: &ProjectionInputs,
+        config: &Datum,
+    ) -> Result<ProjectionOutput, ProjectionError> {
+        let mut dependencies = BTreeSet::new();
+        let mut facts = Vec::new();
+        for (id, value) in inputs.iter() {
+            let Datum::String(raw) = value else {
+                return Err(ProjectionError::Canonical(
+                    "semantic text fact is not a string".to_owned(),
+                ));
+            };
+            dependencies.insert(id.clone());
+            facts.push(Datum::Node {
+                tag: Symbol::qualified("projection", "fact-v1"),
+                fields: vec![
+                    (Symbol::new("id"), Datum::String(id.as_str().to_owned())),
+                    (Symbol::new("value"), Datum::String(canonical_text(raw))),
+                ],
+            });
+        }
+        Ok(ProjectionOutput {
+            value: Datum::Node {
+                tag: Symbol::qualified("projection", "semantic-text-v1"),
+                fields: vec![
+                    (Symbol::new("config"), config.clone()),
+                    (Symbol::new("facts"), Datum::Vector(facts)),
+                ],
+            },
+            dependencies,
+        })
+    }
+}
+
+fn canonical_text(raw: &str) -> String {
+    let mut lines = raw
+        .split('\n')
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>();
+    lines.sort_unstable();
+    lines.join("\n")
+}
+
+/// Installs the semantic-text provider and admits it from this file's source.
+///
+/// The returned package identity is the one the installer measured. A later
+/// projection request must reuse it. The caller-supplied `code` is not admitted.
+///
+/// # Errors
+/// Returns an error when the kind is already loaded or admission fails.
+pub fn install_semantic_text_provider(
+    registry: &mut ProjectionRegistry,
+    config_shape: ContentId,
+    package: PackageIdentity,
+) -> Result<PackageIdentity, ProjectionError> {
+    let code = builtin_source_identity()?;
+    let dependencies = builtin_dependency_identity()?;
+    let owner_binding = OwnerBindingId::from_text("sim-incremental-core/projection/semantic-text")
+        .map_err(|error| ProjectionError::UnqualifiedProjector(error.to_string()))?;
+    let registered = PackageIdentity { code, ..package };
+    let kind = ProjectionKindRef::new(SEMANTIC_TEXT_KIND)?;
+    registry.register(
+        registered.clone(),
+        Arc::new(SemanticTextProvider::new(config_shape)?),
+    )?;
+    registry
+        .admit_bootstrap_native(&kind, owner_binding, registered.code.clone(), dependencies)
+        .map_err(|error| ProjectionError::UnqualifiedProjector(error.to_string()))?;
+    Ok(registered)
 }
 
 fn builtin_dependency_identity() -> Result<ContentId, ProjectionError> {

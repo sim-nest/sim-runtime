@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: MPL-2.0
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 use std::{
     collections::{BTreeMap, BTreeSet},
     sync::Arc,
@@ -89,8 +94,8 @@ impl ProjectionRegistry {
     /// equals the identity `install_baseline_providers` itself measured, and
     /// nothing stronger.
     ///
-    /// `pub(crate)`: only [`super::install_baseline_providers`] calls this,
-    /// using a `code`/`dependencies` pair it computed from its own compiled
+    /// `pub(crate)`: only this crate's projection installers call this,
+    /// using a `code`/`dependencies` pair computed from their own compiled
     /// source, never a value a downstream crate supplied. This is the sole
     /// place in the crate that stores a live checker owner, and the sole
     /// route by which `kind` can later yield a `TrustedNative`

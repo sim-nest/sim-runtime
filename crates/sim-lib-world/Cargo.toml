@@ -4,14 +4,17 @@ version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 readme = "README.md"
-description = "Loadable read-only semantic projection and explanation surface for SIM."
+description = "Loadable read-only semantic projection, explanation, planning, explicit model observation, source-seal, and portable proof surface for SIM."
 repository.workspace = true
 homepage.workspace = true
 publish = true
 
 [dependencies]
+sim-conformance-core = "0.3.0"
 sim-incremental-core = { version = "0.5.0", path = "../sim-incremental-core" }
 sim-kernel = { version = "0.4.0" }
+sim-lib-journal = "0.3.2"
+sim-lib-operation-gate = { version = "0.5.0", path = "../sim-lib-operation-gate" }
 sim-run-core = { version = "0.5.0" }
 
 [dev-dependencies]

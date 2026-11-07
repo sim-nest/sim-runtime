@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: MPL-2.0
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 //! Durable semantic projections over sealed, caller-supplied world facts.
 //!
 //! Projection is deliberately separate from observation and execution. A
@@ -32,7 +37,8 @@ pub use assay_repair::{
     RepairDisposition,
 };
 pub use builtin::{
-    BASELINE_PROJECTION_KINDS, PathSelectionRules, SelectFactsProvider, install_baseline_providers,
+    BASELINE_PROJECTION_KINDS, PathSelectionRules, SEMANTIC_TEXT_KIND, SelectFactsProvider,
+    install_baseline_providers, install_semantic_text_provider,
 };
 pub use engine::{ConfigShapeVerifier, ProjectionEngine, ProjectionRegistry};
 pub use graph::{ClosureError, FederatedClosure, OwnerProjectionGraph};
