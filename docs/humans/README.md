@@ -24,7 +24,8 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 | `feature/sim-runtime/prolog-predicate-clause-store` | `crate/sim-lib-lang-prolog` | 1 | Keep each Prolog predicate language-owned as the indexed set of logic-organ clauses resolved through unification and backtracking. |
 | `feature/sim-runtime/class-semantics` | `crate/sim-lib-class` | 3 | Own checked declared-parent class descriptors projected onto the kernel Class protocol, with bounded lineage policies and managed, non-retaining caches for linearizations and derived member views. |
 | `feature/sim-runtime/incremental-query-core` | `crate/sim-incremental-core` | 4 | Provide the generic memo graph, the one proof-producing dataflow fixpoint engine, qualified semantic projection, and prediction-only closure assays over canonical SIM facts. |
-| `feature/sim-runtime/world-projection-product` | `crate/sim-lib-world` | 1 | Load open qualified projectors and expose pure project, diff, and why operations over caller-supplied immutable facts. |
+| `feature/sim-runtime/world-projection-product` | `crate/sim-lib-world` | 1 | Load open qualified projectors and expose pure project, diff, why, compose, read-only custody, resident cached why, projection sensitivity, a sealed proof plan, explicit domain-port snapshots over sealed model batches, and an offline seal of the owning resolver inputs. |
+| `feature/sim-runtime/portable-proof-product` | `crate/sim-lib-world` | 0 | Execute every selected pure proof on the sealed subject with reuse disabled, then compare a later reuse decision with those cold results. |
 | `feature/sim-runtime/incremental-query-organ` | `crate/sim-lib-incremental` | 1 | Expose incremental expression queries and immutable proof-backed dataflow analysis views as a loadable SIM organ. |
 | `feature/sim-runtime/capabilities-read-eval` | `crate/sim-lib-core` | 2 | Gate diminished read-eval and surface packing through explicit runtime libraries and capability checks. |
 | `feature/sim-runtime/organs` | `crate/sim-lib-binding` | 1 | Provide binding, function, control, logic, pattern, incremental, mutation, namespace, and sequence organs as reusable runtime behavior. |
@@ -58,6 +59,7 @@ This generated lane consumes `docs/generated/sim-index-fragment.sx`. Global inde
 
 | Surface | Kind | Subject |
 | --- | --- | --- |
+| `cli/prove` | `cli` | `crate/sim-lib-world` |
 | `cli/study` | `cli` | `crate/sim-lib-study` |
 | `cli/world` | `cli` | `crate/sim-lib-world` |
 | `cli/xtask` | `cli` | `crate/xtask` |
@@ -14135,6 +14137,58 @@ fn only_not_dispatched_is_retryable() {
 }
 
 #[test]
+fn process_attempt_diagnostics_preserve_every_terminal_distinction() {
+    let completed = |exit, stderr: &str| ProcessAttempt::Completed {
+        receipt: ProcessReceipt {
+            provider: "fixture/process".into(),
+            elapsed_mono_ns: 7,
+            result: ProcResult {
+                stdout: "bounded output".into(),
+                stderr: stderr.into(),
+                exit_code: exit,
+                truncated: false,
+            },
+        },
+    };
+    let first = completed(2, "first failure").canonical_datum();
+    let second = completed(3, "second failure").canonical_datum();
+    assert_ne!(first, second);
+    assert_ne!(first.content_id().unwrap(), second.content_id().unwrap());
+
+    let timeout = ProcessAttempt::StoppedAfterTimeout {
+        receipt: StopReceipt {
+            provider: "fixture/process".into(),
+            elapsed_mono_ns: 9,
+            cleanup: "whole group reaped".into(),
+        },
+    }
+    .canonical_datum();
+    let cancellation = ProcessAttempt::StoppedAfterCancel {
+        receipt: StopReceipt {
+            provider: "fixture/process".into(),
+            elapsed_mono_ns: 9,
+            cleanup: "whole group reaped".into(),
+        },
+    }
+    .canonical_datum();
+    assert_ne!(timeout, cancellation);
+
+    let refused = ProcessAttempt::NotDispatched {
+        refusal: ProcessRefusal::SpawnFailed("native spawn failed".into()),
+    }
+    .canonical_datum();
+    let unknown = ProcessAttempt::UnknownAfterDispatch {
+        evidence: DispatchEvidence {
+            provider: "fixture/process".into(),
+            stage: "post-spawn".into(),
+            detail: "wait result unavailable".into(),
+        },
+    }
+    .canonical_datum();
+    assert_ne!(refused, unknown);
+}
+
+#[test]
 fn cancellation_token_is_shareable() {
     let token = ProcessCancellation::default();
     let other = token.clone();
@@ -14224,12 +14278,14 @@ fn command(script: &[u8]) -> sim_kernel::Result<CommandSpec> {
         },
     ];
     let limits = SandboxLimits {
-        cpu_seconds: 10,
-        memory_bytes: 256 * 1024 * 1024,
+        cpu: sim_lib_exec::SandboxCpuLimit::PerProcessSeconds(10),
+        memory: sim_lib_exec::SandboxMemoryLimit::PerProcessAddressSpaceBytes(256 * 1024 * 1024),
         wall_time_ms: 5_000,
         process_count: 16,
-        file_count: 1_000,
-        file_bytes: 16 * 1024 * 1024,
+        filesystem: sim_lib_exec::SandboxFilesystemLimit::LogicalTree {
+            entries: 1_000,
+            bytes: 16 * 1024 * 1024,
+        },
         output_bytes: 16 * 1024,
         stdin_bytes: 1,
     };
@@ -14319,12 +14375,12 @@ Specimen `spec-test/sim-runtime/crates/sim-lib-exec/src/sandbox` is checked by `
 Source `crates/sim-lib-exec/src/sandbox.rs`:
 
 ```rust
-use crate::{ArgAtom, ProcessCancellation, ProgramRef, SealedBindings};
-use sim_kernel::{Error, Result};
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    sync::Arc,
+use crate::{
+    ArgAtom, LauncherRegistry, ProcessCancellation, ProgramRef, SandboxInvocation, SandboxLimits,
+    SealedBindings,
 };
+use sim_kernel::{Datum, Error, Result};
+use std::collections::{BTreeMap, BTreeSet};
 
 const MAX_MOUNTS: usize = 64;
 const MAX_STDIN: usize = 16 * 1024 * 1024;
@@ -14342,17 +14398,17 @@ pub enum SandboxControl {
     Environment,
     /// Host user and session identity.
     Identity,
-    /// CPU time.
+    /// CPU bound using the policy's explicit duration or rate accounting.
     Cpu,
-    /// Address-space memory.
+    /// Memory bound using the policy's explicit address-space or charged accounting.
     Memory,
     /// Monotonic wall time.
     WallTime,
     /// Descendant process count.
     ProcessCount,
-    /// Created file count.
+    /// Filesystem object count using the policy's explicit entry or inode accounting.
     FileCount,
-    /// Created file bytes.
+    /// Filesystem bytes using the policy's explicit logical or allocated accounting.
     FileBytes,
     /// Captured output bytes.
     Output,
@@ -14360,6 +14416,31 @@ pub enum SandboxControl {
     Stdin,
     /// Descendant cleanup.
     ProcessTree,
+}
+
+impl SandboxControl {
+    /// Stable control name shared with the canonical command wire format.
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        crate::command_wire::control_name(self)
+    }
+
+    pub(crate) const ALL: [Self; 14] = [
+        SandboxControl::Network,
+        SandboxControl::Mounts,
+        SandboxControl::Root,
+        SandboxControl::Environment,
+        SandboxControl::Identity,
+        SandboxControl::Cpu,
+        SandboxControl::Memory,
+        SandboxControl::WallTime,
+        SandboxControl::ProcessCount,
+        SandboxControl::FileCount,
+        SandboxControl::FileBytes,
+        SandboxControl::Output,
+        SandboxControl::Stdin,
+        SandboxControl::ProcessTree,
+    ];
 }
 
 /// Whether absence of a control is fatal or may be reported as unavailable.
@@ -14391,27 +14472,6 @@ pub struct SandboxMount {
     pub access: MountAccess,
 }
 
-/// Complete bounded resource policy. Zero is invalid for every limit.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SandboxLimits {
-    /// CPU seconds.
-    pub cpu_seconds: u64,
-    /// Address-space bytes.
-    pub memory_bytes: u64,
-    /// Monotonic milliseconds.
-    pub wall_time_ms: u64,
-    /// Maximum process count.
-    pub process_count: u64,
-    /// Maximum files across writable roots.
-    pub file_count: u64,
-    /// Maximum bytes across writable roots.
-    pub file_bytes: u64,
-    /// Shared stdout and stderr cap.
-    pub output_bytes: usize,
-    /// Standard-input cap.
-    pub stdin_bytes: usize,
-}
-
 /// Validated portable sandbox policy, independent of any OS launcher.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SandboxPolicy {
@@ -14426,23 +14486,16 @@ impl SandboxPolicy {
         mounts: Vec<SandboxMount>,
         limits: SandboxLimits,
     ) -> Result<Self> {
-        let requirements = requirements.into_iter().collect::<BTreeMap<_, _>>();
-        let all = [
-            SandboxControl::Network,
-            SandboxControl::Mounts,
-            SandboxControl::Root,
-            SandboxControl::Environment,
-            SandboxControl::Identity,
-            SandboxControl::Cpu,
-            SandboxControl::Memory,
-            SandboxControl::WallTime,
-            SandboxControl::ProcessCount,
-            SandboxControl::FileCount,
-            SandboxControl::FileBytes,
-            SandboxControl::Output,
-            SandboxControl::Stdin,
-            SandboxControl::ProcessTree,
-        ];
+        let mut classified = BTreeMap::new();
+        for (control, requirement) in requirements {
+            if classified.insert(control, requirement).is_some() {
+                return Err(Error::Eval(
+                    "sandbox control is classified more than once".into(),
+                ));
+            }
+        }
+        let requirements = classified;
+        let all = SandboxControl::ALL;
         if all.iter().any(|c| !requirements.contains_key(c)) {
             return Err(Error::Eval(
                 "sandbox policy must classify every control".into(),
@@ -14462,20 +14515,7 @@ impl SandboxPolicy {
                 return Err(Error::Eval("invalid or duplicate sandbox mount".into()));
             }
         }
-        if limits.cpu_seconds == 0
-            || limits.memory_bytes == 0
-            || limits.wall_time_ms == 0
-            || limits.process_count == 0
-            || limits.file_count == 0
-            || limits.file_bytes == 0
-            || limits.output_bytes == 0
-            || limits.stdin_bytes == 0
-            || limits.stdin_bytes > MAX_STDIN
-        {
-            return Err(Error::Eval(
-                "sandbox limits must be non-zero and bounded".into(),
-            ));
-        }
+        limits.validate(MAX_STDIN)?;
         Ok(Self {
             requirements,
             mounts,
@@ -14556,13 +14596,19 @@ pub struct SandboxReport {
 }
 impl SandboxReport {
     /// Returns whether every required control has positive, non-empty evidence.
+    /// Duplicate control records are ambiguous and never constitute proof.
     pub fn proves_required(&self, policy: &SandboxPolicy) -> bool {
+        let mut observed = BTreeMap::new();
+        for evidence in &self.controls {
+            if observed.insert(evidence.control, evidence).is_some() {
+                return false;
+            }
+        }
         policy.requirements.iter().all(|(control, requirement)| {
             *requirement != SandboxRequirement::Required
-                || self
-                    .controls
-                    .iter()
-                    .any(|e| e.control == *control && e.achieved && !e.detail.is_empty())
+                || observed
+                    .get(control)
+                    .is_some_and(|e| e.achieved && !e.detail.trim().is_empty())
         })
     }
 }
@@ -14597,6 +14643,17 @@ pub enum SandboxAttempt {
     Refused(SandboxRefusal),
     /// Timeout or cancellation with proven cleanup.
     Stopped(SandboxReport),
+    /// Timeout or cancellation with proven cleanup and bounded diagnostic bytes.
+    ///
+    /// Diagnostics are explicitly not completion-qualified; they preserve the
+    /// producer's observed stream prefixes so a later owner can establish that
+    /// a particular hostile specimen actually began before the proved stop.
+    StoppedWithDiagnostics {
+        /// Complete independently observed control and cleanup report.
+        report: SandboxReport,
+        /// Canonical bounded diagnostic projection from the same owner.
+        diagnostics: Datum,
+    },
     /// Dispatched but final state is not provable.
     Unknown(SandboxRefusal),
 }
@@ -14611,37 +14668,92 @@ pub trait SandboxLauncher: Send + Sync {
         request: &SandboxRequest,
         cancellation: &ProcessCancellation,
     ) -> SandboxAttempt;
-}
-/// Boot-built launcher registry; callers select an identity, never a concrete OS type.
-#[derive(Default)]
-pub struct LauncherRegistry(BTreeMap<String, Arc<dyn SandboxLauncher>>);
-impl LauncherRegistry {
-    /// Registers one unique boot-selected launcher.
-    pub fn register(&mut self, launcher: Arc<dyn SandboxLauncher>) -> Result<()> {
-        let id = launcher.id();
-        if id.is_empty() || self.0.contains_key(id) {
-            return Err(Error::Eval("invalid or duplicate sandbox launcher".into()));
-        }
-        self.0.insert(id.into(), launcher);
-        Ok(())
-    }
-    /// Dispatches through the selected launcher without caller type dispatch.
-    pub fn launch(
+    /// Declares an exact resource destination without acquiring or mutating it.
+    /// The declaration is journaled before resource acquisition is invoked.
+    fn plan_reservation(
         &self,
-        id: &str,
-        request: &SandboxRequest,
-        cancellation: &ProcessCancellation,
+        _invocation: &SandboxInvocation,
+        _request: &SandboxRequest,
+        _cancellation: &ProcessCancellation,
+    ) -> std::result::Result<Datum, Box<SandboxRefusal>> {
+        Err(Box::new(SandboxRefusal {
+            launcher: self.id().into(),
+            reason: "reservation planning is unsupported".into(),
+            report: None,
+        }))
+    }
+    /// Acquires or reconciles only the exact durable reservation destination.
+    ///
+    /// Return only non-secret canonical correlation data. Retain live resource
+    /// authority independently of the caller, including after an error or lost
+    /// acknowledgement. Unsupported preparation refuses without direct launch.
+    fn prepare_reserved(
+        &self,
+        _invocation: &SandboxInvocation,
+        _request: &SandboxRequest,
+        _destination: &Datum,
+        _cancellation: &ProcessCancellation,
+    ) -> std::result::Result<Datum, Box<SandboxRefusal>> {
+        Err(Box::new(SandboxRefusal {
+            launcher: self.id().into(),
+            reason: "sandbox preparation is unsupported".into(),
+            report: None,
+        }))
+    }
+    /// Notifies the original owner of a failed lifecycle acknowledgement.
+    /// This failure notification is separate from payload release and from a
+    /// caller cancellation. Only the original owner can act on retained custody.
+    fn preparation_acknowledgement_failed(
+        &self,
+        _invocation: &SandboxInvocation,
+        _request: &SandboxRequest,
+        _cause: &sim_lib_operation_gate::OperationError,
+    ) -> std::result::Result<(), Box<SandboxRefusal>> {
+        Err(Box::new(SandboxRefusal {
+            launcher: self.id().into(),
+            reason: "original preparation failure disposition is unsupported".into(),
+            report: None,
+        }))
+    }
+    /// Releases an exactly bound reservation after its durable admission.
+    ///
+    /// Revalidate live authority, applicable fencing and cancellation before
+    /// release. A serialized binding alone grants no authority. Completion
+    /// includes the command's declared scratch cleanup under retained custody.
+    /// The default is unknown, never a fallback to direct launch.
+    fn launch_prepared(
+        &self,
+        _invocation: &SandboxInvocation,
+        _request: &SandboxRequest,
+        _binding: &Datum,
+        _cancellation: &ProcessCancellation,
+        _admission: &mut dyn sim_lib_operation_gate::PreparedReleaseAdmission,
     ) -> SandboxAttempt {
-        self.0.get(id).map_or_else(
-            || {
-                SandboxAttempt::Refused(SandboxRefusal {
-                    launcher: id.into(),
-                    reason: "sandbox launcher is not registered".into(),
-                    report: None,
-                })
-            },
-            |v| v.launch(request, cancellation),
-        )
+        SandboxAttempt::Unknown(SandboxRefusal {
+            launcher: self.id().into(),
+            reason: "prepared sandbox release is unsupported".into(),
+            report: None,
+        })
+    }
+    /// Disposes only this original cancelled preparation without payload release.
+    /// The caller supplies the accepted operation's sticky cancellation, not
+    /// new execution authority. Retain original resources through durable stop
+    /// intent, native quiescence and declared scratch cleanup. Missing custody,
+    /// an attempted gate write or uncertain disposition must refuse without retry.
+    /// Success is resource disposition only, never completed payload evidence.
+    /// The default preserves uncertainty and invokes no execution method.
+    fn cancel_prepared(
+        &self,
+        _invocation: &SandboxInvocation,
+        _request: &SandboxRequest,
+        _binding: &Datum,
+        _cancellation: &ProcessCancellation,
+    ) -> std::result::Result<(), Box<SandboxRefusal>> {
+        Err(Box::new(SandboxRefusal {
+            launcher: self.id().into(),
+            reason: "prepared cancellation disposition is unsupported".into(),
+            report: None,
+        }))
     }
 }
 /// Runs an untrusted request and rejects any completion lacking required proof.
@@ -14665,6 +14777,7 @@ pub fn sandbox_exec(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
     struct Fake(&'static str);
     impl SandboxLauncher for Fake {
         fn id(&self) -> &str {
@@ -14735,12 +14848,14 @@ mod tests {
                 .map(|c| (c, SandboxRequirement::Required)),
             vec![],
             SandboxLimits {
-                cpu_seconds: 1,
-                memory_bytes: 1,
+                cpu: crate::SandboxCpuLimit::PerProcessSeconds(1),
+                memory: crate::SandboxMemoryLimit::PerProcessAddressSpaceBytes(1),
                 wall_time_ms: 1,
                 process_count: 1,
-                file_count: 1,
-                file_bytes: 1,
+                filesystem: crate::SandboxFilesystemLimit::LogicalTree {
+                    entries: 1,
+                    bytes: 1,
+                },
                 output_bytes: 1,
                 stdin_bytes: 1,
             },
@@ -14781,12 +14896,14 @@ mod tests {
     #[test]
     fn hostile_paths_stdin_and_arguments_are_validated_without_shell_parsing() {
         let limits = SandboxLimits {
-            cpu_seconds: 1,
-            memory_bytes: 1,
+            cpu: crate::SandboxCpuLimit::PerProcessSeconds(1),
+            memory: crate::SandboxMemoryLimit::PerProcessAddressSpaceBytes(1),
             wall_time_ms: 1,
             process_count: 1,
-            file_count: 1,
-            file_bytes: 1,
+            filesystem: crate::SandboxFilesystemLimit::LogicalTree {
+                entries: 1,
+                bytes: 1,
+            },
             output_bytes: 1,
             stdin_bytes: 1,
         };
@@ -15905,11 +16022,15 @@ use std::sync::{
 
 use sim_kernel::{CapabilityName, ContentId, Datum, Symbol};
 use sim_lib_journal::{
-    Admission, JournalBackend, JournalError, JournalHead, JournalObject, MemoryBackend,
-    StoredDatumRef, StoredState,
+    Admission, Journal, JournalBackend, JournalEntry, JournalError, JournalHead, JournalObject,
+    MemoryBackend, StoredDatumRef, StoredState,
 };
 
 use super::*;
+mod acceptance_custody;
+mod divergence;
+mod preparation_tests;
+mod verified_record;
 
 #[derive(Clone, Copy)]
 struct CrashCut {
@@ -15922,9 +16043,34 @@ struct CrashBackend {
     inner: MemoryBackend,
     admissions: AtomicUsize,
     cut: Mutex<Option<CrashCut>>,
+    inside_release: AtomicBool,
+    before_admission: Mutex<Option<BeforeAdmission>>,
+}
+
+struct BeforeAdmission {
+    kind: Symbol,
+    action: Box<dyn FnOnce() + Send>,
 }
 
 impl CrashBackend {
+    fn before_admission(&self, admission: &Admission) {
+        let hook = {
+            let mut slot = self.before_admission.lock().unwrap();
+            if slot.as_ref().is_some_and(|hook| {
+                admission
+                    .entries()
+                    .last()
+                    .is_some_and(|entry| entry.kind == hook.kind)
+            }) {
+                slot.take()
+            } else {
+                None
+            }
+        };
+        if let Some(hook) = hook {
+            (hook.action)();
+        }
+    }
     fn crash(&self, admission: usize, after_commit: bool) {
         self.admissions.store(0, Ordering::SeqCst);
         *self.cut.lock().expect("crash cut lock") = Some(CrashCut {
@@ -15942,9 +16088,14 @@ impl JournalBackend for CrashBackend {
         self.inner.acquire_lease()
     }
     fn read_state(&self) -> Result<StoredState, JournalError> {
+        assert!(
+            !self.inside_release.load(Ordering::SeqCst),
+            "release action reentered its journal"
+        );
         self.inner.read_state()
     }
     fn admit(&self, admission: Admission) -> Result<JournalHead, JournalError> {
+        self.before_admission(&admission);
         let index = self.admissions.fetch_add(1, Ordering::SeqCst) + 1;
         let cut = *self.cut.lock().expect("crash cut lock");
         if cut.is_some_and(|cut| cut.admission == index && !cut.after_commit) {
@@ -15958,6 +16109,27 @@ impl JournalBackend for CrashBackend {
     }
     fn put_datum(&self, object: JournalObject) -> Result<StoredDatumRef, JournalError> {
         self.inner.put_datum(object)
+    }
+    fn admit_then(
+        &self,
+        admission: Admission,
+        action: &mut dyn sim_lib_journal::CommitAction,
+    ) -> Result<sim_lib_journal::GuardedAdmission, JournalError> {
+        self.before_admission(&admission);
+        let index = self.admissions.fetch_add(1, Ordering::SeqCst) + 1;
+        let cut = *self.cut.lock().expect("crash cut lock");
+        if cut.is_some_and(|cut| cut.admission == index && !cut.after_commit) {
+            return Err(JournalError::InjectedCrash("before release boundary"));
+        }
+        let result = self.inner.admit_then(admission, &mut || {
+            assert!(!self.inside_release.swap(true, Ordering::SeqCst));
+            action.after_commit();
+            self.inside_release.store(false, Ordering::SeqCst);
+        });
+        if result.is_ok() && cut.is_some_and(|cut| cut.admission == index && cut.after_commit) {
+            return Err(JournalError::InjectedCrash("after release boundary"));
+        }
+        result
     }
     fn get_datum(&self, meaning: &ContentId) -> Result<Datum, JournalError> {
         self.inner.get_datum(meaning)
@@ -16098,6 +16270,100 @@ fn fresh_lifecycle_observes_before_dispatch_and_reconstructs_every_fact() {
 }
 
 #[test]
+fn public_snapshot_projection_accepts_exact_complete_and_prospective_cut() {
+    let backend = Arc::new(CrashBackend::default());
+    let (intent, grant) = fixture(ReplayPolicy::ExactlyOnce);
+    let (mut performer, mut observer, _, _, _) = ports(true);
+    OperationLifecycle::from_shared(backend.clone())
+        .run(
+            &intent,
+            &grant,
+            LeaseWindow::new(Datum::String("holder/a".into()), 10, 20).unwrap(),
+            &mut performer,
+            &mut observer,
+        )
+        .unwrap();
+
+    let full = Journal::new(backend).verified_snapshot().unwrap();
+    let projected = project_verified_lifecycle_records(&full).unwrap();
+    assert!(matches!(
+        projected
+            .get(intent.id())
+            .and_then(OperationLifecycleRecord::outcome),
+        Some(OperationOutcome::Verified { .. })
+    ));
+
+    let prefix_journal = Journal::new(MemoryBackend::new());
+    let lease = prefix_journal.acquire_lease().unwrap();
+    let cut_index = full.entries().len() - 1;
+    let prefix_entries = full.entries()[..cut_index].to_vec();
+    let prefix_ids = prefix_entries
+        .iter()
+        .flat_map(|entry| entry.payloads.iter())
+        .collect::<std::collections::BTreeSet<_>>();
+    let prefix_objects = prefix_ids
+        .into_iter()
+        .map(|id| JournalObject::from_datum(full.datum(id).unwrap().clone()).unwrap())
+        .collect();
+    prefix_journal
+        .publish(&lease, None, prefix_objects, prefix_entries)
+        .unwrap();
+    let prefix = prefix_journal.verified_snapshot().unwrap();
+    let cut = &full.entries()[cut_index];
+    let cut_objects = cut
+        .payloads
+        .iter()
+        .map(|id| JournalObject::from_datum(full.datum(id).unwrap().clone()).unwrap())
+        .collect::<Vec<_>>();
+    let projected = project_verified_lifecycle_extension(&prefix, cut, &cut_objects).unwrap();
+    let record = projected.get(intent.id()).unwrap();
+    assert!(matches!(
+        record.outcome(),
+        Some(OperationOutcome::Verified { .. })
+    ));
+
+    let wrong_sequence = JournalEntry::new(
+        cut.sequence + 1,
+        cut.previous.clone(),
+        cut.kind.clone(),
+        cut.payloads.clone(),
+    );
+    assert!(project_verified_lifecycle_extension(&prefix, &wrong_sequence, &cut_objects).is_err());
+    let unknown = JournalEntry::new(
+        cut.sequence,
+        cut.previous.clone(),
+        Symbol::qualified("operation", "foreign-transition"),
+        cut.payloads.clone(),
+    );
+    assert!(project_verified_lifecycle_extension(&prefix, &unknown, &cut_objects).is_err());
+    let extra = JournalObject::from_datum(Datum::String("unbound".into())).unwrap();
+    let mut extra_objects = cut_objects;
+    extra_objects.push(extra);
+    assert!(project_verified_lifecycle_extension(&prefix, cut, &extra_objects).is_err());
+
+    let foreign_journal = Journal::new(MemoryBackend::new());
+    let foreign_lease = foreign_journal.acquire_lease().unwrap();
+    let foreign_object = JournalObject::from_datum(Datum::String("foreign".into())).unwrap();
+    let foreign_entry = JournalEntry::new(
+        0,
+        None,
+        Symbol::qualified("operation", "foreign-transition"),
+        vec![foreign_object.id.clone()],
+    );
+    foreign_journal
+        .publish(
+            &foreign_lease,
+            None,
+            vec![foreign_object],
+            vec![foreign_entry],
+        )
+        .unwrap();
+    assert!(
+        project_verified_lifecycle_records(&foreign_journal.verified_snapshot().unwrap()).is_err()
+    );
+}
+
+#[test]
 fn already_true_never_acquires_operation_lease_or_calls_performer() {
     let backend = Arc::new(CrashBackend::default());
     let (intent, grant) = fixture(ReplayPolicy::ExactlyOnce);
@@ -16206,103 +16472,6 @@ fn lost_receipt_reconciles_from_external_state_without_reperformance() {
             .receipts()
             .is_empty()
     );
-}
-
-#[test]
-fn idempotent_retry_requires_expiry_and_observed_absence() {
-    let backend = Arc::new(CrashBackend::default());
-    let (intent, grant) = fixture(ReplayPolicy::Idempotent);
-    let (mut performer, mut observer, calls, effect, _) = ports(false);
-    let first = OperationLifecycle::from_shared(backend.clone())
-        .run(
-            &intent,
-            &grant,
-            LeaseWindow::new(Datum::String("holder/a".into()), 10, 20).unwrap(),
-            &mut performer,
-            &mut observer,
-        )
-        .unwrap();
-    assert!(matches!(first, OperationOutcome::Verified { .. }));
-    assert_eq!(calls.load(Ordering::SeqCst), 1);
-
-    // Use a fresh operation so its first result remains retryable Diverged.
-    let (intent, grant) = OperationIntent::new(
-        "fixture/write/retry",
-        Datum::String("target/b".into()),
-        Datum::String("present".into()),
-        ReplayPolicy::Idempotent,
-    )
-    .and_then(|intent| {
-        OperationGrant::new(
-            intent.id().clone(),
-            CapabilityName::new("fixture/write"),
-            Datum::String("authority/fixture".into()),
-        )
-        .map(|grant| (intent, grant))
-    })
-    .unwrap();
-    effect.store(false, Ordering::SeqCst);
-    struct NoEffect(Arc<AtomicUsize>);
-    impl LifecyclePerformer for NoEffect {
-        fn identity(&self) -> Datum {
-            Datum::String("performer/no-effect".into())
-        }
-        fn perform(&mut self, _: &FencedDispatch) -> LifecyclePerformerResponse {
-            self.0.fetch_add(1, Ordering::SeqCst);
-            LifecyclePerformerResponse::AcknowledgementMissing
-        }
-    }
-    let retry_calls = Arc::new(AtomicUsize::new(0));
-    let mut no_effect = NoEffect(retry_calls.clone());
-    let first = OperationLifecycle::from_shared(backend.clone())
-        .run(
-            &intent,
-            &grant,
-            LeaseWindow::new(Datum::String("holder/a".into()), 100, 120).unwrap(),
-            &mut no_effect,
-            &mut observer,
-        )
-        .unwrap();
-    assert!(matches!(first, OperationOutcome::Diverged { .. }));
-    let before_expiry = OperationLifecycle::from_shared(backend.clone())
-        .run(
-            &intent,
-            &grant,
-            LeaseWindow::new(Datum::String("holder/b".into()), 110, 130).unwrap(),
-            &mut no_effect,
-            &mut observer,
-        )
-        .unwrap();
-    assert!(matches!(before_expiry, OperationOutcome::Uncertain { .. }));
-    assert_eq!(retry_calls.load(Ordering::SeqCst), 1);
-    let rewound_clock = OperationLifecycle::from_shared(backend.clone())
-        .run(
-            &intent,
-            &grant,
-            LeaseWindow::new(Datum::String("holder/rewound".into()), 90, 95).unwrap(),
-            &mut no_effect,
-            &mut observer,
-        )
-        .expect_err("a caller cannot move monotonic lease time backwards");
-    assert!(matches!(rewound_clock, OperationError::InvalidLease));
-    assert_eq!(retry_calls.load(Ordering::SeqCst), 1);
-    let after_expiry = OperationLifecycle::from_shared(backend.clone())
-        .run(
-            &intent,
-            &grant,
-            LeaseWindow::new(Datum::String("holder/c".into()), 121, 140).unwrap(),
-            &mut no_effect,
-            &mut observer,
-        )
-        .unwrap();
-    assert!(matches!(after_expiry, OperationOutcome::Diverged { .. }));
-    assert_eq!(retry_calls.load(Ordering::SeqCst), 2);
-    let record = OperationLifecycle::from_shared(backend)
-        .record(intent.id())
-        .unwrap()
-        .unwrap();
-    assert_eq!(record.dispatches().len(), 2);
-    assert!(record.leases()[1].fence() > record.leases()[0].fence());
 }
 
 #[test]
