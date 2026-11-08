@@ -102,6 +102,91 @@ fn command_is_a_loaded_world_entrypoint_without_capabilities() {
 }
 
 #[test]
+fn outside_plan_subject_uses_the_shipped_command() {
+    let owner = "outside/plan-harbor";
+    for source in [include_str!("plan.rs"), include_str!("plan_subject.rs")] {
+        assert!(!source.contains(owner));
+    }
+    let document = format!(
+        "\
+sim-world-plan-v1
+fact fact/plan-harbor beacon
+spec conclusion/plan-harbor {owner} evidence/current current fact/plan-harbor
+"
+    );
+    let command = WorldCommandLib::new().expect("command");
+    let planned =
+        crate::command::dispatch_argv(&command, &["sim".to_owned(), "plan".to_owned(), document])
+            .expect("plan");
+    let rendered = crate::command::render(&planned);
+    assert!(rendered.contains("conclusion/plan-harbor"));
+    assert!(rendered.contains(owner));
+}
+
+#[test]
+fn outside_owner_uses_the_shipped_command() {
+    let owner = "outside/harbor-beacon";
+    for source in [
+        include_str!("command.rs"),
+        include_str!("product.rs"),
+        include_str!("fixture.rs"),
+        include_str!("observe.rs"),
+        include_str!("observe_rows.rs"),
+        include_str!("seal.rs"),
+        include_str!("plan.rs"),
+    ] {
+        assert!(
+            !source.contains(owner),
+            "{owner} is baked into the executor"
+        );
+    }
+    let command = WorldCommandLib::declared(
+        ModelDomainLoad {
+            provider: "outside/caller-site".to_owned(),
+            loader: "loader/outside".to_owned(),
+            artifact: "lib/outside-world".to_owned(),
+        },
+        vec![Declaration {
+            kind: "world/package-assembly-v1".to_owned(),
+            fact: "fact/harbor-beacon".to_owned(),
+            owner: owner.to_owned(),
+            conclusion: "conclusion/harbor-beacon".to_owned(),
+        }],
+    )
+    .expect("declared load");
+    let projected = crate::command::dispatch_argv(
+        &command,
+        &[
+            "sim".to_owned(),
+            "project".to_owned(),
+            "world/package-assembly-v1".to_owned(),
+            "fact/harbor-beacon".to_owned(),
+            "beacon-body".to_owned(),
+        ],
+    )
+    .expect("project");
+    assert!(crate::command::render(&projected).contains("beacon-body"));
+    let explained = crate::command::dispatch_argv(
+        &command,
+        &[
+            "sim".to_owned(),
+            "why".to_owned(),
+            "conclusion/harbor-beacon".to_owned(),
+            "fact/harbor-beacon".to_owned(),
+        ],
+    )
+    .expect("why");
+    assert!(crate::command::render(&explained).contains("owner/outside/harbor-beacon"));
+    let named = WorldCommandLib::new().expect("bundled");
+    let gap = crate::command::dispatch_argv(
+        &named,
+        &["sim".to_owned(), "seal".to_owned(), "owning".to_owned()],
+    )
+    .expect("named seal");
+    assert!(crate::command::render(&gap).contains("unknown-batch"));
+}
+
+#[test]
 fn unknown_pair_is_unsupported_and_hostile_text_stays_data() {
     let product = WorldProduct::bundled().unwrap();
     let error = product

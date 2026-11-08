@@ -22,6 +22,8 @@ use crate::service;
 
 #[path = "deliver_run.rs"]
 mod run;
+#[path = "deliver_view.rs"]
+mod view;
 
 const PRIVATE_MARKERS: &[&str] = &[
     "bo-private",
@@ -36,7 +38,7 @@ const PRIVATE_MARKERS: &[&str] = &[
 /// # Errors
 /// Returns an error when a release row or lifecycle result breaks its contract.
 pub(crate) fn catalog(realization: &str) -> Result<Datum, WorldError> {
-    project(&release::plan_catalog(realization)?)
+    attach_view(project(&release::plan_catalog(realization)?)?)
 }
 
 /// Qualifies one desired value against the bound model service.
@@ -44,15 +46,21 @@ pub(crate) fn catalog(realization: &str) -> Result<Datum, WorldError> {
 /// # Errors
 /// Returns an error when the release row or lifecycle result breaks its contract.
 pub(crate) fn one(realization: &str, selector: &str, desired: &str) -> Result<Datum, WorldError> {
-    project(&release::plan_one(realization, selector, desired)?)
+    attach_view(project(&release::plan_one(
+        realization,
+        selector,
+        desired,
+    )?)?)
 }
 
-/// Summarizes the sealed delivery qualification.
+/// Summarizes an admitted delivery qualification. It does not qualify again.
 ///
 /// # Errors
-/// Returns an error when the qualification is not a delivery record.
-pub(crate) fn status(realization: &str) -> Result<Datum, WorldError> {
-    let plan = catalog(realization)?;
+/// Returns an error when the admitted record is not a delivery record.
+pub(crate) fn status(realization: &str, admitted: Option<&str>) -> Result<Datum, WorldError> {
+    let Some(plan) = admitted_record(realization, admitted)? else {
+        return Ok(refresh_gap(realization, ""));
+    };
     if deliver_gap(&plan).is_some() {
         return Ok(plan);
     }
@@ -66,16 +74,14 @@ pub(crate) fn status(realization: &str) -> Result<Datum, WorldError> {
             &required(row, "intent")?,
         ));
     }
+    let dispatches = field_datum(fields, "dispatches")?;
     Ok(Datum::Node {
         tag: Symbol::qualified("world", "deliver-status-v1"),
         fields: vec![
             (Symbol::new("blocked"), field_datum(fields, "blocked")?),
             (Symbol::new("disclosure"), string(DISCLOSURE_FACT)),
-            (
-                Symbol::new("dispatches"),
-                field_datum(fields, "dispatches")?,
-            ),
-            (Symbol::new("effects"), query::count_datum(0)),
+            (Symbol::new("dispatches"), dispatches.clone()),
+            (Symbol::new("effects"), dispatches),
             (Symbol::new("noop"), field_datum(fields, "noop")?),
             (Symbol::new("omitted"), field_datum(fields, "omitted")?),
             (
@@ -94,14 +100,20 @@ pub(crate) fn status(realization: &str) -> Result<Datum, WorldError> {
 ///
 /// # Errors
 /// Returns an error when the qualification is not a delivery record.
-pub(crate) fn why(realization: &str, selector: &str) -> Result<Datum, WorldError> {
+pub(crate) fn why(
+    realization: &str,
+    selector: &str,
+    admitted: Option<&str>,
+) -> Result<Datum, WorldError> {
     if selector.is_empty() {
         return Ok(gap(realization, selector, "empty-selector"));
     }
     if leaked(selector) || leaked(realization) {
         return Ok(gap(realization, selector, "private-leakage"));
     }
-    let plan = catalog(realization)?;
+    let Some(plan) = admitted_record(realization, admitted)? else {
+        return Ok(refresh_gap(realization, selector));
+    };
     if deliver_gap(&plan).is_some() {
         return Ok(plan);
     }
@@ -348,6 +360,7 @@ fn remain_datum(selector: &str, cause: &str, intent: &str) -> Datum {
 }
 
 fn why_datum(realization: &str, row: &[(Symbol, Datum)]) -> Result<Datum, WorldError> {
+    let dispatches = field_datum(row, "dispatches")?;
     let mut fields = vec![
         (
             Symbol::new("acknowledgement"),
@@ -356,8 +369,8 @@ fn why_datum(realization: &str, row: &[(Symbol, Datum)]) -> Result<Datum, WorldE
         (Symbol::new("cause"), string(&required(row, "cause")?)),
         (Symbol::new("class"), string(&required(row, "class")?)),
         (Symbol::new("disclosure"), string(DISCLOSURE_FACT)),
-        (Symbol::new("dispatches"), field_datum(row, "dispatches")?),
-        (Symbol::new("effects"), query::count_datum(0)),
+        (Symbol::new("dispatches"), dispatches.clone()),
+        (Symbol::new("effects"), dispatches),
         (Symbol::new("intent"), string(&required(row, "intent")?)),
         (
             Symbol::new("observations"),
@@ -380,6 +393,156 @@ fn why_datum(realization: &str, row: &[(Symbol, Datum)]) -> Result<Datum, WorldE
         tag: Symbol::qualified("world", "deliver-why-v1"),
         fields,
     })
+}
+
+fn attach_view(record: Datum) -> Result<Datum, WorldError> {
+    let Datum::Node { tag, mut fields } = record else {
+        return Ok(record);
+    };
+    let bare = Datum::Node {
+        tag: tag.clone(),
+        fields: fields.clone(),
+    };
+    fields.push((Symbol::new("view"), string(&view::export(&bare)?)));
+    Ok(Datum::Node { tag, fields })
+}
+
+fn admitted_record(realization: &str, admitted: Option<&str>) -> Result<Option<Datum>, WorldError> {
+    let Some(admitted) = admitted else {
+        return Ok(None);
+    };
+    let Some(record) = view::open(admitted)? else {
+        return Ok(None);
+    };
+    let Some(found) = realization_of(&record) else {
+        return Ok(None);
+    };
+    if found != realization {
+        return Ok(None);
+    }
+    if !query_shape(&record) {
+        return Ok(None);
+    }
+    Ok(Some(record))
+}
+
+fn query_shape(record: &Datum) -> bool {
+    if let Some(fields) = deliver_gap(record) {
+        return gap_ready(fields);
+    }
+    let Ok(fields) = node_fields(record, "world/deliver-v1") else {
+        return false;
+    };
+    if !bool_field(fields, "blocked")
+        || !number_field(fields, "dispatches")
+        || !bool_field(fields, "noop")
+        || !number_field(fields, "performer-calls")
+    {
+        return false;
+    }
+    rows_ready(fields, "actions", "world/deliver-action-v1")
+        && rows_ready(fields, "omitted", "world/deliver-omission-v1")
+}
+
+fn rows_ready(fields: &[(Symbol, Datum)], name: &str, tag: &str) -> bool {
+    let Ok(items) = vector_field(fields, name) else {
+        return false;
+    };
+    items.iter().all(|item| row_ready(item, tag))
+}
+
+fn row_ready(item: &Datum, tag: &str) -> bool {
+    let Ok(row) = node_fields(item, tag) else {
+        return false;
+    };
+    [
+        "acknowledgement",
+        "cause",
+        "class",
+        "intent",
+        "selector",
+        "state",
+    ]
+    .iter()
+    .all(|name| required(row, name).is_ok())
+        && number_field(row, "dispatches")
+        && number_field(row, "observations")
+        && number_field(row, "performer-calls")
+        && value_is_text(row)
+}
+
+fn gap_ready(fields: &[(Symbol, Datum)]) -> bool {
+    text_field(fields, "realization")
+        && text_field(fields, "reason")
+        && text_field(fields, "selector")
+        && matches!(typed_field(fields, "resident"), Some(Datum::Bool(_)))
+        && matches!(typed_field(fields, "effects"), Some(Datum::Number(_)))
+        && matches!(typed_field(fields, "subprocesses"), Some(Datum::Number(_)))
+}
+
+fn value_is_text(fields: &[(Symbol, Datum)]) -> bool {
+    match typed_field(fields, "value") {
+        None | Some(Datum::String(_)) => true,
+        Some(_) => false,
+    }
+}
+
+fn text_field(fields: &[(Symbol, Datum)], name: &str) -> bool {
+    matches!(typed_field(fields, name), Some(Datum::String(_)))
+}
+
+fn bool_field(fields: &[(Symbol, Datum)], name: &str) -> bool {
+    matches!(typed_field(fields, name), Some(Datum::Bool(_)))
+}
+
+fn number_field(fields: &[(Symbol, Datum)], name: &str) -> bool {
+    matches!(typed_field(fields, name), Some(Datum::Number(_)))
+}
+
+fn typed_field<'a>(fields: &'a [(Symbol, Datum)], name: &str) -> Option<&'a Datum> {
+    fields
+        .iter()
+        .find(|(symbol, _)| symbol.as_qualified_str() == name)
+        .map(|(_, value)| value)
+}
+
+fn realization_of(record: &Datum) -> Option<String> {
+    let Datum::Node { tag, fields } = record else {
+        return None;
+    };
+    let kind = tag.as_qualified_str();
+    if kind != "world/deliver-v1" && kind != "world/deliver-gap-v1" {
+        return None;
+    }
+    fields.iter().find_map(|(name, value)| {
+        if name.as_qualified_str() == "realization" {
+            match value {
+                Datum::String(value) => Some(value.clone()),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    })
+}
+
+fn refresh_gap(realization: &str, selector: &str) -> Datum {
+    let mut record = gap(realization, selector, "refresh-needed");
+    let Datum::Node { fields, .. } = &mut record else {
+        return record;
+    };
+    if let Some((_, resident)) = fields
+        .iter_mut()
+        .find(|(name, _)| name.as_qualified_str() == "resident")
+    {
+        *resident = Datum::Bool(false);
+    }
+    record
+}
+
+#[cfg(test)]
+pub(crate) fn qualify_calls() -> usize {
+    run::qualify_calls()
 }
 
 fn gap(realization: &str, selector: &str, reason: &str) -> Datum {

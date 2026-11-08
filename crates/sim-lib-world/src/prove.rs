@@ -5,11 +5,15 @@
 
 //! Pure proof execution for the sealed portable subject.
 //!
-//! Cold execution runs every selected leaf with reuse disabled. A later reuse
-//! decision is kept only when its digest matches that cold result and it claims
-//! no input the run did not read. Native worker and native assay leaves stay
-//! outside the denominator.
+//! Cold execution runs every selected leaf with reuse disabled and exports a
+//! revision-fenced view. A later reuse decision reads that view. It is kept
+//! only when its digest matches the cold result and it claims no input the run
+//! did not read. A missing or stale view asks for a refresh and does not
+//! execute again. Native worker and native assay leaves stay outside the
+//! denominator.
 
+#[cfg(test)]
+use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::Instant;
 
@@ -27,8 +31,30 @@ use crate::{WorldError, command};
 
 #[path = "prove_record.rs"]
 mod record;
+#[path = "prove_view.rs"]
+mod view;
 
 use record::{cold_record, flag, gap, hex, list, node, num, plan_record, reuse_record, text};
+
+#[cfg(test)]
+thread_local! {
+    static COLD_EXECUTIONS: Cell<usize> = const { Cell::new(0) };
+}
+
+/// Cold executions on this thread. The counter is a test probe, not a store.
+#[cfg(test)]
+pub(crate) fn cold_executions() -> usize {
+    COLD_EXECUTIONS.with(Cell::get)
+}
+
+#[cfg(test)]
+pub(crate) fn reseal_replaced(
+    text: &str,
+    from: &str,
+    to: &str,
+) -> Result<Option<String>, WorldError> {
+    view::reseal_replaced(text, from, to)
+}
 
 const DENOMINATOR: usize = 40;
 const PAGE: usize = 8;
@@ -132,6 +158,8 @@ pub(crate) fn leaf_facts() -> Result<BTreeMap<String, Vec<String>>, WorldError> 
 
 /// Runs every selected leaf on the baseline and on each frozen delta.
 pub(crate) fn execute_cold() -> Result<ColdProof, WorldError> {
+    #[cfg(test)]
+    COLD_EXECUTIONS.with(|cell| cell.set(cell.get().saturating_add(1)));
     let batch = assay::read_semantics()?;
     let bound = bind()?;
     let mut requests = 0u64;
@@ -286,7 +314,7 @@ pub(crate) fn plan(token: Option<&str>) -> Result<Datum, WorldError> {
 }
 
 /// Continues a plan page or a completed frontier token.
-pub(crate) fn resume(token: &str) -> Result<Datum, WorldError> {
+pub(crate) fn resume(token: &str, view: Option<&str>) -> Result<Datum, WorldError> {
     if !is_token(token) {
         return Ok(gap("resume", "stale-or-missing"));
     }
@@ -296,20 +324,22 @@ pub(crate) fn resume(token: &str) -> Result<Datum, WorldError> {
         return plan_record(&leaves, &subject, page, pages);
     }
     if token == frontier_token(&subject)? {
-        return frontier();
+        return frontier(view);
     }
     Ok(gap("resume", "stale-or-missing"))
 }
 
-/// Resident proof status. It does not execute a leaf.
-pub(crate) fn status() -> Result<Datum, WorldError> {
-    let (leaves, _) = sealed_ids()?;
+/// Resident proof status read from an admitted view. The query dispatches nothing.
+pub(crate) fn status(view: Option<&str>) -> Result<Datum, WorldError> {
+    let Some(opened) = admitted(view)? else {
+        return Ok(gap("status", "refresh-needed"));
+    };
     Ok(node(
         "status-v1",
         vec![
             (
                 "denominator",
-                num(u64::try_from(leaves.len()).unwrap_or(u64::MAX)),
+                num(u64::try_from(opened.leaves.len()).unwrap_or(u64::MAX)),
             ),
             ("excluded", list(EXCLUDED)),
             ("requests", num(0)),
@@ -321,23 +351,25 @@ pub(crate) fn status() -> Result<Datum, WorldError> {
     ))
 }
 
-/// Cold run, or one delta's reuse comparison.
-pub(crate) fn run(name: &str) -> Result<Datum, WorldError> {
+/// Cold run, or one delta's reuse comparison against an admitted view.
+pub(crate) fn run(name: &str, view: Option<&str>) -> Result<Datum, WorldError> {
     if name == "cold" {
-        return Ok(cold_record(&execute_cold()?));
+        return cold_record(&execute_cold()?);
     }
     if !DELTAS.contains(&name) {
         return Ok(gap(name, "unknown-delta"));
     }
-    let cold = execute_cold()?;
+    let Some(cold) = admitted(view)? else {
+        return Ok(gap(name, "refresh-needed"));
+    };
     let Some(report) = reuse(&cold, name, graph_choice)? else {
         return Ok(gap(name, "unknown-delta"));
     };
     Ok(reuse_record(&report))
 }
 
-/// Why one leaf was reused or run again.
-pub(crate) fn why(delta: &str, leaf: &str) -> Result<Datum, WorldError> {
+/// Why one leaf was reused or run again, read from an admitted view.
+pub(crate) fn why(delta: &str, leaf: &str, view: Option<&str>) -> Result<Datum, WorldError> {
     match admission(leaf)? {
         Admission::Excluded => return Ok(gap(leaf, "excluded-scope")),
         Admission::Unavailable => return Ok(gap(leaf, "unavailable-proof")),
@@ -346,7 +378,9 @@ pub(crate) fn why(delta: &str, leaf: &str) -> Result<Datum, WorldError> {
     if !DELTAS.contains(&delta) {
         return Ok(gap(delta, "unknown-delta"));
     }
-    let cold = execute_cold()?;
+    let Some(cold) = admitted(view)? else {
+        return Ok(gap(delta, "refresh-needed"));
+    };
     let Some(report) = reuse(&cold, delta, graph_choice)? else {
         return Ok(gap(delta, "unknown-delta"));
     };
@@ -368,10 +402,11 @@ pub(crate) fn why(delta: &str, leaf: &str) -> Result<Datum, WorldError> {
     ))
 }
 
-/// Failure frontier of a complete cold run.
-pub(crate) fn frontier() -> Result<Datum, WorldError> {
-    let cold = execute_cold()?;
-    let (_, subject) = sealed_ids()?;
+/// Failure frontier of a retained cold run. It does not execute that run again.
+pub(crate) fn frontier(view: Option<&str>) -> Result<Datum, WorldError> {
+    let Some(opened) = admitted_open(view)? else {
+        return Ok(gap("frontier", "refresh-needed"));
+    };
     Ok(node(
         "frontier-v1",
         vec![
@@ -379,24 +414,35 @@ pub(crate) fn frontier() -> Result<Datum, WorldError> {
             ("failures", Datum::Vector(Vec::new())),
             (
                 "executed",
-                num(u64::try_from(cold.leaves.len()).unwrap_or(u64::MAX)),
+                num(u64::try_from(opened.proof.leaves.len()).unwrap_or(u64::MAX)),
             ),
-            ("requests", num(cold.requests)),
+            ("requests", num(opened.proof.requests)),
             ("effects", num(0)),
             ("subprocesses", num(0)),
-            ("continuation", text(frontier_token(&subject)?)),
+            ("continuation", text(frontier_token(&opened.subject)?)),
         ],
     ))
 }
 
 /// One named leaf that is outside the selected set, or the full frontier when
 /// the leaf is selected.
-pub(crate) fn frontier_leaf(leaf: &str) -> Result<Datum, WorldError> {
+pub(crate) fn frontier_leaf(leaf: &str, view: Option<&str>) -> Result<Datum, WorldError> {
     match admission(leaf)? {
         Admission::Excluded => Ok(gap(leaf, "excluded-scope")),
         Admission::Unavailable => Ok(gap(leaf, "unavailable-proof")),
-        Admission::Selected => frontier(),
+        Admission::Selected => frontier(view),
     }
+}
+
+fn admitted(view: Option<&str>) -> Result<Option<ColdProof>, WorldError> {
+    Ok(admitted_open(view)?.map(|opened| opened.proof))
+}
+
+fn admitted_open(view: Option<&str>) -> Result<Option<view::Opened>, WorldError> {
+    let Some(view) = view else {
+        return Ok(None);
+    };
+    view::open(view)
 }
 
 /// Times resident status or why against the cached-query ceiling.
@@ -565,12 +611,29 @@ fn sealed_ids() -> Result<(Vec<String>, String), WorldError> {
             "portable proof denominator drifted".to_owned(),
         ));
     }
-    let subject = subject_of(&leaves)?;
+    let subject = subject_of(&bound)?;
     Ok((leaves, subject))
 }
 
-fn subject_of(leaves: &[String]) -> Result<String, WorldError> {
-    let datum = Datum::Vector(leaves.iter().cloned().map(Datum::String).collect());
+fn subject_of(bound: &BoundFacts) -> Result<String, WorldError> {
+    let mut rows = vec![
+        bound.package.name.clone(),
+        bound.package.version.clone(),
+        hex(&bound.package.code.bytes),
+        hex(&bound.shape.id.bytes),
+    ];
+    for (leaf, facts) in &bound.facts {
+        rows.push(leaf.clone());
+        for fact in facts {
+            let name = fact.as_str();
+            rows.push(name.to_owned());
+            rows.push(assay::baseline_bytes(name));
+            for delta in DELTAS {
+                rows.push(assay::variant_bytes(delta, name));
+            }
+        }
+    }
+    let datum = Datum::Vector(rows.into_iter().map(Datum::String).collect());
     Ok(hex(&provider::content_id(datum)?.bytes))
 }
 

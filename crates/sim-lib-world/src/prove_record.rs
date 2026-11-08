@@ -10,8 +10,9 @@ use crate::query;
 
 use super::{ColdProof, DENOMINATOR, EXCLUDED, PAGE, Report};
 
-pub(super) fn cold_record(cold: &ColdProof) -> Datum {
-    node(
+pub(super) fn cold_record(cold: &ColdProof) -> Result<Datum, WorldError> {
+    let admitted = super::view::export(cold)?;
+    Ok(node(
         "cold-v1",
         vec![
             (
@@ -32,8 +33,9 @@ pub(super) fn cold_record(cold: &ColdProof) -> Datum {
             ("subject", text(&cold.subject)),
             ("excluded", list(EXCLUDED)),
             ("gaps", Datum::Vector(Vec::new())),
+            ("view", text(admitted)),
         ],
-    )
+    ))
 }
 
 pub(super) fn reuse_record(report: &Report) -> Datum {

@@ -3,7 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! Path-package locations and content checksums for one resolver domain.
+//! Path-package locations, reached registry crate bytes, and content checksums.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -61,38 +61,7 @@ pub(super) fn domain_index(root: &Path, domain_dir: &Path) -> Index {
 
 pub(super) fn classify(root: &Path, index: &Index, package: &Pkg, origin: &str) -> Classified {
     if origin == "path" {
-        if let Some(hashed) = hash_package(root, index, &package.name, &package.version) {
-            let manifest = if hashed.source == "." {
-                root.join("Cargo.toml")
-            } else {
-                root.join(&hashed.source).join("Cargo.toml")
-            };
-            let declared = fs::read_to_string(&manifest)
-                .ok()
-                .and_then(|text| parse::package_identity(&text))
-                .map(|(_, version)| version);
-            // The directory is present, but the lock version is not the
-            // version the package manifest declares.
-            if declared.as_deref() != Some(package.version.as_str()) {
-                return Classified {
-                    source: hashed.source,
-                    checksum: hashed.checksum,
-                    kind: "version-mismatch",
-                    files: Some(hashed.files),
-                    observed: declared.unwrap_or_else(|| "missing-manifest-version".to_owned()),
-                    rerun: hashed.rerun,
-                };
-            }
-            return Classified {
-                source: hashed.source,
-                checksum: hashed.checksum,
-                kind: "path-content",
-                files: Some(hashed.files),
-                observed: String::new(),
-                rerun: hashed.rerun,
-            };
-        }
-        return unverified("missing-path");
+        return classify_path(root, index, package);
     }
     if package.checksum.is_empty() {
         let source = if package.source.is_empty() {
@@ -103,13 +72,67 @@ pub(super) fn classify(root: &Path, index: &Index, package: &Pkg, origin: &str) 
         return unverified(source);
     }
     let kind = if origin == "git" { "git" } else { "registry" };
+    let mut observed = String::new();
+    let mut rerun = Vec::new();
+    if kind == "registry"
+        && let Some(reached) = observe_registry(package)
+    {
+        observed = reached.hash;
+        rerun.push(reached.path);
+    }
     Classified {
         source: package.source.clone(),
         checksum: package.checksum.clone(),
         kind,
         files: None,
+        observed,
+        rerun,
+    }
+}
+
+fn classify_path(root: &Path, index: &Index, package: &Pkg) -> Classified {
+    let hashed = match hash_package(root, index, &package.name, &package.version) {
+        Ok(hashed) => hashed,
+        Err(HashFault::Missing) => return unverified("missing-path"),
+        Err(HashFault::Escape { source, path }) => {
+            return Classified {
+                source,
+                checksum: "-".to_owned(),
+                kind: "symlink-escape",
+                files: None,
+                observed: path,
+                rerun: Vec::new(),
+            };
+        }
+    };
+    let manifest = if hashed.source == "." {
+        root.join("Cargo.toml")
+    } else {
+        root.join(&hashed.source).join("Cargo.toml")
+    };
+    let declared = fs::read_to_string(&manifest)
+        .ok()
+        .and_then(|text| parse::package_identity(&text))
+        .map(|(_, version)| version);
+    // The directory is present, but the lock version is not the
+    // version the package manifest declares.
+    if declared.as_deref() != Some(package.version.as_str()) {
+        return Classified {
+            source: hashed.source,
+            checksum: hashed.checksum,
+            kind: "version-mismatch",
+            files: Some(hashed.files),
+            observed: declared.unwrap_or_else(|| "missing-manifest-version".to_owned()),
+            rerun: hashed.rerun,
+        };
+    }
+    Classified {
+        source: hashed.source,
+        checksum: hashed.checksum,
+        kind: "path-content",
+        files: Some(hashed.files),
         observed: String::new(),
-        rerun: Vec::new(),
+        rerun: hashed.rerun,
     }
 }
 
@@ -131,43 +154,85 @@ struct Hashed {
     rerun: Vec<PathBuf>,
 }
 
-fn hash_package(root: &Path, index: &Index, name: &str, version: &str) -> Option<Hashed> {
-    let source = index.lookup(name, version)?;
+enum HashFault {
+    Missing,
+    Escape { source: String, path: String },
+}
+
+struct Reached {
+    hash: String,
+    path: PathBuf,
+}
+
+fn observe_registry(package: &Pkg) -> Option<Reached> {
+    let home = cargo_home()?;
+    let cache = home.join("registry").join("cache");
+    let file_name = format!("{}-{}.crate", package.name, package.version);
+    let mut fallback = None;
+    let entries = fs::read_dir(&cache).ok()?;
+    for entry in entries.flatten() {
+        let path = entry.path().join(&file_name);
+        if !path.is_file() {
+            continue;
+        }
+        let Ok(bytes) = fs::read(&path) else {
+            continue;
+        };
+        let hash = sha256::hex(&sha256::sha256(&bytes));
+        if hash == package.checksum {
+            return Some(Reached { hash, path });
+        }
+        fallback = Some(Reached { hash, path });
+    }
+    fallback
+}
+
+fn cargo_home() -> Option<PathBuf> {
+    if let Some(value) = std::env::var_os("CARGO_HOME") {
+        return Some(PathBuf::from(value));
+    }
+    let home = std::env::var_os("HOME")?;
+    Some(PathBuf::from(home).join(".cargo"))
+}
+
+fn hash_package(
+    root: &Path,
+    index: &Index,
+    name: &str,
+    version: &str,
+) -> Result<Hashed, HashFault> {
+    let Some(source) = index.lookup(name, version) else {
+        return Err(HashFault::Missing);
+    };
     let dir = if source == "." {
         root.to_path_buf()
     } else {
         root.join(&source)
     };
-    let canon = dir.canonicalize().ok()?;
-    if !canon.starts_with(root) {
-        return None;
-    }
-    let mut files = Vec::new();
-    let mut links = Vec::new();
-    collect(&canon, &canon, &mut files, &mut links);
-    files.sort();
-    links.sort();
-    let mut body = String::new();
-    body.push_str("path\n");
-    body.push_str(&source);
-    body.push('\n');
-    let mut rerun = Vec::new();
-    for (rel, path) in &files {
-        let bytes =
-            fs::read(path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
-        body.push_str(rel);
-        body.push('\n');
-        body.push_str(&sha256::hex(&sha256::sha256(&bytes)));
-        body.push('\n');
-        rerun.push(path.clone());
-    }
-    for (rel, target) in &links {
-        body.push_str("link\n");
-        body.push_str(rel);
-        body.push('\n');
-        body.push_str(target);
-        body.push('\n');
-    }
+    let canon = match super::tree::package_dir(root, &dir) {
+        Ok(canon) => canon,
+        Err(super::tree::TreeFault::Missing) => return Err(HashFault::Missing),
+        Err(super::tree::TreeFault::SymlinkEscape(_)) => {
+            return Err(HashFault::Escape {
+                source,
+                path: "package-root".to_owned(),
+            });
+        }
+    };
+    let tree = match super::tree::read_tree(&canon) {
+        Ok(tree) => tree,
+        Err(super::tree::TreeFault::Missing) => return Err(HashFault::Missing),
+        Err(super::tree::TreeFault::SymlinkEscape(path)) => {
+            return Err(HashFault::Escape { source, path });
+        }
+    };
+    let mut rerun = tree
+        .files
+        .iter()
+        .map(|(_, path)| path.clone())
+        .collect::<Vec<_>>();
+    rerun.extend(tree.watches);
+    let mut body = super::tree::path_preface(&source, &tree.files);
     if let Ok(text) = fs::read_to_string(canon.join("Cargo.toml")) {
         let mut decls = parse::path_declarations(&text);
         decls.sort();
@@ -178,77 +243,21 @@ fn hash_package(root: &Path, index: &Index, name: &str, version: &str) -> Option
             body.push('\n');
         }
     }
-    let checksum = sha256::hex(&sha256::sha256(body.as_bytes()));
-    if !files.is_empty() {
-        let path_only = sha256::hex(&sha256::sha256(format!("path\n{source}\n").as_bytes()));
+    let checksum = super::tree::sha256_hex(body.as_bytes());
+    if !tree.files.is_empty() {
+        let path_only = super::tree::sha256_hex(format!("path\n{source}\n").as_bytes());
         assert_ne!(
             path_only, checksum,
             "path content hashes the files under {source}"
         );
     }
-    let files = u64::try_from(files.len()).expect("file count");
-    Some(Hashed {
+    let files = u64::try_from(tree.files.len()).expect("file count");
+    Ok(Hashed {
         source,
         checksum,
         files,
         rerun,
     })
-}
-
-fn collect(
-    root: &Path,
-    dir: &Path,
-    files: &mut Vec<(String, PathBuf)>,
-    links: &mut Vec<(String, String)>,
-) {
-    let entries =
-        fs::read_dir(dir).unwrap_or_else(|error| panic!("read {}: {error}", dir.display()));
-    for entry in entries {
-        let entry = entry.unwrap_or_else(|error| panic!("dir entry: {error}"));
-        let path = entry.path();
-        let name = entry.file_name();
-        let name = name
-            .to_str()
-            .unwrap_or_else(|| panic!("utf8 name in {}", path.display()));
-        let file_type = entry
-            .file_type()
-            .unwrap_or_else(|error| panic!("file type: {error}"));
-        if file_type.is_symlink() {
-            let target = fs::read_link(&path).unwrap_or_else(|error| panic!("readlink: {error}"));
-            let rel = relative(root, &path);
-            let target = target
-                .to_str()
-                .unwrap_or_else(|| panic!("utf8 link {}", path.display()))
-                .to_owned();
-            links.push((rel, target));
-            continue;
-        }
-        if file_type.is_dir() {
-            if name == "target" || name == ".git" || name == ".sim" {
-                continue;
-            }
-            collect(root, &path, files, links);
-            continue;
-        }
-        if file_type.is_file() {
-            files.push((relative(root, &path), path));
-        }
-    }
-}
-
-fn relative(root: &Path, path: &Path) -> String {
-    path.strip_prefix(root)
-        .unwrap_or(path)
-        .components()
-        .map(|component| {
-            component
-                .as_os_str()
-                .to_str()
-                .expect("utf8 path")
-                .to_owned()
-        })
-        .collect::<Vec<_>>()
-        .join("/")
 }
 
 fn index_for(root: &Path, domain_dir: &Path) -> Index {

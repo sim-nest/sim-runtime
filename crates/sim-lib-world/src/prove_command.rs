@@ -130,12 +130,22 @@ impl ProveEntrypoint {
         let outcome = match argv.get(1).map(String::as_str) {
             Some("plan") if argv.len() == 2 => prove::plan(None),
             Some("plan") if argv.len() == 3 => prove::plan(Some(&argv[2])),
-            Some("run") if argv.len() == 3 => prove::run(&argv[2]),
-            Some("status") if argv.len() == 2 => prove::status(),
-            Some("why") if argv.len() == 4 => prove::why(&argv[2], &argv[3]),
-            Some("frontier") if argv.len() == 2 => prove::frontier(),
-            Some("frontier") if argv.len() == 3 => prove::frontier_leaf(&argv[2]),
-            Some("resume") if argv.len() == 3 => prove::resume(&argv[2]),
+            Some("run") if argv.len() == 3 => prove::run(&argv[2], None),
+            Some("run") if argv.len() == 4 => prove::run(&argv[2], Some(&argv[3])),
+            Some("status") if argv.len() == 2 => prove::status(None),
+            Some("status") if argv.len() == 3 => prove::status(Some(&argv[2])),
+            Some("why") if argv.len() == 4 => prove::why(&argv[2], &argv[3], None),
+            Some("why") if argv.len() == 5 => prove::why(&argv[2], &argv[3], Some(&argv[4])),
+            Some("frontier") if argv.len() == 2 => prove::frontier(None),
+            Some("frontier")
+                if argv.len() == 3 && argv[2].starts_with("sim-world-proof-view-v1") =>
+            {
+                prove::frontier(Some(&argv[2]))
+            }
+            Some("frontier") if argv.len() == 3 => prove::frontier_leaf(&argv[2], None),
+            Some("frontier") if argv.len() == 4 => prove::frontier_leaf(&argv[2], Some(&argv[3])),
+            Some("resume") if argv.len() == 3 => prove::resume(&argv[2], None),
+            Some("resume") if argv.len() == 4 => prove::resume(&argv[2], Some(&argv[3])),
             Some("measure") if argv.len() == 3 && matches!(argv[2].as_str(), "status" | "why") => {
                 return measured(&argv[2], prove::measure(&argv[2]).map_err(eval_error)?);
             }
@@ -247,4 +257,4 @@ fn envelope_args(cx: &mut Cx, envelope: Option<&Value>) -> Result<Vec<String>> {
         .collect()
 }
 
-const USAGE: &str = "usage: sim prove plan [CONTINUATION] | run cold|D1|D2|D3|D4|D5|D6 | status | why DELTA LEAF | frontier [LEAF] | resume CONTINUATION | measure status|why";
+const USAGE: &str = "usage: sim prove plan [CONTINUATION] | run cold|D1|D2|D3|D4|D5|D6 [VIEW] | status [VIEW] | why DELTA LEAF [VIEW] | frontier [LEAF|VIEW] [VIEW] | resume CONTINUATION [VIEW] | measure status|why";

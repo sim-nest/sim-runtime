@@ -8,7 +8,10 @@
 //! The loaded command seals the emitted input text offline. This build script
 //! is the compiler's enumeration of that workspace: locks, member manifests,
 //! nested Cargo locks, generated sources, features, and the toolchain that is
-//! compiling the crate. It does not run when the loaded command answers.
+//! compiling the crate. Path members hash the files reached inside each
+//! package, and registry members hash the downloaded crate when it is present.
+//! A symlink that leaves its package is not a reached file. This script does
+//! not run when the loaded command answers.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -20,6 +23,8 @@ mod content;
 mod parse;
 #[path = "build/sha256.rs"]
 mod sha256;
+#[path = "build/tree.rs"]
+mod tree;
 
 const ROOT_PACKAGE: &str = "sim-lib-world";
 
@@ -278,6 +283,8 @@ fn main() {
     fs::write(&destination, lines.join("\n")).expect("write owning inputs");
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=build/parse.rs");
+    println!("cargo:rerun-if-changed=build/content.rs");
+    println!("cargo:rerun-if-changed=build/tree.rs");
     println!("cargo:rerun-if-changed=build/sha256.rs");
 }
 

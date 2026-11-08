@@ -28,14 +28,34 @@ mod parse;
 ///
 /// # Errors
 /// Returns an error when the sealed input text is internally inconsistent.
+#[cfg(test)]
 pub(crate) fn open(batch: &str, target: Option<&str>) -> Result<Datum, WorldError> {
     Ok(assess(batch, target)?.seal)
+}
+
+/// Assess caller-supplied sealed input text.
+///
+/// # Errors
+/// Returns an error when the text is internally inconsistent.
+#[cfg(test)]
+pub(crate) fn open_inputs(text: &str) -> Result<Datum, WorldError> {
+    Ok(assess_text("inputs", text, None)?.seal)
+}
+
+/// Source-universe record for caller-supplied sealed input text.
+///
+/// # Errors
+/// Returns an error when the text is internally inconsistent.
+#[cfg(test)]
+pub(crate) fn universe_inputs(text: &str) -> Result<Datum, WorldError> {
+    Ok(assess_text("inputs", text, None)?.universe)
 }
 
 /// Source-universe record for one batch and requested target.
 ///
 /// # Errors
 /// Returns an error when the sealed input text is internally inconsistent.
+#[cfg(test)]
 pub(crate) fn universe(batch: &str, target: Option<&str>) -> Result<Datum, WorldError> {
     Ok(assess(batch, target)?.universe)
 }
@@ -44,9 +64,66 @@ pub(crate) fn universe(batch: &str, target: Option<&str>) -> Result<Datum, World
 ///
 /// # Errors
 /// Returns an error when either sealed input text is internally inconsistent.
+#[cfg(test)]
 pub(crate) fn diff(before: &str, after: &str, target: Option<&str>) -> Result<Datum, WorldError> {
     let left = assess(before, target)?;
     let right = assess(after, target)?;
+    if left.gap || right.gap {
+        return Ok(emit::gap("unknown-batch", before));
+    }
+    let inputs = marks::changed(&left.marks, &right.marks);
+    Ok(emit::diff_datum(&left.digest, &right.digest, &inputs))
+}
+
+/// Resolver text captured for this crate. This is the admitted input object,
+/// not a batch name.
+#[must_use]
+pub fn captured_inputs() -> &'static str {
+    batch::captured()
+}
+
+/// Workspace whose lock and members produced [`captured_inputs`].
+#[must_use]
+pub fn workspace_root() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+/// Seals one admitted input document. `None` selects the captured workspace.
+///
+/// A value that is not `sim-world-inputs-v1` text is an unknown batch. Named
+/// examples are not consulted.
+///
+/// # Errors
+/// Returns an error when the admitted text is internally inconsistent.
+pub(crate) fn open_admitted(
+    input: Option<&str>,
+    target: Option<&str>,
+) -> Result<Datum, WorldError> {
+    Ok(assess_admitted(input, target)?.seal)
+}
+
+/// Source-universe record for one admitted input document.
+///
+/// # Errors
+/// Returns an error when the admitted text is internally inconsistent.
+pub(crate) fn universe_admitted(
+    input: Option<&str>,
+    target: Option<&str>,
+) -> Result<Datum, WorldError> {
+    Ok(assess_admitted(input, target)?.universe)
+}
+
+/// Names the resolver inputs that differ between two admitted documents.
+///
+/// # Errors
+/// Returns an error when either admitted text is internally inconsistent.
+pub(crate) fn diff_admitted(
+    before: &str,
+    after: &str,
+    target: Option<&str>,
+) -> Result<Datum, WorldError> {
+    let left = assess_admitted(Some(before), target)?;
+    let right = assess_admitted(Some(after), target)?;
     if left.gap || right.gap {
         return Ok(emit::gap("unknown-batch", before));
     }
@@ -59,10 +136,10 @@ pub(crate) fn diff(before: &str, after: &str, target: Option<&str>) -> Result<Da
 /// # Errors
 /// Returns an error when the owning input text is internally inconsistent.
 pub(crate) fn measure(effects: usize) -> Result<Datum, WorldError> {
-    let expected = open("owning", None)?;
+    let expected = open_admitted(None, None)?;
     let rendered = crate::command::render(&expected);
     for _ in 1..WARMUPS {
-        if crate::command::render(&open("owning", None)?) != rendered {
+        if crate::command::render(&open_admitted(None, None)?) != rendered {
             return Err(WorldError::Qualification(
                 "source seal changed during warmup".to_owned(),
             ));
@@ -71,7 +148,7 @@ pub(crate) fn measure(effects: usize) -> Result<Datum, WorldError> {
     let mut samples = Vec::with_capacity(SAMPLES);
     for _ in 0..SAMPLES {
         let started = std::time::Instant::now();
-        let value = open("owning", None)?;
+        let value = open_admitted(None, None)?;
         let elapsed = started.elapsed();
         if crate::command::render(&value) != rendered {
             return Err(WorldError::Qualification(
@@ -152,6 +229,24 @@ struct Shown {
     files: Option<u64>,
 }
 
+fn assess_admitted(input: Option<&str>, target: Option<&str>) -> Result<Assessed, WorldError> {
+    let Some(text) = input else {
+        return assess_text("admitted", batch::captured(), target);
+    };
+    if let Some(text) = batch::document_text(text) {
+        return assess_text("admitted", &text, target);
+    }
+    let gap_value = emit::gap("unknown-batch", text);
+    Ok(Assessed {
+        seal: gap_value.clone(),
+        universe: gap_value,
+        digest: String::new(),
+        gap: true,
+        marks: BTreeMap::new(),
+    })
+}
+
+#[cfg(test)]
 fn assess(batch: &str, target: Option<&str>) -> Result<Assessed, WorldError> {
     let Some(text) = batch::batch_text(batch)? else {
         let gap_value = emit::gap("unknown-batch", batch);
@@ -163,7 +258,11 @@ fn assess(batch: &str, target: Option<&str>) -> Result<Assessed, WorldError> {
             marks: BTreeMap::new(),
         });
     };
-    let inputs = parse::parse(&text)?;
+    assess_text(batch, &text, target)
+}
+
+fn assess_text(batch: &str, text: &str, target: Option<&str>) -> Result<Assessed, WorldError> {
+    let inputs = parse::parse(text)?;
     let requested = target.unwrap_or(inputs.sealed_target.as_str()).to_owned();
     let wrong_target = requested != inputs.sealed_target;
     let mut shown = Vec::new();
@@ -271,17 +370,17 @@ fn sealed_status(member: &Member) -> Sealed {
             refusal: Some("version-mismatch"),
         };
     }
-    if member.kind == "corrupt" {
+    if member.kind == "symlink-escape" {
         return Sealed {
             shown: Shown {
                 status: "present-unverified",
-                reason: Some("corrupt-checksum".to_owned()),
+                reason: Some("symlink-escape".to_owned()),
                 content: Some(member.observed.clone()),
-                checksum: Some(member.checksum.clone()),
-                checksum_kind: Some("registry".to_owned()),
+                checksum: None,
+                checksum_kind: None,
                 files: None,
             },
-            refusal: Some("corrupt-input"),
+            refusal: Some("symlink-escape"),
         };
     }
     if member.checksum == "-" || member.kind == "none" {
@@ -297,6 +396,54 @@ fn sealed_status(member: &Member) -> Sealed {
             refusal: Some("missing-input"),
         };
     }
+    if member.origin == "registry"
+        || member.origin == "git"
+        || member.kind == "registry"
+        || member.kind == "git"
+    {
+        return lock_bytes(member);
+    }
+    if !member.observed.is_empty() && member.observed != member.checksum {
+        return corrupt_member(member);
+    }
+    verified_member(member)
+}
+
+fn lock_bytes(member: &Member) -> Sealed {
+    if member.observed.is_empty() {
+        return Sealed {
+            shown: Shown {
+                status: "present-unverified",
+                reason: Some("source-not-reached".to_owned()),
+                content: Some(member_key(member)),
+                checksum: Some(member.checksum.clone()),
+                checksum_kind: Some(member.kind.clone()),
+                files: None,
+            },
+            refusal: Some("source-not-reached"),
+        };
+    }
+    if member.observed != member.checksum {
+        return corrupt_member(member);
+    }
+    verified_member(member)
+}
+
+fn corrupt_member(member: &Member) -> Sealed {
+    Sealed {
+        shown: Shown {
+            status: "present-unverified",
+            reason: Some("corrupt-checksum".to_owned()),
+            content: Some(member.observed.clone()),
+            checksum: Some(member.checksum.clone()),
+            checksum_kind: Some(member.kind.clone()),
+            files: None,
+        },
+        refusal: Some("corrupt-input"),
+    }
+}
+
+fn verified_member(member: &Member) -> Sealed {
     Sealed {
         shown: Shown {
             status: "verified",

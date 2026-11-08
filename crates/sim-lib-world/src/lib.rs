@@ -25,16 +25,18 @@
 //! completed fact, blocks on a divergent value or a wrong tag, and keeps a
 //! lagging registry, stale observation, denied reading, partial result,
 //! uncertain reading, or unavailable receiver uncertain. Recovery observes
-//! before any further performance. The model sink publishes nothing. A
-//! model delivery canary places one validated source head onto a fresh
+//! before any further performance. The model sink publishes nothing. Delivery
+//! status and why read an admitted revision-fenced view of that qualification.
+//! A missing or stale view asks for a refresh and does not run the lifecycle
+//! again. A model delivery canary places one validated source head onto a fresh
 //! model branch under a separate purpose grant. It runs once, recovers,
 //! and repeats the reconciliation with no further performance. A wrong or
 //! consumed purpose grant refuses. No public branch, tag, package, or
-//! merge is touched. A
-//! caller-named batch carries its
-//! own provider rows, nested resolver roots, generated input, and proof
-//! declarations through the same commands. An undeclared provider returns a
-//! gap. A model remote stays unavailable and is not contacted. Seal and
+//! merge is touched. An admitted observation document carries provider rows.
+//! An admitted input document carries nested resolver roots and generated
+//! input. Bundled proof declarations stay on the loaded product. An
+//! undeclared provider returns a gap. A model remote stays unavailable and
+//! is not contacted. Seal and
 //! universe enumerate the resolver inputs captured for this crate, admit only
 //! verified inputs, and refuse a missing, corrupt, wrong-target, or stub-only
 //! compiling input before any compiler opens. The loaded command reports that custody, refuses
@@ -42,8 +44,10 @@
 //! one sealed snapshot, reports projection sensitivity from provider-read
 //! baseline and variant bytes, and returns a deterministic proof plan for one
 //! sealed in-memory subject. The prove command executes every selected pure
-//! check on that sealed subject with reuse disabled, then compares a reuse
-//! decision with those cold digests.
+//! check on that sealed subject with reuse disabled and exports a
+//! revision-fenced view. A later reuse, status, why, or frontier query reads
+//! that admitted view. A missing or stale view asks for a refresh and does
+//! not execute the cold path again.
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
@@ -67,10 +71,11 @@ mod service;
 
 pub use command::{ModelDomainLoad, WORLD_VERB, WorldCommandLib};
 pub use product::{
-    DISCLOSURE_CONCLUSION, DISCLOSURE_FACT, SOURCE_CONCLUSION, SOURCE_FACT, WorldError,
-    WorldProduct, WorldProjection,
+    DISCLOSURE_CONCLUSION, DISCLOSURE_FACT, Declaration, SOURCE_CONCLUSION, SOURCE_FACT,
+    WorldError, WorldProduct, WorldProjection,
 };
 pub use prove_command::{PROVE_VERB, ProveCommandLib};
+pub use seal::{captured_inputs, workspace_root};
 
 #[cfg(test)]
 mod canary_tests;
@@ -86,6 +91,8 @@ mod plan_tests;
 mod prove_tests;
 #[cfg(test)]
 mod release_tests;
+#[cfg(test)]
+mod seal_source_tests;
 #[cfg(test)]
 mod seal_tests;
 #[cfg(test)]

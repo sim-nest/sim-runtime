@@ -3,7 +3,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use std::{collections::BTreeSet, sync::Arc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
 
 use sim_incremental_core::projection::{
     ConclusionId, DeclaredInputSelector, DeterministicImportManifest, ExecutionSemantics,
@@ -72,6 +75,23 @@ struct WorldState {
     shape: WorldConfigShape,
     closure: FederatedClosure,
     package: PackageIdentity,
+    pairs: Vec<(String, String)>,
+}
+
+/// One caller declaration admitted into a product closure.
+///
+/// The kind names a loaded projector. The fact, owner, and conclusion are
+/// the caller's own identities. Nothing here matches those strings.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Declaration {
+    /// Loaded projection kind.
+    pub kind: String,
+    /// Fact the conclusion consumes.
+    pub fact: String,
+    /// Owner that declares the conclusion.
+    pub owner: String,
+    /// Conclusion that consumes the fact.
+    pub conclusion: String,
 }
 
 /// Pure read-only product for semantic projection, diff, and explanation.
@@ -83,20 +103,7 @@ pub struct WorldProduct {
 impl WorldProduct {
     /// Constructs the bundled baseline provider from its exact authored source.
     pub fn bundled() -> Result<Self, WorldError> {
-        let code = content_id(Datum::String(PROVIDER_SOURCE.to_owned()))?;
-        let shape_id = content_id(Datum::String("shape/world-config-v1".to_owned()))?;
-        let requested = PackageIdentity {
-            name: env!("CARGO_PKG_NAME").to_owned(),
-            version: env!("CARGO_PKG_VERSION").to_owned(),
-            code,
-        };
-        let mut registry = ProjectionRegistry::new();
-        // The registered identity's `code` is NOT `requested.code`: it is
-        // computed inside sim-incremental-core itself, from the real
-        // compiled source of the provider it installs. Every later
-        // ProjectionSpec must use THIS identity, not `requested`, or
-        // ProjectionEngine::project's own code-identity check refuses it.
-        let package = install_baseline_providers(&mut registry, shape_id.clone(), requested)?;
+        let (registry, shape, package) = open_registry()?;
         let source = FactId::new(SOURCE_FACT)?;
         let disclosure = FactId::new(DISCLOSURE_FACT)?;
         let proofs = crate::fixture::proofs();
@@ -115,10 +122,15 @@ impl WorldProduct {
         }
         let mut universe = vec![source.clone(), disclosure.clone()];
         let mut named_facts = BTreeSet::new();
+        let mut pairs = vec![
+            (SOURCE_KIND.to_owned(), SOURCE_FACT.to_owned()),
+            (DISCLOSURE_KIND.to_owned(), DISCLOSURE_FACT.to_owned()),
+        ];
         for proof in proofs {
             let fact = FactId::new(proof.fact)?;
             universe.push(fact.clone());
             named_facts.insert(fact);
+            pairs.push((proof.kind.to_owned(), proof.fact.to_owned()));
         }
         let closure = FederatedClosure::seal(
             universe,
@@ -147,14 +159,82 @@ impl WorldProduct {
             ],
         )
         .map_err(|error| WorldError::Qualification(error.to_string()))?;
-        Ok(Self {
+        Ok(Self::from_parts(registry, shape, closure, package, pairs))
+    }
+
+    /// Admits `declarations` through the same loaded projectors as [`Self::bundled`].
+    ///
+    /// # Errors
+    /// Returns an error when a declaration is empty, an identity is rejected,
+    /// or two owners claim one conclusion.
+    pub fn declared(declarations: Vec<Declaration>) -> Result<Self, WorldError> {
+        if declarations.is_empty() {
+            return Err(WorldError::Qualification(
+                "caller declarations are empty".to_owned(),
+            ));
+        }
+        let (registry, shape, package) = open_registry()?;
+        let mut universe = Vec::new();
+        let mut owners: BTreeMap<String, BTreeMap<String, BTreeSet<FactId>>> = BTreeMap::new();
+        let mut pairs = Vec::with_capacity(declarations.len());
+        for declaration in &declarations {
+            if declaration.kind.is_empty()
+                || declaration.fact.is_empty()
+                || declaration.owner.is_empty()
+                || declaration.conclusion.is_empty()
+            {
+                return Err(WorldError::Qualification(
+                    "caller declaration has an empty field".to_owned(),
+                ));
+            }
+            let fact = FactId::new(&declaration.fact)?;
+            universe.push(fact.clone());
+            owners
+                .entry(declaration.owner.clone())
+                .or_default()
+                .entry(declaration.conclusion.clone())
+                .or_default()
+                .insert(fact);
+            pairs.push((declaration.kind.clone(), declaration.fact.clone()));
+        }
+        let mut graphs = Vec::with_capacity(owners.len());
+        for (owner, conclusions) in owners {
+            let mapped = conclusions
+                .into_iter()
+                .map(|(conclusion, facts)| {
+                    Ok((
+                        ConclusionId::new(conclusion)
+                            .map_err(|error| WorldError::Qualification(error.to_string()))?,
+                        facts,
+                    ))
+                })
+                .collect::<Result<Vec<_>, WorldError>>()?;
+            graphs.push(
+                OwnerProjectionGraph::new(&owner, mapped)
+                    .map_err(|error| WorldError::Qualification(error.to_string()))?,
+            );
+        }
+        let closure = FederatedClosure::seal(universe, graphs)
+            .map_err(|error| WorldError::Qualification(error.to_string()))?;
+        Ok(Self::from_parts(registry, shape, closure, package, pairs))
+    }
+
+    fn from_parts(
+        registry: ProjectionRegistry,
+        shape: WorldConfigShape,
+        closure: FederatedClosure,
+        package: PackageIdentity,
+        pairs: Vec<(String, String)>,
+    ) -> Self {
+        Self {
             state: Arc::new(WorldState {
                 registry,
-                shape: WorldConfigShape { id: shape_id },
+                shape,
                 closure,
                 package,
+                pairs,
             }),
-        })
+        }
     }
 
     /// Projects one caller-supplied observed semantic fact.
@@ -165,7 +245,7 @@ impl WorldProduct {
         semantic: Datum,
         envelope: Option<Datum>,
     ) -> Result<WorldProjection, WorldError> {
-        ensure_pair(kind, fact)?;
+        self.ensure_pair(kind, fact)?;
         let fact_id = FactId::new(fact)?;
         let world = ObservedWorld::new([(fact_id.clone(), ObservedFact { semantic, envelope })])?;
         let policy = self.policy(fact_id);
@@ -240,6 +320,22 @@ impl WorldProduct {
         0
     }
 
+    fn ensure_pair(&self, kind: &str, fact: &str) -> Result<(), WorldError> {
+        if self
+            .state
+            .pairs
+            .iter()
+            .any(|(admitted_kind, admitted_fact)| admitted_kind == kind && admitted_fact == fact)
+        {
+            Ok(())
+        } else {
+            Err(WorldError::UnsupportedPair {
+                kind: kind.to_owned(),
+                fact: fact.to_owned(),
+            })
+        }
+    }
+
     fn policy(&self, fact: FactId) -> ProjectorPolicy {
         ProjectorPolicy {
             input_shape: self.state.shape.id.clone(),
@@ -282,23 +378,19 @@ pub(crate) fn explanation_value(explanation: Explanation) -> Datum {
     }
 }
 
-fn ensure_pair(kind: &str, fact: &str) -> Result<(), WorldError> {
-    let declared = crate::fixture::proofs()
-        .iter()
-        .any(|proof| proof.kind == kind && proof.fact == fact);
-    if declared
-        || matches!(
-            (kind, fact),
-            (SOURCE_KIND, SOURCE_FACT) | (DISCLOSURE_KIND, DISCLOSURE_FACT)
-        )
-    {
-        Ok(())
-    } else {
-        Err(WorldError::UnsupportedPair {
-            kind: kind.to_owned(),
-            fact: fact.to_owned(),
-        })
-    }
+fn open_registry() -> Result<(ProjectionRegistry, WorldConfigShape, PackageIdentity), WorldError> {
+    let code = content_id(Datum::String(PROVIDER_SOURCE.to_owned()))?;
+    let shape_id = content_id(Datum::String("shape/world-config-v1".to_owned()))?;
+    let requested = PackageIdentity {
+        name: env!("CARGO_PKG_NAME").to_owned(),
+        version: env!("CARGO_PKG_VERSION").to_owned(),
+        code,
+    };
+    let mut registry = ProjectionRegistry::new();
+    // The registered identity's `code` is computed inside sim-incremental-core
+    // from the compiled provider source. Later specs must use that identity.
+    let package = install_baseline_providers(&mut registry, shape_id.clone(), requested)?;
+    Ok((registry, WorldConfigShape { id: shape_id }, package))
 }
 
 fn projection_value(kind: &str, fact: &str, result: &ProjectionResult) -> Datum {

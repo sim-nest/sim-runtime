@@ -12,6 +12,7 @@
 
 /// One explicit observation row in a caller-named batch.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg(test)]
 pub(crate) struct Row {
     /// Domain port that owns the selector.
     pub(crate) port: &'static str,
@@ -36,6 +37,7 @@ pub(crate) struct Proof {
     pub(crate) conclusion: &'static str,
 }
 
+#[cfg(test)]
 const WIDGET: &[Row] = &[
     Row {
         port: "provider",
@@ -57,6 +59,7 @@ const WIDGET: &[Row] = &[
     },
 ];
 
+#[cfg(test)]
 const WIDGET_REVISED: &[Row] = &[
     Row {
         port: "provider",
@@ -93,11 +96,13 @@ const PROOFS: &[Proof] = &[
     },
 ];
 
+#[cfg(test)]
 struct NamedRows {
     name: &'static str,
     rows: &'static [Row],
 }
 
+#[cfg(test)]
 const OBSERVATIONS: &[NamedRows] = &[
     NamedRows {
         name: "lantern",
@@ -113,11 +118,13 @@ const OBSERVATIONS: &[NamedRows] = &[
     },
 ];
 
+#[cfg(test)]
 struct NamedText {
     name: &'static str,
     text: &'static str,
 }
 
+#[cfg(test)]
 const SEALS: &[NamedText] = &[
     NamedText {
         name: "lantern",
@@ -137,6 +144,7 @@ const SEALS: &[NamedText] = &[
     },
 ];
 
+#[cfg(test)]
 const LANTERN: &str = "\
 sim-world-inputs-v1
 config lock 4
@@ -159,6 +167,7 @@ path-files resolver/lantern crates/lantern 2
 path-files resolver/lantern/vendor/widgets vendor/widgets/widget 1
 ";
 
+#[cfg(test)]
 const LANTERN_REVISED: &str = "\
 sim-world-inputs-v1
 config lock 4
@@ -181,6 +190,7 @@ path-files resolver/lantern crates/lantern 2
 path-files resolver/lantern/vendor/widgets vendor/widgets/widget 1
 ";
 
+#[cfg(test)]
 const LANTERN_STUB: &str = "\
 sim-world-inputs-v1
 config lock 4
@@ -203,6 +213,7 @@ path-files resolver/lantern/vendor/widgets vendor/widgets/widget 1
 ";
 
 /// Returns the observation rows published under `batch`.
+#[cfg(test)]
 pub(crate) fn rows(batch: &str) -> Option<&'static [Row]> {
     let found = OBSERVATIONS
         .iter()
@@ -219,6 +230,7 @@ pub(crate) fn rows(batch: &str) -> Option<&'static [Row]> {
 }
 
 /// Returns the resolver text published under `batch`.
+#[cfg(test)]
 pub(crate) fn seal_text(batch: &str) -> Option<&'static str> {
     SEALS
         .iter()

@@ -23,13 +23,14 @@ const POLICY_NATIVE: &str = "policy/no-native-fallback-v1";
 const PORTS: [&str; 5] = ["ci", "filesystem", "git", "process", "registry"];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Semantic {
-    port: &'static str,
-    selector: &'static str,
-    status: &'static str,
-    value: Option<&'static str>,
+struct Semantic<'a> {
+    port: &'a str,
+    selector: &'a str,
+    status: &'a str,
+    value: Option<&'a str>,
 }
 
+#[cfg(test)]
 const MODEL: &[Semantic] = &[
     Semantic {
         port: "ci",
@@ -70,6 +71,7 @@ const MODEL: &[Semantic] = &[
 ];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg(test)]
 enum Kind {
     Model,
     Revised,
@@ -94,10 +96,16 @@ struct Description {
     provenance: String,
 }
 
+#[path = "observe_rows.rs"]
+mod rows;
+
+pub(crate) use rows::{diff_documents, snapshot_document};
+
 /// Reads one selector from an explicit batch through its domain port.
 ///
 /// # Errors
 /// Returns an error when a sealed row breaks the status and value binding.
+#[cfg(test)]
 pub(crate) fn snapshot(batch: &str, selector: &str) -> Result<Datum, WorldError> {
     if selector.is_empty() {
         return Ok(gap("empty-selector", batch, selector));
@@ -118,6 +126,7 @@ pub(crate) fn snapshot(batch: &str, selector: &str) -> Result<Datum, WorldError>
 ///
 /// # Errors
 /// Returns an error when a sealed row breaks the status and value binding.
+#[cfg(test)]
 pub(crate) fn diff(before: &str, after: &str, selector: &str) -> Result<Datum, WorldError> {
     if selector.is_empty() {
         return Ok(gap("empty-selector", before, selector));
@@ -145,6 +154,7 @@ pub(crate) fn diff(before: &str, after: &str, selector: &str) -> Result<Datum, W
     ))
 }
 
+#[cfg(test)]
 fn kind_of(batch: &str) -> Option<Kind> {
     match batch {
         "model" => Some(Kind::Model),
@@ -155,11 +165,13 @@ fn kind_of(batch: &str) -> Option<Kind> {
     }
 }
 
+#[cfg(test)]
 enum Source {
     Kind(Kind),
     Rows(&'static [crate::fixture::Row]),
 }
 
+#[cfg(test)]
 fn source_of(batch: &str) -> Option<Source> {
     if let Some(rows) = crate::fixture::rows(batch) {
         return Some(Source::Rows(rows));
@@ -167,6 +179,7 @@ fn source_of(batch: &str) -> Option<Source> {
     kind_of(batch).map(Source::Kind)
 }
 
+#[cfg(test)]
 fn missing_capability(source: &Source, selector: &str) -> bool {
     let Source::Rows(rows) = source else {
         return false;
@@ -177,6 +190,7 @@ fn missing_capability(source: &Source, selector: &str) -> bool {
     !rows.iter().any(|row| row.port == prefix)
 }
 
+#[cfg(test)]
 fn describe_source(source: &Source, selector: &str) -> Result<Description, WorldError> {
     match source {
         Source::Kind(kind) => describe(*kind, selector),
@@ -196,6 +210,7 @@ fn describe_source(source: &Source, selector: &str) -> Result<Description, World
     }
 }
 
+#[cfg(test)]
 fn describe(kind: Kind, selector: &str) -> Result<Description, WorldError> {
     if kind == Kind::Native {
         return native_description(selector);
@@ -204,7 +219,7 @@ fn describe(kind: Kind, selector: &str) -> Result<Description, WorldError> {
 }
 
 fn describe_row(
-    found: Option<Semantic>,
+    found: Option<Semantic<'_>>,
     selector: &str,
     envelope: &str,
     declared_port: Option<&str>,
@@ -289,7 +304,7 @@ fn native_description(selector: &str) -> Result<Description, WorldError> {
         semantic_id,
         selector: selector.to_owned(),
         status: "unavailable".to_owned(),
-        envelope: envelope_text(Kind::Native).to_owned(),
+        envelope: "native-refused".to_owned(),
         matched: false,
         port_called: None,
         read: None,
@@ -302,7 +317,7 @@ fn native_description(selector: &str) -> Result<Description, WorldError> {
     })
 }
 
-fn bind_row(row: Semantic) -> Result<(), WorldError> {
+fn bind_row(row: Semantic<'_>) -> Result<(), WorldError> {
     let known = matches!(
         row.status,
         "observed" | "denied" | "unavailable" | "timed-out" | "absent" | "uncertain"
@@ -322,7 +337,8 @@ fn bind_row(row: Semantic) -> Result<(), WorldError> {
     Ok(())
 }
 
-fn sealed(kind: Kind, selector: &str) -> Option<Semantic> {
+#[cfg(test)]
+fn sealed(kind: Kind, selector: &str) -> Option<Semantic<'_>> {
     match kind {
         Kind::Revised => revised(selector).or_else(|| base(selector)),
         Kind::Model | Kind::Envelope => base(selector),
@@ -330,11 +346,13 @@ fn sealed(kind: Kind, selector: &str) -> Option<Semantic> {
     }
 }
 
-fn base(selector: &str) -> Option<Semantic> {
+#[cfg(test)]
+fn base(selector: &str) -> Option<Semantic<'_>> {
     MODEL.iter().copied().find(|row| row.selector == selector)
 }
 
-fn revised(selector: &str) -> Option<Semantic> {
+#[cfg(test)]
+fn revised(selector: &str) -> Option<Semantic<'_>> {
     match selector {
         "git/HEAD" => Some(Semantic {
             port: "git",
@@ -357,6 +375,7 @@ fn known_port(selector: &str) -> Option<&'static str> {
     PORTS.into_iter().find(|port| *port == prefix)
 }
 
+#[cfg(test)]
 fn envelope_text(kind: Kind) -> &'static str {
     match kind {
         Kind::Envelope => "envelope-log",

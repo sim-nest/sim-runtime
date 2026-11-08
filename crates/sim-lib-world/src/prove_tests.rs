@@ -29,7 +29,7 @@ fn cold_execution_reads_every_declared_edge_and_keeps_native_leaves_out() {
         cold.baseline_digest("conclusion/01"),
         cold.baseline_digest("conclusion/03")
     );
-    let record = prove::run("cold").unwrap();
+    let record = prove::run("cold", None).unwrap();
     assert_eq!(tag(&record), "prove/cold-v1");
 }
 
@@ -113,13 +113,13 @@ fn keeping_an_affected_leaf_or_claiming_an_unread_input_is_false_reuse() {
 
 #[test]
 fn an_unknown_leaf_is_a_gap_and_a_native_leaf_stays_excluded() {
-    let missing = prove::frontier_leaf("leaf/missing-portable").unwrap();
+    let missing = prove::frontier_leaf("leaf/missing-portable", None).unwrap();
     assert_eq!(text_field(&missing, "reason"), "unavailable-proof");
-    let native = prove::frontier_leaf("leaf/native-worker-adapter").unwrap();
+    let native = prove::frontier_leaf("leaf/native-worker-adapter", None).unwrap();
     assert_eq!(text_field(&native, "reason"), "excluded-scope");
-    let assay = prove::frontier_leaf("leaf/native-assay").unwrap();
+    let assay = prove::frontier_leaf("leaf/native-assay", None).unwrap();
     assert_eq!(text_field(&assay, "reason"), "excluded-scope");
-    let unknown = prove::run("D7").unwrap();
+    let unknown = prove::run("D7", None).unwrap();
     assert_eq!(text_field(&unknown, "reason"), "unknown-delta");
 }
 
@@ -129,39 +129,144 @@ fn plan_resume_advances_one_page_and_a_bad_token_is_a_gap() {
     assert_eq!(tag(&first), "prove/plan-v1");
     let token = text_field(&first, "continuation").to_owned();
     assert_eq!(token.len(), 64);
-    let second = prove::resume(&token).unwrap();
+    let second = prove::resume(&token, None).unwrap();
     assert_eq!(tag(&second), "prove/plan-v1");
     assert_ne!(text_field(&first, "leaves"), text_field(&second, "leaves"));
-    let stale = prove::resume("stale").unwrap();
+    let stale = prove::resume("stale", None).unwrap();
     assert_eq!(text_field(&stale, "reason"), "stale-or-missing");
     let zeros = "0".repeat(64);
-    let wrong = prove::resume(&zeros).unwrap();
+    let wrong = prove::resume(&zeros, None).unwrap();
     assert_eq!(text_field(&wrong, "reason"), "stale-or-missing");
 }
 
 #[test]
 fn frontier_of_the_cold_run_is_empty_and_resume_repeats_it() {
-    let frontier = prove::frontier().unwrap();
+    let cold = prove::run("cold", None).unwrap();
+    let view = text_field(&cold, "view");
+    let executed = prove::cold_executions();
+    let frontier = prove::frontier(Some(&view)).unwrap();
     assert_eq!(tag(&frontier), "prove/frontier-v1");
     assert_eq!(number_field(&frontier, "executed"), 40);
+    assert_eq!(
+        number_field(&frontier, "requests"),
+        number_field(&cold, "requests")
+    );
     assert!(frontier_failures_empty(&frontier));
     let token = text_field(&frontier, "continuation").to_owned();
-    let again = prove::resume(&token).unwrap();
+    let again = prove::resume(&token, Some(&view)).unwrap();
     assert_eq!(tag(&again), "prove/frontier-v1");
     assert!(frontier_failures_empty(&again));
+    let missing = prove::frontier(None).unwrap();
+    assert_eq!(text_field(&missing, "reason"), "refresh-needed");
+    assert_eq!(prove::cold_executions(), executed);
 }
 
 #[test]
 fn cached_status_and_why_stay_inside_the_ceiling() {
-    let status = prove::status().unwrap();
+    let cold = prove::run("cold", None).unwrap();
+    let view = text_field(&cold, "view");
+    let executed = prove::cold_executions();
+    let status = prove::status(Some(&view)).unwrap();
     assert_eq!(number_field(&status, "requests"), 0);
     assert_eq!(number_field(&status, "denominator"), 40);
+    assert!(bool_field(&status, "resident"));
+    let missing = prove::status(None).unwrap();
+    assert_eq!(text_field(&missing, "reason"), "refresh-needed");
+    assert_eq!(prove::cold_executions(), executed);
     for command in ["status", "why"] {
         let measured = prove::measure(command).unwrap();
         assert!(measured.within_ceiling, "{command}");
         assert_eq!(number_field(&measured.record, "samples"), 200);
         assert_eq!(number_field(&measured.record, "records"), 100_000);
     }
+}
+
+#[test]
+fn retained_view_answers_d1_without_another_cold_execution() {
+    let cold = prove::run("cold", None).unwrap();
+    let view = text_field(&cold, "view");
+    let executed = prove::cold_executions();
+    let missing = prove::run("D1", None).unwrap();
+    assert_eq!(text_field(&missing, "reason"), "refresh-needed");
+    let d1 = prove::run("D1", Some(&view)).unwrap();
+    assert_eq!(tag(&d1), "prove/reuse-v1");
+    assert_eq!(number_field(&d1, "reuse-basis-points"), 10_000);
+    assert_eq!(number_field(&d1, "false-reuse"), 0);
+    assert_eq!(number_field(&d1, "reuse-requests"), 0);
+    let why_keep = prove::why("D1", "conclusion/40", Some(&view)).unwrap();
+    assert!(bool_field(&why_keep, "reused"));
+    assert_eq!(text_field(&why_keep, "exercised"), "");
+    let why_run = prove::why("D2", "conclusion/01", Some(&view)).unwrap();
+    assert!(!bool_field(&why_run, "reused"));
+    assert_eq!(
+        text_field(&why_run, "exercised"),
+        "stable/01 change/private-implementation"
+    );
+    let mut tampered = view.clone();
+    let last = tampered.pop().expect("view char");
+    tampered.push(if last == 'a' { 'b' } else { 'a' });
+    let stale = prove::run("D1", Some(&tampered)).unwrap();
+    assert_eq!(text_field(&stale, "reason"), "refresh-needed");
+    let subject = view
+        .split(';')
+        .find(|part| part.starts_with("subject "))
+        .expect("subject")
+        .to_owned();
+    let zeros = format!("subject {}", "0".repeat(64));
+    let resigned = prove::reseal_replaced(&view, &subject, &zeros)
+        .unwrap()
+        .expect("reseal");
+    let crossed = prove::run("D1", Some(&resigned)).unwrap();
+    assert_eq!(text_field(&crossed, "reason"), "refresh-needed");
+    assert_eq!(prove::cold_executions(), executed);
+}
+
+#[test]
+fn an_empty_fact_value_is_not_a_proof_view() {
+    let cold = prove::run("cold", None).unwrap();
+    let view = text_field(&cold, "view");
+    let executed = prove::cold_executions();
+    let blank =
+        prove::reseal_replaced(&view, "fact conclusion/01 stable/01", "fact conclusion/01 ")
+            .unwrap()
+            .expect("reseal");
+    let status = prove::status(Some(&blank)).unwrap();
+    assert_eq!(tag(&status), "prove/gap-v1");
+    assert_eq!(text_field(&status, "reason"), "refresh-needed");
+    let why = prove::why("D2", "conclusion/01", Some(&blank)).unwrap();
+    assert_eq!(text_field(&why, "reason"), "refresh-needed");
+    let again = prove::run("D2", Some(&blank)).unwrap();
+    assert_eq!(text_field(&again, "reason"), "refresh-needed");
+    assert_eq!(prove::cold_executions(), executed);
+}
+
+#[test]
+fn an_empty_digest_is_not_a_proof_view() {
+    let cold = prove::run("cold", None).unwrap();
+    let view = text_field(&cold, "view");
+    let executed = prove::cold_executions();
+    let baseline = blanked(&view, "baseline conclusion/01 ");
+    let status = prove::status(Some(&baseline)).unwrap();
+    assert_eq!(tag(&status), "prove/gap-v1");
+    assert_eq!(text_field(&status, "reason"), "refresh-needed");
+    let digest = blanked(&view, "digest D1 conclusion/01 ");
+    let run = prove::run("D1", Some(&digest)).unwrap();
+    assert_eq!(text_field(&run, "reason"), "refresh-needed");
+    let why = prove::why("D1", "conclusion/01", Some(&digest)).unwrap();
+    assert_eq!(text_field(&why, "reason"), "refresh-needed");
+    let status = prove::status(Some(&digest)).unwrap();
+    assert_eq!(text_field(&status, "reason"), "refresh-needed");
+    assert_eq!(prove::cold_executions(), executed);
+}
+
+fn blanked(view: &str, prefix: &str) -> String {
+    let part = view
+        .split(';')
+        .find(|part| part.starts_with(prefix))
+        .expect("part");
+    prove::reseal_replaced(view, part, prefix)
+        .unwrap()
+        .expect("reseal")
 }
 
 fn tag(value: &sim_kernel::Datum) -> String {
@@ -190,6 +295,19 @@ fn text_field(value: &sim_kernel::Datum, name: &str) -> String {
             .join(" "),
         other => panic!("text field {name}: {other:?}"),
     }
+}
+
+fn bool_field(value: &sim_kernel::Datum, name: &str) -> bool {
+    let sim_kernel::Datum::Node { fields, .. } = value else {
+        panic!("node");
+    };
+    let Some((_, field)) = fields.iter().find(|(field, _)| field.to_string() == name) else {
+        panic!("missing {name}");
+    };
+    let sim_kernel::Datum::Bool(value) = field else {
+        panic!("bool {name}");
+    };
+    *value
 }
 
 fn number_field(value: &sim_kernel::Datum, name: &str) -> u64 {
