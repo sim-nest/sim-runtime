@@ -276,91 +276,8 @@ fn measure_why_reports_the_resident_query() {
     assert!(rendered.contains("(resident true)"));
 }
 
-struct OracleRow {
-    delta: &'static str,
-    changed: &'static [&'static str],
-    affected: &'static [&'static str],
-    basis: u16,
-    revision: u64,
-}
-
-fn oracle() -> [OracleRow; 6] {
-    [
-        OracleRow {
-            delta: "D1",
-            changed: &[],
-            affected: &[],
-            basis: 10_000,
-            revision: 0,
-        },
-        OracleRow {
-            delta: "D2",
-            changed: &["change/private-implementation"],
-            affected: &["conclusion/01", "conclusion/02"],
-            basis: 9_500,
-            revision: 0,
-        },
-        OracleRow {
-            delta: "D3",
-            changed: &["change/public-api"],
-            affected: &[
-                "conclusion/03",
-                "conclusion/04",
-                "conclusion/05",
-                "conclusion/06",
-                "conclusion/07",
-                "conclusion/08",
-                "conclusion/09",
-                "conclusion/10",
-            ],
-            basis: 8_000,
-            revision: 0,
-        },
-        OracleRow {
-            delta: "D4",
-            changed: &[
-                "change/control-pins",
-                "change/head-a",
-                "change/head-b",
-                "change/head-c",
-            ],
-            affected: &[
-                "conclusion/11",
-                "conclusion/12",
-                "conclusion/13",
-                "conclusion/14",
-                "conclusion/15",
-                "conclusion/16",
-                "conclusion/17",
-                "conclusion/18",
-                "conclusion/19",
-                "conclusion/20",
-                "conclusion/21",
-                "conclusion/22",
-            ],
-            basis: 7_000,
-            revision: 0,
-        },
-        OracleRow {
-            delta: "D5",
-            changed: &["change/checker-alpha", "change/proof-code-alpha"],
-            affected: &[
-                "conclusion/23",
-                "conclusion/24",
-                "conclusion/25",
-                "conclusion/26",
-            ],
-            basis: 9_000,
-            revision: 0,
-        },
-        OracleRow {
-            delta: "D6",
-            changed: &[],
-            affected: &[],
-            basis: 10_000,
-            revision: 1,
-        },
-    ]
+fn oracle() -> &'static [crate::assay_oracle::Expected] {
+    crate::assay_oracle::expected()
 }
 
 fn names<T: std::fmt::Display>(values: &std::collections::BTreeSet<T>) -> Vec<String> {
@@ -389,7 +306,7 @@ fn assay_matches_the_frozen_oracle_and_measures_provider_reads() {
         assert_eq!(row.revision_delta, expected.revision);
         assert!(!row.carried_state);
         assert_eq!(row.planned_starts, expected.affected.len());
-        assert_eq!(row.journal_records, expected.changed.len());
+        assert_eq!(row.journal_records, 0);
         assert_eq!(row.explanations.len(), expected.affected.len());
     }
     let rendered = crate::command::render(&observation.rows[1].explanations[0]);
@@ -398,6 +315,46 @@ fn assay_matches_the_frozen_oracle_and_measures_provider_reads() {
     assert!(rendered.contains("\"fact/change/private-implementation\""));
     let again = crate::assay::read_semantics().unwrap();
     assert_eq!(again.subject, batch.subject);
+    let rows = crate::assay::subject_rows().unwrap().join("\n");
+    assert!(rows.contains("edited private implementation"));
+    assert!(rows.contains("edited public api"));
+    assert!(rows.contains("postimage D1 stable/40 baseline stable/40 "));
+    assert!(rows.contains("postimage D6 present/order alpha\nbeta"));
+    assert!(rows.contains("graph owner/01 conclusion/01 stable/01 change/private-implementation"));
+    assert!(rows.contains("struct WorldConfigShape"));
+    assert!(rows.contains("fn read_semantics"));
+    assert!(rows.contains("pub(super) fn execute"));
+    assert!(rows.contains("fn ensure_mutants_diverge"));
+    assert!(rows.contains("fn sealed_ids"));
+    assert!(rows.contains("pub struct OwnerProjectionGraph"));
+    assert!(rows.contains("pub fn execute_proof_leaf"));
+    assert!(rows.contains("pub struct ExecutionJournal"));
+    assert!(rows.contains("sim-roadmap-execution-record"));
+    assert!(rows.contains("name = \"sim-lib-journal\""));
+    assert!(rows.contains("pub(crate) fn validate_next"));
+    assert!(rows.contains("pub enum ExecutionRecord"));
+    assert!(rows.contains("pub(crate) fn contains_secret"));
+    assert!(rows.contains("pub(crate) fn apply_changes"));
+    assert!(rows.contains("sim-world-proof-view-v1"));
+    assert!(rows.contains("fn plan_record"));
+    assert!(rows.contains("fn explanation_value"));
+    assert!(rows.contains("fn count_datum"));
+    assert!(rows.contains("name = \"sim-lib-world\""));
+    assert!(rows.contains("projection/trusted-native-v1"));
+    assert!(rows.contains("pure-check proof-code-alpha binds the projected bytes"));
+    assert!(rows.contains("Independent expected sets"));
+    assert!(rows.contains("provider sim-lib-world 0.1.1"));
+    assert!(rows.contains("checker sim-incremental-core/projection/semantic-text"));
+    assert!(rows.contains("provider-kind world/semantic-text-v1"));
+    assert!(rows.contains("canonical_nan true"));
+    assert!(rows.contains("canonical_collections true"));
+    assert!(rows.contains("fresh_instance true"));
+    assert!(rows.contains("requires_confinement false"));
+    assert!(rows.contains("max_inputs 1"));
+    assert!(rows.contains("max_output_bytes 65536"));
+    assert!(rows.contains("max_fuel 1000000"));
+    assert!(rows.contains("max_memory_bytes 4194304"));
+    assert!(rows.contains("imports none"));
 }
 
 #[test]

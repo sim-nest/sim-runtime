@@ -86,7 +86,12 @@ pub(crate) fn observe() -> Result<AssayObservation, WorldError> {
         ));
     }
     let sound = judge(&batch, None)?;
-    crate::assay_mutant::ensure_mutants_diverge(&batch, &sound)?;
+    if !crate::assay_oracle::matches(&sound) {
+        return Err(WorldError::Qualification(
+            "prediction missed the independent oracle".to_owned(),
+        ));
+    }
+    crate::assay_mutant::ensure_mutants_diverge(&batch)?;
     Ok(sound)
 }
 
@@ -104,6 +109,8 @@ pub(crate) fn read_semantics() -> Result<SemanticBatch, WorldError> {
     let closure = seal_subject(None)?;
     let engine = ProjectionEngine::new(&registry, &shape, &closure);
     let mut requests = 0u64;
+    let mut effects = 0u64;
+    let mut subprocesses = 0u64;
     let mut deltas = Vec::with_capacity(DELTAS.len());
     for delta in DELTAS {
         let mut changed = BTreeSet::new();
@@ -114,6 +121,14 @@ pub(crate) fn read_semantics() -> Result<SemanticBatch, WorldError> {
             let before_value =
                 project_fact(&engine, &package, &shape, fact, &before, &mut requests)?;
             let after_value = project_fact(&engine, &package, &shape, fact, &after, &mut requests)?;
+            let (before_effects, before_processes) = projection_boundary(&before_value);
+            let (after_effects, after_processes) = projection_boundary(&after_value);
+            effects = effects
+                .saturating_add(before_effects)
+                .saturating_add(after_effects);
+            subprocesses = subprocesses
+                .saturating_add(before_processes)
+                .saturating_add(after_processes);
             if before_value.content_id().map_err(canonical)?
                 != after_value.content_id().map_err(canonical)?
             {
@@ -129,18 +144,48 @@ pub(crate) fn read_semantics() -> Result<SemanticBatch, WorldError> {
             revision_delta: u64::from(order_revisions > 0),
         });
     }
-    let subject = hex(&subject_datum(&facts)?
+    let subject = hex(&subject_datum(&facts, &closure, &package, &shape)?
         .content_id()
         .map_err(canonical)?
         .bytes);
     Ok(SemanticBatch {
         deltas,
         requests,
-        effects: 0,
-        subprocesses: 0,
+        effects,
+        subprocesses,
         subject,
         facts: facts.len(),
     })
+}
+
+/// Reads [`read_semantics`] spends projecting every fact before and after each delta.
+#[cfg(test)]
+pub(crate) fn semantic_provider_reads(facts: usize) -> u64 {
+    u64::try_from(facts)
+        .unwrap_or(u64::MAX)
+        .saturating_mul(u64::try_from(DELTAS.len()).unwrap_or(u64::MAX))
+        .saturating_mul(2)
+}
+
+fn projection_boundary(value: &Datum) -> (u64, u64) {
+    let Datum::Node { fields, .. } = value else {
+        return (0, 0);
+    };
+    let effects = u64::try_from(
+        fields
+            .iter()
+            .filter(|(name, _)| name.to_string() == "effect-id")
+            .count(),
+    )
+    .unwrap_or(u64::MAX);
+    let subprocesses = u64::try_from(
+        fields
+            .iter()
+            .filter(|(name, _)| name.to_string() == "launcher")
+            .count(),
+    )
+    .unwrap_or(u64::MAX);
+    (effects, subprocesses)
 }
 
 pub(crate) fn judge(
@@ -149,20 +194,32 @@ pub(crate) fn judge(
 ) -> Result<AssayObservation, WorldError> {
     let closure = seal_subject(mutation)?;
     let mut rows = Vec::with_capacity(batch.deltas.len());
+    let mut observed_effects = 0u64;
+    let mut observed_subprocesses = 0u64;
     for delta in &batch.deltas {
         let affected = closure
             .affected(delta.changed.iter().cloned())
             .into_iter()
             .collect::<BTreeSet<_>>();
         let mut explanations = Vec::new();
+        let mut planned_starts = 0usize;
+        let mut journal_records = 0usize;
+        let mut effects = 0u64;
+        let mut subprocesses = 0u64;
         for conclusion in &affected {
+            let boundary = crate::prove::attempt_leaf(conclusion.as_str(), delta.delta)?;
+            planned_starts = planned_starts.saturating_add(boundary.attempts);
+            journal_records = journal_records.saturating_add(boundary.journal_records);
+            effects = effects.saturating_add(boundary.effects);
+            subprocesses = subprocesses.saturating_add(boundary.subprocesses);
             for fact in &delta.changed {
                 if let Ok(explanation) = closure.explain(conclusion, fact) {
                     explanations.push(explanation_value(explanation));
                 }
             }
         }
-        let semantic = !delta.changed.is_empty();
+        observed_effects = observed_effects.saturating_add(effects);
+        observed_subprocesses = observed_subprocesses.saturating_add(subprocesses);
         rows.push(AssayRow {
             delta: delta.delta,
             changed: delta.changed.clone(),
@@ -172,21 +229,46 @@ pub(crate) fn judge(
             ),
             revision_delta: delta.revision_delta,
             carried_state: false,
-            planned_starts: affected.len(),
-            journal_records: if semantic { delta.changed.len() } else { 0 },
+            planned_starts,
+            journal_records,
             affected,
             explanations,
         });
     }
+    if batch.effects > observed_effects || batch.subprocesses > observed_subprocesses {
+        return Err(WorldError::Qualification(
+            "projection claimed an effect the proof receipt did not record".to_owned(),
+        ));
+    }
     Ok(AssayObservation {
         denominator: closure.conclusions().len(),
         requests: batch.requests,
-        effects: batch.effects,
-        subprocesses: batch.subprocesses,
+        effects: observed_effects,
+        subprocesses: observed_subprocesses,
         subject: batch.subject.clone(),
         facts: batch.facts,
         rows,
     })
+}
+
+/// Assay subject stored on a cold proof and checked when its view is opened.
+#[cfg(test)]
+pub(crate) fn frozen_subject() -> Result<String, WorldError> {
+    let facts = universe()?;
+    let shape_id = provider::content_id(Datum::String("shape/world-config-v1".to_owned()))?;
+    let requested = PackageIdentity {
+        name: env!("CARGO_PKG_NAME").to_owned(),
+        version: env!("CARGO_PKG_VERSION").to_owned(),
+        code: provider::content_id(Datum::String("world/semantic-text-caller".to_owned()))?,
+    };
+    let mut registry = ProjectionRegistry::new();
+    let package = install_semantic_text_provider(&mut registry, shape_id.clone(), requested)?;
+    let shape = WorldConfigShape { id: shape_id };
+    let closure = seal_subject(None)?;
+    Ok(hex(&subject_datum(&facts, &closure, &package, &shape)?
+        .content_id()
+        .map_err(canonical)?
+        .bytes))
 }
 
 pub(crate) fn refuse_undeclared_read(conclusion: &str, facts: &[&str]) -> Result<(), WorldError> {
@@ -303,8 +385,13 @@ pub(crate) fn project_fact(
         config_shape: shape.id.clone(),
         provider: package.clone(),
     };
-    let policy = ProjectorPolicy {
-        input_shape: shape.id.clone(),
+    let policy = projector_policy(&shape.id, fact);
+    Ok(engine.project(&world, &spec, &policy, None)?.projection)
+}
+
+fn projector_policy(shape: &sim_kernel::ContentId, fact: &FactId) -> ProjectorPolicy {
+    ProjectorPolicy {
+        input_shape: shape.clone(),
         reads: DeclaredInputSelector::new([fact.clone()]),
         imports: DeterministicImportManifest::default(),
         execution: ExecutionSemantics {
@@ -320,8 +407,7 @@ pub(crate) fn project_fact(
             max_memory_bytes: 4 * 1024 * 1024,
         },
         requires_confinement: false,
-    };
-    Ok(engine.project(&world, &spec, &policy, None)?.projection)
+    }
 }
 
 pub(crate) fn seal_subject(
@@ -364,13 +450,10 @@ pub(crate) fn seal_subject(
             }
             _ => {}
         }
-        by_owner
-            .entry(format!("owner/{:02}", (index - 1) / 10 + 1))
-            .or_default()
-            .push((
-                ConclusionId::new(format!("conclusion/{index:02}"))?,
-                dependencies,
-            ));
+        by_owner.entry(owner_name(index)).or_default().push((
+            ConclusionId::new(format!("conclusion/{index:02}"))?,
+            dependencies,
+        ));
     }
     let graphs = by_owner
         .into_iter()
@@ -393,6 +476,16 @@ pub(crate) fn universe() -> Result<Vec<FactId>, WorldError> {
         .into_iter()
         .map(|name| Ok(FactId::new(name)?))
         .collect()
+}
+
+pub(crate) fn owner_name(index: usize) -> String {
+    format!("owner/{:02}", index.saturating_sub(1) / 10 + 1)
+}
+
+fn conclusion_index(name: &str) -> usize {
+    name.rsplit_once('/')
+        .and_then(|(_, index)| index.parse().ok())
+        .unwrap_or(1)
 }
 
 fn scenario_fact(index: usize) -> Option<&'static str> {
@@ -451,7 +544,12 @@ fn trimmed_lines(raw: &str) -> Vec<&str> {
         .collect()
 }
 
-fn subject_datum(facts: &[FactId]) -> Result<Datum, WorldError> {
+fn subject_datum(
+    facts: &[FactId],
+    closure: &FederatedClosure,
+    package: &PackageIdentity,
+    shape: &WorldConfigShape,
+) -> Result<Datum, WorldError> {
     let mut rows = Vec::with_capacity(facts.len());
     for fact in facts {
         rows.push(Datum::Node {
@@ -464,11 +562,110 @@ fn subject_datum(facts: &[FactId]) -> Result<Datum, WorldError> {
                 ),
             ],
         });
+        for delta in DELTAS {
+            rows.push(Datum::String(format!(
+                "postimage {delta} {} {}",
+                fact.as_str(),
+                variant_bytes(delta, fact.as_str())
+            )));
+        }
     }
+    let mut graph = Vec::new();
+    for conclusion in closure.conclusions() {
+        let deps = facts
+            .iter()
+            .filter(|fact| closure.depends_on(conclusion, fact))
+            .map(|fact| fact.as_str())
+            .collect::<Vec<_>>()
+            .join(" ");
+        let owner = owner_name(conclusion_index(conclusion.as_str()));
+        graph.push(format!("graph {owner} {} {deps}", conclusion.as_str()));
+    }
+    rows.extend(crate::assay_oracle::closure_rows(&graph));
+    let sample = facts
+        .first()
+        .ok_or_else(|| WorldError::Qualification("commissioned assay is empty".to_owned()))?;
+    rows.extend(identity_rows(package, shape, sample)?);
     Ok(Datum::Node {
         tag: Symbol::qualified("world", "assay-baseline-v1"),
         fields: vec![(Symbol::new("facts"), Datum::Vector(rows))],
     })
+}
+
+/// Text bound into the assay subject, for the freeze check.
+#[cfg(test)]
+pub(crate) fn subject_rows() -> Result<Vec<String>, WorldError> {
+    let facts = universe()?;
+    let closure = seal_subject(None)?;
+    let shape_id = provider::content_id(Datum::String("shape/world-config-v1".to_owned()))?;
+    let requested = PackageIdentity {
+        name: env!("CARGO_PKG_NAME").to_owned(),
+        version: env!("CARGO_PKG_VERSION").to_owned(),
+        code: provider::content_id(Datum::String("world/semantic-text-caller".to_owned()))?,
+    };
+    let mut registry = ProjectionRegistry::new();
+    let package = install_semantic_text_provider(&mut registry, shape_id.clone(), requested)
+        .map_err(|error| WorldError::Qualification(error.to_string()))?;
+    let shape = WorldConfigShape { id: shape_id };
+    let datum = subject_datum(&facts, &closure, &package, &shape)?;
+    let mut rows = Vec::new();
+    flatten(&datum, &mut rows);
+    Ok(rows)
+}
+
+fn identity_rows(
+    package: &PackageIdentity,
+    shape: &WorldConfigShape,
+    fact: &FactId,
+) -> Result<Vec<Datum>, WorldError> {
+    let policy = projector_policy(&shape.id, fact);
+    let mut rows = vec![
+        Datum::String(format!("provider {} {}", package.name, package.version)),
+        Datum::String(format!("provider-code {}", hex(&package.code.bytes))),
+        Datum::String(format!("config-shape {}", hex(&shape.id.bytes))),
+        Datum::String("checker sim-incremental-core/projection/semantic-text".to_owned()),
+        Datum::String(format!("provider-kind {SEMANTIC_TEXT_KIND}")),
+        Datum::String(format!(
+            "execution {} canonical_nan {} canonical_collections {} fresh_instance {}",
+            policy.execution.id,
+            policy.execution.canonical_nan,
+            policy.execution.canonical_collections,
+            policy.execution.fresh_instance
+        )),
+        Datum::String(format!(
+            "budget max_inputs {} max_output_bytes {} max_fuel {} max_memory_bytes {}",
+            policy.budgets.max_inputs,
+            policy.budgets.max_output_bytes,
+            policy.budgets.max_fuel,
+            policy.budgets.max_memory_bytes
+        )),
+        Datum::String(format!(
+            "requires_confinement {}",
+            policy.requires_confinement
+        )),
+    ];
+    if policy.imports.imports.is_empty() {
+        rows.push(Datum::String("imports none".to_owned()));
+    }
+    Ok(rows)
+}
+
+#[cfg(test)]
+fn flatten(datum: &Datum, rows: &mut Vec<String>) {
+    match datum {
+        Datum::String(text) => rows.push(text.clone()),
+        Datum::Vector(values) => {
+            for value in values {
+                flatten(value, rows);
+            }
+        }
+        Datum::Node { fields, .. } => {
+            for (_, value) in fields {
+                flatten(value, rows);
+            }
+        }
+        _ => {}
+    }
 }
 
 fn unaffected_basis_points(denominator: usize, affected: usize) -> u16 {

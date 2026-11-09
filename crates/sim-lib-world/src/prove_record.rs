@@ -8,62 +8,7 @@ use sim_kernel::{Datum, Symbol};
 use crate::WorldError;
 use crate::query;
 
-use super::{ColdProof, DENOMINATOR, EXCLUDED, PAGE, Report};
-
-pub(super) fn cold_record(cold: &ColdProof) -> Result<Datum, WorldError> {
-    let admitted = super::view::export(cold)?;
-    Ok(node(
-        "cold-v1",
-        vec![
-            (
-                "denominator",
-                num(u64::try_from(cold.leaves.len()).unwrap_or(u64::MAX)),
-            ),
-            (
-                "executed",
-                num(u64::try_from(cold.leaves.len()).unwrap_or(u64::MAX)),
-            ),
-            ("requests", num(cold.requests)),
-            ("edges", num(cold.edges)),
-            ("effects", num(0)),
-            ("subprocesses", num(0)),
-            ("owner-commands", num(0)),
-            ("reuse-disabled", flag(true)),
-            ("resident", flag(true)),
-            ("subject", text(&cold.subject)),
-            ("excluded", list(EXCLUDED)),
-            ("gaps", Datum::Vector(Vec::new())),
-            ("view", text(admitted)),
-        ],
-    ))
-}
-
-pub(super) fn reuse_record(report: &Report) -> Datum {
-    node(
-        "reuse-v1",
-        vec![
-            ("delta", text(&report.delta)),
-            (
-                "denominator",
-                num(u64::try_from(DENOMINATOR).unwrap_or(u64::MAX)),
-            ),
-            (
-                "reused",
-                num(u64::try_from(report.reused.len()).unwrap_or(u64::MAX)),
-            ),
-            ("rerun", list(report.rerun.iter().cloned())),
-            ("reuse-basis-points", num(u64::from(report.basis))),
-            ("false-reuse", num(report.false_reuse)),
-            ("cold-requests", num(report.cold_requests)),
-            ("reuse-requests", num(report.reuse_requests)),
-            ("revision-delta", num(report.revision)),
-            ("effects", num(0)),
-            ("subprocesses", num(0)),
-            ("owner-commands", num(0)),
-            ("reuse-disabled", flag(false)),
-        ],
-    )
-}
+use super::{EXCLUDED, PAGE};
 
 pub(super) fn plan_record(
     leaves: &[String],

@@ -4,17 +4,15 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::WorldError;
-use crate::assay::{AssayObservation, GraphMutation, SemanticBatch, judge, refuse_undeclared_read};
+use crate::assay::{GraphMutation, SemanticBatch, judge, refuse_undeclared_read};
+use crate::assay_oracle;
 
-pub(crate) fn ensure_mutants_diverge(
-    batch: &SemanticBatch,
-    sound: &AssayObservation,
-) -> Result<(), WorldError> {
+pub(crate) fn ensure_mutants_diverge(batch: &SemanticBatch) -> Result<(), WorldError> {
     for declaration in 1..=40 {
         let mutant = judge(batch, Some(GraphMutation::Declaration(declaration)))?;
-        if same_prediction(&mutant, sound) {
+        if assay_oracle::matches(&mutant) {
             return Err(WorldError::Qualification(format!(
-                "declaration mutant {declaration} matched the unmutated prediction"
+                "declaration mutant {declaration} matched the independent oracle"
             )));
         }
     }
@@ -22,9 +20,9 @@ pub(crate) fn ensure_mutants_diverge(
         let edges = 1 + usize::from(declaration <= 26);
         for edge in 0..edges {
             let mutant = judge(batch, Some(GraphMutation::Edge(declaration, edge)))?;
-            if same_prediction(&mutant, sound) {
+            if assay_oracle::matches(&mutant) {
                 return Err(WorldError::Qualification(format!(
-                    "edge mutant {declaration}:{edge} matched the unmutated prediction"
+                    "edge mutant {declaration}:{edge} matched the independent oracle"
                 )));
             }
         }
@@ -50,15 +48,4 @@ pub(crate) fn ensure_mutants_diverge(
         ));
     }
     Ok(())
-}
-
-fn same_prediction(mutant: &AssayObservation, sound: &AssayObservation) -> bool {
-    mutant.denominator == sound.denominator
-        && mutant.rows.len() == sound.rows.len()
-        && mutant.rows.iter().zip(&sound.rows).all(|(row, expected)| {
-            row.changed == expected.changed
-                && row.affected == expected.affected
-                && row.revision_delta == expected.revision_delta
-                && row.carried_state == expected.carried_state
-        })
 }

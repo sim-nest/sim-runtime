@@ -5,10 +5,11 @@
 
 //! Revision-fenced text of one cold proof.
 //!
-//! The cold run is the only executor. A later query imports this text, checks
-//! the revision against the canonical body, and checks the sealed subject
-//! against the live provider, dependencies, and source bytes. A malformed,
-//! resigned-away, or stale body is not a proof.
+//! A later query imports this text, checks the revision against the canonical
+//! body, and checks the sealed subject against the live provider. Opening the
+//! body reruns each retained program against the live projection and refuses
+//! captures, digests, changed facts, failures, request counts, or revisions
+//! that disagree. A malformed, resigned-away, or stale body is not a proof.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -24,7 +25,6 @@ const HEADER: &str = "sim-world-proof-view-v1";
 
 pub(super) struct Opened {
     pub(super) proof: ColdProof,
-    pub(super) subject: String,
 }
 
 pub(super) fn export(cold: &ColdProof) -> Result<String, WorldError> {
@@ -52,12 +52,15 @@ pub(super) fn open(text: &str) -> Result<Option<Opened>, WorldError> {
         return Ok(None);
     };
     let (leaves, live) = super::sealed_ids()?;
-    if parsed.subject != live || parsed.proof.leaves != leaves {
+    let assay = crate::assay::frozen_subject()?;
+    if parsed.subject != live || parsed.proof.leaves != leaves || parsed.proof.subject != assay {
+        return Ok(None);
+    }
+    if super::run::authentic(&parsed.proof)?.is_none() {
         return Ok(None);
     }
     Ok(Some(Opened {
         proof: parsed.proof,
-        subject: parsed.subject,
     }))
 }
 
@@ -160,6 +163,33 @@ fn body_of(cold: &ColdProof, sealed: &str) -> Result<String, WorldError> {
         };
         push(&mut lines, "baseline", &[leaf, digest])?;
     }
+    for leaf in &cold.leaves {
+        let Some(capture) = cold.captures.get(leaf) else {
+            return Err(WorldError::Qualification(format!(
+                "proof view leaf {leaf} has no capture"
+            )));
+        };
+        let encoded = hex_utf8(capture);
+        push(&mut lines, "capture", &[leaf, &encoded])?;
+    }
+    for leaf in &cold.leaves {
+        let Some(code) = cold.codes.get(leaf) else {
+            return Err(WorldError::Qualification(format!(
+                "proof view leaf {leaf} has no program"
+            )));
+        };
+        let encoded = hex_utf8(code);
+        push(&mut lines, "program", &[leaf, &encoded])?;
+    }
+    if let (Some(leaf), Some(fact)) = (&cold.hidden_leaf, &cold.hidden_fact) {
+        push(&mut lines, "hidden", &[leaf, fact])?;
+    }
+    if let Some(fact) = &cold.empty_fact {
+        push(&mut lines, "empty", &[fact])?;
+    }
+    for leaf in &cold.failures {
+        push(&mut lines, "failure", &[leaf])?;
+    }
     for (name, delta) in &cold.deltas {
         push(&mut lines, "delta", &[name, &delta.revision.to_string()])?;
         for fact in &delta.changed {
@@ -168,8 +198,46 @@ fn body_of(cold: &ColdProof, sealed: &str) -> Result<String, WorldError> {
         for (leaf, digest) in &delta.digests {
             push(&mut lines, "digest", &[name, leaf, digest])?;
         }
+        for leaf in &cold.leaves {
+            let Some(capture) = delta.captures.get(leaf) else {
+                return Err(WorldError::Qualification(format!(
+                    "proof view leaf {leaf} has no capture for {name}"
+                )));
+            };
+            let encoded = hex_utf8(capture);
+            push(&mut lines, "delta-capture", &[name, leaf, &encoded])?;
+        }
     }
     Ok(lines.join(";"))
+}
+
+fn hex_utf8(text: &str) -> String {
+    super::record::hex(text.as_bytes())
+}
+
+fn unhex_utf8(text: &str) -> Option<String> {
+    if !text.len().is_multiple_of(2) || !text.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return None;
+    }
+    let mut bytes = Vec::with_capacity(text.len() / 2);
+    let digits = text.as_bytes();
+    let mut index = 0;
+    while index < digits.len() {
+        let hi = hex_value(digits[index])?;
+        let lo = hex_value(digits[index + 1])?;
+        bytes.push((hi << 4) | lo);
+        index += 2;
+    }
+    String::from_utf8(bytes).ok()
+}
+
+fn hex_value(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
 }
 
 fn push(lines: &mut Vec<String>, kind: &str, values: &[&str]) -> Result<(), WorldError> {
@@ -209,6 +277,12 @@ fn parse_body(body: &str) -> Result<Option<Parsed>, WorldError> {
     let mut leaves = Vec::new();
     let mut facts: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut baseline = BTreeMap::new();
+    let mut captures = BTreeMap::new();
+    let mut codes = BTreeMap::new();
+    let mut hidden_leaf = None;
+    let mut hidden_fact = None;
+    let mut empty_fact = None;
+    let mut failures = Vec::new();
     let mut deltas: BTreeMap<String, Draft> = BTreeMap::new();
     for part in body.split(';') {
         let mut words = part.split(' ');
@@ -253,6 +327,30 @@ fn parse_body(body: &str) -> Result<Option<Parsed>, WorldError> {
             {
                 baseline.insert(values[0].to_owned(), values[1].to_owned());
             }
+            "capture" if values.len() == 2 && !captures.contains_key(values[0]) => {
+                let Some(text) = unhex_utf8(values[1]) else {
+                    return Ok(None);
+                };
+                captures.insert(values[0].to_owned(), text);
+            }
+            "program" if values.len() == 2 && !codes.contains_key(values[0]) => {
+                let Some(text) = unhex_utf8(values[1]) else {
+                    return Ok(None);
+                };
+                codes.insert(values[0].to_owned(), text);
+            }
+            "hidden" if values.len() == 2 && hidden_leaf.is_none() && hidden_fact.is_none() => {
+                hidden_leaf = Some(values[0].to_owned());
+                hidden_fact = Some(values[1].to_owned());
+            }
+            "empty" if values.len() == 1 && empty_fact.is_none() => {
+                empty_fact = Some(values[0].to_owned());
+            }
+            "failure" if values.len() == 1 && leaves.iter().any(|leaf| leaf == values[0]) => {
+                if !failures.iter().any(|leaf| leaf == values[0]) {
+                    failures.push(values[0].to_owned());
+                }
+            }
             "delta" if values.len() == 2 && !deltas.contains_key(values[0]) => {
                 let Ok(revision) = values[1].parse() else {
                     return Ok(None);
@@ -277,6 +375,17 @@ fn parse_body(body: &str) -> Result<Option<Parsed>, WorldError> {
                     return Ok(None);
                 }
             }
+            "delta-capture" if values.len() == 3 => {
+                let Some(text) = unhex_utf8(values[2]) else {
+                    return Ok(None);
+                };
+                let Some(draft) = deltas.get_mut(values[0]) else {
+                    return Ok(None);
+                };
+                if draft.captures.insert(values[1].to_owned(), text).is_some() {
+                    return Ok(None);
+                }
+            }
             _ => return Ok(None),
         }
     }
@@ -285,10 +394,18 @@ fn parse_body(body: &str) -> Result<Option<Parsed>, WorldError> {
     else {
         return Ok(None);
     };
-    if leaves.len() != super::DENOMINATOR || edges != fact_edges(&leaves, &facts) {
+    if leaves.is_empty() || edges != fact_edges(&leaves, &facts) {
         return Ok(None);
     }
-    if baseline.len() != leaves.len() || leaves.iter().any(|leaf| !baseline.contains_key(leaf)) {
+    if baseline.len() != leaves.len()
+        || captures.len() != leaves.len()
+        || codes.len() != leaves.len()
+        || leaves.iter().any(|leaf| {
+            !baseline.contains_key(leaf)
+                || !captures.contains_key(leaf)
+                || !codes.contains_key(leaf)
+        })
+    {
         return Ok(None);
     }
     if deltas.len() != super::DELTAS.len()
@@ -302,7 +419,10 @@ fn parse_body(body: &str) -> Result<Option<Parsed>, WorldError> {
             return Ok(None);
         };
         if draft.digests.len() != leaves.len()
-            || leaves.iter().any(|leaf| !draft.digests.contains_key(leaf))
+            || draft.captures.len() != leaves.len()
+            || leaves
+                .iter()
+                .any(|leaf| !draft.digests.contains_key(leaf) || !draft.captures.contains_key(leaf))
         {
             return Ok(None);
         }
@@ -312,6 +432,7 @@ fn parse_body(body: &str) -> Result<Option<Parsed>, WorldError> {
                 changed,
                 revision: draft.revision,
                 digests: draft.digests,
+                captures: draft.captures,
             },
         );
     }
@@ -329,14 +450,35 @@ fn parse_body(body: &str) -> Result<Option<Parsed>, WorldError> {
         subject,
         proof: ColdProof {
             subject: batch,
-            leaves,
+            leaves: leaves.clone(),
             requests,
             edges,
+            failures,
+            captures,
+            codes,
+            owner_commands: command_count(&leaves, &fact_ids)?,
+            hidden_leaf,
+            hidden_fact,
+            empty_fact,
             baseline,
             facts: fact_ids,
             deltas: cold_deltas,
         },
     }))
+}
+
+fn command_count(
+    leaves: &[String],
+    facts: &BTreeMap<String, Vec<String>>,
+) -> Result<u64, WorldError> {
+    let mut owner_commands = 0u64;
+    for leaf in leaves {
+        let names = facts.get(leaf).map(Vec::as_slice).unwrap_or(&[]);
+        if super::leaf::program_for_facts(names)?.is_some() {
+            owner_commands = owner_commands.saturating_add(1);
+        }
+    }
+    Ok(owner_commands)
 }
 
 fn fact_edges(leaves: &[String], facts: &BTreeMap<String, Vec<String>>) -> u64 {
@@ -364,6 +506,7 @@ struct Draft {
     revision: u64,
     changed: Vec<String>,
     digests: BTreeMap<String, String>,
+    captures: BTreeMap<String, String>,
 }
 
 impl Draft {
@@ -372,6 +515,7 @@ impl Draft {
             revision,
             changed: Vec::new(),
             digests: BTreeMap::new(),
+            captures: BTreeMap::new(),
         }
     }
 }

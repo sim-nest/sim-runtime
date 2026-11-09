@@ -3,7 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::prove::{self, Choice};
 
@@ -23,7 +23,8 @@ fn cold_execution_reads_every_declared_edge_and_keeps_native_leaves_out() {
     let edges: u64 = facts.values().map(|fact| fact.len() as u64).sum();
     let cold = prove::execute_cold().unwrap();
     assert_eq!(cold.leaves.len(), 40);
-    assert_eq!(cold.requests, edges * 7);
+    let provider = crate::assay::semantic_provider_reads(crate::assay::universe().unwrap().len());
+    assert_eq!(cold.requests, edges * 7 + provider);
     assert_eq!(cold.edges, edges);
     assert_ne!(
         cold.baseline_digest("conclusion/01"),
@@ -140,22 +141,27 @@ fn plan_resume_advances_one_page_and_a_bad_token_is_a_gap() {
 }
 
 #[test]
-fn frontier_of_the_cold_run_is_empty_and_resume_repeats_it() {
+fn frontier_of_the_cold_run_stays_open_while_gaps_remain() {
     let cold = prove::run("cold", None).unwrap();
+    assert_eq!(number_field(&cold, "denominator"), 29);
+    let ran = number_field(&cold, "executed");
+    assert!(ran < 29);
     let view = text_field(&cold, "view");
     let executed = prove::cold_executions();
     let frontier = prove::frontier(Some(&view)).unwrap();
     assert_eq!(tag(&frontier), "prove/frontier-v1");
-    assert_eq!(number_field(&frontier, "executed"), 40);
+    assert_eq!(number_field(&frontier, "executed"), ran);
+    assert_eq!(number_field(&frontier, "denominator"), 29);
+    assert!(!bool_field(&frontier, "complete"));
+    assert!(!text_field(&frontier, "gaps").is_empty());
     assert_eq!(
         number_field(&frontier, "requests"),
-        number_field(&cold, "requests")
+        number_field(&cold, "requests") * 2
     );
-    assert!(frontier_failures_empty(&frontier));
     let token = text_field(&frontier, "continuation").to_owned();
     let again = prove::resume(&token, Some(&view)).unwrap();
     assert_eq!(tag(&again), "prove/frontier-v1");
-    assert!(frontier_failures_empty(&again));
+    assert!(!bool_field(&again, "complete"));
     let missing = prove::frontier(None).unwrap();
     assert_eq!(text_field(&missing, "reason"), "refresh-needed");
     assert_eq!(prove::cold_executions(), executed);
@@ -167,8 +173,11 @@ fn cached_status_and_why_stay_inside_the_ceiling() {
     let view = text_field(&cold, "view");
     let executed = prove::cold_executions();
     let status = prove::status(Some(&view)).unwrap();
-    assert_eq!(number_field(&status, "requests"), 0);
-    assert_eq!(number_field(&status, "denominator"), 40);
+    assert_eq!(
+        number_field(&status, "requests"),
+        number_field(&cold, "requests")
+    );
+    assert_eq!(number_field(&status, "denominator"), 29);
     assert!(bool_field(&status, "resident"));
     let missing = prove::status(None).unwrap();
     assert_eq!(text_field(&missing, "reason"), "refresh-needed");
@@ -192,48 +201,165 @@ fn retained_view_answers_d1_without_another_cold_execution() {
     assert_eq!(tag(&d1), "prove/reuse-v1");
     assert_eq!(number_field(&d1, "reuse-basis-points"), 10_000);
     assert_eq!(number_field(&d1, "false-reuse"), 0);
-    assert_eq!(number_field(&d1, "reuse-requests"), 0);
-    let why_keep = prove::why("D1", "conclusion/40", Some(&view)).unwrap();
+    assert_eq!(
+        number_field(&d1, "reuse-requests"),
+        number_field(&cold, "requests")
+    );
+    let why_keep = prove::why("D1", "phase/07", Some(&view)).unwrap();
     assert!(bool_field(&why_keep, "reused"));
     assert_eq!(text_field(&why_keep, "exercised"), "");
-    let why_run = prove::why("D2", "conclusion/01", Some(&view)).unwrap();
-    assert!(!bool_field(&why_run, "reused"));
     assert_eq!(
-        text_field(&why_run, "exercised"),
-        "stable/01 change/private-implementation"
+        number_field(&why_keep, "requests"),
+        number_field(&cold, "requests")
     );
+    let why_journal = prove::why("D1", "phase/02", Some(&view)).unwrap();
+    assert_eq!(text_field(&why_journal, "reason"), "same-computation");
+    let why_gap = prove::why("D1", "phase/14", Some(&view)).unwrap();
+    assert_eq!(text_field(&why_gap, "reason"), "circular");
     let mut tampered = view.clone();
     let last = tampered.pop().expect("view char");
     tampered.push(if last == 'a' { 'b' } else { 'a' });
     let stale = prove::run("D1", Some(&tampered)).unwrap();
     assert_eq!(text_field(&stale, "reason"), "refresh-needed");
-    let subject = view
-        .split(';')
-        .find(|part| part.starts_with("subject "))
-        .expect("subject")
-        .to_owned();
-    let zeros = format!("subject {}", "0".repeat(64));
-    let resigned = prove::reseal_replaced(&view, &subject, &zeros)
+    assert_eq!(prove::cold_executions(), executed);
+}
+
+#[test]
+fn a_resealed_view_cannot_invent_a_failure() {
+    let cold = prove::execute_cold().unwrap();
+    let view = prove::cold_view(&cold).unwrap();
+    let executed = prove::cold_executions();
+    assert!(prove::open_view(&view).unwrap().is_some());
+    let forged = prove::reseal_replaced(&view, "requests ", "failure conclusion/01;requests ")
         .unwrap()
         .expect("reseal");
-    let crossed = prove::run("D1", Some(&resigned)).unwrap();
-    assert_eq!(text_field(&crossed, "reason"), "refresh-needed");
+    let status = prove::status(Some(&forged)).unwrap();
+    assert_eq!(tag(&status), "prove/gap-v1");
+    assert_eq!(text_field(&status, "reason"), "refresh-needed");
+    let frontier = prove::frontier(Some(&forged)).unwrap();
+    assert_eq!(text_field(&frontier, "reason"), "refresh-needed");
+    assert_eq!(prove::cold_executions(), executed);
+}
+
+#[test]
+fn a_resealed_view_cannot_drop_a_failed_capture() {
+    let cold = prove::execute_disturbed(prove::Disturbance {
+        empty_fact: Some("stable/40".to_owned()),
+        ..prove::Disturbance::none()
+    })
+    .unwrap();
+    assert_eq!(cold.failures, vec!["conclusion/40".to_owned()]);
+    let view = prove::cold_view(&cold).unwrap();
+    let executed = prove::cold_executions();
+    let opened = prove::open_view(&view).unwrap().expect("assay view");
+    assert_eq!(opened.failures, vec!["conclusion/40".to_owned()]);
+    assert_eq!(
+        text_field(&prove::frontier(Some(&view)).unwrap(), "reason"),
+        "refresh-needed"
+    );
+    let dropped_empty = prove::reseal_replaced(&view, "empty stable/40;", "")
+        .unwrap()
+        .expect("drop empty");
+    assert_eq!(
+        text_field(&prove::frontier(Some(&dropped_empty)).unwrap(), "reason"),
+        "refresh-needed"
+    );
+    let forged = prove::reseal_replaced(&view, "failure conclusion/40;", "")
+        .unwrap()
+        .expect("reseal");
+    let status = prove::status(Some(&forged)).unwrap();
+    assert_eq!(tag(&status), "prove/gap-v1");
+    assert_eq!(text_field(&status, "reason"), "refresh-needed");
+    let frontier = prove::frontier(Some(&forged)).unwrap();
+    assert_eq!(text_field(&frontier, "reason"), "refresh-needed");
+    assert_eq!(prove::cold_executions(), executed);
+}
+
+#[test]
+fn a_changed_program_view_keeps_its_failure_after_reseal() {
+    let live = code_of("conclusion/23").to_owned();
+    let edited = format!("{live}\nchanged");
+    let cold = prove::execute_disturbed(prove::Disturbance {
+        code_for: BTreeMap::from([
+            ("conclusion/23".to_owned(), edited.clone()),
+            ("conclusion/24".to_owned(), edited.clone()),
+        ]),
+        ..prove::Disturbance::none()
+    })
+    .unwrap();
+    let view = prove::cold_view(&cold).unwrap();
+    let executed = prove::cold_executions();
+    assert!(prove::open_view(&view).unwrap().is_some());
+    let dropped_one = prove::reseal_replaced(&view, "failure conclusion/23;", "")
+        .unwrap()
+        .expect("reseal");
+    let forged = prove::reseal_replaced(&dropped_one, "failure conclusion/24;", "")
+        .unwrap()
+        .expect("reseal");
+    let status = prove::status(Some(&forged)).unwrap();
+    assert_eq!(tag(&status), "prove/gap-v1");
+    assert_eq!(text_field(&status, "reason"), "refresh-needed");
+    let restored = prove::reseal_replaced(&view, &hex_utf8(&edited), &hex_utf8(&live))
+        .unwrap()
+        .expect("reseal");
+    assert!(prove::open_view(&restored).unwrap().is_none());
+    assert_eq!(prove::cold_executions(), executed);
+}
+
+#[test]
+fn a_swapped_digest_or_a_deleted_change_is_not_admitted() {
+    let cold = prove::execute_cold().unwrap();
+    let view = prove::cold_view(&cold).unwrap();
+    let executed = prove::cold_executions();
+    assert!(prove::open_view(&view).unwrap().is_some());
+    let baseline = cold.baseline_digest("conclusion/01").expect("baseline");
+    let other = cold.baseline_digest("conclusion/02").expect("other");
+    assert_ne!(baseline, other);
+    let swapped = prove::reseal_replaced(
+        &view,
+        &format!("baseline conclusion/01 {baseline}"),
+        &format!("baseline conclusion/01 {other}"),
+    )
+    .unwrap()
+    .expect("swap");
+    assert!(prove::open_view(&swapped).unwrap().is_none());
+    let changed = view
+        .split(';')
+        .find(|part| part.starts_with("changed D2 "))
+        .expect("D2 change");
+    let deleted = prove::reseal_replaced(&view, &format!("{changed};"), "")
+        .unwrap()
+        .expect("delete");
+    assert!(prove::open_view(&deleted).unwrap().is_none());
+    let requests = view
+        .split(';')
+        .find(|part| part.starts_with("requests "))
+        .expect("requests");
+    let forged_requests = prove::reseal_replaced(&view, requests, "requests 0")
+        .unwrap()
+        .expect("requests");
+    assert!(prove::open_view(&forged_requests).unwrap().is_none());
+    let forged_revision = prove::reseal_replaced(&view, "delta D1 0", "delta D1 1")
+        .unwrap()
+        .expect("revision");
+    assert!(prove::open_view(&forged_revision).unwrap().is_none());
     assert_eq!(prove::cold_executions(), executed);
 }
 
 #[test]
 fn an_empty_fact_value_is_not_a_proof_view() {
-    let cold = prove::run("cold", None).unwrap();
-    let view = text_field(&cold, "view");
+    let cold = prove::execute_cold().unwrap();
+    let view = prove::cold_view(&cold).unwrap();
     let executed = prove::cold_executions();
     let blank =
         prove::reseal_replaced(&view, "fact conclusion/01 stable/01", "fact conclusion/01 ")
             .unwrap()
             .expect("reseal");
+    assert!(prove::open_view(&blank).unwrap().is_none());
     let status = prove::status(Some(&blank)).unwrap();
     assert_eq!(tag(&status), "prove/gap-v1");
     assert_eq!(text_field(&status, "reason"), "refresh-needed");
-    let why = prove::why("D2", "conclusion/01", Some(&blank)).unwrap();
+    let why = prove::why("D2", "phase/07", Some(&blank)).unwrap();
     assert_eq!(text_field(&why, "reason"), "refresh-needed");
     let again = prove::run("D2", Some(&blank)).unwrap();
     assert_eq!(text_field(&again, "reason"), "refresh-needed");
@@ -242,8 +368,8 @@ fn an_empty_fact_value_is_not_a_proof_view() {
 
 #[test]
 fn an_empty_digest_is_not_a_proof_view() {
-    let cold = prove::run("cold", None).unwrap();
-    let view = text_field(&cold, "view");
+    let cold = prove::execute_cold().unwrap();
+    let view = prove::cold_view(&cold).unwrap();
     let executed = prove::cold_executions();
     let baseline = blanked(&view, "baseline conclusion/01 ");
     let status = prove::status(Some(&baseline)).unwrap();
@@ -252,7 +378,7 @@ fn an_empty_digest_is_not_a_proof_view() {
     let digest = blanked(&view, "digest D1 conclusion/01 ");
     let run = prove::run("D1", Some(&digest)).unwrap();
     assert_eq!(text_field(&run, "reason"), "refresh-needed");
-    let why = prove::why("D1", "conclusion/01", Some(&digest)).unwrap();
+    let why = prove::why("D1", "phase/07", Some(&digest)).unwrap();
     assert_eq!(text_field(&why, "reason"), "refresh-needed");
     let status = prove::status(Some(&digest)).unwrap();
     assert_eq!(text_field(&status, "reason"), "refresh-needed");
@@ -326,15 +452,198 @@ fn number_field(value: &sim_kernel::Datum, name: &str) -> u64 {
         .unwrap_or_else(|_| panic!("{name}"))
 }
 
-fn frontier_failures_empty(value: &sim_kernel::Datum) -> bool {
-    let sim_kernel::Datum::Node { fields, .. } = value else {
-        return false;
-    };
-    fields.iter().any(|(name, field)| {
-        name.to_string() == "failures"
-            && matches!(field, sim_kernel::Datum::Vector(items) if items.is_empty())
-            && fields.iter().any(|(name, field)| {
-                name.to_string() == "complete" && matches!(field, sim_kernel::Datum::Bool(true))
-            })
+#[test]
+fn the_denominator_is_the_sealed_union() {
+    let facts = prove::leaf_facts().unwrap();
+    let cold = prove::execute_cold().unwrap();
+    assert_eq!(cold.leaves, crate::assay_oracle::obligation_leaves());
+    assert_eq!(cold.leaves.len(), facts.len());
+    assert!(cold.leaves.len() > 1);
+    let source = include_str!("prove.rs");
+    assert!(source.contains("require_union"));
+    assert!(!source.contains("const DENOMINATOR"));
+    assert!(!source.contains("for index in 1..=40"));
+}
+
+#[test]
+fn a_hidden_read_is_false_reuse_against_that_cold_run() {
+    let facts = prove::leaf_facts().unwrap();
+    assert_eq!(facts["conclusion/40"], vec!["stable/40".to_owned()]);
+    assert!(
+        !facts["conclusion/40"]
+            .iter()
+            .any(|fact| fact == "change/private-implementation")
+    );
+    let cold = prove::execute_disturbed(prove::Disturbance {
+        hidden_leaf: Some("conclusion/40".to_owned()),
+        hidden_fact: Some("change/private-implementation".to_owned()),
+        ..prove::Disturbance::none()
     })
+    .unwrap();
+    assert!(
+        cold.captures["conclusion/40"].contains("change/private-implementation"),
+        "{}",
+        cold.captures["conclusion/40"]
+    );
+    let report = prove::reuse(&cold, "D2", prove::graph_choice)
+        .unwrap()
+        .expect("D2");
+    assert_eq!(report.false_reuse, 1, "{}", report.false_reuse);
+    assert!(report.reused.contains("conclusion/40"));
+    assert!(!report.rerun.contains("conclusion/40"));
+    let view = prove::cold_view(&cold).unwrap();
+    let opened = prove::open_view(&view).unwrap().expect("hidden view");
+    assert!(opened.captures["conclusion/40"].contains("change/private-implementation"));
+}
+
+#[test]
+fn changed_proof_code_moves_only_the_leaves_that_consume_it() {
+    let live = code_of("conclusion/23");
+    let edited = format!("{live}\nchanged");
+    assert_ne!(edited, live);
+    let cold = prove::execute_disturbed(prove::Disturbance {
+        code_for: BTreeMap::from([
+            ("conclusion/23".to_owned(), edited.clone()),
+            ("conclusion/24".to_owned(), edited.clone()),
+        ]),
+        ..prove::Disturbance::none()
+    })
+    .unwrap();
+    let report = prove::reuse(&cold, "D6", prove::graph_choice)
+        .unwrap()
+        .expect("D6");
+    assert_eq!(report.false_reuse, 2, "{}", report.false_reuse);
+    assert_eq!(report.reuse_requests, 0);
+    assert!(report.rerun.is_empty());
+    assert!(report.reused.contains("conclusion/23"));
+    assert!(report.reused.contains("conclusion/24"));
+    assert_eq!(
+        cold.failures,
+        vec!["conclusion/23".to_owned(), "conclusion/24".to_owned()]
+    );
+    for leaf in ["conclusion/23", "conclusion/24"] {
+        let own = prove::digest_for_code(leaf, live).unwrap();
+        let edited_baseline = prove::digest_for_code(leaf, &edited).unwrap();
+        let delta = prove::digest_for_delta(leaf, "D6", &edited).unwrap();
+        assert_eq!(cold.baseline_digest(leaf), Some(own.as_str()), "{leaf}");
+        assert_ne!(
+            cold.baseline_digest(leaf),
+            Some(edited_baseline.as_str()),
+            "{leaf}"
+        );
+        assert_eq!(
+            prove::delta_digest(&cold, "D6", leaf),
+            Some(delta.as_str()),
+            "{leaf}"
+        );
+        assert_ne!(
+            prove::delta_digest(&cold, "D6", leaf),
+            cold.baseline_digest(leaf),
+            "{leaf}"
+        );
+    }
+    for leaf in ["conclusion/01", "conclusion/40", "conclusion/25"] {
+        let own = prove::digest_for_code(leaf, code_of(leaf)).unwrap();
+        assert_eq!(cold.baseline_digest(leaf), Some(own.as_str()), "{leaf}");
+    }
+}
+
+#[test]
+fn the_subject_binds_the_proof_implementation_and_keeps_delta_captures() {
+    let material = prove::subject_material().unwrap();
+    assert!(material.contains("fn predicate_from"));
+    assert!(material.contains("sim-world-proof-view-v1"));
+    assert!(material.contains("fn plan_record"));
+    assert!(material.contains("fn explanation_value"));
+    assert!(material.contains("fn count_datum"));
+    assert!(material.contains("name = \"sim-lib-world\""));
+    assert!(material.contains("fn attempt_leaf"));
+    assert!(material.contains("pub fn execute_proof_leaf"));
+    assert!(material.contains(prove::proof_implementation()));
+    let cold = prove::execute_cold().unwrap();
+    let capture = prove::delta_capture(&cold, "D2", "conclusion/01").unwrap();
+    assert!(capture.contains("edited private implementation"));
+    let view = prove::cold_view(&cold).unwrap();
+    let opened = prove::open_view(&view).unwrap().expect("view");
+    assert_eq!(opened.captures, cold.captures);
+    assert_eq!(
+        prove::delta_capture(&opened, "D2", "conclusion/01"),
+        Some(capture)
+    );
+    let boundary = prove::attempt_leaf("conclusion/01", "D1").unwrap();
+    assert_eq!(boundary.attempts, 1);
+    assert_eq!(boundary.effects, 0);
+    assert_eq!(boundary.subprocesses, 0);
+    assert_eq!(boundary.journal_records, 0);
+}
+
+#[test]
+fn a_catalog_command_uses_the_qualified_route() {
+    let route = prove::run_catalog_command().unwrap();
+    assert!(route.scripted.contains("scripted process receipt"));
+    assert_eq!(route.scripted_calls, 0);
+    assert!(route.passed);
+    assert_eq!(route.executed_calls, 1);
+    assert_eq!(route.effects, 1);
+    assert_eq!(route.subprocesses, 1);
+    assert_eq!(route.journal_records, 2);
+}
+
+#[test]
+fn a_scripted_command_receipt_cannot_enter_the_denominator() {
+    let scripted = prove::admit_command("conclusion/01", true).unwrap_err();
+    assert!(scripted.to_string().contains("scripted process receipt"));
+    let plain = prove::admit_command("conclusion/01", false).unwrap_err();
+    assert!(plain.to_string().contains("requires no owner command"));
+    let cold = prove::execute_cold().unwrap();
+    assert_eq!(cold.owner_commands, 0);
+    assert!(cold.failures.is_empty());
+    assert!(
+        cold.leaves
+            .iter()
+            .all(|leaf| leaf.starts_with("conclusion/"))
+    );
+}
+
+#[test]
+fn a_failed_predicate_stays_in_the_denominator_and_opens_a_gap() {
+    let cold = prove::execute_disturbed(prove::Disturbance {
+        empty_fact: Some("stable/40".to_owned()),
+        ..prove::Disturbance::none()
+    })
+    .unwrap();
+    assert_eq!(cold.leaves.len(), 40);
+    assert_eq!(cold.failures, vec!["conclusion/40".to_owned()]);
+    assert!(cold.baseline_digest("conclusion/01").is_some());
+    assert!(cold.captures["conclusion/01"].contains("baseline stable/01"));
+    let record = prove::run("cold", None).unwrap();
+    assert_eq!(number_field(&record, "denominator"), 29);
+    assert!(!text_field(&record, "gaps").is_empty());
+    let view = prove::cold_view(&cold).unwrap();
+    let opened = prove::open_view(&view).unwrap().expect("assay view");
+    assert_eq!(opened.failures, vec!["conclusion/40".to_owned()]);
+    assert_eq!(
+        text_field(&prove::frontier(Some(&view)).unwrap(), "reason"),
+        "refresh-needed"
+    );
+}
+
+fn hex_utf8(text: &str) -> String {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(text.len() * 2);
+    for byte in text.bytes() {
+        out.push(char::from(DIGITS[usize::from(byte >> 4)]));
+        out.push(char::from(DIGITS[usize::from(byte & 0x0f)]));
+    }
+    out
+}
+
+fn code_of(leaf: &str) -> &'static str {
+    match leaf {
+        "conclusion/23" | "conclusion/24" => {
+            "pure-check proof-code-alpha binds the projected bytes"
+        }
+        "conclusion/25" | "conclusion/26" => "pure-check checker-alpha binds the projected bytes",
+        _ => "pure-check semantic text is canonical and non-empty",
+    }
 }

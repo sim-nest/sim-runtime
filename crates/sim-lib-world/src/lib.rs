@@ -43,9 +43,16 @@
 //! an unsupported pair or a malformed call, measures resident cached why from
 //! one sealed snapshot, reports projection sensitivity from provider-read
 //! baseline and variant bytes, and returns a deterministic proof plan for one
-//! sealed in-memory subject. The prove command executes every selected pure
-//! check on that sealed subject with reuse disabled and exports a
-//! revision-fenced view. A later reuse, status, why, or frontier query reads
+//! sealed in-memory subject. The prove command's cold denominator is the
+//! portable phase gates. A gate with a reachable owner result is one leaf of
+//! the roadmap proof catalog. A gate without one stays a named gap, and the
+//! frontier stays open. The sensitivity assay is a separate conclusion set.
+//! A pure leaf is an artifact comparison or a source-deck predicate. A
+//! command leaf is launched on the qualified route. Each leaf digest binds the
+//! verdict and the retained capture. The admitted view keeps those capture
+//! bytes. The subject binds the proof implementation. A scripted
+//! command receipt is not a proof. A later
+//! reuse, status, why, or frontier query reads
 //! that admitted view. A missing or stale view asks for a refresh and does
 //! not execute the cold path again.
 #![forbid(unsafe_code)]
@@ -53,6 +60,7 @@
 
 mod assay;
 mod assay_mutant;
+mod assay_oracle;
 mod canary;
 mod command;
 mod deliver;
@@ -89,6 +97,8 @@ mod observe_tests;
 mod plan_tests;
 #[cfg(test)]
 mod prove_tests;
+#[cfg(test)]
+mod prove_union_tests;
 #[cfg(test)]
 mod release_tests;
 #[cfg(test)]

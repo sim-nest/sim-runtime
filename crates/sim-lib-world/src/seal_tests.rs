@@ -188,11 +188,19 @@ fn owning_seal_matches_live_locks_and_stays_stable() {
     );
     let mut mismatched = 0u64;
     let mut unreached = 0u64;
+    let mut outside = 0u64;
     for value in members {
         let row = node(value, "world/source-member-v1");
         if text(field(row, "origin")) == "path" {
-            assert_eq!(text(field(row, "checksum-kind")), "path-content");
             let source = text(field(row, "source"));
+            if source == "missing-path" {
+                assert_eq!(text(field(row, "status")), "present-unverified");
+                assert_eq!(text(field(row, "reason")), "missing-checksum");
+                assert!(!has_field(row, "checksum-kind"));
+                outside += 1;
+                continue;
+            }
+            assert_eq!(text(field(row, "checksum-kind")), "path-content");
             assert!(root.join(source).is_dir(), "{source}");
             assert!(!source.starts_with('/'), "{source}");
             let manifest = if source == "." {
@@ -249,10 +257,10 @@ fn owning_seal_matches_live_locks_and_stays_stable() {
     assert!(mismatched > 0, "a nested lock disagrees with its manifest");
     assert_eq!(
         number(field(fields, "present-unverified")),
-        mismatched + unreached
+        mismatched + unreached + outside
     );
     assert_eq!(
-        number(field(fields, "verified")) + mismatched + unreached,
+        number(field(fields, "verified")) + mismatched + unreached + outside,
         number(field(fields, "members"))
     );
     let first_gap = members
@@ -261,10 +269,10 @@ fn owning_seal_matches_live_locks_and_stays_stable() {
         .find(|row| text(field(row, "status")) != "verified")
         .expect("unverified member");
     let shown = text(field(first_gap, "reason"));
-    let expected_reason = if shown == "corrupt-checksum" {
-        "corrupt-input"
-    } else {
-        shown
+    let expected_reason = match shown {
+        "corrupt-checksum" => "corrupt-input",
+        "missing-checksum" => "missing-input",
+        other => other,
     };
     assert_eq!(text(field(fields, "reason")), expected_reason);
     assert_eq!(
