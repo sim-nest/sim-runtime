@@ -50,8 +50,6 @@ claims_anchors = ["anchor/crate/sim-lib-lang-javascript"]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-lang-javascript/src/lib",
   "spec-test/sim-runtime/crates/sim-lib-sequence/tests/composition_ownership_guard",
-  "recipe/sim-runtime/crates/sim-lib-lang-javascript/01-basics/json-codec-composition",
-  "recipe/sim-runtime/crates/sim-lib-lang-javascript/01-basics/collection-owner-composition",
 ]
 supports = ["feature/sim-runtime/guest-language-profiles", "feature/sim-runtime/organs", "feature/sim-runtime/gc-tracing"]
 composes = ["crate/sim-codec-json", "crate/sim-lib-sequence"]
@@ -102,7 +100,6 @@ claims_anchors = ["anchor/crate/sim-lib-class"]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-class/tests/neutral_class_specimens",
   "spec-test/sim-runtime/crates/sim-lib-class/tests/ownership_guard",
-  "recipe/sim-runtime/crates/sim-lib-class/01-basics/neutral-class",
 ]
 supports = ["feature/sim-runtime/organs"]
 
@@ -143,7 +140,7 @@ claims_anchors = [
   "anchor/runtime-lib/sim-lib-world/world-command-lib",
 ]
 claims_specimens = [
-  "recipe/sim-runtime/crates/sim-lib-world/01-projection/world-explain",
+  "spec-test/sim-runtime/crates/sim-lib-world/src/tests",
 ]
 composes = ["crate/sim-incremental-core", "crate/sim-run-core"]
 supports = ["feature/sim-runtime/incremental-query-core"]
@@ -249,7 +246,6 @@ claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-function/tests/contract_shape",
   "spec-test/sim-runtime/crates/sim-lib-function/tests/neutral_language_specimen",
   "spec-test/sim-runtime/crates/sim-lib-function/tests/ownership_guard",
-  "recipe/sim-runtime/crates/sim-lib-function/01-basics/neutral-language",
 ]
 supports = [
   "feature/sim-runtime/organs",
@@ -476,7 +472,6 @@ claims_anchors = [
 ]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-standard-core/src/harness_tests",
-  "recipe/sim-runtime/crates/sim-lib-standard-core/01-basics/characterize-migration",
 ]
 
 [[feature]]
@@ -632,7 +627,7 @@ owner = "repo/sim-runtime"
 audiences = ["code", "framework"]
 guidance = "Supply LuaRuntimeConfiguration as modeled data, Python SourceAuthority and Dir roots explicitly, JVM class bytes through its checked loader surface, and ProcessPort for structured execution. Missing authority or services fail closed. Guest product libraries never inspect the embedding environment, filesystem, process, classpath, or native loader; build scripts, examples, tests, and xtask are classified tooling rather than runtime services."
 claims_specimens = [
-  "recipe/sim-runtime/crates/sim-lib-exec/01-basics/bounded-process",
+  "spec-test/sim-runtime/crates/sim-lib-exec/src/loaded",
 ]
 supports = [
   "feature/sim-runtime/host-exec",
@@ -871,15 +866,10 @@ claims_anchors = [
   "anchor/runtime-lib/sim-lib-lang-jvm/jvm-language-lib",
 ]
 claims_specimens = [
-  "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/authorized-static-call",
-  "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/java-lambda",
-  "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/method-reference",
-  "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/sim-functional-interface",
   "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/product_specimen",
   "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/ownership_guard",
   "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/baseline",
   "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/published_performance",
-  "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/performance-evidence",
 ]
 supports = ["feature/sim-runtime/guest-language-profiles", "feature/sim-runtime/organs"]
 composes = ["crate/sim-codec-classfile", "crate/sim-lib-machine", "crate/sim-lib-mutation", "crate/sim-lib-gc-tracing", "crate/sim-lib-control", "crate/sim-lib-core", "crate/sim-lib-class", "crate/sim-text"]
@@ -940,8 +930,6 @@ audiences = ["code", "framework"]
 guidance = "Declare every operation from canonical manifest fields; never infer policy from operation text. Use OperationLifecycle over sim-lib-journal for bounded writer-fenced leases, performer-bound dispatch, raw receipts, and independent postcondition observation. Recovery observes before any new performance. ExactlyOnce never repeats a recorded dispatch; Idempotent repeats only after lease expiry plus observed absence. Treat AlreadyTrue, Verified, Diverged, and Uncertain as distinct durable outcomes. Keep guard_operation, the lifecycle, and domain effect adapters separate."
 claims_anchors = ["anchor/crate/sim-lib-operation-gate"]
 claims_specimens = [
-  "recipe/sim-runtime/crates/sim-lib-operation-gate/01-basics/two-manifests",
-  "recipe/sim-runtime/crates/sim-lib-operation-gate/01-basics/crash-matrix",
   "spec-test/sim-runtime/crates/sim-lib-operation-gate/src/durable_tests",
   "spec-test/sim-runtime/crates/sim-lib-operation-gate/src/lifecycle_tests",
 ]

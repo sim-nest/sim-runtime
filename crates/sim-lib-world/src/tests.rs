@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+// conformance: projection tests prove envelope-independent project, diff, and why.
+
 use std::time::{Duration, Instant};
 
 use sim_incremental_core::projection::{ConclusionId, FactId};

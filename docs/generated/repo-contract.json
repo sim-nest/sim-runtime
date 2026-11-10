@@ -208,6 +208,26 @@
   ],
   "citizen_count": 0,
   "citizens": [],
+  "contract_exclusions": [
+    {
+      "class": "recipe-fixture",
+      "consumer": "crates/sim-lib-operation-gate/recipes/01-basics/crash-matrix/recipe.toml",
+      "manifests": [
+        "crates/sim-lib-operation-gate/recipes/01-basics/crash-matrix/Cargo.toml"
+      ],
+      "path": "crates/sim-lib-operation-gate/recipes/01-basics/crash-matrix",
+      "reason": "The crash-matrix recipe builds this unpublished workspace."
+    },
+    {
+      "class": "recipe-fixture",
+      "consumer": "crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/recipe.toml",
+      "manifests": [
+        "crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/Cargo.toml"
+      ],
+      "path": "crates/sim-lib-operation-gate/recipes/01-basics/two-manifests",
+      "reason": "The two-manifests recipe builds this unpublished workspace."
+    }
+  ],
   "generator": "xtask repo-contract v1",
   "group_count": 1,
   "group_order": [
@@ -3152,29 +3172,54 @@
   ],
   "provenance": {
     "api_docs": "target/doc/",
-    "generated_by": "cargo run -p xtask -- simdoc",
-    "generation_timestamp": "2026-07-16T00:13:38+02:00",
+    "execution": {
+      "executable": {
+        "lock_sha256": "de3cf584352514646909797b8454326e8ba4d3d90bf87ed7c3592ae971073678",
+        "package": "simdoc",
+        "source_sha256": "30ee154387cee2c2567026f0e916923798e440cba6f135d1bc279e80af8f49c1",
+        "version": "0.1.0"
+      },
+      "operation": "repo-contract --repo .",
+      "resolver": null,
+      "toolchain": {
+        "cargo": {
+          "commit_hash": "30a34c6821b57de0aaec83a901aca39f88f6778c",
+          "release": "1.96.0"
+        },
+        "rustc": {
+          "commit_hash": "ac68faa20c58cbccd01ee7208bf3b6e93a7d7f96",
+          "release": "1.96.0"
+        }
+      }
+    },
+    "generation_timestamp": "2026-11-10T08:49:38+01:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "9a8e12692399ae53c02b2692282ae978e8d1c281",
+    "git_commit": "840d4e6b03d1464fe3b1ba34834734b0a28a9c5b",
+    "regeneration_command": "cargo run -p xtask -- simdoc",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "9a8e12692399ae53c02b2692282ae978e8d1c281",
+    "source_commit": "840d4e6b03d1464fe3b1ba34834734b0a28a9c5b",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
-      "cargo test",
-      "cargo clippy --all-targets -- -D warnings",
-      "cargo doc --no-deps",
-      "cargo run -p xtask -- simdoc --check",
+      "cargo run -p xtask -- check-local-sources",
+      "cargo run -p xtask -- check-managed-substrate",
       "cargo run -p xtask -- check-file-sizes",
+      "cargo test -p sim-lib-standard-core --features native-export",
+      "cargo test --workspace",
+      "cargo clippy --workspace --all-targets -- -D warnings",
+      "cargo doc --workspace --no-deps",
+      "cargo run -p xtask -- simdoc --check",
       "cargo run -p xtask -- repo-contract --check --repo .",
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "4dc71c718f25a2b8",
+    "workspace_hash": "63a3e101116b160e",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 797,
+    "workspace_hash_input_count": 803,
     "workspace_hash_inputs": [
+      ".github/workflows/authorship.yml",
+      ".github/workflows/ci.yml",
       "Cargo.toml",
       "crates/sim-incremental-core/Cargo.toml",
       "crates/sim-incremental-core/src/budget.rs",
@@ -3969,9 +4014,13 @@
       "crates/sim-lib-world/src/service_facts.rs",
       "crates/sim-lib-world/src/service_tests.rs",
       "crates/sim-lib-world/src/service_wire.rs",
+      "crates/sim-lib-world/src/succeed.rs",
+      "crates/sim-lib-world/src/succeed_tests.rs",
       "crates/sim-lib-world/src/tests.rs",
       "features.toml",
-      "xtask/Cargo.toml"
+      "xtask/Cargo.toml",
+      "xtask/src/lib.rs",
+      "xtask/src/main.rs"
     ]
   },
   "recipe_book_count": 32,

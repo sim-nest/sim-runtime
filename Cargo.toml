@@ -48,3 +48,24 @@ homepage = "https://github.com/sim-nest/sim-runtime"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
+
+[workspace.metadata.sim]
+docs-command = "cargo run -p xtask -- simdoc"
+validation-commands = [
+  "cargo fmt --all --check",
+  "cargo run -p xtask -- check-local-sources",
+  "cargo run -p xtask -- check-managed-substrate",
+  "cargo run -p xtask -- check-file-sizes",
+  "cargo test -p sim-lib-standard-core --features native-export",
+  "cargo test --workspace",
+  "cargo clippy --workspace --all-targets -- -D warnings",
+  "cargo doc --workspace --no-deps",
+  "cargo run -p xtask -- simdoc --check",
+  "cargo run -p xtask -- repo-contract --check --repo .",
+  "cargo run -p xtask -- validation-matrix --check --repo .",
+  "cargo run -p xtask -- crate-catalog --check --repo .",
+]
+contract-exclusions = [
+  { path = "crates/sim-lib-operation-gate/recipes/01-basics/crash-matrix", class = "recipe-fixture", consumer = "crates/sim-lib-operation-gate/recipes/01-basics/crash-matrix/recipe.toml", reason = "The crash-matrix recipe builds this unpublished workspace." },
+  { path = "crates/sim-lib-operation-gate/recipes/01-basics/two-manifests", class = "recipe-fixture", consumer = "crates/sim-lib-operation-gate/recipes/01-basics/two-manifests/recipe.toml", reason = "The two-manifests recipe builds this unpublished workspace." },
+]
