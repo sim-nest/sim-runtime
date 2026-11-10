@@ -447,41 +447,34 @@ pub(crate) fn closure_rows(graph: &[String]) -> Vec<Datum> {
     rows.push(Datum::String(include_str!("product.rs").to_owned()));
     rows.push(Datum::String(include_str!("query.rs").to_owned()));
     rows.push(Datum::String(
-        include_str!("../../sim-incremental-core/src/projection/graph.rs").to_owned(),
+        include_str!("../freeze/incremental-graph.rs").to_owned(),
     ));
     rows.push(Datum::String(
-        include_str!("../../../../sim-agent-net/crates/sim-lib-roadmap-runner/src/proof.rs")
-            .to_owned(),
+        include_str!("../freeze/runner-proof.rs").to_owned(),
     ));
     rows.push(Datum::String(
-        include_str!("../../../../sim-agent-net/crates/sim-lib-roadmap-runner/src/journal.rs")
-            .to_owned(),
+        include_str!("../freeze/runner-journal.rs").to_owned(),
     ));
     rows.push(Datum::String(
-        include_str!("../../../../sim-agent-net/crates/sim-lib-roadmap-runner/src/codec.rs")
-            .to_owned(),
+        include_str!("../freeze/runner-codec.rs").to_owned(),
     ));
     rows.push(Datum::String(
-        include_str!("../../../../sim-agent-net/crates/sim-lib-roadmap-runner/src/record_law.rs")
-            .to_owned(),
+        include_str!("../freeze/runner-record-law.rs").to_owned(),
     ));
     rows.push(Datum::String(
-        include_str!("../../../../sim-agent-net/crates/sim-lib-roadmap-runner/src/model.rs")
-            .to_owned(),
+        include_str!("../freeze/runner-model.rs").to_owned(),
     ));
     rows.push(Datum::String(
-        include_str!("../../../../sim-agent-net/crates/sim-lib-roadmap-runner/src/journal_util.rs")
-            .to_owned(),
+        include_str!("../freeze/runner-journal-util.rs").to_owned(),
     ));
     rows.push(Datum::String(
-        include_str!("../../../../sim-agent-net/crates/sim-lib-roadmap-runner/src/causal.rs")
-            .to_owned(),
+        include_str!("../freeze/runner-causal.rs").to_owned(),
     ));
     rows.push(Datum::String(
-        include_str!("../../../../sim-agent-net/Cargo.lock").to_owned(),
+        include_str!("../freeze/agent-net-Cargo.lock").to_owned(),
     ));
     rows.push(Datum::String(
-        include_str!("../../../Cargo.lock").to_owned(),
+        include_str!("../freeze/runtime-Cargo.lock").to_owned(),
     ));
     rows
 }

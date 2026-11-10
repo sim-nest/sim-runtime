@@ -555,18 +555,11 @@ fn subject() -> Result<String, WorldError> {
         Datum::String(include_str!("assay.rs").to_owned()),
         Datum::String(include_str!("assay_oracle.rs").to_owned()),
         Datum::String(include_str!("provider.rs").to_owned()),
-        Datum::String(
-            include_str!("../../sim-incremental-core/src/projection/graph.rs").to_owned(),
-        ),
-        Datum::String(
-            include_str!("../../sim-incremental-core/src/projection/model.rs").to_owned(),
-        ),
-        Datum::String(
-            include_str!("../../../../sim-agent-net/crates/sim-lib-roadmap-runner/src/proof.rs")
-                .to_owned(),
-        ),
-        Datum::String(include_str!("../../../../sim-agent-net/Cargo.lock").to_owned()),
-        Datum::String(include_str!("../../../Cargo.lock").to_owned()),
+        Datum::String(include_str!("../freeze/incremental-graph.rs").to_owned()),
+        Datum::String(include_str!("../freeze/incremental-model.rs").to_owned()),
+        Datum::String(include_str!("../freeze/runner-proof.rs").to_owned()),
+        Datum::String(include_str!("../freeze/agent-net-Cargo.lock").to_owned()),
+        Datum::String(include_str!("../freeze/runtime-Cargo.lock").to_owned()),
     ]);
     Ok(record::hex(&provider::content_id(datum)?.bytes))
 }

@@ -524,9 +524,8 @@ fn subject_rows(bound: &BoundFacts) -> Result<Vec<String>, WorldError> {
         include_str!("prove_record.rs").to_owned(),
         include_str!("product.rs").to_owned(),
         include_str!("query.rs").to_owned(),
-        include_str!("../../../Cargo.lock").to_owned(),
-        include_str!("../../../../sim-agent-net/crates/sim-lib-roadmap-runner/src/proof.rs")
-            .to_owned(),
+        include_str!("../freeze/runtime-Cargo.lock").to_owned(),
+        include_str!("../freeze/runner-proof.rs").to_owned(),
     ];
     for (leaf, facts) in &bound.facts {
         rows.push(leaf.clone());
