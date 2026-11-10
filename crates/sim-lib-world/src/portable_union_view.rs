@@ -62,7 +62,7 @@ fn body_of(proof: &super::UnionProof) -> Result<String, WorldError> {
     for gate in super::GATES {
         match gate.ground {
             super::Ground::Gap(reason) => push(&mut parts, "gap", &[gate.leaf, reason])?,
-            super::Ground::Assay => {
+            super::Ground::Assay | super::Ground::Project => {
                 let Some(digest) = proof.digests.get(gate.leaf) else {
                     return Err(WorldError::Qualification(format!(
                         "proof view leaf {} has no digest",

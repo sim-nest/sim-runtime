@@ -10,7 +10,8 @@
 //! only when this product can already call an owner result for that gate.
 //! The journal row is a named gap: `rebuild` and `rebuild_report` are the
 //! same computation. The assay row compares the sealed graph with the
-//! commissioned oracle. Every other row is a named gap. Gaps stay in the
+//! commissioned oracle. The project row calls the loaded world command.
+//! Every other row is a named gap. Gaps stay in the
 //! denominator. The frontier stays open while any gap or failed leaf remains.
 //! The sensitivity assay of forty conclusions is a different set. Each
 //! executed leaf digest binds the verdict and the retained deck.
@@ -29,6 +30,8 @@ use crate::provider;
 
 use super::record::{self, flag, gap, list, node, num, text};
 
+#[path = "portable_project.rs"]
+mod project;
 #[path = "portable_union_view.rs"]
 mod view;
 
@@ -38,6 +41,7 @@ const PHASES: usize = 29;
 #[derive(Clone, Copy)]
 enum Ground {
     Assay,
+    Project,
     Gap(&'static str),
 }
 
@@ -73,7 +77,7 @@ const GATES: &[Gate] = &[
     },
     Gate {
         leaf: "phase/06",
-        ground: Ground::Gap("no-owner-result"),
+        ground: Ground::Project,
     },
     Gate {
         leaf: "phase/07",
@@ -374,7 +378,7 @@ fn classify(leaf: &str) -> Result<Class, WorldError> {
     };
     match gate.ground {
         Ground::Gap(reason) => Ok(Class::Gap(reason)),
-        Ground::Assay => Ok(Class::Executed),
+        Ground::Assay | Ground::Project => Ok(Class::Executed),
     }
 }
 
@@ -460,6 +464,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
     };
     match gate.ground {
         Ground::Assay => assay_leaf(name),
+        Ground::Project => project::project_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),
@@ -543,7 +548,7 @@ fn gap_rows() -> Vec<String> {
         .iter()
         .filter_map(|gate| match gate.ground {
             Ground::Gap(reason) => Some(format!("gap {} {reason}", gate.leaf)),
-            Ground::Assay => None,
+            Ground::Assay | Ground::Project => None,
         })
         .collect()
 }
@@ -552,6 +557,7 @@ fn subject() -> Result<String, WorldError> {
     let datum = Datum::Vector(vec![
         Datum::String(include_str!("portable_union.rs").to_owned()),
         Datum::String(include_str!("portable_union_view.rs").to_owned()),
+        Datum::String(include_str!("portable_project.rs").to_owned()),
         Datum::String(include_str!("assay.rs").to_owned()),
         Datum::String(include_str!("assay_oracle.rs").to_owned()),
         Datum::String(include_str!("provider.rs").to_owned()),

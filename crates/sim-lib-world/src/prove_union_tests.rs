@@ -11,11 +11,12 @@ use crate::prove;
 fn the_public_denominator_is_the_phase_gates() {
     let cold = prove::run("cold", None).unwrap();
     assert_eq!(number(&cold, "denominator"), 29);
-    assert_eq!(number(&cold, "executed"), 1);
+    assert_eq!(number(&cold, "executed"), 2);
     assert_eq!(number(&cold, "owner-commands"), 0);
-    assert_eq!(number(&cold, "requests"), 1);
+    assert_eq!(number(&cold, "requests"), 2);
     let gaps = text(&cold, "gaps");
     assert!(gaps.contains("gap phase/00 no-owner-result"));
+    assert!(!gaps.contains("phase/06"));
     assert!(gaps.contains("gap phase/10 host-read"));
     assert!(gaps.contains("gap phase/11 foreign-crate"));
     assert!(gaps.contains("gap phase/14 circular"));
@@ -36,16 +37,19 @@ fn reuse_of_owner_leaves_is_complete_and_the_frontier_stays_open() {
     let view = text(&cold, "view");
     let d1 = prove::run("D1", Some(&view)).unwrap();
     assert_eq!(number(&d1, "denominator"), 29);
-    assert_eq!(number(&d1, "executed"), 1);
-    assert_eq!(number(&d1, "reused"), 1);
+    assert_eq!(number(&d1, "executed"), 2);
+    assert_eq!(number(&d1, "reused"), 2);
     assert_eq!(number(&d1, "false-reuse"), 0);
     assert_eq!(number(&d1, "reuse-basis-points"), 10_000);
     assert_eq!(text(&d1, "rerun"), "");
     let frontier = prove::frontier(Some(&view)).unwrap();
     assert!(!bool_field(&frontier, "complete"));
-    assert_eq!(number(&frontier, "executed"), 1);
+    assert_eq!(number(&frontier, "executed"), number(&cold, "executed"));
     let why = prove::why("D2", "phase/07", Some(&view)).unwrap();
     assert!(bool_field(&why, "reused"));
+    let project = prove::why("D2", "phase/06", Some(&view)).unwrap();
+    assert!(bool_field(&project, "reused"));
+    assert!(!text(&cold, "view").contains("gap phase/06"));
     assert_eq!(text(&why, "exercised"), "");
 }
 
