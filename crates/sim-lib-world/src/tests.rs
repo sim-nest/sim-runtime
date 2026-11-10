@@ -262,7 +262,7 @@ fn resident_snapshot_has_the_cached_query_denominator() {
 
 #[test]
 fn measure_why_reports_the_resident_query() {
-    let measured = query::measure_why(4).unwrap();
+    let measured = query::measure_why().unwrap();
     assert!(measured.within_ceiling);
     let rendered = crate::command::render(&measured.record);
     assert!(rendered.starts_with("#(world/query-latency-v1 "));
@@ -271,7 +271,8 @@ fn measure_why_reports_the_resident_query() {
     assert!(rendered.contains("(units 10000)"));
     assert!(rendered.contains("(warmups 20)"));
     assert!(rendered.contains("(samples 200)"));
-    assert!(rendered.contains("(effects 4)"));
+    assert!(rendered.contains("(effects 0)"));
+    assert!(rendered.contains("(raw-us ["));
     assert!(rendered.contains("(subprocesses 0)"));
     assert!(rendered.contains("(resident true)"));
 }
@@ -331,7 +332,7 @@ fn assay_matches_the_frozen_oracle_and_measures_provider_reads() {
     assert!(rows.contains("pub struct ExecutionJournal"));
     assert!(rows.contains("sim-roadmap-execution-record"));
     assert!(rows.contains("name = \"sim-lib-journal\""));
-    assert!(rows.contains("pub(crate) fn validate_next"));
+    assert!(rows.contains("pub(crate) struct LawCursor"));
     assert!(rows.contains("pub enum ExecutionRecord"));
     assert!(rows.contains("pub(crate) fn contains_secret"));
     assert!(rows.contains("pub(crate) fn apply_changes"));

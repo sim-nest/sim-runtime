@@ -601,7 +601,7 @@ fn unknown_batch_is_a_gap_and_measure_stays_inside_the_ceiling() {
     assert_eq!(text(field(fields, "reason")), "unknown-batch");
     assert_eq!(field(fields, "compiler-opened"), &Datum::Bool(false));
     assert_eq!(field(fields, "effects"), &query::count_datum(0));
-    let measured = seal::measure(0).expect("measure");
+    let measured = seal::measure().expect("measure");
     let record = node(&measured, "world/query-latency-v1");
     assert_eq!(text(field(record, "command")), "seal");
     assert_eq!(

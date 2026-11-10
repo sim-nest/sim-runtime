@@ -174,6 +174,8 @@ struct UnionProof {
     failures: Vec<String>,
     requests: u64,
     owner_commands: u64,
+    effects: u64,
+    subprocesses: u64,
     digests: BTreeMap<String, String>,
     retained: BTreeMap<String, Retained>,
 }
@@ -253,8 +255,8 @@ pub(super) fn status(view: Option<&str>) -> Result<Datum, WorldError> {
             ("executed", count(proof.executed.len())),
             ("excluded", list(super::EXCLUDED)),
             ("requests", num(opened.admission_requests)),
-            ("effects", num(0)),
-            ("subprocesses", num(0)),
+            ("effects", num(proof.effects)),
+            ("subprocesses", num(proof.subprocesses)),
             ("owner-commands", num(proof.owner_commands)),
             ("resident", flag(true)),
             ("gaps", list(proof.gaps.clone())),
@@ -310,8 +312,8 @@ pub(super) fn why(delta: &str, leaf: &str, view: Option<&str>) -> Result<Datum, 
             ("exercised", list(Vec::<String>::new())),
             ("digest", text(digest)),
             ("requests", num(opened.admission_requests)),
-            ("effects", num(0)),
-            ("subprocesses", num(0)),
+            ("effects", num(opened.proof.effects)),
+            ("subprocesses", num(opened.proof.subprocesses)),
         ],
     ))
 }
@@ -340,8 +342,8 @@ pub(super) fn frontier(view: Option<&str>) -> Result<Datum, WorldError> {
                 "requests",
                 num(proof.requests.saturating_add(opened.admission_requests)),
             ),
-            ("effects", num(0)),
-            ("subprocesses", num(0)),
+            ("effects", num(proof.effects)),
+            ("subprocesses", num(proof.subprocesses)),
             ("continuation", text(super::frontier_token(&proof.subject)?)),
         ],
     ))
@@ -391,6 +393,8 @@ fn execute() -> Result<UnionProof, WorldError> {
     let mut digests = BTreeMap::new();
     let mut retained = BTreeMap::new();
     let mut owner_commands = 0u64;
+    let mut effects = 0u64;
+    let mut subprocesses = 0u64;
     for name in &names {
         let leaf = catalog.leaf(name).map_err(qualify)?;
         if matches!(leaf, ProofLeaf::Command(_)) {
@@ -399,6 +403,12 @@ fn execute() -> Result<UnionProof, WorldError> {
         let receipt =
             execute_proof_leaf(&catalog, name, &launcher, &cancellation, "portable-union")
                 .map_err(qualify)?;
+        let work = crate::query::HostWork::observe(
+            receipt.effect_id.as_deref(),
+            receipt.launcher_identity.as_deref(),
+        );
+        effects = effects.saturating_add(work.effects());
+        subprocesses = subprocesses.saturating_add(work.subprocesses());
         if receipt.disposition != ProofDisposition::Passed {
             failures.push((*name).to_owned());
         }
@@ -421,6 +431,8 @@ fn execute() -> Result<UnionProof, WorldError> {
         failures,
         requests: u64::try_from(names.len()).unwrap_or(u64::MAX),
         owner_commands,
+        effects,
+        subprocesses,
         digests,
         retained,
     })
@@ -625,8 +637,8 @@ fn cold_datum(proof: &UnionProof) -> Result<Datum, WorldError> {
             ("executed", count(proof.executed.len())),
             ("requests", num(proof.requests)),
             ("edges", num(0)),
-            ("effects", num(0)),
-            ("subprocesses", num(0)),
+            ("effects", num(proof.effects)),
+            ("subprocesses", num(proof.subprocesses)),
             ("owner-commands", num(proof.owner_commands)),
             ("reuse-disabled", flag(true)),
             ("resident", flag(true)),
@@ -655,8 +667,8 @@ fn reuse_datum(delta: &str, opened: &Opened) -> Result<Datum, WorldError> {
             ("cold-requests", num(proof.requests)),
             ("reuse-requests", num(opened.admission_requests)),
             ("revision-delta", num(0)),
-            ("effects", num(0)),
-            ("subprocesses", num(0)),
+            ("effects", num(proof.effects)),
+            ("subprocesses", num(proof.subprocesses)),
             ("owner-commands", num(proof.owner_commands)),
             ("reuse-disabled", flag(false)),
             ("gaps", list(proof.gaps.clone())),

@@ -184,9 +184,27 @@ fn cached_status_and_why_stay_inside_the_ceiling() {
     assert_eq!(prove::cold_executions(), executed);
     for command in ["status", "why"] {
         let measured = prove::measure(command).unwrap();
-        assert!(measured.within_ceiling, "{command}");
+        let p95 = number_field(&measured.record, "p95-ms");
+        assert!(
+            measured.within_ceiling,
+            "{command} p95 {p95} ms exceeded the 200 ms ceiling"
+        );
         assert_eq!(number_field(&measured.record, "samples"), 200);
-        assert_eq!(number_field(&measured.record, "records"), 100_000);
+        assert_eq!(number_field(&measured.record, "warmups"), 20);
+        assert_eq!(number_field(&measured.record, "records"), 29);
+        assert_eq!(number_field(&measured.record, "effects"), 0);
+        assert_eq!(number_field(&measured.record, "subprocesses"), 0);
+        let raw = match &measured.record {
+            sim_kernel::Datum::Node { fields, .. } => fields
+                .iter()
+                .find(|(name, _)| name.to_string() == "raw-us")
+                .map(|(_, value)| value),
+            _ => None,
+        };
+        let sim_kernel::Datum::Vector(raw) = raw.expect("raw samples") else {
+            panic!("raw samples are not a vector");
+        };
+        assert_eq!(raw.len(), 200);
     }
 }
 

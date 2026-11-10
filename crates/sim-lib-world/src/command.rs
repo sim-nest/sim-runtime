@@ -290,7 +290,7 @@ impl WorldEntrypoint {
     }
 
     fn measure_outcome(&self) -> Result<Outcome> {
-        let measured = query::measure_why(self.product.effect_calls()).map_err(eval_error)?;
+        let measured = query::measure_why().map_err(eval_error)?;
         if measured.within_ceiling {
             Ok(Outcome::Value(measured.record))
         } else {
@@ -302,9 +302,7 @@ impl WorldEntrypoint {
     }
 
     fn measure_seal_outcome(&self) -> Result<Outcome> {
-        seal::measure(self.product.effect_calls())
-            .map(Outcome::Value)
-            .map_err(eval_error)
+        seal::measure().map(Outcome::Value).map_err(eval_error)
     }
 
     fn seal_command(&self, args: &[String], universe: bool) -> Result<Outcome> {
@@ -348,7 +346,7 @@ impl WorldEntrypoint {
     }
 
     fn measure_plan_outcome(&self) -> Result<Outcome> {
-        let measured = plan::measure(self.product.effect_calls()).map_err(eval_error)?;
+        let measured = plan::measure().map_err(eval_error)?;
         if measured.within_ceiling {
             Ok(Outcome::Value(measured.record))
         } else {

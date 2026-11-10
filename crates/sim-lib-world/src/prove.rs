@@ -15,23 +15,18 @@
 //! does not execute. Native worker and native assay leaves stay outside both
 //! denominators.
 
-#[cfg(test)]
+use sim_incremental_core::projection::{
+    FactId, FederatedClosure, PackageIdentity, ProjectionRegistry, install_semantic_text_provider,
+};
+use sim_kernel::Datum;
 use std::cell::Cell;
 use std::collections::BTreeMap;
 #[cfg(test)]
 use std::collections::BTreeSet;
-use std::time::Instant;
-
-use sim_incremental_core::projection::{
-    ConclusionId, FactId, FederatedClosure, PackageIdentity, ProjectionRegistry,
-    install_semantic_text_provider,
-};
-use sim_kernel::Datum;
 
 use crate::assay;
-use crate::product::explanation_value;
 use crate::provider::{self, WorldConfigShape};
-use crate::query::{self, CEILING_MS, SAMPLES, WARMUPS};
+use crate::query::{self, SAMPLES, WARMUPS};
 use crate::{WorldError, command};
 
 #[path = "prove_leaf.rs"]
@@ -338,75 +333,120 @@ pub(crate) fn frontier_leaf(leaf: &str, view: Option<&str>) -> Result<Datum, Wor
     union::frontier_leaf(leaf, view)
 }
 
-/// Times resident status or why against the cached-query ceiling.
+/// Times public `status` or `why` against an admitted phase-union view.
+///
+/// The cold view is admitted once, outside the samples. Each sample calls the
+/// same function the prove command dispatches, then encodes the datum.
 pub(crate) fn measure(command: &str) -> Result<Measured, WorldError> {
     if command != "status" && command != "why" {
         return Err(WorldError::Qualification("usage".to_owned()));
     }
-    let snapshot = query::seal_resident_why()?;
-    let conclusion = ConclusionId::new("conclusion/unit-000000")?;
-    let fact = FactId::new("fact/000000")?;
-    let once = |command: &str| -> Result<String, WorldError> {
-        if command == "status" {
-            if !snapshot.closure.depends_on(&conclusion, &fact) {
-                return Err(WorldError::Qualification(
-                    "resident status leaf is missing".to_owned(),
-                ));
-            }
-            return Ok(format!("status {}", conclusion.as_str()));
-        }
-        let explanation = snapshot
-            .closure
-            .explain(&conclusion, &fact)
-            .map_err(|error| WorldError::Qualification(error.to_string()))?;
-        Ok(command::render(&explanation_value(explanation)))
+    let cold = run("cold", None)?;
+    let view = record_text(&cold, "view")?;
+    let records = record_count(&cold, "denominator")?;
+    let units = record_count(&cold, "executed")?;
+    let cold_effects = record_count(&cold, "effects")?;
+    let cold_subprocesses = record_count(&cold, "subprocesses")?;
+    let effects = Cell::new(None);
+    let subprocesses = Cell::new(None);
+    let sampled = query::sample_cached(|| {
+        let datum = if command == "status" {
+            status(Some(&view))?
+        } else {
+            why("D1", "phase/07", Some(&view))?
+        };
+        observe_counters(&datum, &effects, &subprocesses)?;
+        Ok(command::render(&datum))
+    })?;
+    let (Some(effects), Some(subprocesses)) = (effects.get(), subprocesses.get()) else {
+        return Err(WorldError::Qualification(
+            "measurement recorded no counters".to_owned(),
+        ));
     };
-    let expected = once(command)?;
-    for _ in 1..WARMUPS {
-        if once(command)? != expected {
-            return Err(WorldError::Qualification(
-                "resident proof answer changed".to_owned(),
-            ));
-        }
+    if effects != cold_effects || subprocesses != cold_subprocesses {
+        return Err(WorldError::Qualification(
+            "measured counters disagreed with the cold record".to_owned(),
+        ));
     }
-    let mut samples = Vec::with_capacity(SAMPLES);
-    for _ in 0..SAMPLES {
-        let started = Instant::now();
-        let rendered = once(command)?;
-        let elapsed = started.elapsed();
-        if rendered != expected {
-            return Err(WorldError::Qualification(
-                "resident proof answer changed".to_owned(),
-            ));
-        }
-        samples.push(elapsed);
-    }
-    samples.sort_unstable();
-    let p95_ms =
-        u64::try_from(samples[query::nearest_rank_p95(SAMPLES)].as_millis()).unwrap_or(u64::MAX);
     Ok(Measured {
         record: node(
             "query-latency-v1",
             vec![
                 ("command", text(command)),
-                (
-                    "records",
-                    num(u64::try_from(snapshot.records).unwrap_or(u64::MAX)),
-                ),
-                (
-                    "units",
-                    num(u64::try_from(snapshot.units).unwrap_or(u64::MAX)),
-                ),
+                ("records", num(records)),
+                ("units", num(units)),
                 ("warmups", num(u64::try_from(WARMUPS).unwrap_or(u64::MAX))),
                 ("samples", num(u64::try_from(SAMPLES).unwrap_or(u64::MAX))),
-                ("p95-ms", num(p95_ms)),
-                ("effects", num(0)),
-                ("subprocesses", num(0)),
+                ("p95-ms", num(sampled.p95_ms)),
+                (
+                    "raw-us",
+                    Datum::Vector(sampled.raw_us.iter().copied().map(num).collect()),
+                ),
+                ("effects", num(effects)),
+                ("subprocesses", num(subprocesses)),
                 ("resident", flag(true)),
             ],
         ),
-        within_ceiling: p95_ms <= CEILING_MS,
+        within_ceiling: sampled.within_ceiling,
     })
+}
+
+fn observe_counters(
+    datum: &Datum,
+    effects: &Cell<Option<u64>>,
+    subprocesses: &Cell<Option<u64>>,
+) -> Result<(), WorldError> {
+    let observed_effects = record_count(datum, "effects")?;
+    let observed_subprocesses = record_count(datum, "subprocesses")?;
+    match (effects.get(), subprocesses.get()) {
+        (None, None) => {
+            effects.set(Some(observed_effects));
+            subprocesses.set(Some(observed_subprocesses));
+            Ok(())
+        }
+        (Some(kept_effects), Some(kept_subprocesses))
+            if kept_effects == observed_effects && kept_subprocesses == observed_subprocesses =>
+        {
+            Ok(())
+        }
+        _ => Err(WorldError::Qualification(
+            "measured counters changed during sampling".to_owned(),
+        )),
+    }
+}
+
+fn record_text(value: &Datum, name: &str) -> Result<String, WorldError> {
+    match record_field(value, name)? {
+        Datum::String(text) => Ok(text.clone()),
+        _ => Err(WorldError::Qualification(format!(
+            "proof record {name} is not text"
+        ))),
+    }
+}
+
+fn record_count(value: &Datum, name: &str) -> Result<u64, WorldError> {
+    match record_field(value, name)? {
+        Datum::Number(number) => number
+            .canonical
+            .parse()
+            .map_err(|_| WorldError::Qualification(format!("proof record {name} is not a count"))),
+        _ => Err(WorldError::Qualification(format!(
+            "proof record {name} is not a count"
+        ))),
+    }
+}
+
+fn record_field<'a>(value: &'a Datum, name: &str) -> Result<&'a Datum, WorldError> {
+    let Datum::Node { fields, .. } = value else {
+        return Err(WorldError::Qualification(
+            "proof record is not a node".to_owned(),
+        ));
+    };
+    fields
+        .iter()
+        .find(|(field, _)| field.to_string() == name)
+        .map(|(_, field)| field)
+        .ok_or_else(|| WorldError::Qualification(format!("proof record lacks {name}")))
 }
 
 pub(super) struct BoundFacts {

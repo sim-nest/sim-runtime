@@ -8,7 +8,7 @@
 //! A continuation names that subject and the next page. Any other token is a
 //! stale or missing gap and carries no page.
 
-use std::time::Instant;
+use std::cell::Cell;
 
 use sim_incremental_core::projection::{ConclusionId, Explanation, FactId};
 use sim_kernel::{Datum, Symbol};
@@ -17,7 +17,7 @@ use crate::WorldError;
 use crate::command::render;
 use crate::product::explanation_value;
 use crate::provider::content_id;
-use crate::query::{self, CEILING_MS, SAMPLES, WARMUPS};
+use crate::query;
 #[path = "plan_subject.rs"]
 mod subject;
 
@@ -75,7 +75,7 @@ pub(crate) struct MeasuredPlan {
 /// A token is accepted only when it equals a continuation id recomputed from
 /// this sealed subject. Any other token returns a gap datum.
 pub(crate) fn open(view: View, token: Option<&str>) -> Result<Datum, WorldError> {
-    open_subject(seal()?, view, token)
+    Ok(open_subject(seal()?, view, token)?.0)
 }
 
 /// Returns one view of a caller-supplied admitted plan document.
@@ -88,10 +88,14 @@ pub(crate) fn open_admitted(
     view: View,
     token: Option<&str>,
 ) -> Result<Datum, WorldError> {
-    open_subject(subject::from_document(text)?, view, token)
+    Ok(open_subject(subject::from_document(text)?, view, token)?.0)
 }
 
-fn open_subject(subject: Subject, view: View, token: Option<&str>) -> Result<Datum, WorldError> {
+fn open_subject(
+    subject: Subject,
+    view: View,
+    token: Option<&str>,
+) -> Result<(Datum, query::HostWork), WorldError> {
     let Some(token) = token else {
         return project(view, &subject, 0);
     };
@@ -101,35 +105,28 @@ fn open_subject(subject: Subject, view: View, token: Option<&str>) -> Result<Dat
     }
 }
 
-/// Seals the planning subject once, then times the pure first page.
-pub(crate) fn measure(effects: usize) -> Result<MeasuredPlan, WorldError> {
+/// Times `open` of the first plan page, including its output encoding.
+pub(crate) fn measure() -> Result<MeasuredPlan, WorldError> {
     let subject = seal()?;
-    let expected = render(&project(View::Expression, &subject, 0)?);
-    for _ in 1..WARMUPS {
-        if render(&project(View::Expression, &subject, 0)?) != expected {
-            return Err(WorldError::Qualification(
-                "plan page changed during warmup".to_owned(),
-            ));
-        }
-    }
-    let mut samples = Vec::with_capacity(SAMPLES);
-    for _ in 0..SAMPLES {
-        let started = Instant::now();
-        let rendered = render(&project(View::Expression, &subject, 0)?);
-        let elapsed = started.elapsed();
-        if rendered != expected {
-            return Err(WorldError::Qualification(
-                "plan page changed during sampling".to_owned(),
-            ));
-        }
-        samples.push(elapsed);
-    }
-    samples.sort_unstable();
-    let p95_ms =
-        u64::try_from(samples[query::nearest_rank_p95(SAMPLES)].as_millis()).unwrap_or(u64::MAX);
+    let effects = Cell::new(None);
+    let subprocesses = Cell::new(None);
+    let sampled = query::sample_cached(|| {
+        let (datum, work) = open_subject(seal()?, View::Expression, None)?;
+        work.record(&effects, &subprocesses)?;
+        Ok(render(&datum))
+    })?;
+    let (effects, subprocesses) = query::observed_pair(&effects, &subprocesses)?;
     Ok(MeasuredPlan {
-        record: query::latency_record("plan", subject.records, subject.units, p95_ms, effects),
-        within_ceiling: p95_ms <= CEILING_MS,
+        record: query::latency_record(
+            "plan",
+            subject.records,
+            subject.units,
+            sampled.p95_ms,
+            effects,
+            subprocesses,
+            &sampled.raw_us,
+        ),
+        within_ceiling: sampled.within_ceiling,
     })
 }
 
@@ -215,18 +212,24 @@ fn page_index_for_token(subject: &Subject, token: &str) -> Result<Option<usize>,
     Ok(None)
 }
 
-fn project(view: View, subject: &Subject, index: usize) -> Result<Datum, WorldError> {
+fn project(
+    view: View,
+    subject: &Subject,
+    index: usize,
+) -> Result<(Datum, query::HostWork), WorldError> {
     let slice = explanation_slice(subject, index)?;
     let continuation = if index + 1 < page_count(subject.explanations.len()) {
         Some(continuation_token(subject, index + 1)?)
     } else {
         None
     };
-    Ok(match view {
-        View::Expression => expression(subject, index, slice, continuation.as_deref())?,
-        View::Text => text(subject, index, slice, continuation.as_deref()),
+    let work = observe_subject(subject);
+    let datum = match view {
+        View::Expression => expression(subject, index, slice, continuation.as_deref(), &work)?,
+        View::Text => text(subject, index, slice, continuation.as_deref(), &work),
         View::Card => card(subject, continuation.as_deref()),
-    })
+    };
+    Ok((datum, work))
 }
 
 fn expression(
@@ -234,6 +237,7 @@ fn expression(
     index: usize,
     slice: &[Explained],
     continuation: Option<&str>,
+    work: &query::HostWork,
 ) -> Result<Datum, WorldError> {
     let explanations = slice
         .iter()
@@ -270,14 +274,23 @@ fn expression(
                 Datum::String(continuation.unwrap_or("").to_owned()),
             ),
             (Symbol::new("budget"), budget_datum()),
-            (Symbol::new("effects"), query::count_datum(0)),
-            (Symbol::new("subprocesses"), query::count_datum(0)),
+            (Symbol::new("effects"), query::count_datum(work.effects())),
+            (
+                Symbol::new("subprocesses"),
+                query::count_datum(work.subprocesses()),
+            ),
             (Symbol::new("resident"), Datum::Bool(true)),
         ],
     })
 }
 
-fn text(subject: &Subject, index: usize, slice: &[Explained], continuation: Option<&str>) -> Datum {
+fn text(
+    subject: &Subject,
+    index: usize,
+    slice: &[Explained],
+    continuation: Option<&str>,
+    work: &query::HostWork,
+) -> Datum {
     Datum::Node {
         tag: Symbol::qualified("world", "proof-plan-text-v1"),
         fields: vec![
@@ -305,8 +318,11 @@ fn text(subject: &Subject, index: usize, slice: &[Explained], continuation: Opti
                 Datum::String(continuation.unwrap_or("").to_owned()),
             ),
             (Symbol::new("page"), query::count_datum(usize_count(index))),
-            (Symbol::new("effects"), query::count_datum(0)),
-            (Symbol::new("subprocesses"), query::count_datum(0)),
+            (Symbol::new("effects"), query::count_datum(work.effects())),
+            (
+                Symbol::new("subprocesses"),
+                query::count_datum(work.subprocesses()),
+            ),
             (Symbol::new("resident"), Datum::Bool(true)),
         ],
     }
@@ -335,20 +351,38 @@ fn card(subject: &Subject, continuation: Option<&str>) -> Datum {
     }
 }
 
-fn stale_gap(subject: &Subject) -> Datum {
-    Datum::Node {
-        tag: Symbol::qualified("world", "plan-gap-v1"),
-        fields: vec![
-            (
-                Symbol::new("reason"),
-                Datum::String("stale-or-missing".to_owned()),
-            ),
-            (Symbol::new("world"), Datum::String(subject.world.clone())),
-            (Symbol::new("effects"), query::count_datum(0)),
-            (Symbol::new("subprocesses"), query::count_datum(0)),
-            (Symbol::new("resident"), Datum::Bool(true)),
-        ],
+fn observe_subject(subject: &Subject) -> query::HostWork {
+    let mut work = query::HostWork::default();
+    for _explained in &subject.explanations {
+        work.read();
     }
+    for _leaf in &subject.leaves {
+        work.read();
+    }
+    work
+}
+
+fn stale_gap(subject: &Subject) -> (Datum, query::HostWork) {
+    let work = observe_subject(subject);
+    (
+        Datum::Node {
+            tag: Symbol::qualified("world", "plan-gap-v1"),
+            fields: vec![
+                (
+                    Symbol::new("reason"),
+                    Datum::String("stale-or-missing".to_owned()),
+                ),
+                (Symbol::new("world"), Datum::String(subject.world.clone())),
+                (Symbol::new("effects"), query::count_datum(work.effects())),
+                (
+                    Symbol::new("subprocesses"),
+                    query::count_datum(work.subprocesses()),
+                ),
+                (Symbol::new("resident"), Datum::Bool(true)),
+            ],
+        },
+        work,
+    )
 }
 
 fn budget_datum() -> Datum {

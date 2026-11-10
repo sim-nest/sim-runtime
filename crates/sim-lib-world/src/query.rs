@@ -3,7 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use std::{collections::BTreeSet, time::Instant};
+use std::{cell::Cell, collections::BTreeSet, time::Instant};
 
 use sim_incremental_core::projection::{
     ConclusionId, FactId, FederatedClosure, OwnerProjectionGraph,
@@ -12,7 +12,7 @@ use sim_kernel::{CapabilityName, Datum, Dependency, NumberLiteral, Symbol};
 
 use crate::WorldError;
 use crate::command::render;
-use crate::product::explanation_value;
+use crate::product::WorldProduct;
 
 const RESIDENT_RECORDS: usize = 100_000;
 const RESIDENT_UNITS: usize = 10_000;
@@ -98,48 +98,174 @@ pub(crate) fn read_only_record(
     }
 }
 
-pub(crate) fn measure_why(effects: usize) -> Result<MeasuredWhy, WorldError> {
+pub(crate) fn measure_why() -> Result<MeasuredWhy, WorldError> {
     let snapshot = seal_resident_why()?;
-    let conclusion = ConclusionId::new("conclusion/unit-000000")?;
-    let fact = FactId::new("fact/000000")?;
-    let expected = render_explain(&snapshot.closure, &conclusion, &fact)?;
+    let records = snapshot.records;
+    let units = snapshot.units;
+    let product = WorldProduct::resident(snapshot.closure)?;
+    let effects = Cell::new(None);
+    let subprocesses = Cell::new(None);
+    let sampled = sample_cached(|| {
+        let (datum, work) = product.why_work("conclusion/unit-000000", "fact/000000")?;
+        work.record(&effects, &subprocesses)?;
+        Ok(render(&datum))
+    })?;
+    let (effects, subprocesses) = observed_pair(&effects, &subprocesses)?;
+    Ok(MeasuredWhy {
+        record: latency_record(
+            "why",
+            records,
+            units,
+            sampled.p95_ms,
+            effects,
+            subprocesses,
+            &sampled.raw_us,
+        ),
+        within_ceiling: sampled.within_ceiling,
+    })
+}
+
+/// Host calls one command invocation recorded while it ran.
+///
+/// Effect ids and subprocess identities are calls that invocation made.
+/// `compiler_opened` records whether that same invocation opened a compiler.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct HostWork {
+    effects: Vec<String>,
+    subprocesses: Vec<String>,
+    reads: u64,
+    compiler_opened: bool,
+}
+
+impl HostWork {
+    /// Counts one executor receipt. Absent ids are calls the receipt did not make.
+    pub(crate) fn observe(effect_id: Option<&str>, launcher: Option<&str>) -> Self {
+        let mut work = Self::default();
+        if let Some(id) = effect_id {
+            work.effects.push(id.to_owned());
+        }
+        if let Some(id) = launcher {
+            work.subprocesses.push(id.to_owned());
+        }
+        work
+    }
+
+    pub(crate) fn effects(&self) -> u64 {
+        u64::try_from(self.effects.len()).unwrap_or(u64::MAX)
+    }
+
+    pub(crate) fn subprocesses(&self) -> u64 {
+        u64::try_from(self.subprocesses.len()).unwrap_or(u64::MAX)
+    }
+
+    pub(crate) fn compiler_opened(&self) -> bool {
+        self.compiler_opened
+    }
+
+    /// Records one dependency or member this command read.
+    ///
+    /// A read is not an effect invocation and does not launch a subprocess.
+    pub(crate) fn read(&mut self) {
+        self.reads = self.reads.saturating_add(1);
+    }
+
+    pub(crate) fn reads(&self) -> u64 {
+        self.reads
+    }
+
+    pub(crate) fn record(
+        &self,
+        effects: &Cell<Option<u64>>,
+        subprocesses: &Cell<Option<u64>>,
+    ) -> Result<(), WorldError> {
+        let _reads = self.reads();
+        keep(effects, subprocesses, self.effects(), self.subprocesses())
+    }
+}
+
+pub(crate) fn observed_pair(
+    effects: &Cell<Option<u64>>,
+    subprocesses: &Cell<Option<u64>>,
+) -> Result<(usize, usize), WorldError> {
+    match (effects.get(), subprocesses.get()) {
+        (Some(effects), Some(subprocesses)) => Ok((
+            usize::try_from(effects).unwrap_or(usize::MAX),
+            usize::try_from(subprocesses).unwrap_or(usize::MAX),
+        )),
+        _ => Err(WorldError::Qualification(
+            "measurement recorded no counters".to_owned(),
+        )),
+    }
+}
+
+fn keep(
+    effects: &Cell<Option<u64>>,
+    subprocesses: &Cell<Option<u64>>,
+    observed_effects: u64,
+    observed_subprocesses: u64,
+) -> Result<(), WorldError> {
+    match (effects.get(), subprocesses.get()) {
+        (None, None) => {
+            effects.set(Some(observed_effects));
+            subprocesses.set(Some(observed_subprocesses));
+            Ok(())
+        }
+        (Some(kept_effects), Some(kept_subprocesses))
+            if kept_effects == observed_effects && kept_subprocesses == observed_subprocesses =>
+        {
+            Ok(())
+        }
+        _ => Err(WorldError::Qualification(
+            "measured counters changed during sampling".to_owned(),
+        )),
+    }
+}
+
+/// Times `once` through complete output encoding.
+///
+/// The first `WARMUPS` calls are untimed. The next `SAMPLES` calls are the
+/// nearest-rank measurement. `once` is the public command plus its encoding.
+pub(crate) fn sample_cached(
+    mut once: impl FnMut() -> Result<String, WorldError>,
+) -> Result<Sampled, WorldError> {
+    let expected = once()?;
     for _ in 1..WARMUPS {
-        let rendered = render_explain(&snapshot.closure, &conclusion, &fact)?;
-        if rendered != expected {
+        if once()? != expected {
             return Err(WorldError::Qualification(
-                "resident explanation changed".to_owned(),
+                "cached answer changed during warmup".to_owned(),
             ));
         }
     }
-    let mut samples = Vec::with_capacity(SAMPLES);
+    let mut raw_us = Vec::with_capacity(SAMPLES);
     for _ in 0..SAMPLES {
         let started = Instant::now();
-        let rendered = render_explain(&snapshot.closure, &conclusion, &fact)?;
-        let elapsed = started.elapsed();
+        let rendered = once()?;
+        let elapsed = u64::try_from(started.elapsed().as_micros()).unwrap_or(u64::MAX);
         if rendered != expected {
             return Err(WorldError::Qualification(
-                "resident explanation changed".to_owned(),
+                "cached answer changed during sampling".to_owned(),
             ));
         }
-        samples.push(elapsed);
+        raw_us.push(elapsed);
     }
-    samples.sort_unstable();
-    let p95_ms = u64::try_from(samples[nearest_rank_p95(SAMPLES)].as_millis()).unwrap_or(u64::MAX);
-    Ok(MeasuredWhy {
-        record: latency_record("why", snapshot.records, snapshot.units, p95_ms, effects),
+    let mut ordered = raw_us.clone();
+    ordered.sort_unstable();
+    let p95_us = ordered[nearest_rank_p95(SAMPLES)];
+    let p95_ms = p95_us / 1_000;
+    Ok(Sampled {
+        p95_ms,
+        raw_us,
         within_ceiling: p95_ms <= CEILING_MS,
     })
 }
 
-fn render_explain(
-    closure: &FederatedClosure,
-    conclusion: &ConclusionId,
-    fact: &FactId,
-) -> Result<String, WorldError> {
-    let explanation = closure
-        .explain(conclusion, fact)
-        .map_err(|error| WorldError::Qualification(error.to_string()))?;
-    Ok(render(&explanation_value(explanation)))
+pub(crate) struct Sampled {
+    /// Nearest-rank p95 in whole milliseconds.
+    pub(crate) p95_ms: u64,
+    /// Sample durations in microseconds, in call order.
+    pub(crate) raw_us: Vec<u64>,
+    /// Whether `p95_ms` is within the cached-query ceiling.
+    pub(crate) within_ceiling: bool,
 }
 
 pub(crate) fn latency_record(
@@ -148,6 +274,8 @@ pub(crate) fn latency_record(
     units: usize,
     p95_ms: u64,
     effects: usize,
+    subprocesses: usize,
+    raw_us: &[u64],
 ) -> Datum {
     Datum::Node {
         tag: Symbol::qualified("world", "query-latency-v1"),
@@ -158,8 +286,15 @@ pub(crate) fn latency_record(
             (Symbol::new("warmups"), count_datum(usize_count(WARMUPS))),
             (Symbol::new("samples"), count_datum(usize_count(SAMPLES))),
             (Symbol::new("p95-ms"), count_datum(p95_ms)),
+            (
+                Symbol::new("raw-us"),
+                Datum::Vector(raw_us.iter().copied().map(count_datum).collect()),
+            ),
             (Symbol::new("effects"), count_datum(usize_count(effects))),
-            (Symbol::new("subprocesses"), count_datum(0)),
+            (
+                Symbol::new("subprocesses"),
+                count_datum(usize_count(subprocesses)),
+            ),
             (Symbol::new("resident"), Datum::Bool(true)),
         ],
     }
@@ -176,4 +311,26 @@ fn dependency_datum(dependency: &Dependency) -> Datum {
         text.push_str(&version.0);
     }
     Datum::String(text)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::HostWork;
+
+    #[test]
+    fn recorded_host_calls_are_counted() {
+        let quiet = HostWork::observe(None, None);
+        assert_eq!(quiet.effects(), 0);
+        assert_eq!(quiet.subprocesses(), 0);
+        assert!(!quiet.compiler_opened());
+        let work = HostWork::observe(Some("effect/read"), Some("launcher/read"));
+        assert_eq!(work.effects(), 1);
+        assert_eq!(work.subprocesses(), 1);
+        assert!(!work.compiler_opened());
+        let mut walked = HostWork::default();
+        walked.read();
+        assert_eq!(walked.effects(), 0);
+        assert_eq!(walked.subprocesses(), 0);
+        assert!(!walked.compiler_opened());
+    }
 }

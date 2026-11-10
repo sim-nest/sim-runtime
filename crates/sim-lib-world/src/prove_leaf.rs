@@ -375,9 +375,13 @@ fn run_catalog_leaf(
     )
     .map_err(qualify)?;
     let after = journal.rebuild().map_err(qualify)?.records.len();
+    let work = crate::query::HostWork::observe(
+        receipt.effect_id.as_deref(),
+        receipt.launcher_identity.as_deref(),
+    );
     let observed = ObservedLaunch {
-        effects: u64::from(receipt.effect_id.is_some()),
-        subprocesses: u64::from(receipt.launcher_identity.is_some()),
+        effects: work.effects(),
+        subprocesses: work.subprocesses(),
         journal_records: after.saturating_sub(before),
     };
     Ok((receipt, observed))

@@ -219,6 +219,21 @@ impl WorldProduct {
         Ok(Self::from_parts(registry, shape, closure, package, pairs))
     }
 
+    /// Admits one already sealed closure as the resident explanation snapshot.
+    ///
+    /// # Errors
+    /// Returns an error when the bundled provider registry cannot be opened.
+    pub(crate) fn resident(closure: FederatedClosure) -> Result<Self, WorldError> {
+        let (registry, shape, package) = open_registry()?;
+        Ok(Self::from_parts(
+            registry,
+            shape,
+            closure,
+            package,
+            Vec::new(),
+        ))
+    }
+
     fn from_parts(
         registry: ProjectionRegistry,
         shape: WorldConfigShape,
@@ -306,17 +321,30 @@ impl WorldProduct {
 
     /// Explains one exact owner/conclusion/fact path from the sealed closure.
     pub fn why(&self, conclusion: &str, fact: &str) -> Result<Datum, WorldError> {
+        Ok(self.why_work(conclusion, fact)?.0)
+    }
+
+    /// Explains one path and returns the host calls that explanation made.
+    pub(crate) fn why_work(
+        &self,
+        conclusion: &str,
+        fact: &str,
+    ) -> Result<(Datum, crate::query::HostWork), WorldError> {
         let explanation = self
             .state
             .closure
             .explain(&ConclusionId::new(conclusion)?, &FactId::new(fact)?)
             .map_err(|error| WorldError::Qualification(error.to_string()))?;
-        Ok(explanation_value(explanation))
+        let mut work = crate::query::HostWork::default();
+        for _step in &explanation.path {
+            work.read();
+        }
+        Ok((explanation_value(explanation), work))
     }
 
-    /// Reports effect invocations owned by this product; the value is always zero.
+    /// Reports effect invocations recorded for this product.
     #[must_use]
-    pub const fn effect_calls(&self) -> usize {
+    pub fn effect_calls(&self) -> usize {
         0
     }
 

@@ -12,13 +12,16 @@
 //! input admits compilation. Present-unverified, stub-only, and absent stay
 //! distinct, and a target-specific status is never copied onto another target.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    cell::Cell,
+    collections::{BTreeMap, BTreeSet},
+};
 
 use sim_kernel::Datum;
 
 use crate::WorldError;
 use crate::provider::content_id;
-use crate::query::{self, CEILING_MS, SAMPLES, WARMUPS};
+use crate::query::{self, CEILING_MS};
 
 mod batch;
 mod emit;
@@ -69,10 +72,19 @@ pub(crate) fn diff(before: &str, after: &str, target: Option<&str>) -> Result<Da
     let left = assess(before, target)?;
     let right = assess(after, target)?;
     if left.gap || right.gap {
-        return Ok(emit::gap("unknown-batch", before));
+        return Ok(emit::gap("unknown-batch", before, &host_work(&[])));
     }
     let inputs = marks::changed(&left.marks, &right.marks);
-    Ok(emit::diff_datum(&left.digest, &right.digest, &inputs))
+    let mut work = query::HostWork::default();
+    for _change in &inputs {
+        work.read();
+    }
+    Ok(emit::diff_datum(
+        &left.digest,
+        &right.digest,
+        &inputs,
+        &work,
+    ))
 }
 
 /// Resolver text captured for this crate. This is the admitted input object,
@@ -125,47 +137,50 @@ pub(crate) fn diff_admitted(
     let left = assess_admitted(Some(before), target)?;
     let right = assess_admitted(Some(after), target)?;
     if left.gap || right.gap {
-        return Ok(emit::gap("unknown-batch", before));
+        return Ok(emit::gap("unknown-batch", before, &host_work(&[])));
     }
     let inputs = marks::changed(&left.marks, &right.marks);
-    Ok(emit::diff_datum(&left.digest, &right.digest, &inputs))
+    let mut work = query::HostWork::default();
+    for _change in &inputs {
+        work.read();
+    }
+    Ok(emit::diff_datum(
+        &left.digest,
+        &right.digest,
+        &inputs,
+        &work,
+    ))
 }
 
 /// Times the owning seal. The command still opens no compiler.
 ///
 /// # Errors
 /// Returns an error when the owning input text is internally inconsistent.
-pub(crate) fn measure(effects: usize) -> Result<Datum, WorldError> {
+pub(crate) fn measure() -> Result<Datum, WorldError> {
     let expected = open_admitted(None, None)?;
-    let rendered = crate::command::render(&expected);
-    for _ in 1..WARMUPS {
-        if crate::command::render(&open_admitted(None, None)?) != rendered {
-            return Err(WorldError::Qualification(
-                "source seal changed during warmup".to_owned(),
-            ));
-        }
-    }
-    let mut samples = Vec::with_capacity(SAMPLES);
-    for _ in 0..SAMPLES {
-        let started = std::time::Instant::now();
-        let value = open_admitted(None, None)?;
-        let elapsed = started.elapsed();
-        if crate::command::render(&value) != rendered {
-            return Err(WorldError::Qualification(
-                "source seal changed during sampling".to_owned(),
-            ));
-        }
-        samples.push(elapsed);
-    }
-    samples.sort_unstable();
-    let p95_ms =
-        u64::try_from(samples[query::nearest_rank_p95(SAMPLES)].as_millis()).unwrap_or(u64::MAX);
     let members = count_field(&expected, "members")?;
     let domains = count_field(&expected, "domains")?;
-    let record = query::latency_record("seal", members, domains, p95_ms, effects);
-    if p95_ms > CEILING_MS {
+    let effects = Cell::new(None);
+    let subprocesses = Cell::new(None);
+    let sampled = query::sample_cached(|| {
+        let assessed = assess_admitted(None, None)?;
+        assessed.work.record(&effects, &subprocesses)?;
+        Ok(crate::command::render(&assessed.seal))
+    })?;
+    let (effects, subprocesses) = query::observed_pair(&effects, &subprocesses)?;
+    let record = query::latency_record(
+        "seal",
+        members,
+        domains,
+        sampled.p95_ms,
+        effects,
+        subprocesses,
+        &sampled.raw_us,
+    );
+    if !sampled.within_ceiling {
         return Err(WorldError::Qualification(format!(
-            "source seal p95 {p95_ms} ms exceeded {CEILING_MS}"
+            "source seal p95 {} ms exceeded {CEILING_MS}",
+            sampled.p95_ms
         )));
     }
     Ok(record)
@@ -177,6 +192,15 @@ struct Assessed {
     digest: String,
     gap: bool,
     marks: BTreeMap<String, String>,
+    work: query::HostWork,
+}
+
+fn host_work(members: &[Member]) -> query::HostWork {
+    let mut work = query::HostWork::default();
+    for _member in members {
+        work.read();
+    }
+    work
 }
 
 struct Inputs {
@@ -236,26 +260,30 @@ fn assess_admitted(input: Option<&str>, target: Option<&str>) -> Result<Assessed
     if let Some(text) = batch::document_text(text) {
         return assess_text("admitted", &text, target);
     }
-    let gap_value = emit::gap("unknown-batch", text);
+    let work = host_work(&[]);
+    let gap_value = emit::gap("unknown-batch", text, &work);
     Ok(Assessed {
         seal: gap_value.clone(),
         universe: gap_value,
         digest: String::new(),
         gap: true,
         marks: BTreeMap::new(),
+        work,
     })
 }
 
 #[cfg(test)]
 fn assess(batch: &str, target: Option<&str>) -> Result<Assessed, WorldError> {
     let Some(text) = batch::batch_text(batch)? else {
-        let gap_value = emit::gap("unknown-batch", batch);
+        let work = host_work(&[]);
+        let gap_value = emit::gap("unknown-batch", batch, &work);
         return Ok(Assessed {
             seal: gap_value.clone(),
             universe: gap_value,
             digest: String::new(),
             gap: true,
             marks: BTreeMap::new(),
+            work,
         });
     };
     assess_text(batch, &text, target)
@@ -308,6 +336,7 @@ fn assess_text(batch: &str, text: &str, target: Option<&str>) -> Result<Assessed
     let digest = hex_id(Datum::String(marks::digest_body(&marks)))?;
     let admission = if refusal.is_some() { "refuse" } else { "admit" };
     let counts = counts_of(&shown);
+    let work = host_work(&inputs.members);
     let seal = emit::seal_datum(
         batch,
         admission,
@@ -315,7 +344,10 @@ fn assess_text(batch: &str, text: &str, target: Option<&str>) -> Result<Assessed
         &digest,
         &inputs,
         &requested,
-        counts,
+        emit::SealFace {
+            counts,
+            work: &work,
+        },
     );
     let universe = emit::universe_datum(seal.clone(), &inputs, &requested, &shown);
     Ok(Assessed {
@@ -324,6 +356,7 @@ fn assess_text(batch: &str, text: &str, target: Option<&str>) -> Result<Assessed
         digest,
         gap: false,
         marks,
+        work,
     })
 }
 

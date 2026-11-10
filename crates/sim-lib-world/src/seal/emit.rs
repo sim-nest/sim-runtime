@@ -11,6 +11,11 @@ use super::marks::Change;
 use super::{Domain, Generated, Inputs, Member, Shown};
 use crate::query;
 
+pub(super) struct SealFace<'a> {
+    pub(super) counts: [usize; 4],
+    pub(super) work: &'a query::HostWork,
+}
+
 pub(super) fn seal_datum(
     batch: &str,
     admission: &str,
@@ -18,15 +23,19 @@ pub(super) fn seal_datum(
     digest: &str,
     inputs: &Inputs,
     requested: &str,
-    counts: [usize; 4],
+    face: SealFace<'_>,
 ) -> Datum {
+    let SealFace { counts, work } = face;
     let mut fields = vec![
         (
             Symbol::new("admission"),
             Datum::String(admission.to_owned()),
         ),
         (Symbol::new("batch"), Datum::String(batch.to_owned())),
-        (Symbol::new("compiler-opened"), Datum::Bool(false)),
+        (
+            Symbol::new("compiler-opened"),
+            Datum::Bool(work.compiler_opened()),
+        ),
         (
             Symbol::new("config"),
             Datum::String(format!(
@@ -44,7 +53,7 @@ pub(super) fn seal_datum(
             Symbol::new("domains"),
             query::count_datum(usize_count(inputs.domains.len())),
         ),
-        (Symbol::new("effects"), query::count_datum(0)),
+        (Symbol::new("effects"), query::count_datum(work.effects())),
         (
             Symbol::new("features"),
             query::count_datum(usize_count(inputs.features.len())),
@@ -66,7 +75,10 @@ pub(super) fn seal_datum(
             Symbol::new("sealed-target"),
             Datum::String(inputs.sealed_target.clone()),
         ),
-        (Symbol::new("subprocesses"), query::count_datum(0)),
+        (
+            Symbol::new("subprocesses"),
+            query::count_datum(work.subprocesses()),
+        ),
         (Symbol::new("target"), Datum::String(requested.to_owned())),
         (
             Symbol::new("toolchain"),
@@ -219,7 +231,12 @@ fn generated_datum(generated: &Generated) -> Datum {
     }
 }
 
-pub(super) fn diff_datum(before: &str, after: &str, inputs: &[Change]) -> Datum {
+pub(super) fn diff_datum(
+    before: &str,
+    after: &str,
+    inputs: &[Change],
+    work: &query::HostWork,
+) -> Datum {
     Datum::Node {
         tag: Symbol::qualified("world", "source-seal-diff-v1"),
         fields: vec![
@@ -229,14 +246,20 @@ pub(super) fn diff_datum(before: &str, after: &str, inputs: &[Change]) -> Datum 
                 Datum::String(before.to_owned()),
             ),
             (Symbol::new("changed"), Datum::Bool(before != after)),
-            (Symbol::new("compiler-opened"), Datum::Bool(false)),
-            (Symbol::new("effects"), query::count_datum(0)),
+            (
+                Symbol::new("compiler-opened"),
+                Datum::Bool(work.compiler_opened()),
+            ),
+            (Symbol::new("effects"), query::count_datum(work.effects())),
             (
                 Symbol::new("inputs"),
                 Datum::Vector(inputs.iter().map(change_datum).collect()),
             ),
             (Symbol::new("resident"), Datum::Bool(true)),
-            (Symbol::new("subprocesses"), query::count_datum(0)),
+            (
+                Symbol::new("subprocesses"),
+                query::count_datum(work.subprocesses()),
+            ),
         ],
     }
 }
@@ -257,16 +280,22 @@ fn change_datum(change: &Change) -> Datum {
     }
 }
 
-pub(super) fn gap(reason: &str, batch: &str) -> Datum {
+pub(super) fn gap(reason: &str, batch: &str, work: &query::HostWork) -> Datum {
     Datum::Node {
         tag: Symbol::qualified("world", "source-gap-v1"),
         fields: vec![
             (Symbol::new("batch"), Datum::String(batch.to_owned())),
-            (Symbol::new("compiler-opened"), Datum::Bool(false)),
-            (Symbol::new("effects"), query::count_datum(0)),
+            (
+                Symbol::new("compiler-opened"),
+                Datum::Bool(work.compiler_opened()),
+            ),
+            (Symbol::new("effects"), query::count_datum(work.effects())),
             (Symbol::new("reason"), Datum::String(reason.to_owned())),
             (Symbol::new("resident"), Datum::Bool(true)),
-            (Symbol::new("subprocesses"), query::count_datum(0)),
+            (
+                Symbol::new("subprocesses"),
+                query::count_datum(work.subprocesses()),
+            ),
         ],
     }
 }
