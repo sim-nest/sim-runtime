@@ -9,6 +9,8 @@
 //! before any further performance. The performer counter lives outside the
 //! performer.
 
+#[cfg(test)]
+use std::cell::Cell;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 
@@ -198,6 +200,16 @@ impl PostconditionObserver for Watch {
     }
 }
 
+#[cfg(test)]
+thread_local! {
+    static QUALIFY_CALLS: Cell<usize> = const { Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(super) fn qualify_calls() -> usize {
+    QUALIFY_CALLS.with(Cell::get)
+}
+
 pub(super) fn qualify(
     realization: &str,
     selector: &str,
@@ -205,6 +217,8 @@ pub(super) fn qualify(
     reason: &str,
     reading: &Reading,
 ) -> Result<Option<Qualified>, WorldError> {
+    #[cfg(test)]
+    QUALIFY_CALLS.with(|cell| cell.set(cell.get().saturating_add(1)));
     if super::private_input(
         realization,
         selector,

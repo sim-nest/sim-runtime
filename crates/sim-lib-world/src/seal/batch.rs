@@ -5,10 +5,12 @@
 
 //! Sealed input text for the owning workspace and the model batches.
 
+#[cfg(test)]
 use crate::WorldError;
 
 const OWNING: &str = include_str!(concat!(env!("OUT_DIR"), "/owning-inputs.txt"));
 
+#[cfg(test)]
 const MISSING: &str = "\
 sim-world-inputs-v1
 config lock 4
@@ -23,6 +25,7 @@ alias resolver/demo .
 member resolver/demo registry demo-crate 1.0.0 registry+https://github.com/rust-lang/crates.io-index - none closure
 ";
 
+#[cfg(test)]
 const CORRUPT: &str = "\
 sim-world-inputs-v1
 config lock 4
@@ -37,6 +40,7 @@ alias resolver/demo .
 member resolver/demo registry demo-crate 1.0.0 registry+https://github.com/rust-lang/crates.io-index aaaa corrupt bbbb closure
 ";
 
+#[cfg(test)]
 const STUB: &str = "\
 sim-world-inputs-v1
 config lock 4
@@ -51,6 +55,7 @@ alias resolver/demo .
 member resolver/demo stub demo-crate 1.0.0 stub+metadata metadata-only none closure
 ";
 
+#[cfg(test)]
 const ABSENT: &str = "\
 sim-world-inputs-v1
 config lock 4
@@ -65,6 +70,7 @@ alias resolver/demo .
 member resolver/demo absent demo-crate 1.0.0 absent - none closure
 ";
 
+#[cfg(test)]
 const WRONG_TARGET: &str = "\
 sim-world-inputs-v1
 config lock 4
@@ -79,6 +85,7 @@ alias resolver/demo .
 member resolver/demo registry demo-crate 1.0.0 registry+https://github.com/rust-lang/crates.io-index abcdef0123456789 registry closure
 ";
 
+#[cfg(test)]
 const NESTED: &str = "\
 sim-world-inputs-v1
 config lock 4
@@ -96,6 +103,7 @@ member resolver/parent path parent 0.1.0 crates/parent abcdef path-content closu
 member resolver/parent/vendor/other registry other 1.0.0 registry+https://github.com/rust-lang/crates.io-index - none closure
 ";
 
+#[cfg(test)]
 const GIT_MISSING: &str = "\
 sim-world-inputs-v1
 config lock 4
@@ -110,6 +118,7 @@ alias resolver/demo .
 member resolver/demo git demo-crate 1.0.0 git+https://github.com/example/demo - none closure
 ";
 
+#[cfg(test)]
 const VERSION_MISMATCH: &str = "\
 sim-world-inputs-v1
 config lock 4
@@ -127,6 +136,7 @@ deps resolver/demo demo-crate 1.0.0 crates/demo
 deps resolver/demo stale-crate 0.1.0 crates/stale
 ";
 
+#[cfg(test)]
 const ALIAS: &str = "\
 sim-world-inputs-v1
 config lock 4
@@ -169,7 +179,30 @@ pub(super) fn is_local_batch(name: &str) -> bool {
     LOCAL_BATCHES.contains(&name)
 }
 
+pub(super) fn captured() -> &'static str {
+    OWNING
+}
+
+pub(super) fn document_text(input: &str) -> Option<String> {
+    if input.starts_with("sim-world-inputs-v1") {
+        Some(input.to_owned())
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
 pub(super) fn batch_text(name: &str) -> Result<Option<String>, WorldError> {
+    if let Some(text) = document_text(name) {
+        return Ok(Some(text));
+    }
+    // Named examples stay available to this crate's tests. The loaded
+    // command calls `document_text` and never this table.
+    named_example(name)
+}
+
+#[cfg(test)]
+fn named_example(name: &str) -> Result<Option<String>, WorldError> {
     if let Some(text) = crate::fixture::seal_text(name) {
         return Ok(Some(text.to_owned()));
     }
@@ -204,6 +237,7 @@ pub(super) fn batch_text(name: &str) -> Result<Option<String>, WorldError> {
     Ok(Some(text))
 }
 
+#[cfg(test)]
 fn precise(edit: &str) -> String {
     let release = if edit == "toolchain" {
         "1.0.1"
@@ -251,6 +285,7 @@ generated resolver/demo src/generated.rs 4 {generated}
     )
 }
 
+#[cfg(test)]
 fn changed_owning() -> Result<String, WorldError> {
     let mut flipped = false;
     let mut lines = Vec::new();
@@ -270,6 +305,7 @@ fn changed_owning() -> Result<String, WorldError> {
     Ok(lines.join("\n"))
 }
 
+#[cfg(test)]
 fn flip_registry_checksum(line: &str) -> Option<String> {
     let parts: Vec<&str> = line.split(' ').collect();
     if parts.first() != Some(&"member")

@@ -15,6 +15,7 @@ use crate::deliver;
 use crate::grant::{self, ModelDomainGrant};
 use crate::observe;
 use crate::plan::{self, View};
+use crate::product::Declaration;
 use crate::query;
 use crate::release;
 use crate::seal;
@@ -67,6 +68,23 @@ impl WorldCommandLib {
         require_load_field("artifact", &load.artifact)?;
         Ok(Self {
             product: WorldProduct::bundled()?,
+            load: Some(load),
+        })
+    }
+
+    /// Loads caller declarations and records `load` on the same command path.
+    ///
+    /// # Errors
+    /// Returns an error when `load` omits a field or a declaration is rejected.
+    pub fn declared(
+        load: ModelDomainLoad,
+        declarations: Vec<Declaration>,
+    ) -> std::result::Result<Self, crate::WorldError> {
+        require_load_field("provider", &load.provider)?;
+        require_load_field("loader", &load.loader)?;
+        require_load_field("artifact", &load.artifact)?;
+        Ok(Self {
+            product: WorldProduct::declared(declarations)?,
             load: Some(load),
         })
     }
@@ -191,12 +209,14 @@ impl WorldEntrypoint {
             Some("universe") => self.seal_command(&argv[2..], true),
             Some("seal-diff") => self.seal_diff_command(&argv[2..]),
             Some("assay") if argv.len() == 2 => self.assay_outcome(),
-            Some("snapshot") if argv.len() == 4 => observe::snapshot(&argv[2], &argv[3])
+            Some("snapshot") if argv.len() == 4 => observe::snapshot_document(&argv[2], &argv[3])
                 .map(Outcome::Value)
                 .map_err(eval_error),
-            Some("snapshot-diff") if argv.len() == 5 => observe::diff(&argv[2], &argv[3], &argv[4])
-                .map(Outcome::Value)
-                .map_err(eval_error),
+            Some("snapshot-diff") if argv.len() == 5 => {
+                observe::diff_documents(&argv[2], &argv[3], &argv[4])
+                    .map(Outcome::Value)
+                    .map_err(eval_error)
+            }
             Some("service") if argv.len() == 4 => service::snapshot(&argv[2], &argv[3])
                 .map(Outcome::Value)
                 .map_err(eval_error),
@@ -228,12 +248,16 @@ impl WorldEntrypoint {
             Some("deliver") if argv.len() == 5 => deliver::one(&argv[2], &argv[3], &argv[4])
                 .map(Outcome::Value)
                 .map_err(eval_error),
-            Some("deliver-status") if argv.len() == 3 => deliver::status(&argv[2])
-                .map(Outcome::Value)
-                .map_err(eval_error),
-            Some("deliver-why") if argv.len() == 4 => deliver::why(&argv[2], &argv[3])
-                .map(Outcome::Value)
-                .map_err(eval_error),
+            Some("deliver-status") if matches!(argv.len(), 3 | 4) => {
+                deliver::status(&argv[2], argv.get(3).map(String::as_str))
+                    .map(Outcome::Value)
+                    .map_err(eval_error)
+            }
+            Some("deliver-why") if matches!(argv.len(), 4 | 5) => {
+                deliver::why(&argv[2], &argv[3], argv.get(4).map(String::as_str))
+                    .map(Outcome::Value)
+                    .map_err(eval_error)
+            }
             Some("canary") if argv.len() == 6 => {
                 canary::run(&argv[2], &argv[3], &argv[4], &argv[5], "issued")
                     .map(Outcome::Value)
@@ -270,7 +294,7 @@ impl WorldEntrypoint {
     }
 
     fn measure_outcome(&self) -> Result<Outcome> {
-        let measured = query::measure_why(self.product.effect_calls()).map_err(eval_error)?;
+        let measured = query::measure_why().map_err(eval_error)?;
         if measured.within_ceiling {
             Ok(Outcome::Value(measured.record))
         } else {
@@ -282,16 +306,14 @@ impl WorldEntrypoint {
     }
 
     fn measure_seal_outcome(&self) -> Result<Outcome> {
-        seal::measure(self.product.effect_calls())
-            .map(Outcome::Value)
-            .map_err(eval_error)
+        seal::measure().map(Outcome::Value).map_err(eval_error)
     }
 
     fn seal_command(&self, args: &[String], universe: bool) -> Result<Outcome> {
         let parsed = match args {
-            [] => Some(("owning", None)),
-            [batch] => Some((batch.as_str(), None)),
-            [batch, target] => Some((batch.as_str(), Some(target.as_str()))),
+            [] => Some((None, None)),
+            [batch] => Some((Some(batch.as_str()), None)),
+            [batch, target] => Some((Some(batch.as_str()), Some(target.as_str()))),
             _ => None,
         };
         let Some((batch, target)) = parsed else {
@@ -301,9 +323,9 @@ impl WorldEntrypoint {
             });
         };
         let value = if universe {
-            seal::universe(batch, target)
+            seal::universe_admitted(batch, target)
         } else {
-            seal::open(batch, target)
+            seal::open_admitted(batch, target)
         };
         value.map(Outcome::Value).map_err(eval_error)
     }
@@ -322,13 +344,13 @@ impl WorldEntrypoint {
                 reason: "usage".to_owned(),
             });
         };
-        seal::diff(before, after, target)
+        seal::diff_admitted(before, after, target)
             .map(Outcome::Value)
             .map_err(eval_error)
     }
 
     fn measure_plan_outcome(&self) -> Result<Outcome> {
-        let measured = plan::measure(self.product.effect_calls()).map_err(eval_error)?;
+        let measured = plan::measure().map_err(eval_error)?;
         if measured.within_ceiling {
             Ok(Outcome::Value(measured.record))
         } else {
@@ -340,24 +362,38 @@ impl WorldEntrypoint {
     }
 
     fn plan_outcome(&self, args: &[String]) -> Result<Outcome> {
+        let admitted = |text: &str| text.starts_with("sim-world-plan-v1");
         let parsed = match args {
-            [] => Some((View::Expression, None)),
-            [view] if view == "text" => Some((View::Text, None)),
-            [view] if view == "card" => Some((View::Card, None)),
-            [view, token] if view == "text" => Some((View::Text, Some(token.as_str()))),
-            [view, token] if view == "card" => Some((View::Card, Some(token.as_str()))),
-            [token] => Some((View::Expression, Some(token.as_str()))),
+            [] => Some((View::Expression, None, None)),
+            [text] if admitted(text) => Some((View::Expression, None, Some(text.as_str()))),
+            [view] if view == "text" => Some((View::Text, None, None)),
+            [view] if view == "card" => Some((View::Card, None, None)),
+            [view, text] if view == "text" && admitted(text) => {
+                Some((View::Text, None, Some(text.as_str())))
+            }
+            [view, text] if view == "card" && admitted(text) => {
+                Some((View::Card, None, Some(text.as_str())))
+            }
+            [view, token] if view == "text" => Some((View::Text, Some(token.as_str()), None)),
+            [view, token] if view == "card" => Some((View::Card, Some(token.as_str()), None)),
+            [text, token] if admitted(text) => {
+                Some((View::Expression, Some(token.as_str()), Some(text.as_str())))
+            }
+            [token] => Some((View::Expression, Some(token.as_str()), None)),
             _ => None,
         };
-        let Some((view, token)) = parsed else {
+        let Some((view, token, text)) = parsed else {
             return Ok(Outcome::Refused {
                 call: "usage".to_owned(),
                 reason: "usage".to_owned(),
             });
         };
-        plan::open(view, token)
-            .map(Outcome::Value)
-            .map_err(eval_error)
+        let opened = if let Some(text) = text {
+            plan::open_admitted(text, view, token)
+        } else {
+            plan::open(view, token)
+        };
+        opened.map(Outcome::Value).map_err(eval_error)
     }
 
     fn assay_outcome(&self) -> Result<Outcome> {
@@ -411,7 +447,7 @@ impl WorldEntrypoint {
     }
 }
 
-const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | measure plan | measure seal | assay | plan [text|card] [CONTINUATION] | snapshot BATCH SELECTOR | snapshot-diff BEFORE AFTER SELECTOR | service REALIZATION SELECTOR | service-plan REALIZATION [SELECTOR DESIRED] | release-plan REALIZATION [SELECTOR DESIRED] | release-status REALIZATION | release-why REALIZATION SELECTOR | deliver REALIZATION [SELECTOR DESIRED] | deliver-status REALIZATION | deliver-why REALIZATION SELECTOR | canary REALIZATION SOURCE DESTINATION PURPOSE [issued|spent] | succeed EXPORT CHANGE | seal [BATCH [TARGET]] | universe [BATCH [TARGET]] | seal-diff BEFORE AFTER [TARGET]";
+const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | measure plan | measure seal | assay | plan [text|card] [CONTINUATION] | snapshot DOCUMENT SELECTOR | snapshot-diff BEFORE AFTER SELECTOR | service REALIZATION SELECTOR | service-plan REALIZATION [SELECTOR DESIRED] | release-plan REALIZATION [SELECTOR DESIRED] | release-status REALIZATION | release-why REALIZATION SELECTOR | deliver REALIZATION [SELECTOR DESIRED] | deliver-status REALIZATION [VIEW] | deliver-why REALIZATION SELECTOR [VIEW] | canary REALIZATION SOURCE DESTINATION PURPOSE [issued|spent] | succeed EXPORT CHANGE | seal [DOCUMENT [TARGET]] | universe [DOCUMENT [TARGET]] | seal-diff BEFORE AFTER [TARGET]";
 
 fn refusal(call: &str, reason: &str) -> Datum {
     Datum::Node {
@@ -602,7 +638,10 @@ pub(crate) fn render(value: &Datum) -> String {
         Datum::Nil => "nil".to_owned(),
         Datum::Bool(value) => value.to_string(),
         Datum::Number(value) => value.canonical.clone(),
-        Datum::String(value) => format!("\"{}\"", value.replace('"', "\\\"")),
+        Datum::String(value) => {
+            let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
+            format!("\"{escaped}\"")
+        }
         Datum::Symbol(value) => value.to_string(),
         Datum::Vector(values) => format!(
             "[{}]",
@@ -621,5 +660,33 @@ pub(crate) fn render(value: &Datum) -> String {
             format!("#({tag} {fields})")
         }
         other => format!("{other:?}"),
+    }
+}
+
+#[cfg(test)]
+#[doc = "Runs one shipped argument list through the loaded entrypoint."]
+pub(crate) use argv_dispatch::dispatch_argv;
+
+#[cfg(test)]
+mod argv_dispatch {
+    use super::*;
+
+    /// Runs one shipped `sim world` argument list through the loaded entrypoint.
+    ///
+    /// # Errors
+    /// Returns the entrypoint refusal or evaluation error.
+    pub(crate) fn dispatch_argv(
+        lib: &WorldCommandLib,
+        argv: &[String],
+    ) -> std::result::Result<Datum, String> {
+        let entry = WorldEntrypoint {
+            product: lib.product.clone(),
+            load: lib.load.clone(),
+        };
+        match entry.dispatch(argv).map_err(|error| error.to_string())? {
+            Outcome::Value(value) => Ok(value),
+            Outcome::Refused { call, reason } => Err(format!("refused {call}: {reason}")),
+            Outcome::OverCeiling { command, .. } => Err(format!("over ceiling: {command}")),
+        }
     }
 }

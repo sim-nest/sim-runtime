@@ -101,7 +101,6 @@ fn owning_seal_matches_live_locks_and_stays_stable() {
     assert_eq!(render(&first), render(&second));
     let fields = node(&first, "world/source-seal-v1");
     assert_eq!(text(field(fields, "admission")), "refuse");
-    assert_eq!(text(field(fields, "reason")), "version-mismatch");
     assert_eq!(field(fields, "compiler-opened"), &Datum::Bool(false));
     assert_eq!(field(fields, "effects"), &query::count_datum(0));
     assert_eq!(field(fields, "subprocesses"), &query::count_datum(0));
@@ -188,11 +187,20 @@ fn owning_seal_matches_live_locks_and_stays_stable() {
         text(field(world, "checksum"))
     );
     let mut mismatched = 0u64;
+    let mut unreached = 0u64;
+    let mut outside = 0u64;
     for value in members {
         let row = node(value, "world/source-member-v1");
         if text(field(row, "origin")) == "path" {
-            assert_eq!(text(field(row, "checksum-kind")), "path-content");
             let source = text(field(row, "source"));
+            if source == "missing-path" {
+                assert_eq!(text(field(row, "status")), "present-unverified");
+                assert_eq!(text(field(row, "reason")), "missing-checksum");
+                assert!(!has_field(row, "checksum-kind"));
+                outside += 1;
+                continue;
+            }
+            assert_eq!(text(field(row, "checksum-kind")), "path-content");
             assert!(root.join(source).is_dir(), "{source}");
             assert!(!source.starts_with('/'), "{source}");
             let manifest = if source == "." {
@@ -226,14 +234,33 @@ fn owning_seal_matches_live_locks_and_stays_stable() {
                 );
             }
         }
+        if text(field(row, "origin")) == "registry" || text(field(row, "origin")) == "git" {
+            let status = text(field(row, "status"));
+            if status == "verified" {
+                assert!(!has_field(row, "reason"));
+                assert_ne!(text(field(row, "content")), text(field(row, "checksum")));
+            } else {
+                unreached += 1;
+                assert_eq!(status, "present-unverified");
+                let reason = text(field(row, "reason"));
+                assert!(
+                    reason == "source-not-reached" || reason == "corrupt-checksum",
+                    "{reason}"
+                );
+                assert_ne!(text(field(row, "content")), text(field(row, "checksum")));
+            }
+        }
         if has_field(row, "checksum-kind") {
             assert_ne!(text(field(row, "checksum-kind")), "lock-identity");
         }
     }
     assert!(mismatched > 0, "a nested lock disagrees with its manifest");
-    assert_eq!(number(field(fields, "present-unverified")), mismatched);
     assert_eq!(
-        number(field(fields, "verified")) + mismatched,
+        number(field(fields, "present-unverified")),
+        mismatched + unreached + outside
+    );
+    assert_eq!(
+        number(field(fields, "verified")) + mismatched + unreached + outside,
         number(field(fields, "members"))
     );
     let first_gap = members
@@ -241,6 +268,13 @@ fn owning_seal_matches_live_locks_and_stays_stable() {
         .map(|value| node(value, "world/source-member-v1"))
         .find(|row| text(field(row, "status")) != "verified")
         .expect("unverified member");
+    let shown = text(field(first_gap, "reason"));
+    let expected_reason = match shown {
+        "corrupt-checksum" => "corrupt-input",
+        "missing-checksum" => "missing-input",
+        other => other,
+    };
+    assert_eq!(text(field(fields, "reason")), expected_reason);
     assert_eq!(
         text(field(fields, "coordinate")),
         format!(
@@ -439,8 +473,6 @@ fn one_changed_checksum_invalidates_that_input() {
     let changed_fields = node(&changed, "world/source-seal-v1");
     assert_eq!(text(field(owning_fields, "admission")), "refuse");
     assert_eq!(text(field(changed_fields, "admission")), "refuse");
-    assert_eq!(text(field(owning_fields, "reason")), "version-mismatch");
-    assert_eq!(text(field(changed_fields, "reason")), "version-mismatch");
     assert_ne!(
         text(field(owning_fields, "digest")),
         text(field(changed_fields, "digest"))
@@ -468,11 +500,11 @@ fn one_changed_checksum_invalidates_that_input() {
 
 #[test]
 fn diff_names_the_changed_resolver_field() {
-    let admitted = seal::open("precise", None).expect("precise");
-    assert_eq!(
-        text(field(node(&admitted, "world/source-seal-v1"), "admission")),
-        "admit"
-    );
+    let sealed = seal::open("precise", None).expect("precise");
+    let fields = node(&sealed, "world/source-seal-v1");
+    assert_eq!(text(field(fields, "admission")), "refuse");
+    assert_eq!(text(field(fields, "reason")), "source-not-reached");
+    assert_eq!(field(fields, "compiler-opened"), &Datum::Bool(false));
     let cases = [
         ("precise-toolchain", "toolchain", "toolchain"),
         ("precise-feature", "feature", "feature"),
@@ -569,7 +601,7 @@ fn unknown_batch_is_a_gap_and_measure_stays_inside_the_ceiling() {
     assert_eq!(text(field(fields, "reason")), "unknown-batch");
     assert_eq!(field(fields, "compiler-opened"), &Datum::Bool(false));
     assert_eq!(field(fields, "effects"), &query::count_datum(0));
-    let measured = seal::measure(0).expect("measure");
+    let measured = seal::measure().expect("measure");
     let record = node(&measured, "world/query-latency-v1");
     assert_eq!(text(field(record, "command")), "seal");
     assert_eq!(

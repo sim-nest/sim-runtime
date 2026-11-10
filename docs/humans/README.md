@@ -3504,6 +3504,91 @@ fn command_is_a_loaded_world_entrypoint_without_capabilities() {
 }
 
 #[test]
+fn outside_plan_subject_uses_the_shipped_command() {
+    let owner = "outside/plan-harbor";
+    for source in [include_str!("plan.rs"), include_str!("plan_subject.rs")] {
+        assert!(!source.contains(owner));
+    }
+    let document = format!(
+        "\
+sim-world-plan-v1
+fact fact/plan-harbor beacon
+spec conclusion/plan-harbor {owner} evidence/current current fact/plan-harbor
+"
+    );
+    let command = WorldCommandLib::new().expect("command");
+    let planned =
+        crate::command::dispatch_argv(&command, &["sim".to_owned(), "plan".to_owned(), document])
+            .expect("plan");
+    let rendered = crate::command::render(&planned);
+    assert!(rendered.contains("conclusion/plan-harbor"));
+    assert!(rendered.contains(owner));
+}
+
+#[test]
+fn outside_owner_uses_the_shipped_command() {
+    let owner = "outside/harbor-beacon";
+    for source in [
+        include_str!("command.rs"),
+        include_str!("product.rs"),
+        include_str!("fixture.rs"),
+        include_str!("observe.rs"),
+        include_str!("observe_rows.rs"),
+        include_str!("seal.rs"),
+        include_str!("plan.rs"),
+    ] {
+        assert!(
+            !source.contains(owner),
+            "{owner} is baked into the executor"
+        );
+    }
+    let command = WorldCommandLib::declared(
+        ModelDomainLoad {
+            provider: "outside/caller-site".to_owned(),
+            loader: "loader/outside".to_owned(),
+            artifact: "lib/outside-world".to_owned(),
+        },
+        vec![Declaration {
+            kind: "world/package-assembly-v1".to_owned(),
+            fact: "fact/harbor-beacon".to_owned(),
+            owner: owner.to_owned(),
+            conclusion: "conclusion/harbor-beacon".to_owned(),
+        }],
+    )
+    .expect("declared load");
+    let projected = crate::command::dispatch_argv(
+        &command,
+        &[
+            "sim".to_owned(),
+            "project".to_owned(),
+            "world/package-assembly-v1".to_owned(),
+            "fact/harbor-beacon".to_owned(),
+            "beacon-body".to_owned(),
+        ],
+    )
+    .expect("project");
+    assert!(crate::command::render(&projected).contains("beacon-body"));
+    let explained = crate::command::dispatch_argv(
+        &command,
+        &[
+            "sim".to_owned(),
+            "why".to_owned(),
+            "conclusion/harbor-beacon".to_owned(),
+            "fact/harbor-beacon".to_owned(),
+        ],
+    )
+    .expect("why");
+    assert!(crate::command::render(&explained).contains("owner/outside/harbor-beacon"));
+    let named = WorldCommandLib::new().expect("bundled");
+    let gap = crate::command::dispatch_argv(
+        &named,
+        &["sim".to_owned(), "seal".to_owned(), "owning".to_owned()],
+    )
+    .expect("named seal");
+    assert!(crate::command::render(&gap).contains("unknown-batch"));
+}
+
+#[test]
 fn unknown_pair_is_unsupported_and_hostile_text_stays_data() {
     let product = WorldProduct::bundled().unwrap();
     let error = product
@@ -3579,7 +3664,7 @@ fn resident_snapshot_has_the_cached_query_denominator() {
 
 #[test]
 fn measure_why_reports_the_resident_query() {
-    let measured = query::measure_why(4).unwrap();
+    let measured = query::measure_why().unwrap();
     assert!(measured.within_ceiling);
     let rendered = crate::command::render(&measured.record);
     assert!(rendered.starts_with("#(world/query-latency-v1 "));
@@ -3588,96 +3673,14 @@ fn measure_why_reports_the_resident_query() {
     assert!(rendered.contains("(units 10000)"));
     assert!(rendered.contains("(warmups 20)"));
     assert!(rendered.contains("(samples 200)"));
-    assert!(rendered.contains("(effects 4)"));
+    assert!(rendered.contains("(effects 0)"));
+    assert!(rendered.contains("(raw-us ["));
     assert!(rendered.contains("(subprocesses 0)"));
     assert!(rendered.contains("(resident true)"));
 }
 
-struct OracleRow {
-    delta: &'static str,
-    changed: &'static [&'static str],
-    affected: &'static [&'static str],
-    basis: u16,
-    revision: u64,
-}
-
-fn oracle() -> [OracleRow; 6] {
-    [
-        OracleRow {
-            delta: "D1",
-            changed: &[],
-            affected: &[],
-            basis: 10_000,
-            revision: 0,
-        },
-        OracleRow {
-            delta: "D2",
-            changed: &["change/private-implementation"],
-            affected: &["conclusion/01", "conclusion/02"],
-            basis: 9_500,
-            revision: 0,
-        },
-        OracleRow {
-            delta: "D3",
-            changed: &["change/public-api"],
-            affected: &[
-                "conclusion/03",
-                "conclusion/04",
-                "conclusion/05",
-                "conclusion/06",
-                "conclusion/07",
-                "conclusion/08",
-                "conclusion/09",
-                "conclusion/10",
-            ],
-            basis: 8_000,
-            revision: 0,
-        },
-        OracleRow {
-            delta: "D4",
-            changed: &[
-                "change/control-pins",
-                "change/head-a",
-                "change/head-b",
-                "change/head-c",
-            ],
-            affected: &[
-                "conclusion/11",
-                "conclusion/12",
-                "conclusion/13",
-                "conclusion/14",
-                "conclusion/15",
-                "conclusion/16",
-                "conclusion/17",
-                "conclusion/18",
-                "conclusion/19",
-                "conclusion/20",
-                "conclusion/21",
-                "conclusion/22",
-            ],
-            basis: 7_000,
-            revision: 0,
-        },
-        OracleRow {
-            delta: "D5",
-            changed: &["change/checker-alpha", "change/proof-code-alpha"],
-            affected: &[
-                "conclusion/23",
-                "conclusion/24",
-                "conclusion/25",
-                "conclusion/26",
-            ],
-            basis: 9_000,
-            revision: 0,
-        },
-        OracleRow {
-            delta: "D6",
-            changed: &[],
-            affected: &[],
-            basis: 10_000,
-            revision: 1,
-        },
-    ]
+fn oracle() -> &'static [crate::assay_oracle::Expected] {
+    crate::assay_oracle::expected()
 }
 
 fn names<T: std::fmt::Display>(values: &std::collections::BTreeSet<T>) -> Vec<String> {
@@ -3706,7 +3709,7 @@ fn assay_matches_the_frozen_oracle_and_measures_provider_reads() {
         assert_eq!(row.revision_delta, expected.revision);
         assert!(!row.carried_state);
         assert_eq!(row.planned_starts, expected.affected.len());
-        assert_eq!(row.journal_records, expected.changed.len());
+        assert_eq!(row.journal_records, 0);
         assert_eq!(row.explanations.len(), expected.affected.len());
     }
     let rendered = crate::command::render(&observation.rows[1].explanations[0]);
@@ -3715,6 +3718,50 @@ fn assay_matches_the_frozen_oracle_and_measures_provider_reads() {
     assert!(rendered.contains("\"fact/change/private-implementation\""));
     let again = crate::assay::read_semantics().unwrap();
     assert_eq!(again.subject, batch.subject);
+    let rows = crate::assay::subject_rows().unwrap().join("\n");
+    assert!(rows.contains("edited private implementation"));
+    assert!(rows.contains("edited public api"));
+    assert!(rows.contains("postimage D1 stable/40 baseline stable/40 "));
+    assert!(rows.contains("postimage D6 present/order alpha\nbeta"));
+    assert!(rows.contains("graph owner/01 conclusion/01 stable/01 change/private-implementation"));
+    assert!(rows.contains("struct WorldConfigShape"));
+    assert!(rows.contains("fn read_semantics"));
+    assert!(rows.contains("pub(super) fn execute"));
+    assert!(rows.contains("fn ensure_mutants_diverge"));
+    assert!(rows.contains("fn sealed_ids"));
+    assert!(rows.contains("pub struct OwnerProjectionGraph"));
+    assert!(rows.contains("pub fn execute_proof_leaf"));
+    assert!(rows.contains("pub struct ExecutionJournal"));
+    assert!(rows.contains("sim-roadmap-execution-record"));
+    assert!(rows.contains("name = \"sim-lib-journal\""));
+    assert!(rows.contains("pub(crate) struct LawCursor"));
+    assert!(rows.contains("pub enum ExecutionRecord"));
+    assert!(rows.contains("pub(crate) fn contains_secret"));
+    assert!(rows.contains("pub(crate) fn apply_changes"));
+    assert!(rows.contains("sim-world-proof-view-v1"));
+    assert!(rows.contains("fn plan_record"));
+    assert!(rows.contains("fn explanation_value"));
+    assert!(rows.contains("fn count_datum"));
+    assert!(rows.contains("name = \"sim-lib-world\""));
+    assert!(rows.contains("projection/trusted-native-v1"));
+    assert!(rows.contains("pure-check proof-code-alpha binds the projected bytes"));
+    assert!(rows.contains("Independent expected sets"));
+    assert!(rows.contains(&format!(
+        "provider {} {}",
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION")
+    )));
+    assert!(rows.contains("checker sim-incremental-core/projection/semantic-text"));
+    assert!(rows.contains("provider-kind world/semantic-text-v1"));
+    assert!(rows.contains("canonical_nan true"));
+    assert!(rows.contains("canonical_collections true"));
+    assert!(rows.contains("fresh_instance true"));
+    assert!(rows.contains("requires_confinement false"));
+    assert!(rows.contains("max_inputs 1"));
+    assert!(rows.contains("max_output_bytes 65536"));
+    assert!(rows.contains("max_fuel 1000000"));
+    assert!(rows.contains("max_memory_bytes 4194304"));
+    assert!(rows.contains("imports none"));
 }
 
 #[test]

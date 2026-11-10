@@ -264,7 +264,7 @@ fn equal_mass_orders_by_conclusion_id() {
 
 #[test]
 fn measure_plan_records_zero_effects_inside_the_ceiling() {
-    let measured = plan::measure(0).unwrap();
+    let measured = plan::measure().unwrap();
     assert!(measured.within_ceiling);
     let record = node(&measured.record, "world/query-latency-v1");
     assert_eq!(text(field(record, "command")), "plan");
