@@ -105,6 +105,11 @@ struct Description {
     provenance: String,
 }
 
+#[path = "observe_rows.rs"]
+mod rows;
+
+pub(crate) use rows::{diff_documents, snapshot_document};
+
 /// Reads one selector from an explicit batch through its domain port.
 ///
 /// # Errors
@@ -129,6 +134,7 @@ pub(crate) fn snapshot(batch: &str, selector: &str) -> Result<Datum, WorldError>
 ///
 /// # Errors
 /// Returns an error when a sealed row breaks the status and value binding.
+#[cfg(test)]
 pub(crate) fn diff(before: &str, after: &str, selector: &str) -> Result<Datum, WorldError> {
     if selector.is_empty() {
         return Ok(gap("empty-selector", before, selector));
@@ -351,7 +357,7 @@ fn native_description(selector: &str) -> Result<Description, WorldError> {
         semantic_id,
         selector: selector.to_owned(),
         status: "unavailable".to_owned(),
-        envelope: envelope_text(Kind::Native).to_owned(),
+        envelope: "native-refused".to_owned(),
         matched: false,
         port_called: None,
         read: None,

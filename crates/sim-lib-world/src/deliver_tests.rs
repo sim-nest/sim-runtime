@@ -342,7 +342,10 @@ fn wrong_tag_blocks_and_partial_success_does_not_repeat() {
 fn delivery_status_and_why_read_the_qualification() {
     let plan = deliver::catalog("model").expect("plan");
     let fields = deliver_fields(&plan);
-    let status = deliver::status("model").expect("status");
+    let admitted = view_text(&plan);
+    let calls = deliver::qualify_calls();
+    let status = deliver::status("model", Some(&admitted)).expect("status");
+    assert_eq!(deliver::qualify_calls(), calls);
     let status_fields = node(&status, "world/deliver-status-v1");
     assert_eq!(field(status_fields, "noop"), field(fields, "noop"));
     assert_eq!(field(status_fields, "blocked"), field(fields, "blocked"));
@@ -355,7 +358,11 @@ fn delivery_status_and_why_read_the_qualification() {
         number(field(status_fields, "performer-calls")),
         number(field(fields, "performer-calls"))
     );
-    assert_eq!(number(field(status_fields, "effects")), 0);
+    assert_eq!(
+        number(field(status_fields, "effects")),
+        number(field(status_fields, "dispatches"))
+    );
+    assert!(number(field(status_fields, "dispatches")) > 0);
     assert_eq!(number(field(status_fields, "subprocesses")), 0);
     assert_eq!(text_at(status_fields, "disclosure"), DISCLOSURE);
     let actions = vector(fields, "actions");
@@ -371,15 +378,21 @@ fn delivery_status_and_why_read_the_qualification() {
     let omissions = vector(fields, "omitted");
     assert!(!omissions.is_empty());
     let done = text_at(node(&omissions[0], "world/deliver-omission-v1"), "selector").to_owned();
-    let why_done_value = deliver::why("model", &done).expect("why omitted");
+    let why_done_value = deliver::why("model", &done, Some(&admitted)).expect("why omitted");
+    assert_eq!(deliver::qualify_calls(), calls);
     let why_done = node(&why_done_value, "world/deliver-why-v1");
     assert_eq!(text_at(why_done, "cause"), "already-true");
     assert_eq!(text_at(why_done, "class"), "already-true");
     assert_eq!(number(field(why_done, "dispatches")), 0);
     assert_eq!(number(field(why_done, "effects")), 0);
-    let selector = text_at(node(&actions[0], "world/deliver-action-v1"), "selector").to_owned();
-    let action = node(&actions[0], "world/deliver-action-v1");
-    let why_left_value = deliver::why("model", &selector).expect("why action");
+    let index = actions
+        .iter()
+        .position(|item| number(field(node(item, "world/deliver-action-v1"), "dispatches")) > 0)
+        .expect("dispatched action");
+    let action = node(&actions[index], "world/deliver-action-v1");
+    let selector = text_at(action, "selector").to_owned();
+    let why_left_value = deliver::why("model", &selector, Some(&admitted)).expect("why action");
+    assert_eq!(deliver::qualify_calls(), calls);
     let why_left = node(&why_left_value, "world/deliver-why-v1");
     assert_eq!(text_at(why_left, "cause"), text_at(action, "cause"));
     assert_eq!(text_at(why_left, "class"), text_at(action, "class"));
@@ -388,23 +401,64 @@ fn delivery_status_and_why_read_the_qualification() {
         number(field(why_left, "dispatches")),
         number(field(action, "dispatches"))
     );
-    assert_eq!(number(field(why_left, "effects")), 0);
+    assert_eq!(
+        number(field(why_left, "effects")),
+        number(field(why_left, "dispatches"))
+    );
+    assert!(number(field(why_left, "dispatches")) > 0);
 
-    let absent = deliver::why("model", "git/branch/missing").expect("absent");
+    let absent = deliver::why("model", "git/branch/missing", Some(&admitted)).expect("absent");
+    assert_eq!(deliver::qualify_calls(), calls);
+    let bare = deliver::why("model", "git/branch/missing", None).expect("bare");
+    assert_eq!(
+        text_at(node(&bare, "world/deliver-gap-v1"), "reason"),
+        "refresh-needed"
+    );
+    assert_eq!(
+        field(node(&bare, "world/deliver-gap-v1"), "resident"),
+        &Datum::Bool(false)
+    );
+    let mut tampered = admitted.clone();
+    let last = tampered.pop().expect("view");
+    tampered.push(if last == 'a' { 'b' } else { 'a' });
+    let stale = deliver::status("model", Some(&tampered)).expect("stale");
+    assert_eq!(
+        text_at(node(&stale, "world/deliver-gap-v1"), "reason"),
+        "refresh-needed"
+    );
+    let crossed = deliver::status("native", Some(&admitted)).expect("crossed");
+    assert_eq!(
+        text_at(node(&crossed, "world/deliver-gap-v1"), "reason"),
+        "refresh-needed"
+    );
+    assert_eq!(deliver::qualify_calls(), calls);
     assert_eq!(
         text_at(node(&absent, "world/deliver-gap-v1"), "reason"),
         "selector-absent"
     );
-    let empty = deliver::why("model", "").expect("empty");
+    let empty = deliver::why("model", "", None).expect("empty");
     assert_eq!(
         text_at(node(&empty, "world/deliver-gap-v1"), "reason"),
         "empty-selector"
     );
-    let host = deliver::status("host").expect("host");
+    let host_plan = deliver::catalog("host").expect("host plan");
+    let host = deliver::status("host", Some(&view_text(&host_plan))).expect("host");
     assert_eq!(
         text_at(node(&host, "world/deliver-gap-v1"), "reason"),
         "unknown-realization"
     );
+    let host_refresh = deliver::status("host", None).expect("host refresh");
+    assert_eq!(
+        text_at(node(&host_refresh, "world/deliver-gap-v1"), "reason"),
+        "refresh-needed"
+    );
+}
+
+fn view_text(record: &Datum) -> String {
+    let Datum::Node { fields, .. } = record else {
+        panic!("node");
+    };
+    text_at(fields, "view").to_owned()
 }
 
 #[test]
@@ -421,7 +475,7 @@ fn delivery_refuses_private_material_and_unavailable_receivers() {
     );
     assert!(!render(&leaked).contains("s3cret-token"));
     assert!(!render(&leaked).contains("private-material:"));
-    let hidden = deliver::why("model", "/home/secret-path").expect("home");
+    let hidden = deliver::why("model", "/home/secret-path", None).expect("home");
     assert!(!render(&hidden).contains("/home/"));
     assert_eq!(
         text_at(node(&hidden, "world/deliver-gap-v1"), "reason"),
