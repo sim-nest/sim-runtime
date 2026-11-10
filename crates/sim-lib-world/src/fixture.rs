@@ -202,6 +202,18 @@ generated resolver/lantern src/generated.rs 16 aaaa
 path-files resolver/lantern/vendor/widgets vendor/widgets/widget 1
 ";
 
+/// Reports whether `name` is a construction fixture batch.
+pub(crate) fn is_construction_name(name: &str) -> bool {
+    rows(name).is_some() || seal_text(name).is_some()
+}
+
+/// Returns every construction observation row with its batch name.
+pub(crate) fn observation_rows() -> impl Iterator<Item = (&'static str, Row)> {
+    OBSERVATIONS
+        .iter()
+        .flat_map(|named| named.rows.iter().copied().map(move |row| (named.name, row)))
+}
+
 /// Returns the observation rows published under `batch`.
 pub(crate) fn rows(batch: &str) -> Option<&'static [Row]> {
     let found = OBSERVATIONS

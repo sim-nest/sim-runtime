@@ -144,32 +144,64 @@ member /work/sim-runtime path parent 0.1.0 crates/parent abcdef path-content clo
 member /work/sim-runtime/nested path nested-crate 0.1.0 crates/nested 123456 path-content closure
 ";
 
+pub(super) const LOCAL_BATCHES: &[&str] = &[
+    "owning",
+    "changed",
+    "missing",
+    "corrupt",
+    "stub",
+    "absent",
+    "wrong-target",
+    "nested",
+    "alias",
+    "git-missing",
+    "version-mismatch",
+    "precise",
+    "precise-toolchain",
+    "precise-feature",
+    "precise-generated",
+    "precise-edge",
+    "precise-closure",
+    "precise-role",
+];
+
+pub(super) fn is_local_batch(name: &str) -> bool {
+    LOCAL_BATCHES.contains(&name)
+}
+
 pub(super) fn batch_text(name: &str) -> Result<Option<String>, WorldError> {
     if let Some(text) = crate::fixture::seal_text(name) {
         return Ok(Some(text.to_owned()));
     }
+    if !is_local_batch(name) {
+        return Ok(None);
+    }
     let text = match name {
-        "owning" => Some(OWNING.to_owned()),
-        "changed" => Some(changed_owning()?),
-        "missing" => Some(MISSING.to_owned()),
-        "corrupt" => Some(CORRUPT.to_owned()),
-        "stub" => Some(STUB.to_owned()),
-        "absent" => Some(ABSENT.to_owned()),
-        "wrong-target" => Some(WRONG_TARGET.to_owned()),
-        "nested" => Some(NESTED.to_owned()),
-        "alias" => Some(ALIAS.to_owned()),
-        "git-missing" => Some(GIT_MISSING.to_owned()),
-        "version-mismatch" => Some(VERSION_MISMATCH.to_owned()),
-        "precise" => Some(precise("")),
-        "precise-toolchain" => Some(precise("toolchain")),
-        "precise-feature" => Some(precise("feature")),
-        "precise-generated" => Some(precise("generated")),
-        "precise-edge" => Some(precise("edge")),
-        "precise-closure" => Some(precise("closure")),
-        "precise-role" => Some(precise("role")),
-        _ => None,
+        "owning" => OWNING.to_owned(),
+        "changed" => changed_owning()?,
+        "missing" => MISSING.to_owned(),
+        "corrupt" => CORRUPT.to_owned(),
+        "stub" => STUB.to_owned(),
+        "absent" => ABSENT.to_owned(),
+        "wrong-target" => WRONG_TARGET.to_owned(),
+        "nested" => NESTED.to_owned(),
+        "alias" => ALIAS.to_owned(),
+        "git-missing" => GIT_MISSING.to_owned(),
+        "version-mismatch" => VERSION_MISMATCH.to_owned(),
+        "precise" => precise(""),
+        "precise-toolchain" => precise("toolchain"),
+        "precise-feature" => precise("feature"),
+        "precise-generated" => precise("generated"),
+        "precise-edge" => precise("edge"),
+        "precise-closure" => precise("closure"),
+        "precise-role" => precise("role"),
+        _ => {
+            return Err(WorldError::Qualification(format!(
+                "unrendered seal batch {name}"
+            )));
+        }
     };
-    Ok(text)
+    Ok(Some(text))
 }
 
 fn precise(edit: &str) -> String {
@@ -253,4 +285,18 @@ fn flip_registry_checksum(line: &str) -> Option<String> {
     let mut owned: Vec<String> = parts.into_iter().map(str::to_owned).collect();
     owned[6] = checksum;
     Some(owned.join(" "))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::LOCAL_BATCHES;
+    use super::batch_text;
+
+    #[test]
+    fn every_local_batch_has_text() {
+        for name in LOCAL_BATCHES {
+            let text = batch_text(name).expect("batch");
+            assert!(text.is_some(), "{name}");
+        }
+    }
 }
