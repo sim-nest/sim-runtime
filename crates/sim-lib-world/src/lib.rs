@@ -30,7 +30,13 @@
 //! model branch under a separate purpose grant. It runs once, recovers,
 //! and repeats the reconciliation with no further performance. A wrong or
 //! consumed purpose grant refuses. No public branch, tag, package, or
-//! merge is touched. A
+//! merge is touched. A fresh succession reads one exported model record
+//! and one later change. The export names registry packages, the foreign
+//! project, and declared inputs. The change is observed, sealed, proved,
+//! converged, landed, delivered, and recovered. The repeated convergence
+//! and delivery do no further work. A warm checkout, a construction
+//! fixture used as the change, or an unresolved hold stays open. Host
+//! reboot, power loss, and protected production stay outside that record. A
 //! caller-named batch carries its
 //! own provider rows, nested resolver roots, generated input, and proof
 //! declarations through the same commands. An undeclared provider returns a
@@ -64,6 +70,7 @@ mod query;
 mod release;
 mod seal;
 mod service;
+mod succeed;
 
 pub use command::{ModelDomainLoad, WORLD_VERB, WorldCommandLib};
 pub use product::{
@@ -90,5 +97,7 @@ mod release_tests;
 mod seal_tests;
 #[cfg(test)]
 mod service_tests;
+#[cfg(test)]
+mod succeed_tests;
 #[cfg(test)]
 mod tests;

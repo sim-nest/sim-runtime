@@ -142,6 +142,25 @@ enum Mode {
     Real,
 }
 
+pub(crate) fn is_named_mode(realization: &str) -> bool {
+    mode_of(realization).is_some()
+}
+
+/// Returns each sealed service fact as port, selector, state, and value.
+pub(crate) fn construction_rows() -> impl Iterator<
+    Item = (
+        &'static str,
+        &'static str,
+        &'static str,
+        Option<&'static str>,
+    ),
+> {
+    service_facts::FACTS.iter().filter_map(|fact| {
+        let (port, _) = fact.selector.split_once('/')?;
+        Some((port, fact.selector, fact.state, fact.value))
+    })
+}
+
 fn mode_of(realization: &str) -> Option<Mode> {
     match realization {
         "model" => Some(Mode::Model),

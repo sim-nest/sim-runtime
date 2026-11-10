@@ -7,6 +7,7 @@ expected = "expected.txt"
 order = 10
 tags = ["operation", "gate", "manifest", "domain-neutral", "rust"]
 requires = ["sim-lib-operation-gate", "sim-kernel"]
+fixtures = ["recipes/01-basics/two-manifests"]
 
 [[expect]]
 form = 0

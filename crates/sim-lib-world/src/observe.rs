@@ -15,6 +15,17 @@
 use sim_kernel::{Datum, Symbol};
 
 use crate::WorldError;
+
+#[cfg(test)]
+thread_local! {
+    static DECLARED_CALLS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// Returns the declared-snapshot calls on this thread and resets the count.
+#[cfg(test)]
+pub(crate) fn take_declared_calls() -> u64 {
+    DECLARED_CALLS.with(|calls| calls.replace(0))
+}
 use crate::provider::content_id;
 use crate::query;
 
@@ -23,14 +34,14 @@ const POLICY_NATIVE: &str = "policy/no-native-fallback-v1";
 const PORTS: [&str; 5] = ["ci", "filesystem", "git", "process", "registry"];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Semantic {
-    port: &'static str,
-    selector: &'static str,
-    status: &'static str,
-    value: Option<&'static str>,
+struct Semantic<'a> {
+    port: &'a str,
+    selector: &'a str,
+    status: &'a str,
+    value: Option<&'a str>,
 }
 
-const MODEL: &[Semantic] = &[
+const MODEL: &[Semantic<'static>] = &[
     Semantic {
         port: "ci",
         selector: "ci/run",
@@ -145,6 +156,57 @@ pub(crate) fn diff(before: &str, after: &str, selector: &str) -> Result<Datum, W
     ))
 }
 
+/// Reads one exported row through the same domain-port binding.
+///
+/// The row is declared input. It is not selected from a construction batch.
+///
+/// # Errors
+/// Returns an error when the row breaks the status and value binding.
+pub(crate) fn declared_snapshot(
+    label: &str,
+    port: &str,
+    selector: &str,
+    status: &str,
+    value: Option<&str>,
+) -> Result<Datum, WorldError> {
+    #[cfg(test)]
+    DECLARED_CALLS.with(|calls| calls.set(calls.get().saturating_add(1)));
+    if label.is_empty() || port.is_empty() || selector.is_empty() {
+        return Ok(gap("empty-selector", label, selector));
+    }
+    let Some(rest) = selector.strip_prefix(port) else {
+        return Ok(gap("missing-capability", label, selector));
+    };
+    if !rest.starts_with('/') || rest == "/" {
+        return Ok(gap("missing-capability", label, selector));
+    }
+    let described = describe_row(
+        Some(Semantic {
+            port,
+            selector,
+            status,
+            value,
+        }),
+        selector,
+        "model-log",
+        Some(port),
+    )?;
+    Ok(snapshot_datum(label, selector, &described))
+}
+
+/// Reports whether `name` selects a built-in observation batch.
+pub(crate) fn is_named_batch(name: &str) -> bool {
+    source_of(name).is_some()
+}
+
+/// Returns each built-in batch and selector whose row is a construction identity.
+pub(crate) fn construction_snapshots() -> impl Iterator<Item = (&'static str, &'static str)> {
+    const BATCHES: &[&str] = &["model", "revised", "envelope"];
+    MODEL
+        .iter()
+        .flat_map(|row| BATCHES.iter().map(move |batch| (*batch, row.selector)))
+}
+
 fn kind_of(batch: &str) -> Option<Kind> {
     match batch {
         "model" => Some(Kind::Model),
@@ -204,7 +266,7 @@ fn describe(kind: Kind, selector: &str) -> Result<Description, WorldError> {
 }
 
 fn describe_row(
-    found: Option<Semantic>,
+    found: Option<Semantic<'_>>,
     selector: &str,
     envelope: &str,
     declared_port: Option<&str>,
@@ -302,7 +364,7 @@ fn native_description(selector: &str) -> Result<Description, WorldError> {
     })
 }
 
-fn bind_row(row: Semantic) -> Result<(), WorldError> {
+fn bind_row(row: Semantic<'_>) -> Result<(), WorldError> {
     let known = matches!(
         row.status,
         "observed" | "denied" | "unavailable" | "timed-out" | "absent" | "uncertain"
@@ -322,7 +384,7 @@ fn bind_row(row: Semantic) -> Result<(), WorldError> {
     Ok(())
 }
 
-fn sealed(kind: Kind, selector: &str) -> Option<Semantic> {
+fn sealed(kind: Kind, selector: &str) -> Option<Semantic<'static>> {
     match kind {
         Kind::Revised => revised(selector).or_else(|| base(selector)),
         Kind::Model | Kind::Envelope => base(selector),
@@ -330,11 +392,11 @@ fn sealed(kind: Kind, selector: &str) -> Option<Semantic> {
     }
 }
 
-fn base(selector: &str) -> Option<Semantic> {
+fn base(selector: &str) -> Option<Semantic<'static>> {
     MODEL.iter().copied().find(|row| row.selector == selector)
 }
 
-fn revised(selector: &str) -> Option<Semantic> {
+fn revised(selector: &str) -> Option<Semantic<'static>> {
     match selector {
         "git/HEAD" => Some(Semantic {
             port: "git",

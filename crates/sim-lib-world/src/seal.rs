@@ -24,6 +24,16 @@ mod batch;
 mod emit;
 mod marks;
 mod parse;
+
+pub(crate) fn is_local_batch(name: &str) -> bool {
+    batch::is_local_batch(name)
+}
+
+#[cfg(test)]
+pub(crate) fn local_batches() -> &'static [&'static str] {
+    batch::LOCAL_BATCHES
+}
+
 /// Admission record for one batch and requested target.
 ///
 /// # Errors

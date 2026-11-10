@@ -50,8 +50,6 @@ claims_anchors = ["anchor/crate/sim-lib-lang-javascript"]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-lang-javascript/src/lib",
   "spec-test/sim-runtime/crates/sim-lib-sequence/tests/composition_ownership_guard",
-  "recipe/sim-runtime/crates/sim-lib-lang-javascript/01-basics/json-codec-composition",
-  "recipe/sim-runtime/crates/sim-lib-lang-javascript/01-basics/collection-owner-composition",
 ]
 supports = ["feature/sim-runtime/guest-language-profiles", "feature/sim-runtime/organs", "feature/sim-runtime/gc-tracing"]
 composes = ["crate/sim-codec-json", "crate/sim-lib-sequence"]
@@ -102,7 +100,6 @@ claims_anchors = ["anchor/crate/sim-lib-class"]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-class/tests/neutral_class_specimens",
   "spec-test/sim-runtime/crates/sim-lib-class/tests/ownership_guard",
-  "recipe/sim-runtime/crates/sim-lib-class/01-basics/neutral-class",
 ]
 supports = ["feature/sim-runtime/organs"]
 
@@ -133,7 +130,7 @@ title = "Read-only world projection and explanation"
 summary = "Load open qualified projectors and expose pure project, diff, why, compose, read-only custody, resident cached why, projection sensitivity, a sealed proof plan, explicit domain-port snapshots over sealed model batches, and an offline seal of the owning resolver inputs."
 owner = "crate/sim-lib-world"
 audiences = ["user", "code", "framework"]
-guidance = "Use sim-lib-world when the caller already has typed observed facts and needs their semantic projection, exact invalidation, or an owner-to-leaf explanation. The product owns no observation, process, network, proof execution, scheduling, or mutation port. Provider kinds remain open; configs pass their declared Shape; semantic digests bind checked config, exact provider code and policy, and consumed facts while excluding diagnostic envelopes. The no-v3 disclosure provider consumes the canonical audit-policy fact only for conclusions that declare it. The loaded command composes those calls under the model-domain grant, reports read-only custody from its manifest, refuses an unsupported kind and fact pair or a malformed call with a stable reason, answers resident cached why from one sealed snapshot, reports projection sensitivity by reading frozen baseline and variant bytes through the semantic-text provider, and returns a deterministic proof plan and proof-graph view for one sealed in-memory subject. Legal-ready leaves follow invalidation mass, the conservative floor stays complete, and unknown owners, revoked evidence, and missing sources stay visible. A continuation names that same sealed subject. A cached plan query starts no observation and no process. Explicit snapshot and snapshot-diff read one sealed model batch through the domain port named by the selector. Semantic identity binds freshness, provenance, and policy and excludes the diagnostic envelope. Denied, unavailable, timed-out, absent, and uncertain stay distinct. An equal explicit batch performs no port read. A native realization returns unavailable and does not read the model batch or a host. Seal and universe enumerate the owning resolver roots, lock, features, targets, config, toolchain, registry and path inputs, nested Cargo locks, and generated sources. Only a verified input admits compilation. Present-unverified, stub-only, and absent stay distinct. A missing, corrupt, wrong-target, or stub-only input refuses before a compiler opens, as does a path input whose package manifest version disagrees with the lock. Filesystem aliases canonicalize without merging a nested resolver domain. An equal complete seal is stable, and one changed resolver input changes the digest and names that input. A caller-named batch carries its own provider rows, nested resolver roots, generated input, and proof declarations through the same snapshot, diff, project, why, seal, and universe commands. An undeclared provider returns a gap. A model remote stays unavailable and is not contacted. Two names that share one document agree on semantic identity, source admission, and the sealed digest. Service observation reads exact branch, tag, direct, and peeled targets, package checksums, and CI and mirror facts from the named model port. Stale, partial, denied, lagging, and uncertain stay distinct from a current value. A plan omits a current match, retains a divergent or unknown fact, and does not mutate the reading. A native or real-service request does not read those model facts. Provenance remains after the reading is encoded and decoded. A release plan lists each remaining reconciliation with its reason, intent, and audit disclosure, omits a completed fact, keeps an uncertain original, and refuses a private value. Status and why read that plan. A plan with nothing remaining causes no effect. A delivery qualification runs that plan through the durable operation lifecycle against the bound model service. A completed fact omits performance. A divergent value or a wrong tag blocks completion. A lagging registry, stale observation, denied reading, partial result, uncertain reading, or unavailable receiver stays uncertain, and recovery observes before any further performance. The model sink publishes nothing. A model delivery canary places one validated source head onto a fresh model branch under a separate purpose grant, runs once, recovers, and repeats the reconciliation with no further work. A wrong or consumed purpose grant refuses. No public branch, tag, package, or merge is touched."
+guidance = "Use sim-lib-world when the caller already has typed observed facts and needs their semantic projection, exact invalidation, or an owner-to-leaf explanation. The product owns no observation, process, network, proof execution, scheduling, or mutation port. Provider kinds remain open; configs pass their declared Shape; semantic digests bind checked config, exact provider code and policy, and consumed facts while excluding diagnostic envelopes. The no-v3 disclosure provider consumes the canonical audit-policy fact only for conclusions that declare it. The loaded command composes those calls under the model-domain grant, reports read-only custody from its manifest, refuses an unsupported kind and fact pair or a malformed call with a stable reason, answers resident cached why from one sealed snapshot, reports projection sensitivity by reading frozen baseline and variant bytes through the semantic-text provider, and returns a deterministic proof plan and proof-graph view for one sealed in-memory subject. Legal-ready leaves follow invalidation mass, the conservative floor stays complete, and unknown owners, revoked evidence, and missing sources stay visible. A continuation names that same sealed subject. A cached plan query starts no observation and no process. Explicit snapshot and snapshot-diff read one sealed model batch through the domain port named by the selector. Semantic identity binds freshness, provenance, and policy and excludes the diagnostic envelope. Denied, unavailable, timed-out, absent, and uncertain stay distinct. An equal explicit batch performs no port read. A native realization returns unavailable and does not read the model batch or a host. Seal and universe enumerate the owning resolver roots, lock, features, targets, config, toolchain, registry and path inputs, nested Cargo locks, and generated sources. Only a verified input admits compilation. Present-unverified, stub-only, and absent stay distinct. A missing, corrupt, wrong-target, or stub-only input refuses before a compiler opens, as does a path input whose package manifest version disagrees with the lock. Filesystem aliases canonicalize without merging a nested resolver domain. An equal complete seal is stable, and one changed resolver input changes the digest and names that input. A caller-named batch carries its own provider rows, nested resolver roots, generated input, and proof declarations through the same snapshot, diff, project, why, seal, and universe commands. An undeclared provider returns a gap. A model remote stays unavailable and is not contacted. Two names that share one document agree on semantic identity, source admission, and the sealed digest. Service observation reads exact branch, tag, direct, and peeled targets, package checksums, and CI and mirror facts from the named model port. Stale, partial, denied, lagging, and uncertain stay distinct from a current value. A plan omits a current match, retains a divergent or unknown fact, and does not mutate the reading. A native or real-service request does not read those model facts. Provenance remains after the reading is encoded and decoded. A release plan lists each remaining reconciliation with its reason, intent, and audit disclosure, omits a completed fact, keeps an uncertain original, and refuses a private value. Status and why read that plan. A plan with nothing remaining causes no effect. A delivery qualification runs that plan through the durable operation lifecycle against the bound model service. A completed fact omits performance. A divergent value or a wrong tag blocks completion. A lagging registry, stale observation, denied reading, partial result, uncertain reading, or unavailable receiver stays uncertain, and recovery observes before any further performance. The model sink publishes nothing. A model delivery canary places one validated source head onto a fresh model branch under a separate purpose grant, runs once, recovers, and repeats the reconciliation with no further work. A wrong or consumed purpose grant refuses. No public branch, tag, package, or merge is touched. A fresh succession reads one exported model record and one later change. The export names registry packages, the foreign project, and declared inputs. The change is observed, sealed, proved, converged, landed, delivered, and recovered. Repeated convergence and delivery do no further work. A warm checkout, a construction fixture used as the change, or an unresolved hold stays open. Host reboot, power loss, and protected production stay outside that record."
 claims_anchors = [
   "anchor/card/cookbook/world",
   "anchor/cli/world",
@@ -143,7 +140,7 @@ claims_anchors = [
   "anchor/runtime-lib/sim-lib-world/world-command-lib",
 ]
 claims_specimens = [
-  "recipe/sim-runtime/crates/sim-lib-world/01-projection/world-explain",
+  "spec-test/sim-runtime/crates/sim-lib-world/src/tests",
 ]
 composes = ["crate/sim-incremental-core", "crate/sim-run-core"]
 supports = ["feature/sim-runtime/incremental-query-core"]
@@ -249,7 +246,6 @@ claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-function/tests/contract_shape",
   "spec-test/sim-runtime/crates/sim-lib-function/tests/neutral_language_specimen",
   "spec-test/sim-runtime/crates/sim-lib-function/tests/ownership_guard",
-  "recipe/sim-runtime/crates/sim-lib-function/01-basics/neutral-language",
 ]
 supports = [
   "feature/sim-runtime/organs",
@@ -476,7 +472,6 @@ claims_anchors = [
 ]
 claims_specimens = [
   "spec-test/sim-runtime/crates/sim-lib-standard-core/src/harness_tests",
-  "recipe/sim-runtime/crates/sim-lib-standard-core/01-basics/characterize-migration",
 ]
 
 [[feature]]
@@ -632,7 +627,7 @@ owner = "repo/sim-runtime"
 audiences = ["code", "framework"]
 guidance = "Supply LuaRuntimeConfiguration as modeled data, Python SourceAuthority and Dir roots explicitly, JVM class bytes through its checked loader surface, and ProcessPort for structured execution. Missing authority or services fail closed. Guest product libraries never inspect the embedding environment, filesystem, process, classpath, or native loader; build scripts, examples, tests, and xtask are classified tooling rather than runtime services."
 claims_specimens = [
-  "recipe/sim-runtime/crates/sim-lib-exec/01-basics/bounded-process",
+  "spec-test/sim-runtime/crates/sim-lib-exec/src/loaded",
 ]
 supports = [
   "feature/sim-runtime/host-exec",
@@ -871,15 +866,10 @@ claims_anchors = [
   "anchor/runtime-lib/sim-lib-lang-jvm/jvm-language-lib",
 ]
 claims_specimens = [
-  "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/authorized-static-call",
-  "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/java-lambda",
-  "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/method-reference",
-  "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/sim-functional-interface",
   "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/product_specimen",
   "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/ownership_guard",
   "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/baseline",
   "spec-test/sim-runtime/crates/sim-lib-lang-jvm/tests/published_performance",
-  "recipe/sim-runtime/crates/sim-lib-lang-jvm/01-basics/performance-evidence",
 ]
 supports = ["feature/sim-runtime/guest-language-profiles", "feature/sim-runtime/organs"]
 composes = ["crate/sim-codec-classfile", "crate/sim-lib-machine", "crate/sim-lib-mutation", "crate/sim-lib-gc-tracing", "crate/sim-lib-control", "crate/sim-lib-core", "crate/sim-lib-class", "crate/sim-text"]
@@ -940,8 +930,6 @@ audiences = ["code", "framework"]
 guidance = "Declare every operation from canonical manifest fields; never infer policy from operation text. Use OperationLifecycle over sim-lib-journal for bounded writer-fenced leases, performer-bound dispatch, raw receipts, and independent postcondition observation. Recovery observes before any new performance. ExactlyOnce never repeats a recorded dispatch; Idempotent repeats only after lease expiry plus observed absence. Treat AlreadyTrue, Verified, Diverged, and Uncertain as distinct durable outcomes. Keep guard_operation, the lifecycle, and domain effect adapters separate."
 claims_anchors = ["anchor/crate/sim-lib-operation-gate"]
 claims_specimens = [
-  "recipe/sim-runtime/crates/sim-lib-operation-gate/01-basics/two-manifests",
-  "recipe/sim-runtime/crates/sim-lib-operation-gate/01-basics/crash-matrix",
   "spec-test/sim-runtime/crates/sim-lib-operation-gate/src/durable_tests",
   "spec-test/sim-runtime/crates/sim-lib-operation-gate/src/lifecycle_tests",
 ]
