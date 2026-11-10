@@ -450,7 +450,7 @@ pub(crate) fn closure_rows(graph: &[String]) -> Vec<Datum> {
         include_str!("../freeze/incremental-graph.rs").to_owned(),
     ));
     rows.push(Datum::String(
-        include_str!("../freeze/runner-proof.rs").to_owned(),
+        include_str!("../freeze/runner-proof.rs.freeze").to_owned(),
     ));
     rows.push(Datum::String(
         include_str!("../freeze/runner-journal.rs").to_owned(),

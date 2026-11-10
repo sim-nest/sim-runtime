@@ -557,7 +557,7 @@ fn subject() -> Result<String, WorldError> {
         Datum::String(include_str!("provider.rs").to_owned()),
         Datum::String(include_str!("../freeze/incremental-graph.rs").to_owned()),
         Datum::String(include_str!("../freeze/incremental-model.rs").to_owned()),
-        Datum::String(include_str!("../freeze/runner-proof.rs").to_owned()),
+        Datum::String(include_str!("../freeze/runner-proof.rs.freeze").to_owned()),
         Datum::String(include_str!("../freeze/agent-net-Cargo.lock").to_owned()),
         Datum::String(include_str!("../freeze/runtime-Cargo.lock").to_owned()),
     ]);
