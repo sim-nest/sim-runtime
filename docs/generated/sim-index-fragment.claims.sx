@@ -1,4 +1,4 @@
-(fragment-certificate [schema "sim.index"] [generated-by "xtask repo-contract v1"] [visibility Public] [row-count 8329] [claims (
+(fragment-certificate [schema "sim.index"] [generated-by "xtask repo-contract v1"] [visibility Public] [row-count 8335] [claims (
   (primary [row Subject(SubjectRecord { id: SubjectId("crate/sim-incremental-core"), kind: "crate", title: "sim-incremental-core" })] [note "crate/sim-incremental-core"] [section "subject"])
   (primary [row Subject(SubjectRecord { id: SubjectId("crate/sim-lib-binding"), kind: "crate", title: "sim-lib-binding" })] [note "crate/sim-lib-binding"] [section "subject"])
   (primary [row Subject(SubjectRecord { id: SubjectId("crate/sim-lib-class"), kind: "crate", title: "sim-lib-class" })] [note "crate/sim-lib-class"] [section "subject"])
@@ -143,6 +143,12 @@
   (primary [row Anchor(DiscoveredAnchor { id: AnchorId("anchor/export/sim-lib-study/cli/main/study"), subject: SubjectId("crate/sim-lib-study"), kind: "export" })] [note "crate/sim-lib-study"] [section "anchors"])
   (primary [row Anchor(DiscoveredAnchor { id: AnchorId("anchor/export/sim-lib-world/cli/main/prove"), subject: SubjectId("crate/sim-lib-world"), kind: "export" })] [note "crate/sim-lib-world"] [section "anchors"])
   (primary [row Anchor(DiscoveredAnchor { id: AnchorId("anchor/export/sim-lib-world/cli/main/world"), subject: SubjectId("crate/sim-lib-world"), kind: "export" })] [note "crate/sim-lib-world"] [section "anchors"])
+  (primary [row Anchor(DiscoveredAnchor { id: AnchorId("anchor/export/sim-lib-world/model/ci/sim-kernel"), subject: SubjectId("crate/sim-lib-world"), kind: "export" })] [note "crate/sim-lib-world"] [section "anchors"])
+  (primary [row Anchor(DiscoveredAnchor { id: AnchorId("anchor/export/sim-lib-world/model/ci/sim-run"), subject: SubjectId("crate/sim-lib-world"), kind: "export" })] [note "crate/sim-lib-world"] [section "anchors"])
+  (primary [row Anchor(DiscoveredAnchor { id: AnchorId("anchor/export/sim-lib-world/model/ci/sim-sdk"), subject: SubjectId("crate/sim-lib-world"), kind: "export" })] [note "crate/sim-lib-world"] [section "anchors"])
+  (primary [row Anchor(DiscoveredAnchor { id: AnchorId("anchor/export/sim-lib-world/model/git/branch/topic"), subject: SubjectId("crate/sim-lib-world"), kind: "export" })] [note "crate/sim-lib-world"] [section "anchors"])
+  (primary [row Anchor(DiscoveredAnchor { id: AnchorId("anchor/export/sim-lib-world/model/mirror/sim-kernel"), subject: SubjectId("crate/sim-lib-world"), kind: "export" })] [note "crate/sim-lib-world"] [section "anchors"])
+  (primary [row Anchor(DiscoveredAnchor { id: AnchorId("anchor/export/sim-lib-world/model/mirror/sim-private"), subject: SubjectId("crate/sim-lib-world"), kind: "export" })] [note "crate/sim-lib-world"] [section "anchors"])
   (primary [row Anchor(DiscoveredAnchor { id: AnchorId("anchor/export/sim-lib-world/registry/checksum/sim-kernel"), subject: SubjectId("crate/sim-lib-world"), kind: "export" })] [note "crate/sim-lib-world"] [section "anchors"])
   (primary [row Anchor(DiscoveredAnchor { id: AnchorId("anchor/export/sim-lib-world/registry/index"), subject: SubjectId("crate/sim-lib-world"), kind: "export" })] [note "crate/sim-lib-world"] [section "anchors"])
   (primary [row Anchor(DiscoveredAnchor { id: AnchorId("anchor/export/sim-lib-world/shape/world-config-v1"), subject: SubjectId("crate/sim-lib-world"), kind: "export" })] [note "crate/sim-lib-world"] [section "anchors"])
