@@ -9,9 +9,11 @@
 //! workspace lock, member features, nested Cargo locks, generated sources, and
 //! toolchain identity. Reading that text opens no compiler, host process, or
 //! network connection. A missing, corrupt, wrong-target, or stub-only input
-//! refuses before a compiler starts. Only a verified input admits compilation.
-//! Present-unverified, stub-only, and absent stay
-//! distinct, and a target-specific status is never copied onto another target.
+//! refuses before a compiler starts. The compiling closure admits when its
+//! own members are verified. An enumerated lock whose registry crate was not
+//! downloaded stays present-unverified and does not refuse that closure.
+//! Present-unverified, stub-only, and absent stay distinct, and a
+//! target-specific status is never copied onto another target.
 
 use std::{
     cell::Cell,
@@ -468,7 +470,9 @@ fn lock_bytes(member: &Member) -> Sealed {
                 checksum_kind: Some(member.kind.clone()),
                 files: None,
             },
-            refusal: Some("source-not-reached"),
+            // The compiling closure was an input to this build, so a missing
+            // crate refuses it. An enumerated lock is recorded either way.
+            refusal: member.compiling.then_some("source-not-reached"),
         };
     }
     if member.observed != member.checksum {

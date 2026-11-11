@@ -255,11 +255,10 @@ fn owning_seal_matches_live_locks_and_stays_stable() {
         }
     }
     assert_eq!(mismatched, 0, "nested locks agree with their manifests");
-    assert_eq!(unreached, 0, "every registry member is reached");
     assert_eq!(outside, 0, "every path member has a source");
-    assert_eq!(number(field(fields, "present-unverified")), 0);
+    assert_eq!(number(field(fields, "present-unverified")), unreached);
     assert_eq!(
-        number(field(fields, "verified")),
+        number(field(fields, "verified")) + unreached,
         number(field(fields, "members"))
     );
     assert!(!has_field(fields, "reason"));
@@ -442,6 +441,63 @@ fn wrong_target_keeps_the_digest_and_drops_the_other_status() {
     assert_eq!(text(field(row, "target")), other);
     assert!(!has_field(row, "checksum"));
     assert!(!has_field(row, "content"));
+}
+
+const ENUMERATED_NOT_DOWNLOADED: &str = "\
+sim-world-inputs-v1
+config lock 4
+config resolver 3
+root-package demo
+sealed-target x86_64-unknown-linux-gnu
+toolchain commit 0
+toolchain host x86_64-unknown-linux-gnu
+toolchain release 0
+domain resolver/demo . compiling Cargo.lock
+alias resolver/demo .
+member resolver/demo registry demo-crate 1.0.0 registry+https://github.com/rust-lang/crates.io-index abcdef registry closure abcdef
+domain resolver/demo/recipe recipe enumerated recipe/Cargo.lock
+alias resolver/demo/recipe recipe
+member resolver/demo/recipe registry recipe-crate 1.0.0 registry+https://github.com/rust-lang/crates.io-index fedcba registry closure
+";
+
+const COMPILING_NOT_DOWNLOADED: &str = "\
+sim-world-inputs-v1
+config lock 4
+config resolver 3
+root-package demo
+sealed-target x86_64-unknown-linux-gnu
+toolchain commit 0
+toolchain host x86_64-unknown-linux-gnu
+toolchain release 0
+domain resolver/demo . compiling Cargo.lock
+alias resolver/demo .
+member resolver/demo registry demo-crate 1.0.0 registry+https://github.com/rust-lang/crates.io-index abcdef registry closure
+";
+
+#[test]
+fn an_enumerated_lock_that_was_not_downloaded_does_not_refuse() {
+    let admitted = seal::open_inputs(ENUMERATED_NOT_DOWNLOADED).expect("inputs");
+    let fields = node(&admitted, "world/source-seal-v1");
+    assert_eq!(text(field(fields, "admission")), "admit");
+    assert!(!has_field(fields, "reason"));
+    assert_eq!(number(field(fields, "verified")), 1);
+    assert_eq!(number(field(fields, "present-unverified")), 1);
+    let universe = seal::universe_inputs(ENUMERATED_NOT_DOWNLOADED).expect("universe");
+    let pending = vector(field(
+        node(&universe, "world/source-universe-v1"),
+        "member-rows",
+    ))
+    .iter()
+    .map(|value| node(value, "world/source-member-v1"))
+    .find(|row| text(field(row, "name")) == "recipe-crate")
+    .expect("enumerated member");
+    assert_eq!(text(field(pending, "status")), "present-unverified");
+    assert_eq!(text(field(pending, "reason")), "source-not-reached");
+
+    let refused = seal::open_inputs(COMPILING_NOT_DOWNLOADED).expect("compiling");
+    let refused_fields = node(&refused, "world/source-seal-v1");
+    assert_eq!(text(field(refused_fields, "admission")), "refuse");
+    assert_eq!(text(field(refused_fields, "reason")), "source-not-reached");
 }
 
 #[test]
