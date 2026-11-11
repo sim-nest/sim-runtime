@@ -65,7 +65,8 @@ fn body_of(proof: &super::UnionProof) -> Result<String, WorldError> {
             super::Ground::Assay
             | super::Ground::Project
             | super::Ground::Plan
-            | super::Ground::Observe => {
+            | super::Ground::Observe
+            | super::Ground::Service => {
                 let Some(digest) = proof.digests.get(gate.leaf) else {
                     return Err(WorldError::Qualification(format!(
                         "proof view leaf {} has no digest",

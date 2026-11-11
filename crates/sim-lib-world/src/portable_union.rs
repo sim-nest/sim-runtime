@@ -12,7 +12,8 @@
 //! same computation. The assay row compares the sealed graph with the
 //! commissioned oracle. The project row calls the loaded world command.
 //! The plan row calls the loaded plan command. The observation row calls
-//! the loaded snapshot command. Every other row is a named gap. Gaps stay
+//! the loaded snapshot command. The service row calls the loaded service
+//! command. Every other row is a named gap. Gaps stay
 //! in the denominator. The frontier stays open while any gap
 //! or failed leaf remains.
 //! The sensitivity assay of forty conclusions is a different set. Each
@@ -38,6 +39,8 @@ mod observe;
 mod plan;
 #[path = "portable_project.rs"]
 mod project;
+#[path = "portable_service.rs"]
+mod service;
 #[path = "portable_union_view.rs"]
 mod view;
 
@@ -50,6 +53,7 @@ enum Ground {
     Project,
     Plan,
     Observe,
+    Service,
     Gap(&'static str),
 }
 
@@ -272,7 +276,9 @@ fn classify(leaf: &str) -> Result<Class, WorldError> {
     };
     match gate.ground {
         Ground::Gap(reason) => Ok(Class::Gap(reason)),
-        Ground::Assay | Ground::Project | Ground::Plan | Ground::Observe => Ok(Class::Executed),
+        Ground::Assay | Ground::Project | Ground::Plan | Ground::Observe | Ground::Service => {
+            Ok(Class::Executed)
+        }
     }
 }
 
@@ -361,6 +367,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
         Ground::Project => project::project_leaf(),
         Ground::Plan => plan::plan_leaf(),
         Ground::Observe => observe::observe_leaf(),
+        Ground::Service => service::service_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),
@@ -444,7 +451,9 @@ fn gap_rows() -> Vec<String> {
         .iter()
         .filter_map(|gate| match gate.ground {
             Ground::Gap(reason) => Some(format!("gap {} {reason}", gate.leaf)),
-            Ground::Assay | Ground::Project | Ground::Plan | Ground::Observe => None,
+            Ground::Assay | Ground::Project | Ground::Plan | Ground::Observe | Ground::Service => {
+                None
+            }
         })
         .collect()
 }
@@ -457,6 +466,8 @@ fn subject() -> Result<String, WorldError> {
         Datum::String(include_str!("portable_union_gates.rs").to_owned()),
         Datum::String(include_str!("portable_plan.rs").to_owned()),
         Datum::String(include_str!("portable_observe.rs").to_owned()),
+        Datum::String(include_str!("portable_service.rs").to_owned()),
+        Datum::String(include_str!("portable_service_expect.rs").to_owned()),
         Datum::String(include_str!("assay.rs").to_owned()),
         Datum::String(include_str!("assay_oracle.rs").to_owned()),
         Datum::String(include_str!("provider.rs").to_owned()),
