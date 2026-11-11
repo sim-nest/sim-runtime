@@ -6,9 +6,12 @@
 //! Plan gate for the portable phase union.
 //!
 //! The leaf calls the loaded world command. Each build runs the expression
-//! twice and also asks for the text and card views. The actual deck is that
-//! command record. The expected deck is the authored plan for the bundled
-//! subject. The catalog passes only when the record and that plan agree.
+//! twice and also asks for the text and card views. Those views agree only
+//! when the text leaves, gaps, page, and continuation, and the card
+//! continuation and gaps, carry the same values as the expression record.
+//! The actual deck is that command record. The expected deck is the authored
+//! plan for the bundled subject. The catalog passes only when the record and
+//! that plan agree.
 
 use std::collections::BTreeSet;
 
@@ -156,6 +159,9 @@ fn world_mark(value: &Datum) -> String {
 
 fn views_agree(expression: &Datum, text: &Datum, card: &Datum) -> bool {
     let world = field_text(expression, "world");
+    let leaves = expression_leaf_rows(expression);
+    let gaps = expression_gap_rows(expression);
+    let continuation = field_text(expression, "continuation");
     world.len() == 64
         && world.bytes().all(|byte| byte.is_ascii_hexdigit())
         && field_text(text, "world") == world
@@ -168,6 +174,101 @@ fn views_agree(expression: &Datum, text: &Datum, card: &Datum) -> bool {
         && field_count(expression, "effects") == field_count(text, "effects")
         && field_count(expression, "subprocesses") == field_count(text, "subprocesses")
         && field_bool(expression, "resident") == field_bool(text, "resident")
+        && field_count(expression, "page") == field_count(text, "page")
+        && continuation != "missing"
+        && field_text(text, "continuation") == continuation
+        && field_text(card, "core/args") == continuation
+        && leaves.is_some()
+        && split_leaf_rows(&field_text(text, "leaves")) == leaves
+        && gaps.is_some()
+        && split_pairs(&field_text(text, "gaps")) == gaps
+        && split_pairs(&field_text(card, "core/requires")) == gaps
+}
+
+fn expression_leaf_rows(value: &Datum) -> Option<Vec<(String, String, String)>> {
+    let Datum::Vector(items) = field(value, "leaves")? else {
+        return None;
+    };
+    let mut rows = Vec::new();
+    for item in items {
+        let conclusion = field_string(item, "conclusion");
+        let reason = field_string(item, "reason");
+        if conclusion == "missing" || reason == "missing" {
+            return None;
+        }
+        let disposition = match field(item, "included") {
+            Some(Datum::Bool(true)) => "included",
+            Some(Datum::Bool(false)) => "excluded",
+            _ => return None,
+        };
+        rows.push((conclusion, disposition.to_owned(), reason));
+    }
+    Some(rows)
+}
+
+fn expression_gap_rows(value: &Datum) -> Option<Vec<(String, String)>> {
+    let Datum::Vector(items) = field(value, "gaps")? else {
+        return None;
+    };
+    let mut rows = Vec::new();
+    for item in items {
+        let conclusion = field_string(item, "conclusion");
+        let reason = field_string(item, "reason");
+        if conclusion == "missing" || reason == "missing" {
+            return None;
+        }
+        rows.push((conclusion, reason));
+    }
+    Some(rows)
+}
+
+fn split_leaf_rows(text: &str) -> Option<Vec<(String, String, String)>> {
+    if text == "missing" {
+        return None;
+    }
+    if text.is_empty() {
+        return Some(Vec::new());
+    }
+    let mut rows = Vec::new();
+    for part in text.split("; ") {
+        let mut tokens = part.split(' ');
+        let conclusion = tokens.next()?;
+        let disposition = tokens.next()?;
+        let reason = tokens.next()?;
+        if tokens.next().is_some()
+            || conclusion.is_empty()
+            || reason.is_empty()
+            || !matches!(disposition, "included" | "excluded")
+        {
+            return None;
+        }
+        rows.push((
+            conclusion.to_owned(),
+            disposition.to_owned(),
+            reason.to_owned(),
+        ));
+    }
+    Some(rows)
+}
+
+fn split_pairs(text: &str) -> Option<Vec<(String, String)>> {
+    if text == "missing" {
+        return None;
+    }
+    if text.is_empty() {
+        return Some(Vec::new());
+    }
+    let mut rows = Vec::new();
+    for part in text.split("; ") {
+        let mut tokens = part.split(' ');
+        let left = tokens.next()?;
+        let right = tokens.next()?;
+        if tokens.next().is_some() || left.is_empty() || right.is_empty() {
+            return None;
+        }
+        rows.push((left.to_owned(), right.to_owned()));
+    }
+    Some(rows)
 }
 
 fn reason_lines(value: &Datum) -> Vec<String> {
@@ -258,116 +359,5 @@ fn field<'a>(value: &'a Datum, name: &str) -> Option<&'a Datum> {
 }
 
 #[cfg(test)]
-mod tests {
-    use sim_kernel::{Datum, Symbol};
-    use sim_lib_roadmap_runner::{
-        ProcessCancellation, ProofCatalog, ProofDisposition, ProofLeaf, SandboxAttempt,
-        SandboxLauncher, SandboxRefusal, SandboxRequest, execute_proof_leaf,
-    };
-
-    use super::*;
-    use crate::command::WorldCommandLib;
-
-    struct RefuseLaunch;
-
-    impl SandboxLauncher for RefuseLaunch {
-        fn id(&self) -> &str {
-            "plan-gate-refuse"
-        }
-
-        fn launch(&self, _: &SandboxRequest, _: &ProcessCancellation) -> SandboxAttempt {
-            SandboxAttempt::Refused(SandboxRefusal {
-                launcher: self.id().into(),
-                reason: "plan gate has no owner command".into(),
-                report: None,
-            })
-        }
-    }
-
-    fn disposition(leaf: ProofLeaf) -> ProofDisposition {
-        let name = leaf.name().to_owned();
-        let catalog = ProofCatalog::new([leaf]).expect("catalog");
-        let receipt = execute_proof_leaf(
-            &catalog,
-            &name,
-            &RefuseLaunch,
-            &ProcessCancellation::default(),
-            "plan-gate",
-        )
-        .expect("leaf");
-        receipt.disposition
-    }
-
-    #[test]
-    fn the_loaded_plan_command_matches_the_authored_plan() {
-        let command = WorldCommandLib::new().expect("command");
-        let recorded = command.run(&plan_argv(None)).expect("plan");
-        let text = command.run(&plan_argv(Some("text"))).expect("text");
-        let card = command.run(&plan_argv(Some("card"))).expect("card");
-        let leaf = plan_leaf().expect("leaf");
-        let ProofLeaf::SourceDeckPredicate {
-            actual_deck,
-            expected_deck,
-            present_claims,
-            required_claims,
-            ..
-        } = &leaf
-        else {
-            panic!("plan gate is a source-deck predicate");
-        };
-        assert_eq!(actual_deck, expected_deck);
-        assert_eq!(present_claims, required_claims);
-        assert_eq!(present_claims, &present_reasons(&recorded));
-        assert_eq!(field_count(&recorded, "effects"), "0");
-        assert_eq!(field_count(&recorded, "subprocesses"), "0");
-        assert!(views_agree(&recorded, &text, &card));
-        assert_eq!(disposition(leaf), ProofDisposition::Passed);
-    }
-
-    #[test]
-    fn a_record_that_drops_a_reason_fails() {
-        let value = Datum::Node {
-            tag: Symbol::qualified("world", "proof-plan-v1"),
-            fields: vec![
-                (Symbol::new("world"), Datum::String("a".repeat(64))),
-                (Symbol::new("page"), crate::query::count_datum(0)),
-                (Symbol::new("effects"), crate::query::count_datum(0)),
-                (Symbol::new("subprocesses"), crate::query::count_datum(0)),
-                (Symbol::new("resident"), Datum::Bool(true)),
-                (Symbol::new("affected"), Datum::Vector(Vec::new())),
-                (
-                    Symbol::new("legal-ready"),
-                    Datum::Vector(
-                        LEGAL_READY
-                            .split(' ')
-                            .map(|text| Datum::String(text.to_owned()))
-                            .collect(),
-                    ),
-                ),
-                (
-                    Symbol::new("floor"),
-                    Datum::Vector(
-                        FLOOR
-                            .split(' ')
-                            .map(|text| Datum::String(text.to_owned()))
-                            .collect(),
-                    ),
-                ),
-                (Symbol::new("leaves"), Datum::Vector(Vec::new())),
-            ],
-        };
-        let leaf = leaf_from(true, &value, true, true);
-        let ProofLeaf::SourceDeckPredicate {
-            actual_deck,
-            expected_deck,
-            present_claims,
-            ..
-        } = &leaf
-        else {
-            panic!("plan gate is a source-deck predicate");
-        };
-        assert_ne!(actual_deck, expected_deck);
-        assert!(present_claims.is_empty());
-        assert_eq!(disposition(leaf), ProofDisposition::Failed);
-    }
-}
+#[path = "portable_plan_tests.rs"]
+mod tests;
