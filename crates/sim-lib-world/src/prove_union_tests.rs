@@ -14,16 +14,16 @@ fn the_public_denominator_is_the_phase_gates() {
     let cold = prove::run("cold", None).unwrap();
     assert_eq!(
         crate::journal::calls_on_this_thread(),
-        before.saturating_add(1)
+        before.saturating_add(2)
     );
     assert_eq!(
         crate::operate::calls_on_this_thread(),
         operate_before.saturating_add(4)
     );
     assert_eq!(number(&cold, "denominator"), 29);
-    assert_eq!(number(&cold, "executed"), 20);
+    assert_eq!(number(&cold, "executed"), 21);
     assert_eq!(number(&cold, "owner-commands"), 0);
-    assert_eq!(number(&cold, "requests"), 20);
+    assert_eq!(number(&cold, "requests"), 21);
     let gaps = text(&cold, "gaps");
     assert!(gaps.contains("gap phase/00 no-owner-result"));
     assert!(!gaps.contains("phase/06"));
@@ -32,7 +32,7 @@ fn the_public_denominator_is_the_phase_gates() {
     assert!(gaps.contains("gap phase/14 circular"));
     assert!(gaps.contains("gap phase/27 held"));
     assert!(gaps.contains("gap phase/28 unimplemented"));
-    assert!(gaps.contains("gap phase/02 same-computation"));
+    assert!(!gaps.contains("phase/02"));
     assert!(!gaps.contains("phase/07"));
     assert!(!gaps.contains("phase/08"));
     assert!(!gaps.contains("phase/09"));
@@ -65,8 +65,8 @@ fn reuse_of_owner_leaves_is_complete_and_the_frontier_stays_open() {
     let view = text(&cold, "view");
     let d1 = prove::run("D1", Some(&view)).unwrap();
     assert_eq!(number(&d1, "denominator"), 29);
-    assert_eq!(number(&d1, "executed"), 20);
-    assert_eq!(number(&d1, "reused"), 20);
+    assert_eq!(number(&d1, "executed"), 21);
+    assert_eq!(number(&d1, "reused"), 21);
     assert_eq!(number(&d1, "false-reuse"), 0);
     assert_eq!(number(&d1, "reuse-basis-points"), 10_000);
     assert_eq!(text(&d1, "rerun"), "");
@@ -111,10 +111,8 @@ fn reuse_of_owner_leaves_is_complete_and_the_frontier_stays_open() {
     assert!(bool_field(&bound, "reused"));
     let operated = prove::why("D2", "phase/04", Some(&view)).unwrap();
     assert!(bool_field(&operated, "reused"));
-    let journal_before = crate::journal::calls_on_this_thread();
     let journal = prove::why("D2", "phase/02", Some(&view)).unwrap();
-    assert_eq!(text(&journal, "reason"), "same-computation");
-    assert!(crate::journal::calls_on_this_thread() > journal_before);
+    assert!(bool_field(&journal, "reused"));
     let qualify = prove::why("D2", "phase/26", Some(&view)).unwrap();
     assert!(bool_field(&qualify, "reused"));
     assert!(!text(&cold, "view").contains("gap phase/06"));

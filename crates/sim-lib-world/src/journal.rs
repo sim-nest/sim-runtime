@@ -6,8 +6,10 @@
 //! Loaded journal command.
 //!
 //! One compare opens one execution and runs `rebuild` and `rebuild_report`.
-//! Equal results are the same computation. A later or concurrent identical
-//! case returns that record. A private value is refused before the reservation.
+//! Equal results are the same computation. Replay exports that journal's
+//! stored state and reopens it on a second instance. A later or concurrent
+//! identical case returns that record. A private value is refused before
+//! the reservation.
 
 use std::cell::Cell;
 
@@ -20,6 +22,8 @@ use crate::query;
 mod drive;
 #[path = "journal_memory.rs"]
 mod memory;
+#[path = "journal_replay.rs"]
+mod replay;
 
 const MARKERS: &[&str] = &[
     "bo-private",
@@ -54,21 +58,6 @@ pub(crate) fn run(case: &str) -> Result<Datum, WorldError> {
     Ok(rendered)
 }
 
-/// Accepts the loaded compare record when its reason is the stated gap.
-///
-/// # Errors
-/// Returns an error when the record is not the journal gap, or when its
-/// reason disagrees with the phase row.
-pub(crate) fn confirm(stated: &str, value: &Datum) -> Result<(), WorldError> {
-    let found = reason_of(value)?;
-    if found != stated {
-        return Err(WorldError::Qualification(
-            "journal owner disagreed with the phase gap".to_owned(),
-        ));
-    }
-    Ok(())
-}
-
 /// Journal-command entries on this thread, including a retained record.
 #[cfg(test)]
 pub(crate) fn calls_on_this_thread() -> u64 {
@@ -80,7 +69,7 @@ fn note_call() {
 }
 
 fn known(case: &str) -> bool {
-    matches!(case, "compare") || cfg!(test) && case == "journal-memory-race"
+    matches!(case, "compare" | "replay") || cfg!(test) && case == "journal-memory-race"
 }
 
 fn canonical_case(case: &str) -> &str {
@@ -92,11 +81,30 @@ fn canonical_case(case: &str) -> &str {
 }
 
 fn receive(case: &str) -> Result<Datum, WorldError> {
+    if case == "replay" {
+        return Ok(replay_record(&replay::reopen()?));
+    }
     if case != "compare" {
         return Ok(gap(case, "unknown-case", 0, 0));
     }
     let compared = drive::compare()?;
     Ok(gap(case, compared.reason, compared.records, 2))
+}
+
+fn replay_record(reopened: &replay::Reopened) -> Datum {
+    Datum::Node {
+        tag: Symbol::qualified("world", "journal-replay-v1"),
+        fields: vec![
+            (Symbol::new("case"), string("replay")),
+            (Symbol::new("corrupt"), string(reopened.corrupt)),
+            (Symbol::new("effects"), query::count_datum(0)),
+            (Symbol::new("head"), string(reopened.head)),
+            (Symbol::new("reason"), string(reopened.reason)),
+            (Symbol::new("records"), query::count_datum(reopened.records)),
+            (Symbol::new("resident"), Datum::Bool(true)),
+            (Symbol::new("subprocesses"), query::count_datum(0)),
+        ],
+    }
 }
 
 fn gap(case: &str, reason: &str, records: u64, invokes: u64) -> Datum {
@@ -112,33 +120,6 @@ fn gap(case: &str, reason: &str, records: u64, invokes: u64) -> Datum {
             (Symbol::new("resident"), Datum::Bool(true)),
             (Symbol::new("subprocesses"), query::count_datum(0)),
         ],
-    }
-}
-
-fn reason_of(value: &Datum) -> Result<String, WorldError> {
-    let Datum::Node { tag, fields } = value else {
-        return Err(WorldError::Qualification(
-            "journal owner returned no record".to_owned(),
-        ));
-    };
-    if tag.as_qualified_str() != "world/journal-gap-v1" {
-        return Err(WorldError::Qualification(
-            "journal owner returned no gap".to_owned(),
-        ));
-    }
-    let Some((_, field)) = fields
-        .iter()
-        .find(|(field, _)| field.to_string() == "reason")
-    else {
-        return Err(WorldError::Qualification(
-            "journal owner omitted the reason".to_owned(),
-        ));
-    };
-    match field {
-        Datum::String(reason) => Ok(reason.clone()),
-        _ => Err(WorldError::Qualification(
-            "journal owner omitted the reason".to_owned(),
-        )),
     }
 }
 

@@ -61,6 +61,8 @@ mod converge;
 mod deliver;
 #[path = "portable_fixed.rs"]
 mod fixed;
+#[path = "portable_journal.rs"]
+mod journal_gate;
 #[path = "portable_land.rs"]
 mod land;
 #[path = "portable_observe.rs"]
@@ -113,6 +115,7 @@ enum Ground {
     Recover,
     Bind,
     Operate,
+    Journal,
     Gap(&'static str),
 }
 
@@ -440,6 +443,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
         Ground::Recover => recover::recover_leaf(),
         Ground::Bind => bind::bind_leaf(),
         Ground::Operate => operate::operate_leaf(),
+        Ground::Journal => journal_gate::journal_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),
@@ -522,19 +526,10 @@ fn gap_rows() -> Result<Vec<String>, WorldError> {
     let mut rows = Vec::new();
     for gate in GATES {
         if let Ground::Gap(reason) = gate.ground {
-            if gate.leaf == "phase/02" {
-                confirm_journal(reason)?;
-            }
             rows.push(format!("gap {} {reason}", gate.leaf));
         }
     }
     Ok(rows)
-}
-
-fn confirm_journal(reason: &'static str) -> Result<(), WorldError> {
-    let command = project::resident_command()?;
-    let value = command.run(&["sim".to_owned(), "journal".to_owned(), "compare".to_owned()])?;
-    crate::journal::confirm(reason, &value)
 }
 
 #[path = "portable_union_subject.rs"]

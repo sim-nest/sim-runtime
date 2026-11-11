@@ -231,7 +231,7 @@ fn retained_view_answers_d1_without_another_cold_execution() {
         number_field(&cold, "requests")
     );
     let why_journal = prove::why("D1", "phase/02", Some(&view)).unwrap();
-    assert_eq!(text_field(&why_journal, "reason"), "same-computation");
+    assert!(bool_field(&why_journal, "reused"));
     let why_gap = prove::why("D1", "phase/14", Some(&view)).unwrap();
     assert_eq!(text_field(&why_gap, "reason"), "circular");
     let mut tampered = view.clone();

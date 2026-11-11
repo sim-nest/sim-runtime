@@ -18,7 +18,7 @@ pub(super) const GATES: &[Gate] = &[
     },
     Gate {
         leaf: "phase/02",
-        ground: Ground::Gap("same-computation"),
+        ground: Ground::Journal,
     },
     Gate {
         leaf: "phase/03",
