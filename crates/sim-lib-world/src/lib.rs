@@ -86,6 +86,9 @@
 //! Swapped identities refuse. A missing pack scope is unimplemented.
 //! The facet law passes, and its unfunded scope stays unimplemented.
 //! Binding does not mutate a checkout.
+//! One journal compare runs rebuild and the rebuild report on one
+//! opened execution. Equal results are the same computation. A later
+//! call returns that record. The compare does not close the frontier.
 //! A fresh succession reads one exported model record
 //! and one later change. The export names registry packages, the foreign
 //! project, and declared inputs. The change is observed, sealed, proved,
@@ -133,6 +136,7 @@ mod deliver;
 mod fixed;
 mod fixture;
 mod grant;
+mod journal;
 mod land;
 mod observe;
 mod plan;

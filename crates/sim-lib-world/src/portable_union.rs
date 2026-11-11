@@ -8,8 +8,9 @@
 //! The denominator is one row for each selected portable phase, from the
 //! first through the twenty-ninth. Linux phases are not rows. A row runs
 //! only when this product can already call an owner result for that gate.
-//! The journal row is a named gap: `rebuild` and `rebuild_report` are the
-//! same computation. The assay row compares the sealed graph with the
+//! The journal row calls the loaded journal command. That command runs
+//! `rebuild` and `rebuild_report`. They are the same computation, so the
+//! row stays a named gap. The assay row compares the sealed graph with the
 //! commissioned oracle. The project row calls the loaded world command.
 //! The plan row calls the loaded plan command. The observation row calls
 //! the loaded snapshot command. The service row calls the loaded service
@@ -383,7 +384,7 @@ fn execute() -> Result<UnionProof, WorldError> {
         subject: subject()?,
         leaves,
         executed,
-        gaps: gap_rows(),
+        gaps: gap_rows()?,
         failures,
         requests: u64::try_from(names.len()).unwrap_or(u64::MAX),
         owner_commands,
@@ -512,14 +513,23 @@ fn phase_names() -> Result<Vec<String>, WorldError> {
     Ok(names)
 }
 
-fn gap_rows() -> Vec<String> {
-    GATES
-        .iter()
-        .filter_map(|gate| match gate.ground {
-            Ground::Gap(reason) => Some(format!("gap {} {reason}", gate.leaf)),
-            _ => None,
-        })
-        .collect()
+fn gap_rows() -> Result<Vec<String>, WorldError> {
+    let mut rows = Vec::new();
+    for gate in GATES {
+        if let Ground::Gap(reason) = gate.ground {
+            if gate.leaf == "phase/02" {
+                confirm_journal(reason)?;
+            }
+            rows.push(format!("gap {} {reason}", gate.leaf));
+        }
+    }
+    Ok(rows)
+}
+
+fn confirm_journal(reason: &'static str) -> Result<(), WorldError> {
+    let command = project::resident_command()?;
+    let value = command.run(&["sim".to_owned(), "journal".to_owned(), "compare".to_owned()])?;
+    crate::journal::confirm(reason, &value)
 }
 
 #[path = "portable_union_subject.rs"]

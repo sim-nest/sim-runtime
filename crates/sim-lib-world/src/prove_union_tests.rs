@@ -9,7 +9,12 @@ use crate::prove;
 
 #[test]
 fn the_public_denominator_is_the_phase_gates() {
+    let before = crate::journal::calls_on_this_thread();
     let cold = prove::run("cold", None).unwrap();
+    assert_eq!(
+        crate::journal::calls_on_this_thread(),
+        before.saturating_add(1)
+    );
     assert_eq!(number(&cold, "denominator"), 29);
     assert_eq!(number(&cold, "executed"), 19);
     assert_eq!(number(&cold, "owner-commands"), 0);
@@ -98,6 +103,10 @@ fn reuse_of_owner_leaves_is_complete_and_the_frontier_stays_open() {
     assert!(bool_field(&recovered, "reused"));
     let bound = prove::why("D2", "phase/01", Some(&view)).unwrap();
     assert!(bool_field(&bound, "reused"));
+    let journal_before = crate::journal::calls_on_this_thread();
+    let journal = prove::why("D2", "phase/02", Some(&view)).unwrap();
+    assert_eq!(text(&journal, "reason"), "same-computation");
+    assert!(crate::journal::calls_on_this_thread() > journal_before);
     let qualify = prove::why("D2", "phase/26", Some(&view)).unwrap();
     assert!(bool_field(&qualify, "reused"));
     assert!(!text(&cold, "view").contains("gap phase/06"));
