@@ -72,6 +72,15 @@
 //! A generated region refuses another actor. A cached answer stays
 //! current until the head moves. Status names the tip and a missing
 //! repository. The landing does not mutate a checkout.
+//! One recover call runs the published recovery once. A later call
+//! returns that record. An ambiguous observation requests no effect.
+//! An unreconciled image is not resumed. Unresolved work and a changed
+//! identity stop. A retryable failure admits one retry, and exhaustion
+//! stops. Fresh lower-rank refinement is the only refiner request.
+//! Image classification names unchanged, preimage, postimage, and
+//! foreign bytes. A committed observation inverts to the prior image,
+//! and a foreign observation refuses that inverse. Recovery does not
+//! mutate a checkout.
 //! A fresh succession reads one exported model record
 //! and one later change. The export names registry packages, the foreign
 //! project, and declared inputs. The change is observed, sealed, proved,
@@ -127,6 +136,7 @@ mod prove_command;
 mod provider;
 mod qualify;
 mod query;
+mod recover;
 mod release;
 mod schedule;
 mod seal;

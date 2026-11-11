@@ -23,6 +23,7 @@
 //! The fixed-point row calls the loaded fixed command.
 //! The transaction row calls the loaded transact command.
 //! The landing row calls the loaded land command.
+//! The recovery row calls the loaded recover command.
 //! Every other row is a named gap. Gaps stay
 //! in the denominator. The frontier stays open while any gap
 //! or failed leaf remains.
@@ -65,6 +66,8 @@ mod plan;
 mod project;
 #[path = "portable_qualify.rs"]
 mod qualify;
+#[path = "portable_recover.rs"]
+mod recover;
 #[path = "portable_release.rs"]
 mod release;
 #[path = "portable_schedule.rs"]
@@ -100,6 +103,7 @@ enum Ground {
     Fixed,
     Transact,
     Land,
+    Recover,
     Gap(&'static str),
 }
 
@@ -424,6 +428,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
         Ground::Fixed => fixed::fixed_leaf(),
         Ground::Transact => transact::transact_leaf(),
         Ground::Land => land::land_leaf(),
+        Ground::Recover => recover::recover_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),
@@ -558,6 +563,9 @@ fn subject() -> Result<String, WorldError> {
         Datum::String(include_str!("portable_land.rs").to_owned()),
         Datum::String(include_str!("portable_land_expect.rs").to_owned()),
         Datum::String(include_str!("portable_land_parse.rs").to_owned()),
+        Datum::String(include_str!("portable_recover.rs").to_owned()),
+        Datum::String(include_str!("portable_recover_expect.rs").to_owned()),
+        Datum::String(include_str!("portable_recover_parse.rs").to_owned()),
         Datum::String(include_str!("assay.rs").to_owned()),
         Datum::String(include_str!("assay_oracle.rs").to_owned()),
         Datum::String(include_str!("provider.rs").to_owned()),
