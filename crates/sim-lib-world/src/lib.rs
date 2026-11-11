@@ -89,6 +89,12 @@
 //! One journal compare runs rebuild and the rebuild report on one
 //! opened execution. Equal results are the same computation. A later
 //! call returns that record. The compare does not close the frontier.
+//! One operate call runs the operation lifecycle and the durable
+//! operation service once. A verified dispatch is replayed without a
+//! second performance. A missing acknowledgement stays dispatched. A
+//! forged transition is refused. An interruption before or after an
+//! admission recovers without repeating the dispatch. A later call
+//! returns that record. The operation does not close the frontier.
 //! A fresh succession reads one exported model record
 //! and one later change. The export names registry packages, the foreign
 //! project, and declared inputs. The change is observed, sealed, proved,
@@ -139,6 +145,7 @@ mod grant;
 mod journal;
 mod land;
 mod observe;
+mod operate;
 mod plan;
 mod product;
 mod prove;

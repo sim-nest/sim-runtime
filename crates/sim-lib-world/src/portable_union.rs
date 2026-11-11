@@ -26,6 +26,7 @@
 //! The landing row calls the loaded land command.
 //! The recovery row calls the loaded recover command.
 //! The binding row calls the loaded bind command.
+//! The operation row calls the loaded operate command.
 //! Every other row is a named gap. Gaps stay
 //! in the denominator. The frontier stays open while any gap
 //! or failed leaf remains.
@@ -64,6 +65,8 @@ mod fixed;
 mod land;
 #[path = "portable_observe.rs"]
 mod observe;
+#[path = "portable_operate.rs"]
+mod operate;
 #[path = "portable_plan.rs"]
 mod plan;
 #[path = "portable_project.rs"]
@@ -109,6 +112,7 @@ enum Ground {
     Land,
     Recover,
     Bind,
+    Operate,
     Gap(&'static str),
 }
 
@@ -435,6 +439,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
         Ground::Land => land::land_leaf(),
         Ground::Recover => recover::recover_leaf(),
         Ground::Bind => bind::bind_leaf(),
+        Ground::Operate => operate::operate_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),
