@@ -14,7 +14,8 @@
 //! The plan row calls the loaded plan command. The observation row calls
 //! the loaded snapshot command. The service row calls the loaded service
 //! command. The release row calls the loaded release command. The delivery
-//! row calls the loaded deliver command. Every other row is a named gap. Gaps stay
+//! row calls the loaded deliver command. The canary row calls the loaded
+//! canary command. Every other row is a named gap. Gaps stay
 //! in the denominator. The frontier stays open while any gap
 //! or failed leaf remains.
 //! The sensitivity assay of forty conclusions is a different set. Each
@@ -34,6 +35,8 @@ use crate::provider;
 
 use super::record::{self, flag, gap, list, node, num, text};
 
+#[path = "portable_canary.rs"]
+mod canary;
 #[path = "portable_deliver.rs"]
 mod deliver;
 #[path = "portable_observe.rs"]
@@ -61,6 +64,7 @@ enum Ground {
     Service,
     Release,
     Deliver,
+    Canary,
     Gap(&'static str),
 }
 
@@ -289,7 +293,8 @@ fn classify(leaf: &str) -> Result<Class, WorldError> {
         | Ground::Observe
         | Ground::Service
         | Ground::Release
-        | Ground::Deliver => Ok(Class::Executed),
+        | Ground::Deliver
+        | Ground::Canary => Ok(Class::Executed),
     }
 }
 
@@ -381,6 +386,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
         Ground::Service => service::service_leaf(),
         Ground::Release => release::release_leaf(),
         Ground::Deliver => deliver::deliver_leaf(),
+        Ground::Canary => canary::canary_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),
@@ -470,7 +476,8 @@ fn gap_rows() -> Vec<String> {
             | Ground::Observe
             | Ground::Service
             | Ground::Release
-            | Ground::Deliver => None,
+            | Ground::Deliver
+            | Ground::Canary => None,
         })
         .collect()
 }
@@ -491,6 +498,9 @@ fn subject() -> Result<String, WorldError> {
         Datum::String(include_str!("portable_deliver.rs").to_owned()),
         Datum::String(include_str!("portable_deliver_expect.rs").to_owned()),
         Datum::String(include_str!("portable_deliver_parse.rs").to_owned()),
+        Datum::String(include_str!("portable_canary.rs").to_owned()),
+        Datum::String(include_str!("portable_canary_expect.rs").to_owned()),
+        Datum::String(include_str!("portable_canary_parse.rs").to_owned()),
         Datum::String(include_str!("assay.rs").to_owned()),
         Datum::String(include_str!("assay_oracle.rs").to_owned()),
         Datum::String(include_str!("provider.rs").to_owned()),

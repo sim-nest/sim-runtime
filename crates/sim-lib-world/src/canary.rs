@@ -18,6 +18,8 @@ use crate::product::DISCLOSURE_FACT;
 use crate::query;
 use crate::service;
 
+#[path = "canary_memory.rs"]
+pub(crate) mod memory;
 #[path = "canary_run.rs"]
 mod run;
 
@@ -192,15 +194,27 @@ fn apply_canary(
             reason,
         ));
     }
-    let reconciliation = run::reconcile(realization, destination, &head.value)?;
-    grant.consume();
-    Ok(record(
+    let claim = match memory::claim(memory::Input {
         realization,
         source,
         destination,
-        head,
-        &reconciliation,
-    ))
+        purpose: &grant.purpose,
+        kind: &head.kind,
+        provenance: &head.provenance,
+        state: &head.state,
+        value: &head.value,
+    }) {
+        memory::Reservation::Ready(found) => {
+            grant.consume();
+            return Ok(found);
+        }
+        memory::Reservation::Mine(claim) => claim,
+    };
+    let reconciliation = run::reconcile(realization, destination, &head.value)?;
+    grant.consume();
+    let delivered = record(realization, source, destination, head, &reconciliation);
+    claim.commit(&delivered);
+    Ok(delivered)
 }
 
 struct Head {

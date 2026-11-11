@@ -20,13 +20,13 @@
       }
     }
   },
-  "generation_timestamp": "2026-11-11T03:50:15+01:00",
+  "generation_timestamp": "2026-11-11T04:21:38+01:00",
   "generator": "xtask repo-contract v1",
-  "git_commit": "32bc6033be92eece4d6d2faced905595286182ec",
+  "git_commit": "9de72079548595fc14ffe061bd21b1e9f8178ae8",
   "regeneration_command": "cargo run -p xtask -- simdoc",
   "repo": "sim-runtime",
   "schema": "sim.provenance.v1",
-  "source_commit": "32bc6033be92eece4d6d2faced905595286182ec",
+  "source_commit": "9de72079548595fc14ffe061bd21b1e9f8178ae8",
   "source_remote": "https://github.com/sim-nest/sim-runtime",
   "validation_commands": [
     "cargo fmt --all --check",
@@ -42,9 +42,9 @@
     "cargo run -p xtask -- validation-matrix --check --repo .",
     "cargo run -p xtask -- crate-catalog --check --repo ."
   ],
-  "workspace_hash": "5356c891374ec2bf",
+  "workspace_hash": "33c136c01dafef22",
   "workspace_hash_algorithm": "fnv1a64",
-  "workspace_hash_input_count": 842,
+  "workspace_hash_input_count": 847,
   "workspace_hash_inputs": [
     ".github/workflows/authorship.yml",
     ".github/workflows/ci.yml",
@@ -819,6 +819,7 @@
     "crates/sim-lib-world/src/assay_mutant.rs",
     "crates/sim-lib-world/src/assay_oracle.rs",
     "crates/sim-lib-world/src/canary.rs",
+    "crates/sim-lib-world/src/canary_memory.rs",
     "crates/sim-lib-world/src/canary_run.rs",
     "crates/sim-lib-world/src/canary_tests.rs",
     "crates/sim-lib-world/src/command.rs",
@@ -838,6 +839,10 @@
     "crates/sim-lib-world/src/plan.rs",
     "crates/sim-lib-world/src/plan_subject.rs",
     "crates/sim-lib-world/src/plan_tests.rs",
+    "crates/sim-lib-world/src/portable_canary.rs",
+    "crates/sim-lib-world/src/portable_canary_expect.rs",
+    "crates/sim-lib-world/src/portable_canary_parse.rs",
+    "crates/sim-lib-world/src/portable_canary_tests.rs",
     "crates/sim-lib-world/src/portable_deliver.rs",
     "crates/sim-lib-world/src/portable_deliver_expect.rs",
     "crates/sim-lib-world/src/portable_deliver_parse.rs",
