@@ -110,8 +110,65 @@ fn a_reported_read_on_a_quiet_or_native_result_fails() {
     let ProofLeaf::SourceDeckPredicate { actual_deck, .. } = &native_leaf else {
         panic!("observation gate is a source-deck predicate");
     };
-    assert!(actual_deck.contains("native-reads filesystem/readme"));
+    assert!(actual_deck.contains("native-reads 1|filesystem/readme"));
     assert_eq!(disposition(native_leaf), ProofDisposition::Failed);
+}
+
+#[test]
+fn misattributed_reads_fail() {
+    let command = WorldCommandLib::new().expect("command");
+    let mut captured = capture(&command).expect("capture");
+    let quiet = row_index(&captured.rows, "ci/run");
+    let holder = row_index(&captured.rows, "filesystem/readme");
+    captured.rows[quiet] = with_field(&captured.rows[quiet], "reads", Datum::Vector(Vec::new()));
+    captured.rows[holder] = with_field(
+        &captured.rows[holder],
+        "reads",
+        Datum::Vector(vec![
+            Datum::String("ci/run".to_owned()),
+            Datum::String("filesystem/readme".to_owned()),
+        ]),
+    );
+    let leaf = leaf_from(captured);
+    let ProofLeaf::SourceDeckPredicate { actual_deck, .. } = &leaf else {
+        panic!("observation gate is a source-deck predicate");
+    };
+    assert!(actual_deck.contains("status ci/run uncertain matched 0"));
+    assert!(
+        actual_deck
+            .contains("status filesystem/readme observed matched 2|ci/run|filesystem/readme")
+    );
+    assert_eq!(disposition(leaf), ProofDisposition::Failed);
+}
+
+#[test]
+fn blank_and_joined_read_tokens_fail() {
+    let command = WorldCommandLib::new().expect("command");
+    let mut native = capture(&command).expect("capture");
+    native.native = with_field(
+        &native.native,
+        "reads",
+        Datum::Vector(vec![Datum::String(String::new())]),
+    );
+    let native_leaf = leaf_from(native);
+    let ProofLeaf::SourceDeckPredicate { actual_deck, .. } = &native_leaf else {
+        panic!("observation gate is a source-deck predicate");
+    };
+    assert!(actual_deck.contains("native-reads 1|"));
+    assert_eq!(disposition(native_leaf), ProofDisposition::Failed);
+
+    let mut changed = capture(&command).expect("capture");
+    changed.changed = with_field(
+        &changed.changed,
+        "reads",
+        Datum::Vector(vec![Datum::String("git/HEAD git/HEAD".to_owned())]),
+    );
+    let changed_leaf = leaf_from(changed);
+    let ProofLeaf::SourceDeckPredicate { actual_deck, .. } = &changed_leaf else {
+        panic!("observation gate is a source-deck predicate");
+    };
+    assert!(actual_deck.contains("diff-reads 1|git/HEAD git/HEAD"));
+    assert_eq!(disposition(changed_leaf), ProofDisposition::Failed);
 }
 
 fn decks(leaf: &ProofLeaf) -> bool {

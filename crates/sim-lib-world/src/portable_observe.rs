@@ -7,7 +7,9 @@
 //!
 //! The leaf calls the loaded snapshot command. It reads the authored rows,
 //! compares one changed selector, compares one unchanged batch, and asks a
-//! native realization to read. The actual deck is that command record. The
+//! native realization to read. Each snapshot row keeps the reads from that
+//! request. A count keeps an empty list distinct from a blank token and
+//! from one joined token. The actual deck is that command record. The
 //! expected deck is the authored observation. The catalog passes only when
 //! the record and that observation agree.
 
@@ -136,27 +138,23 @@ fn call_pair(command: &WorldCommandLib, argv: &[String]) -> Result<(Datum, bool)
 
 fn expected_deck() -> String {
     let mut lines = identity_lines();
-    lines.extend(
-        EXPECTED_ROWS
-            .iter()
-            .map(|(selector, status)| format!("status {selector} {status} matched")),
-    );
-    lines.push(format!(
-        "reads {}",
-        EXPECTED_ROWS
-            .iter()
-            .map(|(selector, _)| *selector)
-            .collect::<Vec<_>>()
-            .join(" ")
-    ));
+    lines.extend(EXPECTED_ROWS.iter().map(|(selector, status)| {
+        format!(
+            "status {selector} {status} matched {}",
+            read_list(&[(*selector).to_owned()])
+        )
+    }));
     lines.push(
         "native filesystem/readme unmatched unavailable native-capability-missing".to_owned(),
     );
-    lines.push("native-reads".to_owned());
+    lines.push("native-reads 0".to_owned());
     lines.push("diff git/HEAD changed timed-out observed".to_owned());
-    lines.push("diff-reads git/HEAD git/HEAD".to_owned());
+    lines.push(format!(
+        "diff-reads {}",
+        read_list(&["git/HEAD".to_owned(), "git/HEAD".to_owned()])
+    ));
     lines.push("quiet filesystem/readme unchanged".to_owned());
-    lines.push("quiet-reads".to_owned());
+    lines.push("quiet-reads 0".to_owned());
     lines.join("\n")
 }
 
@@ -181,31 +179,32 @@ fn actual_deck(capture: &Capture) -> String {
         format!("subprocesses {subprocesses}"),
         format!("resident {resident}"),
     ];
-    let mut reads = Vec::new();
     for (index, (selector, _)) in EXPECTED_ROWS.iter().enumerate() {
         let value = capture.rows.get(index);
         lines.push(match value.and_then(parsed_row) {
-            Some(row) => format!("status {} {} {}", row.selector, row.status, row.mark),
+            Some(row) => format!(
+                "status {} {} {} {}",
+                row.selector,
+                row.status,
+                row.mark,
+                read_list(&row.reads)
+            ),
             None => format!("status {selector} missing"),
         });
-        if let Some(row) = value.and_then(parsed_row) {
-            reads.extend(row.reads);
-        }
     }
-    lines.push(labeled("reads", &reads.join(" ")));
     lines.push(native_line(&capture.native));
-    lines.push(labeled(
-        "native-reads",
-        &parsed_row(&capture.native)
-            .map(|row| row.reads.join(" "))
-            .unwrap_or_default(),
+    lines.push(format!(
+        "native-reads {}",
+        parsed_row(&capture.native)
+            .map(|row| read_list(&row.reads))
+            .unwrap_or_else(|| "missing".to_owned())
     ));
     lines.push(diff_line("diff", "git/HEAD", &capture.changed, true));
-    lines.push(labeled(
-        "diff-reads",
-        &parsed_diff(&capture.changed)
-            .map(|diff| diff.reads.join(" "))
-            .unwrap_or_default(),
+    lines.push(format!(
+        "diff-reads {}",
+        parsed_diff(&capture.changed)
+            .map(|diff| read_list(&diff.reads))
+            .unwrap_or_else(|| "missing".to_owned())
     ));
     lines.push(diff_line(
         "quiet",
@@ -213,11 +212,11 @@ fn actual_deck(capture: &Capture) -> String {
         &capture.quiet,
         false,
     ));
-    lines.push(labeled(
-        "quiet-reads",
-        &parsed_diff(&capture.quiet)
-            .map(|diff| diff.reads.join(" "))
-            .unwrap_or_default(),
+    lines.push(format!(
+        "quiet-reads {}",
+        parsed_diff(&capture.quiet)
+            .map(|diff| read_list(&diff.reads))
+            .unwrap_or_else(|| "missing".to_owned())
     ));
     if !capture.stable {
         lines.push("unstable".to_owned());
@@ -380,11 +379,11 @@ fn meter(values: &[&Datum]) -> (String, String, String) {
     (effects, subprocesses, resident)
 }
 
-fn labeled(label: &str, value: &str) -> String {
-    if value.is_empty() {
-        label.to_owned()
+fn read_list(reads: &[String]) -> String {
+    if reads.is_empty() {
+        "0".to_owned()
     } else {
-        format!("{label} {value}")
+        format!("{}|{}", reads.len(), reads.join("|"))
     }
 }
 
