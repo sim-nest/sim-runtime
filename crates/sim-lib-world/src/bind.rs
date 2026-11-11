@@ -8,8 +8,9 @@
 //! Each case runs the published pack binding once. A later or concurrent
 //! identical case returns that record. One binding serves two subjects and
 //! two scopes. Swapped identities refuse. A missing pack scope is
-//! unimplemented, and an unknown scope refuses. The facet law passes. A
-//! private value is refused before the reservation.
+//! unimplemented, and an unknown scope refuses. The facet law passes.
+//! Normalize admits one subject through the kernel content id. A private
+//! value is refused before the reservation.
 
 use sim_kernel::{Datum, Symbol};
 
@@ -20,6 +21,8 @@ use crate::query;
 mod drive;
 #[path = "bind_memory.rs"]
 mod memory;
+#[path = "bind_normalize.rs"]
+mod normalize;
 
 const MARKERS: &[&str] = &[
     "bo-private",
@@ -50,8 +53,10 @@ pub(crate) fn run(case: &str) -> Result<Datum, WorldError> {
 }
 
 fn known(case: &str) -> bool {
-    matches!(case, "serve" | "swapped" | "missing" | "facet")
-        || cfg!(test) && case == "bind-memory-race"
+    matches!(
+        case,
+        "serve" | "swapped" | "missing" | "facet" | "normalize"
+    ) || cfg!(test) && case == "bind-memory-race"
 }
 
 /// Maps the reservation-race case onto the shared binding.
@@ -67,6 +72,12 @@ fn canonical_case(case: &str) -> &str {
 }
 
 fn receive(case: &str) -> Datum {
+    if case == "normalize" {
+        return match normalize::survey() {
+            Ok(found) => normalize_record(&found),
+            Err(_) => gap(case, "normalize-broke", ""),
+        };
+    }
     let law = match case {
         "serve" => drive::serve(),
         "swapped" => drive::swapped(),
@@ -77,6 +88,26 @@ fn receive(case: &str) -> Datum {
     match law {
         Ok(law) => success(case, &law),
         Err(fault) => gap(case, fault.code(), ""),
+    }
+}
+
+fn normalize_record(found: &normalize::Normalized) -> Datum {
+    Datum::Node {
+        tag: Symbol::qualified("world", "bind-normalize-v1"),
+        fields: vec![
+            (Symbol::new("alias"), string(found.alias)),
+            (Symbol::new("authority"), string(found.authority)),
+            (Symbol::new("case"), string("normalize")),
+            (Symbol::new("diagnostic"), string(found.diagnostic)),
+            (Symbol::new("effects"), query::count_datum(0)),
+            (Symbol::new("field"), string(found.field)),
+            (Symbol::new("old-byte"), string(found.old_byte)),
+            (Symbol::new("reason"), string(found.reason)),
+            (Symbol::new("resident"), Datum::Bool(true)),
+            (Symbol::new("role"), string(found.role)),
+            (Symbol::new("subprocesses"), query::count_datum(0)),
+            (Symbol::new("wrong-role"), string(found.wrong_role)),
+        ],
     }
 }
 

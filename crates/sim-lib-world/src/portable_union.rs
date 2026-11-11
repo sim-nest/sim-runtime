@@ -8,9 +8,9 @@
 //! The denominator is one row for each selected portable phase, from the
 //! first through the twenty-ninth. Linux phases are not rows. A row runs
 //! only when this product can already call an owner result for that gate.
-//! The journal row calls the loaded journal command. That command runs
-//! `rebuild` and `rebuild_report`. They are the same computation, so the
-//! row stays a named gap. The assay row compares the sealed graph with the
+//! The journal row calls the loaded journal command. Replay exports the
+//! published journal and reopens it on a second instance. Rebuild and its
+//! report stay the same computation. The assay row compares the sealed graph with the
 //! commissioned oracle. The project row calls the loaded world command.
 //! The plan row calls the loaded plan command. The observation row calls
 //! the loaded snapshot command. The service row calls the loaded service
@@ -26,6 +26,9 @@
 //! The landing row calls the loaded land command.
 //! The recovery row calls the loaded recover command.
 //! The binding row calls the loaded bind command.
+//! The normalize row calls the loaded bind command. A field or role
+//! change moves the canonical identity. An ordering alias or a diagnostic
+//! change does not.
 //! The operation row calls the loaded operate command.
 //! Every other row is a named gap. Gaps stay
 //! in the denominator. The frontier stays open while any gap
@@ -65,6 +68,8 @@ mod fixed;
 mod journal_gate;
 #[path = "portable_land.rs"]
 mod land;
+#[path = "portable_normalize.rs"]
+mod normalize;
 #[path = "portable_observe.rs"]
 mod observe;
 #[path = "portable_operate.rs"]
@@ -116,6 +121,7 @@ enum Ground {
     Bind,
     Operate,
     Journal,
+    Normalize,
     Gap(&'static str),
 }
 
@@ -444,6 +450,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
         Ground::Bind => bind::bind_leaf(),
         Ground::Operate => operate::operate_leaf(),
         Ground::Journal => journal_gate::journal_leaf(),
+        Ground::Normalize => normalize::normalize_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),
