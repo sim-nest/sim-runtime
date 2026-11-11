@@ -53,6 +53,9 @@
 //! returns that record. A blocked queue does not block control. A wait
 //! releases only that unit's leases. Stall and cleanup do not claim
 //! process death.
+//! One converge call runs the published revision once. A later call
+//! returns that record. A stop before commit keeps the accepted
+//! revision. A changed input opens only the claims that read it.
 //! A fresh succession reads one exported model record
 //! and one later change. The export names registry packages, the foreign
 //! project, and declared inputs. The change is observed, sealed, proved,
@@ -94,6 +97,7 @@ mod canary;
 mod command;
 mod command_steps;
 mod conduct;
+mod converge;
 mod deliver;
 mod fixture;
 mod grant;

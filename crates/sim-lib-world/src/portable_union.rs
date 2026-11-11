@@ -19,6 +19,7 @@
 //! row calls the loaded author command. The one-effect row calls the loaded
 //! conduct command. The composition row calls the loaded qualify command.
 //! The scheduler row calls the loaded schedule command.
+//! The convergence row calls the loaded converge command.
 //! Every other row is a named gap. Gaps stay
 //! in the denominator. The frontier stays open while any gap
 //! or failed leaf remains.
@@ -45,6 +46,8 @@ mod author;
 mod canary;
 #[path = "portable_conduct.rs"]
 mod conduct;
+#[path = "portable_converge.rs"]
+mod converge;
 #[path = "portable_deliver.rs"]
 mod deliver;
 #[path = "portable_observe.rs"]
@@ -84,6 +87,7 @@ enum Ground {
     Conduct,
     Qualify,
     Schedule,
+    Converge,
     Gap(&'static str),
 }
 
@@ -318,7 +322,8 @@ fn classify(leaf: &str) -> Result<Class, WorldError> {
         | Ground::Author
         | Ground::Conduct
         | Ground::Qualify
-        | Ground::Schedule => Ok(Class::Executed),
+        | Ground::Schedule
+        | Ground::Converge => Ok(Class::Executed),
     }
 }
 
@@ -416,6 +421,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
         Ground::Conduct => conduct::conduct_leaf(),
         Ground::Qualify => qualify::qualify_leaf(),
         Ground::Schedule => schedule::schedule_leaf(),
+        Ground::Converge => converge::converge_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),
@@ -511,7 +517,8 @@ fn gap_rows() -> Vec<String> {
             | Ground::Author
             | Ground::Conduct
             | Ground::Qualify
-            | Ground::Schedule => None,
+            | Ground::Schedule
+            | Ground::Converge => None,
         })
         .collect()
 }
@@ -550,6 +557,9 @@ fn subject() -> Result<String, WorldError> {
         Datum::String(include_str!("portable_schedule.rs").to_owned()),
         Datum::String(include_str!("portable_schedule_expect.rs").to_owned()),
         Datum::String(include_str!("portable_schedule_parse.rs").to_owned()),
+        Datum::String(include_str!("portable_converge.rs").to_owned()),
+        Datum::String(include_str!("portable_converge_expect.rs").to_owned()),
+        Datum::String(include_str!("portable_converge_parse.rs").to_owned()),
         Datum::String(include_str!("assay.rs").to_owned()),
         Datum::String(include_str!("assay_oracle.rs").to_owned()),
         Datum::String(include_str!("provider.rs").to_owned()),
