@@ -21,8 +21,8 @@ use crate::release;
 use crate::seal;
 use crate::service;
 use crate::succeed;
-use crate::work;
 use crate::{WorldError, WorldProduct};
+use crate::{author, work};
 
 /// CLI verb contributed by this loaded library.
 pub const WORLD_VERB: &str = "world";
@@ -290,6 +290,9 @@ impl WorldEntrypoint {
                     .map(Outcome::Value)
                     .map_err(eval_error)
             }
+            Some("author") if argv.len() == 3 => author::run(&argv[2])
+                .map(Outcome::Value)
+                .map_err(eval_error),
             Some("work") if argv.len() == 3 => {
                 work::run(&argv[2]).map(Outcome::Value).map_err(eval_error)
             }
@@ -472,7 +475,7 @@ impl WorldEntrypoint {
     }
 }
 
-const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | measure plan | measure seal | assay | plan [text|card] [CONTINUATION] | snapshot DOCUMENT SELECTOR | snapshot-diff BEFORE AFTER SELECTOR | service REALIZATION SELECTOR | service-plan REALIZATION [SELECTOR DESIRED] | release-plan REALIZATION [SELECTOR DESIRED] | release-status REALIZATION | release-why REALIZATION SELECTOR | deliver REALIZATION [SELECTOR DESIRED] | deliver-status REALIZATION [VIEW] | deliver-why REALIZATION SELECTOR [VIEW] | canary REALIZATION SOURCE DESTINATION PURPOSE [issued|spent] | work CASE | succeed EXPORT CHANGE | seal [DOCUMENT [TARGET]] | universe [DOCUMENT [TARGET]] | seal-diff BEFORE AFTER [TARGET]";
+const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | measure plan | measure seal | assay | plan [text|card] [CONTINUATION] | snapshot DOCUMENT SELECTOR | snapshot-diff BEFORE AFTER SELECTOR | service REALIZATION SELECTOR | service-plan REALIZATION [SELECTOR DESIRED] | release-plan REALIZATION [SELECTOR DESIRED] | release-status REALIZATION | release-why REALIZATION SELECTOR | deliver REALIZATION [SELECTOR DESIRED] | deliver-status REALIZATION [VIEW] | deliver-why REALIZATION SELECTOR [VIEW] | canary REALIZATION SOURCE DESTINATION PURPOSE [issued|spent] | author CASE | work CASE | succeed EXPORT CHANGE | seal [DOCUMENT [TARGET]] | universe [DOCUMENT [TARGET]] | seal-diff BEFORE AFTER [TARGET]";
 
 fn refusal(call: &str, reason: &str) -> Datum {
     Datum::Node {

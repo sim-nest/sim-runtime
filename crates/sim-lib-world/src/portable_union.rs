@@ -15,7 +15,8 @@
 //! the loaded snapshot command. The service row calls the loaded service
 //! command. The release row calls the loaded release command. The delivery
 //! row calls the loaded deliver command. The canary row calls the loaded
-//! canary command. The work row calls the loaded work command. Every other
+//! canary command. The work row calls the loaded work command. The authoring
+//! row calls the loaded author command. Every other
 //! row is a named gap. Gaps stay
 //! in the denominator. The frontier stays open while any gap
 //! or failed leaf remains.
@@ -36,6 +37,8 @@ use crate::provider;
 
 use super::record::{self, flag, gap, list, node, num, text};
 
+#[path = "portable_author.rs"]
+mod author;
 #[path = "portable_canary.rs"]
 mod canary;
 #[path = "portable_deliver.rs"]
@@ -69,6 +72,7 @@ enum Ground {
     Deliver,
     Canary,
     Work,
+    Author,
     Gap(&'static str),
 }
 
@@ -299,7 +303,8 @@ fn classify(leaf: &str) -> Result<Class, WorldError> {
         | Ground::Release
         | Ground::Deliver
         | Ground::Canary
-        | Ground::Work => Ok(Class::Executed),
+        | Ground::Work
+        | Ground::Author => Ok(Class::Executed),
     }
 }
 
@@ -393,6 +398,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
         Ground::Deliver => deliver::deliver_leaf(),
         Ground::Canary => canary::canary_leaf(),
         Ground::Work => work::work_leaf(),
+        Ground::Author => author::author_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),
@@ -484,7 +490,8 @@ fn gap_rows() -> Vec<String> {
             | Ground::Release
             | Ground::Deliver
             | Ground::Canary
-            | Ground::Work => None,
+            | Ground::Work
+            | Ground::Author => None,
         })
         .collect()
 }
@@ -511,6 +518,9 @@ fn subject() -> Result<String, WorldError> {
         Datum::String(include_str!("portable_work.rs").to_owned()),
         Datum::String(include_str!("portable_work_expect.rs").to_owned()),
         Datum::String(include_str!("portable_work_parse.rs").to_owned()),
+        Datum::String(include_str!("portable_author.rs").to_owned()),
+        Datum::String(include_str!("portable_author_expect.rs").to_owned()),
+        Datum::String(include_str!("portable_author_parse.rs").to_owned()),
         Datum::String(include_str!("assay.rs").to_owned()),
         Datum::String(include_str!("assay_oracle.rs").to_owned()),
         Datum::String(include_str!("provider.rs").to_owned()),

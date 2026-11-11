@@ -36,6 +36,10 @@
 //! input and a wrong namespace, role, copy, or schema return before the
 //! port is read. Incomplete output keeps its packet. Malformed retries stop
 //! at the attempt ceiling. A proposal cannot carry an effect or an approval.
+//! An authoring case calls the authoring compiler on one family. It lists,
+//! shows, lints, selects, diffs, and compiles the selected source. A consulted
+//! or superseded sibling does not satisfy a missing requirement. A missing
+//! section, an authority decision, or a private value refuses.
 //! A fresh succession reads one exported model record
 //! and one later change. The export names registry packages, the foreign
 //! project, and declared inputs. The change is observed, sealed, proved,
@@ -72,6 +76,7 @@
 mod assay;
 mod assay_mutant;
 mod assay_oracle;
+mod author;
 mod canary;
 mod command;
 mod deliver;

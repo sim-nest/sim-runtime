@@ -16,7 +16,9 @@ sim-kernel = { version = "0.4.0" }
 sim-lib-journal = "0.3.2"
 sim-lib-operation-gate = { version = "0.5.0", path = "../sim-lib-operation-gate" }
 sim-lib-roadmap-runner = "0.3.0"
+sim-roadmap-core = "0.3.0"
 sim-run-core = { version = "0.5.0" }
+sim-source-deck = "0.2.0"
 
 [dev-dependencies]
 sim-kernel = { version = "0.4.0", features = ["test-support"] }
