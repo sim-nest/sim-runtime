@@ -83,7 +83,8 @@ fn body_of(proof: &super::UnionProof) -> Result<String, WorldError> {
             | super::Ground::Bind
             | super::Ground::Operate
             | super::Ground::Journal
-            | super::Ground::Normalize => {
+            | super::Ground::Normalize
+            | super::Ground::Foreign => {
                 let Some(digest) = proof.digests.get(gate.leaf) else {
                     return Err(WorldError::Qualification(format!(
                         "proof view leaf {} has no digest",
@@ -265,4 +266,5 @@ fn the_view_keeps_the_deck_that_ran() {
     assert!(view.contains("pass phase/07 "));
     assert!(view.contains("pass phase/02 "));
     assert!(view.contains("pass phase/03 "));
+    assert!(view.contains("pass phase/11 "));
 }

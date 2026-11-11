@@ -6,8 +6,8 @@
 //! Fresh succession over one exported model record.
 //!
 //! The caller supplies the export and one later change. Both are text.
-//! The export names registry packages, the foreign project, and declared
-//! inputs. It does not name a checkout, a cache, a transcript, or a
+//! The export names registry packages, one project, and declared inputs.
+//! It does not name a checkout, a cache, a transcript, or a
 //! process. The change is observed, sealed, proved, converged, landed,
 //! delivered, and recovered. The repeated convergence and delivery do no
 //! further work. A warm marker, a construction-fixture change, or an
@@ -24,7 +24,9 @@ use crate::query;
 use crate::seal;
 use crate::service;
 
-const FOREIGN_PROJECT: &str = "lantern";
+#[path = "succeed_ids.rs"]
+mod ids;
+
 const MAX_BYTES: usize = 8_192;
 const MAX_PACKAGES: usize = 32;
 const MAX_INPUTS: usize = 32;
@@ -227,15 +229,8 @@ fn perform(export: &Export, change: &Change, host: &Host) -> Result<First, Stop>
 }
 
 fn construction_row(change: &Row, found: &str) -> Result<bool, Stop> {
-    for (batch, row) in fixture::observation_rows() {
-        if same_snapshot(batch, row.selector, found)? {
-            return Ok(true);
-        }
-    }
-    for (batch, selector) in observe::construction_snapshots() {
-        if same_snapshot(batch, selector, found)? {
-            return Ok(true);
-        }
+    if ids::matches_fixture(found)? {
+        return Ok(true);
     }
     Ok(
         service::construction_rows().any(|(port, selector, state, value)| {
@@ -245,12 +240,6 @@ fn construction_row(change: &Row, found: &str) -> Result<bool, Stop> {
                 && change.value.as_deref() == value
         }),
     )
-}
-
-fn same_snapshot(batch: &str, selector: &str, found: &str) -> Result<bool, Stop> {
-    let snapshot =
-        observe::snapshot(batch, selector).map_err(|error| Stop::Broken(error.to_string()))?;
-    Ok(semantic_id(&snapshot)? == found)
 }
 
 fn apply(image: &mut Image, candidate: Option<&str>) -> u64 {
@@ -320,8 +309,8 @@ fn admit(export: &Export, change: &Change) -> Option<&'static str> {
     {
         return Some("fixture-change");
     }
-    if export.project != FOREIGN_PROJECT || change.project != FOREIGN_PROJECT {
-        return Some("foreign-project-absent");
+    if export.project != change.project {
+        return Some("project-mismatch");
     }
     if export
         .packages
@@ -508,6 +497,7 @@ fn parse_export(text: &str) -> Result<Export, Stop> {
                 }
                 project = Some(name.to_owned());
             }
+            Some("branch") => return Err(Stop::Gap("private-branch")),
             Some("input") => {
                 if inputs.len() == MAX_INPUTS {
                     return Err(Stop::Gap("bound"));

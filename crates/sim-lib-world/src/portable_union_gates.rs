@@ -54,7 +54,7 @@ pub(super) const GATES: &[Gate] = &[
     },
     Gate {
         leaf: "phase/11",
-        ground: Ground::Gap("foreign-crate"),
+        ground: Ground::Foreign,
     },
     Gate {
         leaf: "phase/12",

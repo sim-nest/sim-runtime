@@ -29,6 +29,9 @@
 //! The normalize row calls the loaded bind command. A field or role
 //! change moves the canonical identity. An ordering alias or a diagnostic
 //! change does not.
+//! The foreign row calls the loaded succeed command. The specimen and a
+//! second project of the same public shape both close. A private branch
+//! stays a gap.
 //! The operation row calls the loaded operate command.
 //! Every other row is a named gap. Gaps stay
 //! in the denominator. The frontier stays open while any gap
@@ -64,6 +67,8 @@ mod converge;
 mod deliver;
 #[path = "portable_fixed.rs"]
 mod fixed;
+#[path = "portable_foreign.rs"]
+mod foreign;
 #[path = "portable_journal.rs"]
 mod journal_gate;
 #[path = "portable_land.rs"]
@@ -122,6 +127,7 @@ enum Ground {
     Operate,
     Journal,
     Normalize,
+    Foreign,
     Gap(&'static str),
 }
 
@@ -451,6 +457,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
         Ground::Operate => operate::operate_leaf(),
         Ground::Journal => journal_gate::journal_leaf(),
         Ground::Normalize => normalize::normalize_leaf(),
+        Ground::Foreign => foreign::foreign_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),

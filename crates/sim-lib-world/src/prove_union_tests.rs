@@ -21,16 +21,16 @@ fn the_public_denominator_is_the_phase_gates() {
         operate_before.saturating_add(4)
     );
     assert_eq!(number(&cold, "denominator"), 29);
-    assert_eq!(number(&cold, "executed"), 22);
+    assert_eq!(number(&cold, "executed"), 23);
     assert_eq!(number(&cold, "owner-commands"), 0);
-    assert_eq!(number(&cold, "requests"), 22);
+    assert_eq!(number(&cold, "requests"), 23);
     let gaps = text(&cold, "gaps");
     assert!(gaps.contains("gap phase/00 no-owner-result"));
     assert!(gaps.contains("gap phase/12 no-owner-result"));
     assert!(!gaps.contains("phase/03"));
     assert!(!gaps.contains("phase/06"));
     assert!(gaps.contains("gap phase/10 host-read"));
-    assert!(gaps.contains("gap phase/11 foreign-crate"));
+    assert!(!gaps.contains("phase/11"));
     assert!(gaps.contains("gap phase/14 circular"));
     assert!(gaps.contains("gap phase/27 held"));
     assert!(gaps.contains("gap phase/28 unimplemented"));
@@ -67,8 +67,8 @@ fn reuse_of_owner_leaves_is_complete_and_the_frontier_stays_open() {
     let view = text(&cold, "view");
     let d1 = prove::run("D1", Some(&view)).unwrap();
     assert_eq!(number(&d1, "denominator"), 29);
-    assert_eq!(number(&d1, "executed"), 22);
-    assert_eq!(number(&d1, "reused"), 22);
+    assert_eq!(number(&d1, "executed"), 23);
+    assert_eq!(number(&d1, "reused"), 23);
     assert_eq!(number(&d1, "false-reuse"), 0);
     assert_eq!(number(&d1, "reuse-basis-points"), 10_000);
     assert_eq!(text(&d1, "rerun"), "");
@@ -117,6 +117,8 @@ fn reuse_of_owner_leaves_is_complete_and_the_frontier_stays_open() {
     assert!(bool_field(&journal, "reused"));
     let normalized = prove::why("D2", "phase/03", Some(&view)).unwrap();
     assert!(bool_field(&normalized, "reused"));
+    let foreign = prove::why("D2", "phase/11", Some(&view)).unwrap();
+    assert!(bool_field(&foreign, "reused"));
     let qualify = prove::why("D2", "phase/26", Some(&view)).unwrap();
     assert!(bool_field(&qualify, "reused"));
     assert!(!text(&cold, "view").contains("gap phase/06"));
