@@ -32,7 +32,70 @@
 //! model branch under a separate purpose grant. It runs once, recovers,
 //! and repeats the reconciliation with no further performance. A wrong or
 //! consumed purpose grant refuses. No public branch, tag, package, or
-//! merge is touched. A fresh succession reads one exported model record
+//! merge is touched. A work case calls the typed packet receiver. Oversize
+//! input and a wrong namespace, role, copy, or schema return before the
+//! port is read. Incomplete output keeps its packet. Malformed retries stop
+//! at the attempt ceiling. A proposal cannot carry an effect or an approval.
+//! An authoring case calls the authoring compiler on one family. It lists,
+//! shows, lints, selects, diffs, and compiles the selected source. A consulted
+//! or superseded sibling does not satisfy a missing requirement. A missing
+//! section, an authority decision, or a private value refuses.
+//! One conduct call admits at most one effect or one pure transition.
+//! A no-change wake starts nothing. A wait resumes once on a material
+//! offer. A stale, wrong, replayed, or advisory direction refuses.
+//! Reading the retained result does not conduct again.
+//! One qualify call runs the published composition specimen once.
+//! The record keeps one same-revision page, the exact lineage, a begin
+//! that is separate from selection, and rejected advice. A Linux provider
+//! and a changed closure refuse. Reading the retained result does not
+//! qualify again.
+//! One schedule call runs the published scheduler once. A later call
+//! returns that record. A blocked queue does not block control. A wait
+//! releases only that unit's leases. Stall and cleanup do not claim
+//! process death.
+//! One converge call runs the published revision once. A later call
+//! returns that record. A stop before commit keeps the accepted
+//! revision. A changed input opens only the claims that read it.
+//! One fixed call runs the published fixed point once. A later call
+//! returns that record. The second pass does no generation. A deletion
+//! names that generator's closure. A failed proof or a repeated image
+//! blocks the seal. The duplicate generator is not run.
+//! One transact call runs the published model transaction once. A later
+//! call returns that record. A second pass on the new head performs no
+//! commit. Wrong head, dirt, private flow, a generated-owner bypass, a
+//! stale base, and a region escape refuse. Overlap refuses. A partial
+//! batch is not success. Rollback restores the pointer and keeps the
+//! commit.
+//! One land call runs the published landing once. A later call returns
+//! that record. A foreign edit survives the landing. An already-true
+//! replay does not move the branch. Rollback restores the exact commit.
+//! A generated region refuses another actor. A cached answer stays
+//! current until the head moves. Status names the tip and a missing
+//! repository. The landing does not mutate a checkout.
+//! One recover call runs the published recovery once. A later call
+//! returns that record. An ambiguous observation requests no effect.
+//! An unreconciled image is not resumed. Unresolved work and a changed
+//! identity stop. A retryable failure admits one retry, and exhaustion
+//! stops. Fresh lower-rank refinement is the only refiner request.
+//! Image classification names unchanged, preimage, postimage, and
+//! foreign bytes. A committed observation inverts to the prior image,
+//! and a foreign observation refuses that inverse. Recovery does not
+//! mutate a checkout.
+//! One bind call runs the published pack binding once. A later call
+//! returns that record. One binding serves two subjects and two scopes.
+//! Swapped identities refuse. A missing pack scope is unimplemented.
+//! The facet law passes, and its unfunded scope stays unimplemented.
+//! Binding does not mutate a checkout.
+//! One journal compare runs rebuild and the rebuild report on one
+//! opened execution. Equal results are the same computation. A later
+//! call returns that record. The compare does not close the frontier.
+//! One operate call runs the operation lifecycle and the durable
+//! operation service once. A verified dispatch is replayed without a
+//! second performance. A missing acknowledgement stays dispatched. A
+//! forged transition is refused. An interruption before or after an
+//! admission recovers without repeating the dispatch. A later call
+//! returns that record. The operation does not close the frontier.
+//! A fresh succession reads one exported model record
 //! and one later change. The export names registry packages, the foreign
 //! project, and declared inputs. The change is observed, sealed, proved,
 //! converged, landed, delivered, and recovered. The repeated convergence
@@ -68,22 +131,38 @@
 mod assay;
 mod assay_mutant;
 mod assay_oracle;
+mod author;
+mod bind;
 mod canary;
 mod command;
+mod command_steps;
+mod conduct;
+mod converge;
 mod deliver;
+mod evidence;
+mod fixed;
 mod fixture;
 mod grant;
+mod journal;
+mod land;
 mod observe;
+mod operate;
 mod plan;
 mod product;
 mod prove;
 mod prove_command;
 mod provider;
+mod qualify;
 mod query;
+mod recover;
 mod release;
+mod schedule;
 mod seal;
+mod seal_compile;
 mod service;
 mod succeed;
+mod transact;
+mod work;
 
 pub use command::{ModelDomainLoad, WORLD_VERB, WorldCommandLib};
 pub use product::{
@@ -94,9 +173,14 @@ pub use prove_command::{PROVE_VERB, ProveCommandLib};
 pub use seal::{captured_inputs, workspace_root};
 
 #[cfg(test)]
+#[path = "../build/activate.rs"]
+mod activate_rules;
+#[cfg(test)]
 mod canary_tests;
 #[cfg(test)]
 mod deliver_tests;
+#[cfg(test)]
+mod evidence_tests;
 #[cfg(test)]
 mod fixture_tests;
 #[cfg(test)]
@@ -109,6 +193,8 @@ mod prove_tests;
 mod prove_union_tests;
 #[cfg(test)]
 mod release_tests;
+#[cfg(test)]
+mod seal_compile_tests;
 #[cfg(test)]
 mod seal_source_tests;
 #[cfg(test)]

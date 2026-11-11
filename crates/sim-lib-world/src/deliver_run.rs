@@ -27,11 +27,15 @@ use crate::WorldError;
 
 use super::Reading;
 
+#[path = "deliver_memory.rs"]
+mod memory;
+
 const CLOCK_DOMAIN: &str = "world/deliver-ticks";
 const HOLDER: &str = "world/deliver-holder";
 const START_TICK: u64 = 10;
 const TICK_SPAN: u64 = 10;
 
+#[derive(Clone)]
 pub(super) struct Qualified {
     pub(super) acknowledgement: &'static str,
     pub(super) cause: &'static str,
@@ -210,6 +214,13 @@ pub(super) fn qualify_calls() -> usize {
     QUALIFY_CALLS.with(Cell::get)
 }
 
+#[cfg(test)]
+pub(crate) use memory::{
+    arm_hold as arm_qualification_hold, held_owners as held_qualification_owners,
+    opened as qualifications_opened, pending_waiters as qualification_waiters,
+    release_hold as release_qualification_hold,
+};
+
 pub(super) fn qualify(
     realization: &str,
     selector: &str,
@@ -217,8 +228,6 @@ pub(super) fn qualify(
     reason: &str,
     reading: &Reading,
 ) -> Result<Option<Qualified>, WorldError> {
-    #[cfg(test)]
-    QUALIFY_CALLS.with(|cell| cell.set(cell.get().saturating_add(1)));
     if super::private_input(
         realization,
         selector,
@@ -227,6 +236,15 @@ pub(super) fn qualify(
         reading.value.as_deref(),
     ) {
         return Ok(None);
+    }
+    let claim = match memory::claim(realization, selector, desired, reason, reading) {
+        memory::Reservation::Ready(found) => return Ok(Some(found)),
+        memory::Reservation::Mine(claim) => claim,
+    };
+    #[cfg(test)]
+    {
+        QUALIFY_CALLS.with(|cell| cell.set(cell.get().saturating_add(1)));
+        memory::note_and_wait(desired);
     }
     let cause = cause(reason, &reading.state, &reading.kind)?;
     let condition = condition(cause);
@@ -303,7 +321,7 @@ pub(super) fn qualify(
             "recovery did not observe before completion".to_owned(),
         ));
     }
-    Ok(Some(Qualified {
+    let qualified = Qualified {
         acknowledgement: acknowledgement(cause),
         cause,
         class,
@@ -316,7 +334,9 @@ pub(super) fn qualify(
         selector: selector.to_owned(),
         state: reading.state.clone(),
         value: reading.value.clone(),
-    }))
+    };
+    claim.commit(&qualified);
+    Ok(Some(qualified))
 }
 
 fn lifecycle(backend: &Arc<OutcomeCut>, clock: &Arc<TickClock>) -> OperationLifecycle<OutcomeCut> {

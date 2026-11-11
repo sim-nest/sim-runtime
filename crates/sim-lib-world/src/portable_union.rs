@@ -8,10 +8,46 @@
 //! The denominator is one row for each selected portable phase, from the
 //! first through the twenty-ninth. Linux phases are not rows. A row runs
 //! only when this product can already call an owner result for that gate.
-//! The journal row is a named gap: `rebuild` and `rebuild_report` are the
-//! same computation. The assay row compares the sealed graph with the
-//! commissioned oracle. Every other row is a named gap. Gaps stay in the
-//! denominator. The frontier stays open while any gap or failed leaf remains.
+//! The journal row calls the loaded journal command. Replay exports the
+//! published journal and reopens it on a second instance. Rebuild and its
+//! report stay the same computation. The assay row compares the sealed graph with the
+//! commissioned oracle. The project row calls the loaded world command.
+//! The plan row calls the loaded plan command. The observation row calls
+//! the loaded snapshot command. The service row calls the loaded service
+//! command. The release row calls the loaded release command. The delivery
+//! row calls the loaded deliver command. The canary row calls the loaded
+//! canary command. The work row calls the loaded work command. The authoring
+//! row calls the loaded author command. The one-effect row calls the loaded
+//! conduct command. The composition row calls the loaded qualify command.
+//! The scheduler row calls the loaded schedule command.
+//! The convergence row calls the loaded converge command.
+//! The fixed-point row calls the loaded fixed command.
+//! The transaction row calls the loaded transact command.
+//! The landing row calls the loaded land command.
+//! The recovery row calls the loaded recover command.
+//! The binding row calls the loaded bind command.
+//! The normalize row calls the loaded bind command. A field or role
+//! change moves the canonical identity. An ordering alias or a diagnostic
+//! change does not.
+//! The foreign row calls the loaded succeed command. The specimen and a
+//! second project of the same public shape both close. A private branch
+//! stays a gap.
+//! The evidence row calls the loaded why command. Grade promotion keeps
+//! one key. A wrong domain, revoked support, a missing object, and a
+//! storage id used as a semantic key refuse. Telemetry leaves that key
+//! unchanged.
+//! The compile row calls the loaded measure command. A missing input,
+//! a corrupt input, a wrong target, and a stub-only input refuse before
+//! a compiler starts. One well-formed admitted input runs one offline
+//! locked check. Equal inputs keep one seal. A changed lock moves that
+//! seal.
+//! The compare row calls the loaded prove command. That cold run skips
+//! the compare row and keeps reuse disabled. Zero false reuse and the
+//! frozen D1, D2, and D4 bounds admit the row.
+//! The operation row calls the loaded operate command.
+//! Every other row is a named gap. Gaps stay
+//! in the denominator. The frontier stays open while any gap
+//! or failed leaf remains.
 //! The sensitivity assay of forty conclusions is a different set. Each
 //! executed leaf digest binds the verdict and the retained deck.
 
@@ -20,8 +56,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use sim_incremental_core::projection::ConclusionId;
 use sim_kernel::Datum;
 use sim_lib_roadmap_runner::{
-    ProcessCancellation, ProofCatalog, ProofDisposition, ProofLeaf, SandboxAttempt,
-    SandboxLauncher, SandboxRefusal, SandboxRequest, execute_proof_leaf,
+    ProcessCancellation, ProofLeaf, SandboxAttempt, SandboxLauncher, SandboxRefusal, SandboxRequest,
 };
 
 use crate::WorldError;
@@ -29,8 +64,58 @@ use crate::provider;
 
 use super::record::{self, flag, gap, list, node, num, text};
 
+#[path = "portable_author.rs"]
+mod author;
+#[path = "portable_bind.rs"]
+mod bind;
+#[path = "portable_canary.rs"]
+mod canary;
+#[path = "portable_compare.rs"]
+mod compare;
+#[path = "portable_compile.rs"]
+mod compile;
+#[path = "portable_conduct.rs"]
+mod conduct;
+#[path = "portable_converge.rs"]
+mod converge;
+#[path = "portable_deliver.rs"]
+mod deliver;
+#[path = "portable_evidence.rs"]
+mod evidence;
+#[path = "portable_fixed.rs"]
+mod fixed;
+#[path = "portable_foreign.rs"]
+mod foreign;
+#[path = "portable_journal.rs"]
+mod journal_gate;
+#[path = "portable_land.rs"]
+mod land;
+#[path = "portable_normalize.rs"]
+mod normalize;
+#[path = "portable_observe.rs"]
+mod observe;
+#[path = "portable_operate.rs"]
+mod operate;
+#[path = "portable_plan.rs"]
+mod plan;
+#[path = "portable_project.rs"]
+mod project;
+#[path = "portable_qualify.rs"]
+mod qualify;
+#[path = "portable_recover.rs"]
+mod recover;
+#[path = "portable_release.rs"]
+mod release;
+#[path = "portable_schedule.rs"]
+mod schedule;
+#[path = "portable_service.rs"]
+mod service;
+#[path = "portable_transact.rs"]
+mod transact;
 #[path = "portable_union_view.rs"]
 mod view;
+#[path = "portable_work.rs"]
+mod work;
 
 const HEADER: &str = "sim-world-portable-union-v1";
 const PHASES: usize = 29;
@@ -38,6 +123,31 @@ const PHASES: usize = 29;
 #[derive(Clone, Copy)]
 enum Ground {
     Assay,
+    Project,
+    Plan,
+    Observe,
+    Service,
+    Release,
+    Deliver,
+    Canary,
+    Work,
+    Author,
+    Conduct,
+    Qualify,
+    Schedule,
+    Converge,
+    Fixed,
+    Transact,
+    Land,
+    Recover,
+    Bind,
+    Operate,
+    Journal,
+    Normalize,
+    Foreign,
+    Evidence,
+    Compile,
+    Compare,
     Gap(&'static str),
 }
 
@@ -46,124 +156,10 @@ struct Gate {
     ground: Ground,
 }
 
-const GATES: &[Gate] = &[
-    Gate {
-        leaf: "phase/00",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/01",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/02",
-        ground: Ground::Gap("same-computation"),
-    },
-    Gate {
-        leaf: "phase/03",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/04",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/05",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/06",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/07",
-        ground: Ground::Assay,
-    },
-    Gate {
-        leaf: "phase/08",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/09",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/10",
-        ground: Ground::Gap("host-read"),
-    },
-    Gate {
-        leaf: "phase/11",
-        ground: Ground::Gap("foreign-crate"),
-    },
-    Gate {
-        leaf: "phase/12",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/13",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/14",
-        ground: Ground::Gap("circular"),
-    },
-    Gate {
-        leaf: "phase/15",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/16",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/17",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/18",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/19",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/20",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/21",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/22",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/23",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/24",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/25",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/26",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/27",
-        ground: Ground::Gap("held"),
-    },
-    Gate {
-        leaf: "phase/28",
-        ground: Ground::Gap("unimplemented"),
-    },
-];
+#[path = "portable_union_gates.rs"]
+mod gates;
+
+use gates::GATES;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct UnionProof {
@@ -267,6 +263,12 @@ pub(super) fn status(view: Option<&str>) -> Result<Datum, WorldError> {
 /// Cold phase union, or reuse of its executed leaves against one delta.
 pub(super) fn run(name: &str, view: Option<&str>) -> Result<Datum, WorldError> {
     if name == "cold" {
+        if let Some(datum) = compare::cold_others_datum() {
+            return Ok(datum);
+        }
+        if compare::inside_union() {
+            return Ok(gap(name, "circular"));
+        }
         return cold_datum(&execute()?);
     }
     if !super::DELTAS.contains(&name) {
@@ -374,68 +376,12 @@ fn classify(leaf: &str) -> Result<Class, WorldError> {
     };
     match gate.ground {
         Ground::Gap(reason) => Ok(Class::Gap(reason)),
-        Ground::Assay => Ok(Class::Executed),
+        _ => Ok(Class::Executed),
     }
 }
 
 fn execute() -> Result<UnionProof, WorldError> {
-    let leaves = phase_names()?;
-    let names = grounded_names()?;
-    let built = names
-        .iter()
-        .map(|name| leaf_for(name))
-        .collect::<Result<Vec<_>, _>>()?;
-    let catalog = ProofCatalog::new(built).map_err(qualify)?;
-    let launcher = RefuseLaunch;
-    let cancellation = ProcessCancellation::default();
-    let mut executed = Vec::with_capacity(names.len());
-    let mut failures = Vec::new();
-    let mut digests = BTreeMap::new();
-    let mut retained = BTreeMap::new();
-    let mut owner_commands = 0u64;
-    let mut effects = 0u64;
-    let mut subprocesses = 0u64;
-    for name in &names {
-        let leaf = catalog.leaf(name).map_err(qualify)?;
-        if matches!(leaf, ProofLeaf::Command(_)) {
-            owner_commands = owner_commands.saturating_add(1);
-        }
-        let receipt =
-            execute_proof_leaf(&catalog, name, &launcher, &cancellation, "portable-union")
-                .map_err(qualify)?;
-        let work = crate::query::HostWork::observe(
-            receipt.effect_id.as_deref(),
-            receipt.launcher_identity.as_deref(),
-        );
-        effects = effects.saturating_add(work.effects());
-        subprocesses = subprocesses.saturating_add(work.subprocesses());
-        if receipt.disposition != ProofDisposition::Passed {
-            failures.push((*name).to_owned());
-        }
-        let passed = receipt.disposition == ProofDisposition::Passed;
-        digests.insert(
-            (*name).to_owned(),
-            digest_of(leaf, passed, &receipt.semantic_detail)?,
-        );
-        retained.insert(
-            (*name).to_owned(),
-            retained_capture(leaf, &receipt.semantic_detail)?,
-        );
-        executed.push((*name).to_owned());
-    }
-    Ok(UnionProof {
-        subject: subject()?,
-        leaves,
-        executed,
-        gaps: gap_rows(),
-        failures,
-        requests: u64::try_from(names.len()).unwrap_or(u64::MAX),
-        owner_commands,
-        effects,
-        subprocesses,
-        digests,
-        retained,
-    })
+    compare::execute_union()
 }
 
 fn grounded_names() -> Result<Vec<&'static str>, WorldError> {
@@ -460,6 +406,31 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
     };
     match gate.ground {
         Ground::Assay => assay_leaf(name),
+        Ground::Project => retained(gate.leaf, project::project_leaf),
+        Ground::Plan => retained(gate.leaf, plan::plan_leaf),
+        Ground::Observe => retained(gate.leaf, observe::observe_leaf),
+        Ground::Service => service::service_leaf(),
+        Ground::Release => retained(gate.leaf, release::release_leaf),
+        Ground::Deliver => retained(gate.leaf, deliver::deliver_leaf),
+        Ground::Canary => canary::canary_leaf(),
+        Ground::Work => work::work_leaf(),
+        Ground::Author => author::author_leaf(),
+        Ground::Conduct => conduct::conduct_leaf(),
+        Ground::Qualify => qualify::qualify_leaf(),
+        Ground::Schedule => schedule::schedule_leaf(),
+        Ground::Converge => converge::converge_leaf(),
+        Ground::Fixed => fixed::fixed_leaf(),
+        Ground::Transact => transact::transact_leaf(),
+        Ground::Land => land::land_leaf(),
+        Ground::Recover => recover::recover_leaf(),
+        Ground::Bind => bind::bind_leaf(),
+        Ground::Operate => operate::operate_leaf(),
+        Ground::Journal => journal_gate::journal_leaf(),
+        Ground::Normalize => normalize::normalize_leaf(),
+        Ground::Foreign => retained(gate.leaf, foreign::foreign_leaf),
+        Ground::Evidence => evidence::evidence_leaf(),
+        Ground::Compile => compile::compile_leaf(),
+        Ground::Compare => compare::compare_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),
@@ -538,30 +509,55 @@ fn phase_names() -> Result<Vec<String>, WorldError> {
     Ok(names)
 }
 
-fn gap_rows() -> Vec<String> {
-    GATES
-        .iter()
-        .filter_map(|gate| match gate.ground {
-            Ground::Gap(reason) => Some(format!("gap {} {reason}", gate.leaf)),
-            Ground::Assay => None,
-        })
-        .collect()
+fn gap_rows() -> Result<Vec<String>, WorldError> {
+    let mut rows = Vec::new();
+    for gate in GATES {
+        if let Ground::Gap(reason) = gate.ground {
+            rows.push(format!("gap {} {reason}", gate.leaf));
+        }
+    }
+    Ok(rows)
 }
 
+#[path = "portable_union_subject.rs"]
+mod subject_bytes;
+
 fn subject() -> Result<String, WorldError> {
-    let datum = Datum::Vector(vec![
-        Datum::String(include_str!("portable_union.rs").to_owned()),
-        Datum::String(include_str!("portable_union_view.rs").to_owned()),
-        Datum::String(include_str!("assay.rs").to_owned()),
-        Datum::String(include_str!("assay_oracle.rs").to_owned()),
-        Datum::String(include_str!("provider.rs").to_owned()),
-        Datum::String(include_str!("../freeze/incremental-graph.rs").to_owned()),
-        Datum::String(include_str!("../freeze/incremental-model.rs").to_owned()),
-        Datum::String(include_str!("../freeze/runner-proof.rs.freeze").to_owned()),
-        Datum::String(include_str!("../freeze/agent-net-Cargo.lock").to_owned()),
-        Datum::String(include_str!("../freeze/runtime-Cargo.lock").to_owned()),
-    ]);
-    Ok(record::hex(&provider::content_id(datum)?.bytes))
+    static SUBJECT: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    if let Some(found) = SUBJECT.get() {
+        return Ok(found.clone());
+    }
+    let value = record::hex(&provider::content_id(subject_bytes::subject_bytes()?)?.bytes);
+    Ok(SUBJECT.get_or_init(|| value.clone()).clone())
+}
+
+/// Keeps the first record from a loaded command for later admissions.
+///
+/// The first call runs that command. A later call in this process returns
+/// the same leaf. The admitted view still rebuilds its body from these
+/// leaves and refuses a body that disagrees. Journal and operate stay
+/// outside this retention so each cold run still counts their calls.
+fn retained(
+    name: &'static str,
+    build: fn() -> Result<ProofLeaf, WorldError>,
+) -> Result<ProofLeaf, WorldError> {
+    use std::collections::BTreeMap;
+    use std::sync::Mutex;
+
+    static KEPT: Mutex<BTreeMap<&'static str, ProofLeaf>> = Mutex::new(BTreeMap::new());
+    if let Some(found) = KEPT
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get(name)
+        .cloned()
+    {
+        return Ok(found);
+    }
+    let built = build()?;
+    let mut kept = KEPT
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    Ok(kept.entry(name).or_insert(built).clone())
 }
 
 fn retained_capture(leaf: &ProofLeaf, detail: &str) -> Result<Retained, WorldError> {

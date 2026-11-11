@@ -100,7 +100,7 @@ fn owning_seal_matches_live_locks_and_stays_stable() {
     let second = seal::open("owning", None).expect("repeat");
     assert_eq!(render(&first), render(&second));
     let fields = node(&first, "world/source-seal-v1");
-    assert_eq!(text(field(fields, "admission")), "refuse");
+    assert_eq!(text(field(fields, "admission")), "admit");
     assert_eq!(field(fields, "compiler-opened"), &Datum::Bool(false));
     assert_eq!(field(fields, "effects"), &query::count_datum(0));
     assert_eq!(field(fields, "subprocesses"), &query::count_datum(0));
@@ -173,6 +173,17 @@ fn owning_seal_matches_live_locks_and_stays_stable() {
     assert_eq!(text(field(world, "source")), "crates/sim-lib-world");
     assert_eq!(text(field(world, "checksum-kind")), "path-content");
     assert_eq!(field(world, "closure"), &Datum::Bool(true));
+    let closure_of = |name: &str| {
+        members
+            .iter()
+            .map(|value| node(value, "world/source-member-v1"))
+            .find(|row| text(field(row, "name")) == name)
+            .map(|row| field(row, "closure") == &Datum::Bool(true))
+    };
+    assert_eq!(closure_of("sha2"), Some(true), "sha2");
+    assert_eq!(closure_of("rustversion"), Some(false), "rustversion");
+    assert_eq!(closure_of("windows-link"), Some(false), "windows-link");
+    assert_eq!(closure_of("windows-sys"), Some(false), "windows-sys");
     assert_eq!(
         number(field(world, "files")),
         package_files(&root.join("crates/sim-lib-world"))
@@ -254,36 +265,14 @@ fn owning_seal_matches_live_locks_and_stays_stable() {
             assert_ne!(text(field(row, "checksum-kind")), "lock-identity");
         }
     }
-    assert!(mismatched > 0, "a nested lock disagrees with its manifest");
+    assert_eq!(mismatched, 0, "nested locks agree with their manifests");
+    assert_eq!(outside, 0, "every path member has a source");
+    assert_eq!(number(field(fields, "present-unverified")), unreached);
     assert_eq!(
-        number(field(fields, "present-unverified")),
-        mismatched + unreached + outside
-    );
-    assert_eq!(
-        number(field(fields, "verified")) + mismatched + unreached + outside,
+        number(field(fields, "verified")) + unreached,
         number(field(fields, "members"))
     );
-    let first_gap = members
-        .iter()
-        .map(|value| node(value, "world/source-member-v1"))
-        .find(|row| text(field(row, "status")) != "verified")
-        .expect("unverified member");
-    let shown = text(field(first_gap, "reason"));
-    let expected_reason = match shown {
-        "corrupt-checksum" => "corrupt-input",
-        "missing-checksum" => "missing-input",
-        other => other,
-    };
-    assert_eq!(text(field(fields, "reason")), expected_reason);
-    assert_eq!(
-        text(field(fields, "coordinate")),
-        format!(
-            "{} {} {}",
-            text(field(first_gap, "domain")),
-            text(field(first_gap, "name")),
-            text(field(first_gap, "version"))
-        )
-    );
+    assert!(!has_field(fields, "reason"));
     let registry = members
         .iter()
         .map(|value| node(value, "world/source-member-v1"))
@@ -465,14 +454,83 @@ fn wrong_target_keeps_the_digest_and_drops_the_other_status() {
     assert!(!has_field(row, "content"));
 }
 
+const ENUMERATED_NOT_DOWNLOADED: &str = "\
+sim-world-inputs-v1
+config lock 4
+config resolver 3
+root-package demo
+sealed-target x86_64-unknown-linux-gnu
+toolchain commit 0
+toolchain host x86_64-unknown-linux-gnu
+toolchain release 0
+domain resolver/demo . compiling Cargo.lock
+alias resolver/demo .
+member resolver/demo registry demo-crate 1.0.0 registry+https://github.com/rust-lang/crates.io-index abcdef registry closure abcdef
+domain resolver/demo/recipe recipe enumerated recipe/Cargo.lock
+alias resolver/demo/recipe recipe
+member resolver/demo/recipe registry recipe-crate 1.0.0 registry+https://github.com/rust-lang/crates.io-index fedcba registry closure
+";
+
+const COMPILING_NOT_DOWNLOADED: &str = "\
+sim-world-inputs-v1
+config lock 4
+config resolver 3
+root-package demo
+sealed-target x86_64-unknown-linux-gnu
+toolchain commit 0
+toolchain host x86_64-unknown-linux-gnu
+toolchain release 0
+domain resolver/demo . compiling Cargo.lock
+alias resolver/demo .
+member resolver/demo registry demo-crate 1.0.0 registry+https://github.com/rust-lang/crates.io-index abcdef registry closure
+";
+
+#[test]
+fn an_enumerated_lock_that_was_not_downloaded_does_not_refuse() {
+    let admitted = seal::open_inputs(ENUMERATED_NOT_DOWNLOADED).expect("inputs");
+    let fields = node(&admitted, "world/source-seal-v1");
+    assert_eq!(text(field(fields, "admission")), "admit");
+    assert!(!has_field(fields, "reason"));
+    assert_eq!(number(field(fields, "verified")), 1);
+    assert_eq!(number(field(fields, "present-unverified")), 1);
+    let universe = seal::universe_inputs(ENUMERATED_NOT_DOWNLOADED).expect("universe");
+    let pending = vector(field(
+        node(&universe, "world/source-universe-v1"),
+        "member-rows",
+    ))
+    .iter()
+    .map(|value| node(value, "world/source-member-v1"))
+    .find(|row| text(field(row, "name")) == "recipe-crate")
+    .expect("enumerated member");
+    assert_eq!(text(field(pending, "status")), "present-unverified");
+    assert_eq!(text(field(pending, "reason")), "source-not-reached");
+
+    let refused = seal::open_inputs(COMPILING_NOT_DOWNLOADED).expect("compiling");
+    let refused_fields = node(&refused, "world/source-seal-v1");
+    assert_eq!(text(field(refused_fields, "admission")), "refuse");
+    assert_eq!(text(field(refused_fields, "reason")), "source-not-reached");
+
+    let outside = COMPILING_NOT_DOWNLOADED.replace(
+        " registry closure\n",
+        " registry closure abcdef\nmember resolver/demo registry host-only 1.0.0 registry+https://github.com/rust-lang/crates.io-index fedcba registry outside\n",
+    );
+    let admitted = seal::open_inputs(&outside).expect("outside");
+    let fields = node(&admitted, "world/source-seal-v1");
+    assert_eq!(text(field(fields, "admission")), "admit");
+    assert!(!has_field(fields, "reason"));
+    assert_eq!(number(field(fields, "verified")), 1);
+    assert_eq!(number(field(fields, "present-unverified")), 1);
+}
+
 #[test]
 fn one_changed_checksum_invalidates_that_input() {
     let owning = seal::open("owning", None).expect("owning");
     let changed = seal::open("changed", None).expect("changed");
     let owning_fields = node(&owning, "world/source-seal-v1");
     let changed_fields = node(&changed, "world/source-seal-v1");
-    assert_eq!(text(field(owning_fields, "admission")), "refuse");
+    assert_eq!(text(field(owning_fields, "admission")), "admit");
     assert_eq!(text(field(changed_fields, "admission")), "refuse");
+    assert_eq!(text(field(changed_fields, "reason")), "corrupt-input");
     assert_ne!(
         text(field(owning_fields, "digest")),
         text(field(changed_fields, "digest"))

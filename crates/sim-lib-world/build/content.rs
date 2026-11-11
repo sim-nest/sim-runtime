@@ -28,7 +28,7 @@ pub(super) struct Index {
 }
 
 impl Index {
-    fn lookup(&self, name: &str, version: &str) -> Option<String> {
+    pub(super) fn lookup(&self, name: &str, version: &str) -> Option<String> {
         if let Some(found) = self.exact.get(&(name.to_owned(), version.to_owned())) {
             return Some(found.clone());
         }
@@ -185,6 +185,51 @@ fn observe_registry(package: &Pkg) -> Option<Reached> {
         fallback = Some(Reached { hash, path });
     }
     fallback
+}
+
+pub(super) fn registry_manifest(name: &str, version: &str) -> Option<String> {
+    let home = cargo_home()?;
+    let dir_name = format!("{name}-{version}");
+    if let Some(text) = read_extracted(&home, &dir_name) {
+        return Some(text);
+    }
+    read_crate_manifest(&home, &dir_name)
+}
+
+fn read_extracted(home: &Path, dir_name: &str) -> Option<String> {
+    let src = home.join("registry").join("src");
+    for entry in fs::read_dir(src).ok()?.flatten() {
+        let path = entry.path().join(dir_name).join("Cargo.toml");
+        if let Ok(text) = fs::read_to_string(path) {
+            return Some(text);
+        }
+    }
+    None
+}
+
+fn read_crate_manifest(home: &Path, dir_name: &str) -> Option<String> {
+    let cache = home.join("registry").join("cache");
+    let member = format!("{dir_name}/Cargo.toml");
+    for entry in fs::read_dir(cache).ok()?.flatten() {
+        let path = entry.path().join(format!("{dir_name}.crate"));
+        if !path.is_file() {
+            continue;
+        }
+        let Ok(output) = std::process::Command::new("tar")
+            .args(["-xOzf"])
+            .arg(&path)
+            .arg(&member)
+            .output()
+        else {
+            continue;
+        };
+        if output.status.success()
+            && let Ok(text) = String::from_utf8(output.stdout)
+        {
+            return Some(text);
+        }
+    }
+    None
 }
 
 fn cargo_home() -> Option<PathBuf> {

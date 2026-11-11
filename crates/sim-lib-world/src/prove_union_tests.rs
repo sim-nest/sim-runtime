@@ -9,20 +9,51 @@ use crate::prove;
 
 #[test]
 fn the_public_denominator_is_the_phase_gates() {
+    let before = crate::journal::calls_on_this_thread();
+    let operate_before = crate::operate::calls_on_this_thread();
     let cold = prove::run("cold", None).unwrap();
+    assert_eq!(
+        crate::journal::calls_on_this_thread(),
+        before.saturating_add(2)
+    );
+    assert_eq!(
+        crate::operate::calls_on_this_thread(),
+        operate_before.saturating_add(4)
+    );
     assert_eq!(number(&cold, "denominator"), 29);
-    assert_eq!(number(&cold, "executed"), 1);
+    assert_eq!(number(&cold, "executed"), 26);
     assert_eq!(number(&cold, "owner-commands"), 0);
-    assert_eq!(number(&cold, "requests"), 1);
+    assert_eq!(number(&cold, "requests"), 26);
     let gaps = text(&cold, "gaps");
     assert!(gaps.contains("gap phase/00 no-owner-result"));
-    assert!(gaps.contains("gap phase/10 host-read"));
-    assert!(gaps.contains("gap phase/11 foreign-crate"));
-    assert!(gaps.contains("gap phase/14 circular"));
+    assert!(!gaps.contains("phase/12"));
+    assert!(!gaps.contains("phase/03"));
+    assert!(!gaps.contains("phase/06"));
+    assert!(!gaps.contains("phase/10"));
+    assert!(!gaps.contains("phase/11"));
+    assert!(!gaps.contains("phase/14"));
     assert!(gaps.contains("gap phase/27 held"));
     assert!(gaps.contains("gap phase/28 unimplemented"));
-    assert!(gaps.contains("gap phase/02 same-computation"));
+    assert!(!gaps.contains("phase/02"));
     assert!(!gaps.contains("phase/07"));
+    assert!(!gaps.contains("phase/08"));
+    assert!(!gaps.contains("phase/09"));
+    assert!(!gaps.contains("phase/19"));
+    assert!(!gaps.contains("phase/20"));
+    assert!(!gaps.contains("phase/21"));
+    assert!(!gaps.contains("phase/22"));
+    assert!(!gaps.contains("phase/23"));
+    assert!(!gaps.contains("phase/24"));
+    assert!(!gaps.contains("phase/25"));
+    assert!(!gaps.contains("phase/13"));
+    assert!(!gaps.contains("phase/15"));
+    assert!(!gaps.contains("phase/16"));
+    assert!(!gaps.contains("phase/17"));
+    assert!(!gaps.contains("phase/18"));
+    assert!(!gaps.contains("phase/05"));
+    assert!(!gaps.contains("phase/01"));
+    assert!(!gaps.contains("phase/04"));
+    assert!(!gaps.contains("phase/26"));
     assert!(!gaps.contains("conclusion/"));
     assert!(text(&cold, "view").contains("sim-world-portable-union-v1"));
     let oracle = include_str!("assay_oracle.rs");
@@ -36,16 +67,67 @@ fn reuse_of_owner_leaves_is_complete_and_the_frontier_stays_open() {
     let view = text(&cold, "view");
     let d1 = prove::run("D1", Some(&view)).unwrap();
     assert_eq!(number(&d1, "denominator"), 29);
-    assert_eq!(number(&d1, "executed"), 1);
-    assert_eq!(number(&d1, "reused"), 1);
+    assert_eq!(number(&d1, "executed"), 26);
+    assert_eq!(number(&d1, "reused"), 26);
     assert_eq!(number(&d1, "false-reuse"), 0);
     assert_eq!(number(&d1, "reuse-basis-points"), 10_000);
     assert_eq!(text(&d1, "rerun"), "");
     let frontier = prove::frontier(Some(&view)).unwrap();
     assert!(!bool_field(&frontier, "complete"));
-    assert_eq!(number(&frontier, "executed"), 1);
+    assert_eq!(number(&frontier, "executed"), number(&cold, "executed"));
     let why = prove::why("D2", "phase/07", Some(&view)).unwrap();
     assert!(bool_field(&why, "reused"));
+    let project = prove::why("D2", "phase/06", Some(&view)).unwrap();
+    assert!(bool_field(&project, "reused"));
+    let plan = prove::why("D2", "phase/08", Some(&view)).unwrap();
+    assert!(bool_field(&plan, "reused"));
+    let observed = prove::why("D2", "phase/09", Some(&view)).unwrap();
+    assert!(bool_field(&observed, "reused"));
+    let service = prove::why("D2", "phase/19", Some(&view)).unwrap();
+    assert!(bool_field(&service, "reused"));
+    let release = prove::why("D2", "phase/20", Some(&view)).unwrap();
+    assert!(bool_field(&release, "reused"));
+    let deliver = prove::why("D2", "phase/21", Some(&view)).unwrap();
+    assert!(bool_field(&deliver, "reused"));
+    let canary = prove::why("D2", "phase/22", Some(&view)).unwrap();
+    assert!(bool_field(&canary, "reused"));
+    let work = prove::why("D2", "phase/23", Some(&view)).unwrap();
+    assert!(bool_field(&work, "reused"));
+    let author = prove::why("D2", "phase/24", Some(&view)).unwrap();
+    assert!(bool_field(&author, "reused"));
+    let conduct = prove::why("D2", "phase/25", Some(&view)).unwrap();
+    assert!(bool_field(&conduct, "reused"));
+    let schedule = prove::why("D2", "phase/13", Some(&view)).unwrap();
+    assert!(bool_field(&schedule, "reused"));
+    let converge = prove::why("D2", "phase/15", Some(&view)).unwrap();
+    assert!(bool_field(&converge, "reused"));
+    let fixed = prove::why("D2", "phase/16", Some(&view)).unwrap();
+    assert!(bool_field(&fixed, "reused"));
+    let transact = prove::why("D2", "phase/17", Some(&view)).unwrap();
+    assert!(bool_field(&transact, "reused"));
+    let land = prove::why("D2", "phase/18", Some(&view)).unwrap();
+    assert!(bool_field(&land, "reused"));
+    let recovered = prove::why("D2", "phase/05", Some(&view)).unwrap();
+    assert!(bool_field(&recovered, "reused"));
+    let bound = prove::why("D2", "phase/01", Some(&view)).unwrap();
+    assert!(bool_field(&bound, "reused"));
+    let operated = prove::why("D2", "phase/04", Some(&view)).unwrap();
+    assert!(bool_field(&operated, "reused"));
+    let journal = prove::why("D2", "phase/02", Some(&view)).unwrap();
+    assert!(bool_field(&journal, "reused"));
+    let normalized = prove::why("D2", "phase/03", Some(&view)).unwrap();
+    assert!(bool_field(&normalized, "reused"));
+    let foreign = prove::why("D2", "phase/11", Some(&view)).unwrap();
+    assert!(bool_field(&foreign, "reused"));
+    let evidence = prove::why("D2", "phase/12", Some(&view)).unwrap();
+    assert!(bool_field(&evidence, "reused"));
+    let compiled = prove::why("D2", "phase/10", Some(&view)).unwrap();
+    assert!(bool_field(&compiled, "reused"));
+    let compared = prove::why("D2", "phase/14", Some(&view)).unwrap();
+    assert!(bool_field(&compared, "reused"));
+    let qualify = prove::why("D2", "phase/26", Some(&view)).unwrap();
+    assert!(bool_field(&qualify, "reused"));
+    assert!(!text(&cold, "view").contains("gap phase/06"));
     assert_eq!(text(&why, "exercised"), "");
 }
 

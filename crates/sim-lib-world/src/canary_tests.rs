@@ -3,6 +3,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use std::sync::{Arc, Barrier};
+use std::thread;
+use std::time::{Duration, Instant};
+
 use sim_kernel::{Datum, Symbol};
 
 use crate::canary::{self, PurposeGrant};
@@ -297,4 +301,114 @@ fn private_observed_head_refuses_before_delivery() {
         head
     );
     assert!(!render(&clean).contains(secret));
+}
+
+#[test]
+fn a_repeated_canary_opens_one_reconciliation() {
+    let destination = "git/branch/canary-memory-repeat";
+    let first = canary::run(
+        "model",
+        "git/branch/main",
+        destination,
+        "world/model-canary",
+        "issued",
+    )
+    .expect("first");
+    let second = canary::run(
+        "model",
+        "git/branch/main",
+        destination,
+        "world/model-canary",
+        "issued",
+    )
+    .expect("second");
+    assert_eq!(render(&first), render(&second));
+    assert_eq!(canary::memory::opened(destination), 1);
+    let rows = fields(&first, "world/canary-v1");
+    assert_eq!(count(rows, "dispatches"), 1);
+    assert_eq!(count(rows, "repeat-dispatches"), 0);
+}
+
+#[test]
+fn a_private_purpose_does_not_reserve_the_canary() {
+    let destination = "git/branch/canary-memory-private";
+    let secret = canary::run(
+        "model",
+        "git/branch/main",
+        destination,
+        "private-material:s3cret-token",
+        "issued",
+    )
+    .expect("private");
+    assert_eq!(gap_reason(&secret), "private-leakage");
+    assert_eq!(canary::memory::opened(destination), 0);
+    assert!(!render(&secret).contains("s3cret-token"));
+    assert!(!render(&secret).contains("private-material:"));
+    let record = canary::run(
+        "model",
+        "git/branch/main",
+        destination,
+        "world/model-canary",
+        "issued",
+    )
+    .expect("after private");
+    assert_eq!(
+        text(fields(&record, "world/canary-v1"), "class"),
+        "verified"
+    );
+    assert_eq!(canary::memory::opened(destination), 1);
+    assert!(!render(&record).contains("s3cret-token"));
+}
+
+#[test]
+fn concurrent_identical_canaries_share_one_reconciliation() {
+    let destination = "git/branch/canary-memory-race";
+    canary::memory::arm_hold(destination);
+    let start = Arc::new(Barrier::new(2));
+    let mut threads = Vec::new();
+    for _ in 0..2 {
+        let start = Arc::clone(&start);
+        let destination = destination.to_owned();
+        threads.push(thread::spawn(move || {
+            start.wait();
+            canary::run(
+                "model",
+                "git/branch/main",
+                &destination,
+                "world/model-canary",
+                "issued",
+            )
+        }));
+    }
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        let owners = canary::memory::held_owners(destination);
+        let waiters = canary::memory::pending_waiters(destination);
+        if owners >= 2 || (owners == 1 && waiters >= 1) {
+            break;
+        }
+        if Instant::now() >= deadline {
+            canary::memory::release_hold(destination);
+            for thread in threads {
+                let _ = thread.join();
+            }
+            panic!("owners {owners} waiters {waiters}");
+        }
+        thread::yield_now();
+    }
+    canary::memory::release_hold(destination);
+    let mut joined = Vec::new();
+    for thread in threads {
+        joined.push(thread.join().expect("join"));
+    }
+    let results: Vec<_> = joined
+        .into_iter()
+        .map(|result| result.expect("canary"))
+        .collect();
+    assert_eq!(render(&results[0]), render(&results[1]));
+    assert_eq!(canary::memory::opened(destination), 1);
+    let rows = fields(&results[0], "world/canary-v1");
+    assert_eq!(text(rows, "class"), "verified");
+    assert_eq!(count(rows, "dispatches"), 1);
+    assert_eq!(count(rows, "repeat-dispatches"), 0);
 }

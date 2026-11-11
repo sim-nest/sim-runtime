@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-world"
-version = "0.1.3"
+version = "0.1.4"
 edition.workspace = true
 license.workspace = true
 readme = "README.md"
@@ -10,13 +10,21 @@ homepage.workspace = true
 publish = true
 
 [dependencies]
+sha2 = "0.10"
+sim-artifact-facet = "0.2.0"
 sim-conformance-core = "0.3.0"
+sim-conformance-evidence = { package = "sim-conformance-core", version = "0.2.0" }
+sim-conformance-packs = "0.8.1"
 sim-incremental-core = { version = "0.5.2", path = "../sim-incremental-core" }
 sim-kernel = { version = "0.4.0" }
 sim-lib-journal = "0.3.2"
 sim-lib-operation-gate = { version = "0.5.0", path = "../sim-lib-operation-gate" }
 sim-lib-roadmap-runner = "0.3.0"
+sim-roadmap-core = "0.3.0"
+sim-roadmap-exec-core = "0.3.0"
 sim-run-core = { version = "0.5.0" }
+sim-source-deck = "0.2.0"
+sim-work-core = "0.3.0"
 
 [dev-dependencies]
 sim-kernel = { version = "0.4.0", features = ["test-support"] }

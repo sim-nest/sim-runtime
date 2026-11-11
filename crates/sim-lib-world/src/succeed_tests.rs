@@ -230,16 +230,33 @@ fn warm_path_private_and_linux_claims_stay_open() {
 }
 
 #[test]
-fn path_origin_and_a_missing_foreign_project_stay_open() {
+fn path_origin_stays_open_and_another_public_project_closes() {
     let path_export = export().replace("0.1.1 registry", "0.1.1 path");
     assert_eq!(
         gap_reason(&succeed::run(&path_export, change()).expect("path")),
         "path-origin"
     );
-    let other = export().replace("project lantern", "project other");
+    let other = export().replace("project lantern", "project harbor");
     let record =
-        succeed::run(&other, "shade-1 other provider/shade observed shade-next").expect("project");
-    assert_eq!(gap_reason(&record), "foreign-project-absent");
+        succeed::run(&other, "shade-1 harbor provider/shade observed shade-next").expect("project");
+    let rows = fields(&record, "world/succession-v1");
+    assert_eq!(text(rows, "project"), "harbor");
+    assert_eq!(text(rows, "closed"), "portable");
+    let mismatched = succeed::run(
+        &export(),
+        "shade-1 harbor provider/shade observed shade-next",
+    )
+    .expect("mismatch");
+    assert_eq!(gap_reason(&mismatched), "project-mismatch");
+    let mut branched = export();
+    branched.push_str("branch private\n");
+    assert_eq!(
+        gap_reason(&succeed::run(&branched, change()).expect("branch")),
+        "private-branch"
+    );
+    let source = include_str!("succeed.rs");
+    assert!(!source.contains("FOREIGN_PROJECT"));
+    assert!(!source.contains("\"lantern\""));
 }
 
 #[test]
