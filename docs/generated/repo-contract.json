@@ -3192,13 +3192,13 @@
         }
       }
     },
-    "generation_timestamp": "2026-11-11T02:23:56+01:00",
+    "generation_timestamp": "2026-11-11T02:50:06+01:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "7f3ab4276f15905d569346d48391b79bd32c968b",
+    "git_commit": "e8c4a43cd8ec15065ebeb6d715a44e54d89bd317",
     "regeneration_command": "cargo run -p xtask -- simdoc",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "7f3ab4276f15905d569346d48391b79bd32c968b",
+    "source_commit": "e8c4a43cd8ec15065ebeb6d715a44e54d89bd317",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -3214,9 +3214,9 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "8d1ad536639686fa",
+    "workspace_hash": "9751b7a27a45a48c",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 837,
+    "workspace_hash_input_count": 842,
     "workspace_hash_inputs": [
       ".github/workflows/authorship.yml",
       ".github/workflows/ci.yml",
@@ -3996,6 +3996,7 @@
       "crates/sim-lib-world/src/command.rs",
       "crates/sim-lib-world/src/command_argv.rs",
       "crates/sim-lib-world/src/deliver.rs",
+      "crates/sim-lib-world/src/deliver_memory.rs",
       "crates/sim-lib-world/src/deliver_run.rs",
       "crates/sim-lib-world/src/deliver_tests.rs",
       "crates/sim-lib-world/src/deliver_view.rs",
@@ -4009,6 +4010,10 @@
       "crates/sim-lib-world/src/plan.rs",
       "crates/sim-lib-world/src/plan_subject.rs",
       "crates/sim-lib-world/src/plan_tests.rs",
+      "crates/sim-lib-world/src/portable_deliver.rs",
+      "crates/sim-lib-world/src/portable_deliver_expect.rs",
+      "crates/sim-lib-world/src/portable_deliver_parse.rs",
+      "crates/sim-lib-world/src/portable_deliver_tests.rs",
       "crates/sim-lib-world/src/portable_observe.rs",
       "crates/sim-lib-world/src/portable_observe_tests.rs",
       "crates/sim-lib-world/src/portable_plan.rs",

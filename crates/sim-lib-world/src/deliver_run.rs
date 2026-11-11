@@ -27,11 +27,15 @@ use crate::WorldError;
 
 use super::Reading;
 
+#[path = "deliver_memory.rs"]
+mod memory;
+
 const CLOCK_DOMAIN: &str = "world/deliver-ticks";
 const HOLDER: &str = "world/deliver-holder";
 const START_TICK: u64 = 10;
 const TICK_SPAN: u64 = 10;
 
+#[derive(Clone)]
 pub(super) struct Qualified {
     pub(super) acknowledgement: &'static str,
     pub(super) cause: &'static str,
@@ -217,8 +221,6 @@ pub(super) fn qualify(
     reason: &str,
     reading: &Reading,
 ) -> Result<Option<Qualified>, WorldError> {
-    #[cfg(test)]
-    QUALIFY_CALLS.with(|cell| cell.set(cell.get().saturating_add(1)));
     if super::private_input(
         realization,
         selector,
@@ -228,6 +230,11 @@ pub(super) fn qualify(
     ) {
         return Ok(None);
     }
+    if let Some(found) = memory::recall(realization, selector, desired, reason, reading) {
+        return Ok(Some(found));
+    }
+    #[cfg(test)]
+    QUALIFY_CALLS.with(|cell| cell.set(cell.get().saturating_add(1)));
     let cause = cause(reason, &reading.state, &reading.kind)?;
     let condition = condition(cause);
     let calls = Arc::new(AtomicUsize::new(0));
@@ -303,7 +310,7 @@ pub(super) fn qualify(
             "recovery did not observe before completion".to_owned(),
         ));
     }
-    Ok(Some(Qualified {
+    let qualified = Qualified {
         acknowledgement: acknowledgement(cause),
         cause,
         class,
@@ -316,7 +323,9 @@ pub(super) fn qualify(
         selector: selector.to_owned(),
         state: reading.state.clone(),
         value: reading.value.clone(),
-    }))
+    };
+    memory::store(realization, selector, desired, reason, reading, &qualified);
+    Ok(Some(qualified))
 }
 
 fn lifecycle(backend: &Arc<OutcomeCut>, clock: &Arc<TickClock>) -> OperationLifecycle<OutcomeCut> {

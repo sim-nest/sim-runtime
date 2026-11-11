@@ -144,6 +144,22 @@ fn assert_row(row: &[(Symbol, Datum)], cause: &str) {
 }
 
 #[test]
+fn a_repeated_reading_does_not_open_another_journal() {
+    let selector = "git/branch/topic";
+    let first_desired = "model-commit-memory-a";
+    let before = deliver::qualify_calls();
+    let first = deliver::one("model", selector, first_desired).expect("first");
+    let opened = deliver::qualify_calls();
+    assert!(opened > before, "the first reading opens a journal");
+    let again = deliver::one("model", selector, first_desired).expect("again");
+    assert_eq!(first, again);
+    assert_eq!(deliver::qualify_calls(), opened);
+    let other = deliver::one("model", selector, "model-commit-memory-b").expect("other");
+    assert_ne!(first, other);
+    assert!(deliver::qualify_calls() > opened);
+}
+
+#[test]
 fn delivery_qualifies_each_release_row_from_the_live_service() {
     let probe = "git/branch/main";
     let before = service::snapshot("model", probe).expect("before");
