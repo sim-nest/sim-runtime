@@ -240,8 +240,8 @@ fn path_origin_stays_open_and_another_public_project_closes() {
     let record =
         succeed::run(&other, "shade-1 harbor provider/shade observed shade-next").expect("project");
     let rows = fields(&record, "world/succession-v1");
-    assert_eq!(text(&rows, "project"), "harbor");
-    assert_eq!(text(&rows, "closed"), "portable");
+    assert_eq!(text(rows, "project"), "harbor");
+    assert_eq!(text(rows, "closed"), "portable");
     let mismatched = succeed::run(
         &export(),
         "shade-1 harbor provider/shade observed shade-next",
