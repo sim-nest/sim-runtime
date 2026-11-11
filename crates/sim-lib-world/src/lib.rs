@@ -40,6 +40,10 @@
 //! shows, lints, selects, diffs, and compiles the selected source. A consulted
 //! or superseded sibling does not satisfy a missing requirement. A missing
 //! section, an authority decision, or a private value refuses.
+//! One conduct call admits at most one effect or one pure transition.
+//! A no-change wake starts nothing. A wait resumes once on a material
+//! offer. A stale, wrong, replayed, or advisory direction refuses.
+//! Reading the retained result does not conduct again.
 //! A fresh succession reads one exported model record
 //! and one later change. The export names registry packages, the foreign
 //! project, and declared inputs. The change is observed, sealed, proved,
@@ -79,6 +83,8 @@ mod assay_oracle;
 mod author;
 mod canary;
 mod command;
+mod command_steps;
+mod conduct;
 mod deliver;
 mod fixture;
 mod grant;

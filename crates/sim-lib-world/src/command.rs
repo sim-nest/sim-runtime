@@ -6,13 +6,15 @@
 use std::sync::Arc;
 
 use sim_kernel::{
-    AbiVersion, Args, Callable, Cx, Datum, Error, Export, Expr, Lib, LibManifest, LibTarget,
-    Linker, LoadCx, Object, ObjectCompat, Result, Symbol, Value, Version,
+    AbiVersion, Args, Callable, Cx, Datum, Error, Export, Lib, LibManifest, LibTarget, Linker,
+    LoadCx, Object, ObjectCompat, Result, Symbol, Value, Version,
 };
 
 use crate::canary;
+pub(crate) use crate::command_steps::render;
+use crate::command_steps::{compose, envelope_args, eval_error, load_receipt};
 use crate::deliver;
-use crate::grant::{self, ModelDomainGrant};
+use crate::grant::ModelDomainGrant;
 use crate::observe;
 use crate::plan::{self, View};
 use crate::product::Declaration;
@@ -21,8 +23,7 @@ use crate::release;
 use crate::seal;
 use crate::service;
 use crate::succeed;
-use crate::{WorldError, WorldProduct};
-use crate::{author, work};
+use crate::{WorldError, WorldProduct, author, conduct, work};
 
 /// CLI verb contributed by this loaded library.
 pub const WORLD_VERB: &str = "world";
@@ -179,7 +180,7 @@ impl Callable for WorldEntrypoint {
                 Error::Eval("world compose requires a model-domain load".to_owned())
             })?;
             let mut grant = ModelDomainGrant::issue(load).map_err(eval_error)?;
-            compose(&self.product, &mut grant, &argv[2..])?;
+            compose(&self.product, &mut grant, &argv[2..], USAGE)?;
             return cx.factory().bool(true);
         }
         if let Some(load) = &self.load {
@@ -290,6 +291,9 @@ impl WorldEntrypoint {
                     .map(Outcome::Value)
                     .map_err(eval_error)
             }
+            Some("conduct") if argv.len() == 3 => conduct::run(&argv[2])
+                .map(Outcome::Value)
+                .map_err(eval_error),
             Some("author") if argv.len() == 3 => author::run(&argv[2])
                 .map(Outcome::Value)
                 .map_err(eval_error),
@@ -475,7 +479,7 @@ impl WorldEntrypoint {
     }
 }
 
-const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | measure plan | measure seal | assay | plan [text|card] [CONTINUATION] | snapshot DOCUMENT SELECTOR | snapshot-diff BEFORE AFTER SELECTOR | service REALIZATION SELECTOR | service-plan REALIZATION [SELECTOR DESIRED] | release-plan REALIZATION [SELECTOR DESIRED] | release-status REALIZATION | release-why REALIZATION SELECTOR | deliver REALIZATION [SELECTOR DESIRED] | deliver-status REALIZATION [VIEW] | deliver-why REALIZATION SELECTOR [VIEW] | canary REALIZATION SOURCE DESTINATION PURPOSE [issued|spent] | author CASE | work CASE | succeed EXPORT CHANGE | seal [DOCUMENT [TARGET]] | universe [DOCUMENT [TARGET]] | seal-diff BEFORE AFTER [TARGET]";
+const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | measure plan | measure seal | assay | plan [text|card] [CONTINUATION] | snapshot DOCUMENT SELECTOR | snapshot-diff BEFORE AFTER SELECTOR | service REALIZATION SELECTOR | service-plan REALIZATION [SELECTOR DESIRED] | release-plan REALIZATION [SELECTOR DESIRED] | release-status REALIZATION | release-why REALIZATION SELECTOR | deliver REALIZATION [SELECTOR DESIRED] | deliver-status REALIZATION [VIEW] | deliver-why REALIZATION SELECTOR [VIEW] | canary REALIZATION SOURCE DESTINATION PURPOSE [issued|spent] | conduct CASE | author CASE | work CASE | succeed EXPORT CHANGE | seal [DOCUMENT [TARGET]] | universe [DOCUMENT [TARGET]] | seal-diff BEFORE AFTER [TARGET]";
 
 fn refusal(call: &str, reason: &str) -> Datum {
     Datum::Node {
@@ -484,210 +488,6 @@ fn refusal(call: &str, reason: &str) -> Datum {
             (Symbol::new("call"), Datum::String(call.to_owned())),
             (Symbol::new("reason"), Datum::String(reason.to_owned())),
         ],
-    }
-}
-
-fn eval_error(error: WorldError) -> Error {
-    Error::Eval(error.to_string())
-}
-
-fn compose(product: &WorldProduct, grant: &mut ModelDomainGrant, args: &[String]) -> Result<()> {
-    let mut index = 0;
-    while index < args.len() {
-        match args[index].as_str() {
-            "revoke" => {
-                grant.revoke().map_err(eval_error)?;
-                println!("{}", render(&custody("revoke")));
-                index += 1;
-            }
-            "teardown" => {
-                grant.teardown();
-                println!("{}", render(&custody("teardown")));
-                index += 1;
-            }
-            "reopen" => {
-                grant.reopen().map_err(eval_error)?;
-                println!("{}", render(&custody("reopen")));
-                index += 1;
-            }
-            "project" => {
-                let kind = step_arg(args, index + 1)?;
-                let fact = step_arg(args, index + 2)?;
-                let value = step_arg(args, index + 3)?;
-                emit_use(grant, "project", || {
-                    product
-                        .project(kind, fact, Datum::String(value.to_owned()), None)
-                        .map(|projection| projection.value)
-                })?;
-                index += 4;
-            }
-            "diff" => {
-                let kind = step_arg(args, index + 1)?;
-                let fact = step_arg(args, index + 2)?;
-                let before = step_arg(args, index + 3)?;
-                let after = step_arg(args, index + 4)?;
-                emit_use(grant, "diff", || {
-                    product.diff(
-                        kind,
-                        fact,
-                        Datum::String(before.to_owned()),
-                        Datum::String(after.to_owned()),
-                    )
-                })?;
-                index += 5;
-            }
-            "why" => {
-                let conclusion = step_arg(args, index + 1)?;
-                let fact = step_arg(args, index + 2)?;
-                emit_use(grant, "why", || product.why(conclusion, fact))?;
-                index += 3;
-            }
-            _ => return Err(Error::Eval(USAGE.to_owned())),
-        }
-    }
-    Ok(())
-}
-
-fn step_arg(args: &[String], index: usize) -> Result<&str> {
-    args.get(index)
-        .map(String::as_str)
-        .ok_or_else(|| Error::Eval(USAGE.to_owned()))
-}
-
-fn emit_use(
-    grant: &ModelDomainGrant,
-    call: &str,
-    run: impl FnOnce() -> std::result::Result<Datum, WorldError>,
-) -> Result<()> {
-    let record = match grant.admit() {
-        Ok(()) => use_record(
-            grant,
-            call,
-            "current",
-            Some(run().map_err(eval_error)?),
-            None,
-        ),
-        Err(error) => use_record(
-            grant,
-            call,
-            "refused",
-            None,
-            Some(grant::refusal_reason(&error)),
-        ),
-    };
-    println!("{}", render(&record));
-    Ok(())
-}
-
-fn use_record(
-    grant: &ModelDomainGrant,
-    call: &str,
-    disposition: &str,
-    value: Option<Datum>,
-    reason: Option<String>,
-) -> Datum {
-    let load = grant.load();
-    let mut fields = vec![
-        (Symbol::new("call"), Datum::String(call.to_owned())),
-        (
-            Symbol::new("disposition"),
-            Datum::String(disposition.to_owned()),
-        ),
-        (
-            Symbol::new("provider"),
-            Datum::String(load.provider.clone()),
-        ),
-        (Symbol::new("loader"), Datum::String(load.loader.clone())),
-        (
-            Symbol::new("artifact"),
-            Datum::String(load.artifact.clone()),
-        ),
-    ];
-    if let Some(value) = value {
-        fields.push((Symbol::new("value"), value));
-    }
-    if let Some(reason) = reason {
-        fields.push((Symbol::new("reason"), Datum::String(reason)));
-    }
-    Datum::Node {
-        tag: Symbol::qualified("world", "use-v1"),
-        fields,
-    }
-}
-
-fn custody(call: &str) -> Datum {
-    Datum::Node {
-        tag: Symbol::qualified("world", "custody-v1"),
-        fields: vec![
-            (Symbol::new("call"), Datum::String(call.to_owned())),
-            (Symbol::new("disposition"), Datum::String("done".to_owned())),
-        ],
-    }
-}
-
-fn load_receipt(load: &ModelDomainLoad) -> Datum {
-    Datum::Node {
-        tag: Symbol::qualified("world", "load-receipt-v1"),
-        fields: vec![
-            (
-                Symbol::new("provider"),
-                Datum::String(load.provider.clone()),
-            ),
-            (Symbol::new("loader"), Datum::String(load.loader.clone())),
-            (
-                Symbol::new("artifact"),
-                Datum::String(load.artifact.clone()),
-            ),
-        ],
-    }
-}
-
-fn envelope_args(cx: &mut Cx, envelope: Option<&Value>) -> Result<Vec<String>> {
-    let envelope = envelope.ok_or_else(|| Error::Eval("missing world envelope".into()))?;
-    let table = envelope
-        .object()
-        .as_table_impl()
-        .ok_or_else(|| Error::Eval("world envelope is not a table".into()))?;
-    let value = table.get(cx, Symbol::new("args"))?;
-    let Expr::List(values) = value.object().as_expr(cx)? else {
-        return Err(Error::Eval("world args are not a list".into()));
-    };
-    values
-        .into_iter()
-        .map(|value| match value {
-            Expr::String(value) => Ok(value),
-            _ => Err(Error::Eval("world arg is not a string".into())),
-        })
-        .collect()
-}
-
-pub(crate) fn render(value: &Datum) -> String {
-    match value {
-        Datum::Nil => "nil".to_owned(),
-        Datum::Bool(value) => value.to_string(),
-        Datum::Number(value) => value.canonical.clone(),
-        Datum::String(value) => {
-            let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
-            format!("\"{escaped}\"")
-        }
-        Datum::Symbol(value) => value.to_string(),
-        Datum::Vector(values) => format!(
-            "[{}]",
-            values.iter().map(render).collect::<Vec<_>>().join(" ")
-        ),
-        Datum::List(values) => format!(
-            "({})",
-            values.iter().map(render).collect::<Vec<_>>().join(" ")
-        ),
-        Datum::Node { tag, fields } => {
-            let fields = fields
-                .iter()
-                .map(|(name, value)| format!("({} {})", name, render(value)))
-                .collect::<Vec<_>>()
-                .join(" ");
-            format!("#({tag} {fields})")
-        }
-        other => format!("{other:?}"),
     }
 }
 
