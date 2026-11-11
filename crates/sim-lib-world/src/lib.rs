@@ -60,6 +60,12 @@
 //! returns that record. The second pass does no generation. A deletion
 //! names that generator's closure. A failed proof or a repeated image
 //! blocks the seal. The duplicate generator is not run.
+//! One transact call runs the published model transaction once. A later
+//! call returns that record. A second pass on the new head performs no
+//! commit. Wrong head, dirt, private flow, a generated-owner bypass, a
+//! stale base, and a region escape refuse. Overlap refuses. A partial
+//! batch is not success. Rollback restores the pointer and keeps the
+//! commit.
 //! A fresh succession reads one exported model record
 //! and one later change. The export names registry packages, the foreign
 //! project, and declared inputs. The change is observed, sealed, proved,
@@ -119,6 +125,7 @@ mod schedule;
 mod seal;
 mod service;
 mod succeed;
+mod transact;
 mod work;
 
 pub use command::{ModelDomainLoad, WORLD_VERB, WorldCommandLib};

@@ -11,9 +11,9 @@ use crate::prove;
 fn the_public_denominator_is_the_phase_gates() {
     let cold = prove::run("cold", None).unwrap();
     assert_eq!(number(&cold, "denominator"), 29);
-    assert_eq!(number(&cold, "executed"), 15);
+    assert_eq!(number(&cold, "executed"), 16);
     assert_eq!(number(&cold, "owner-commands"), 0);
-    assert_eq!(number(&cold, "requests"), 15);
+    assert_eq!(number(&cold, "requests"), 16);
     let gaps = text(&cold, "gaps");
     assert!(gaps.contains("gap phase/00 no-owner-result"));
     assert!(!gaps.contains("phase/06"));
@@ -36,6 +36,7 @@ fn the_public_denominator_is_the_phase_gates() {
     assert!(!gaps.contains("phase/13"));
     assert!(!gaps.contains("phase/15"));
     assert!(!gaps.contains("phase/16"));
+    assert!(!gaps.contains("phase/17"));
     assert!(!gaps.contains("phase/26"));
     assert!(!gaps.contains("conclusion/"));
     assert!(text(&cold, "view").contains("sim-world-portable-union-v1"));
@@ -50,8 +51,8 @@ fn reuse_of_owner_leaves_is_complete_and_the_frontier_stays_open() {
     let view = text(&cold, "view");
     let d1 = prove::run("D1", Some(&view)).unwrap();
     assert_eq!(number(&d1, "denominator"), 29);
-    assert_eq!(number(&d1, "executed"), 15);
-    assert_eq!(number(&d1, "reused"), 15);
+    assert_eq!(number(&d1, "executed"), 16);
+    assert_eq!(number(&d1, "reused"), 16);
     assert_eq!(number(&d1, "false-reuse"), 0);
     assert_eq!(number(&d1, "reuse-basis-points"), 10_000);
     assert_eq!(text(&d1, "rerun"), "");
@@ -86,6 +87,8 @@ fn reuse_of_owner_leaves_is_complete_and_the_frontier_stays_open() {
     assert!(bool_field(&converge, "reused"));
     let fixed = prove::why("D2", "phase/16", Some(&view)).unwrap();
     assert!(bool_field(&fixed, "reused"));
+    let transact = prove::why("D2", "phase/17", Some(&view)).unwrap();
+    assert!(bool_field(&transact, "reused"));
     let qualify = prove::why("D2", "phase/26", Some(&view)).unwrap();
     assert!(bool_field(&qualify, "reused"));
     assert!(!text(&cold, "view").contains("gap phase/06"));

@@ -21,6 +21,7 @@
 //! The scheduler row calls the loaded schedule command.
 //! The convergence row calls the loaded converge command.
 //! The fixed-point row calls the loaded fixed command.
+//! The transaction row calls the loaded transact command.
 //! Every other row is a named gap. Gaps stay
 //! in the denominator. The frontier stays open while any gap
 //! or failed leaf remains.
@@ -67,6 +68,8 @@ mod release;
 mod schedule;
 #[path = "portable_service.rs"]
 mod service;
+#[path = "portable_transact.rs"]
+mod transact;
 #[path = "portable_union_view.rs"]
 mod view;
 #[path = "portable_work.rs"]
@@ -92,6 +95,7 @@ enum Ground {
     Schedule,
     Converge,
     Fixed,
+    Transact,
     Gap(&'static str),
 }
 
@@ -414,6 +418,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
         Ground::Schedule => schedule::schedule_leaf(),
         Ground::Converge => converge::converge_leaf(),
         Ground::Fixed => fixed::fixed_leaf(),
+        Ground::Transact => transact::transact_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),
@@ -542,6 +547,9 @@ fn subject() -> Result<String, WorldError> {
         Datum::String(include_str!("portable_fixed.rs").to_owned()),
         Datum::String(include_str!("portable_fixed_expect.rs").to_owned()),
         Datum::String(include_str!("portable_fixed_parse.rs").to_owned()),
+        Datum::String(include_str!("portable_transact.rs").to_owned()),
+        Datum::String(include_str!("portable_transact_expect.rs").to_owned()),
+        Datum::String(include_str!("portable_transact_parse.rs").to_owned()),
         Datum::String(include_str!("assay.rs").to_owned()),
         Datum::String(include_str!("assay_oracle.rs").to_owned()),
         Datum::String(include_str!("provider.rs").to_owned()),
