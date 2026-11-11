@@ -190,6 +190,16 @@ pub(crate) fn envelope_args(cx: &mut Cx, envelope: Option<&Value>) -> Result<Vec
         .collect()
 }
 
+pub(crate) fn refusal(call: &str, reason: &str) -> Datum {
+    Datum::Node {
+        tag: Symbol::qualified("world", "refusal-v1"),
+        fields: vec![
+            (Symbol::new("call"), Datum::String(call.to_owned())),
+            (Symbol::new("reason"), Datum::String(reason.to_owned())),
+        ],
+    }
+}
+
 pub(crate) fn render(value: &Datum) -> String {
     match value {
         Datum::Nil => "nil".to_owned(),

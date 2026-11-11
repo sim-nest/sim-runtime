@@ -44,6 +44,11 @@
 //! A no-change wake starts nothing. A wait resumes once on a material
 //! offer. A stale, wrong, replayed, or advisory direction refuses.
 //! Reading the retained result does not conduct again.
+//! One qualify call runs the published composition specimen once.
+//! The record keeps one same-revision page, the exact lineage, a begin
+//! that is separate from selection, and rejected advice. A Linux provider
+//! and a changed closure refuse. Reading the retained result does not
+//! qualify again.
 //! A fresh succession reads one exported model record
 //! and one later change. The export names registry packages, the foreign
 //! project, and declared inputs. The change is observed, sealed, proved,
@@ -94,6 +99,7 @@ mod product;
 mod prove;
 mod prove_command;
 mod provider;
+mod qualify;
 mod query;
 mod release;
 mod seal;
