@@ -66,6 +66,12 @@
 //! stale base, and a region escape refuse. Overlap refuses. A partial
 //! batch is not success. Rollback restores the pointer and keeps the
 //! commit.
+//! One land call runs the published landing once. A later call returns
+//! that record. A foreign edit survives the landing. An already-true
+//! replay does not move the branch. Rollback restores the exact commit.
+//! A generated region refuses another actor. A cached answer stays
+//! current until the head moves. Status names the tip and a missing
+//! repository. The landing does not mutate a checkout.
 //! A fresh succession reads one exported model record
 //! and one later change. The export names registry packages, the foreign
 //! project, and declared inputs. The change is observed, sealed, proved,
@@ -112,6 +118,7 @@ mod deliver;
 mod fixed;
 mod fixture;
 mod grant;
+mod land;
 mod observe;
 mod plan;
 mod product;

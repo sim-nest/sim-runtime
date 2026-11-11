@@ -24,7 +24,8 @@ use crate::seal;
 use crate::service;
 use crate::succeed;
 use crate::{
-    WorldError, WorldProduct, author, conduct, converge, fixed, qualify, schedule, transact, work,
+    WorldError, WorldProduct, author, conduct, converge, fixed, land, qualify, schedule, transact,
+    work,
 };
 
 /// CLI verb contributed by this loaded library.
@@ -308,6 +309,9 @@ impl WorldEntrypoint {
             Some("transact") if argv.len() == 3 => transact::run(&argv[2])
                 .map(Outcome::Value)
                 .map_err(eval_error),
+            Some("land") if argv.len() == 3 => {
+                land::run(&argv[2]).map(Outcome::Value).map_err(eval_error)
+            }
             Some("conduct") if argv.len() == 3 => conduct::run(&argv[2])
                 .map(Outcome::Value)
                 .map_err(eval_error),
@@ -496,7 +500,7 @@ impl WorldEntrypoint {
     }
 }
 
-const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | measure plan | measure seal | assay | plan [text|card] [CONTINUATION] | snapshot DOCUMENT SELECTOR | snapshot-diff BEFORE AFTER SELECTOR | service REALIZATION SELECTOR | service-plan REALIZATION [SELECTOR DESIRED] | release-plan REALIZATION [SELECTOR DESIRED] | release-status REALIZATION | release-why REALIZATION SELECTOR | deliver REALIZATION [SELECTOR DESIRED] | deliver-status REALIZATION [VIEW] | deliver-why REALIZATION SELECTOR [VIEW] | canary REALIZATION SOURCE DESTINATION PURPOSE [issued|spent] | conduct CASE | qualify CASE | schedule CASE | converge CASE | fixed CASE | transact CASE | author CASE | work CASE | succeed EXPORT CHANGE | seal [DOCUMENT [TARGET]] | universe [DOCUMENT [TARGET]] | seal-diff BEFORE AFTER [TARGET]";
+const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | measure plan | measure seal | assay | plan [text|card] [CONTINUATION] | snapshot DOCUMENT SELECTOR | snapshot-diff BEFORE AFTER SELECTOR | service REALIZATION SELECTOR | service-plan REALIZATION [SELECTOR DESIRED] | release-plan REALIZATION [SELECTOR DESIRED] | release-status REALIZATION | release-why REALIZATION SELECTOR | deliver REALIZATION [SELECTOR DESIRED] | deliver-status REALIZATION [VIEW] | deliver-why REALIZATION SELECTOR [VIEW] | canary REALIZATION SOURCE DESTINATION PURPOSE [issued|spent] | conduct CASE | qualify CASE | schedule CASE | converge CASE | fixed CASE | transact CASE | land CASE | author CASE | work CASE | succeed EXPORT CHANGE | seal [DOCUMENT [TARGET]] | universe [DOCUMENT [TARGET]] | seal-diff BEFORE AFTER [TARGET]";
 
 #[cfg(test)]
 #[path = "command_argv.rs"]
