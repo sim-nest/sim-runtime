@@ -100,7 +100,7 @@ fn owning_seal_matches_live_locks_and_stays_stable() {
     let second = seal::open("owning", None).expect("repeat");
     assert_eq!(render(&first), render(&second));
     let fields = node(&first, "world/source-seal-v1");
-    assert_eq!(text(field(fields, "admission")), "refuse");
+    assert_eq!(text(field(fields, "admission")), "admit");
     assert_eq!(field(fields, "compiler-opened"), &Datum::Bool(false));
     assert_eq!(field(fields, "effects"), &query::count_datum(0));
     assert_eq!(field(fields, "subprocesses"), &query::count_datum(0));
@@ -254,36 +254,15 @@ fn owning_seal_matches_live_locks_and_stays_stable() {
             assert_ne!(text(field(row, "checksum-kind")), "lock-identity");
         }
     }
-    assert!(mismatched > 0, "a nested lock disagrees with its manifest");
+    assert_eq!(mismatched, 0, "nested locks agree with their manifests");
+    assert_eq!(unreached, 0, "every registry member is reached");
+    assert_eq!(outside, 0, "every path member has a source");
+    assert_eq!(number(field(fields, "present-unverified")), 0);
     assert_eq!(
-        number(field(fields, "present-unverified")),
-        mismatched + unreached + outside
-    );
-    assert_eq!(
-        number(field(fields, "verified")) + mismatched + unreached + outside,
+        number(field(fields, "verified")),
         number(field(fields, "members"))
     );
-    let first_gap = members
-        .iter()
-        .map(|value| node(value, "world/source-member-v1"))
-        .find(|row| text(field(row, "status")) != "verified")
-        .expect("unverified member");
-    let shown = text(field(first_gap, "reason"));
-    let expected_reason = match shown {
-        "corrupt-checksum" => "corrupt-input",
-        "missing-checksum" => "missing-input",
-        other => other,
-    };
-    assert_eq!(text(field(fields, "reason")), expected_reason);
-    assert_eq!(
-        text(field(fields, "coordinate")),
-        format!(
-            "{} {} {}",
-            text(field(first_gap, "domain")),
-            text(field(first_gap, "name")),
-            text(field(first_gap, "version"))
-        )
-    );
+    assert!(!has_field(fields, "reason"));
     let registry = members
         .iter()
         .map(|value| node(value, "world/source-member-v1"))
@@ -471,8 +450,9 @@ fn one_changed_checksum_invalidates_that_input() {
     let changed = seal::open("changed", None).expect("changed");
     let owning_fields = node(&owning, "world/source-seal-v1");
     let changed_fields = node(&changed, "world/source-seal-v1");
-    assert_eq!(text(field(owning_fields, "admission")), "refuse");
+    assert_eq!(text(field(owning_fields, "admission")), "admit");
     assert_eq!(text(field(changed_fields, "admission")), "refuse");
+    assert_eq!(text(field(changed_fields, "reason")), "corrupt-input");
     assert_ne!(
         text(field(owning_fields, "digest")),
         text(field(changed_fields, "digest"))

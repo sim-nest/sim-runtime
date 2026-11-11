@@ -158,6 +158,7 @@ mod recover;
 mod release;
 mod schedule;
 mod seal;
+mod seal_compile;
 mod service;
 mod succeed;
 mod transact;
@@ -189,6 +190,8 @@ mod prove_tests;
 mod prove_union_tests;
 #[cfg(test)]
 mod release_tests;
+#[cfg(test)]
+mod seal_compile_tests;
 #[cfg(test)]
 mod seal_source_tests;
 #[cfg(test)]

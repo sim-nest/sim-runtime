@@ -21,6 +21,7 @@ use crate::product::Declaration;
 use crate::query;
 use crate::release;
 use crate::seal;
+use crate::seal_compile;
 use crate::service;
 use crate::succeed;
 use crate::{
@@ -374,7 +375,7 @@ impl WorldEntrypoint {
     }
 
     fn measure_seal_outcome(&self) -> Result<Outcome> {
-        seal::measure().map(Outcome::Value).map_err(eval_error)
+        seal_compile::run().map(Outcome::Value).map_err(eval_error)
     }
 
     fn seal_command(&self, args: &[String], universe: bool) -> Result<Outcome> {

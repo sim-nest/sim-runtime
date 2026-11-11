@@ -50,7 +50,7 @@ pub(super) const GATES: &[Gate] = &[
     },
     Gate {
         leaf: "phase/10",
-        ground: Ground::Gap("host-read"),
+        ground: Ground::Compile,
     },
     Gate {
         leaf: "phase/11",

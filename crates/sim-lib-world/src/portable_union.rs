@@ -36,6 +36,11 @@
 //! one key. A wrong domain, revoked support, a missing object, and a
 //! storage id used as a semantic key refuse. Telemetry leaves that key
 //! unchanged.
+//! The compile row calls the loaded measure command. A missing input,
+//! a corrupt input, a wrong target, and a stub-only input refuse before
+//! a compiler starts. One well-formed admitted input runs one offline
+//! locked check. Equal inputs keep one seal. A changed lock moves that
+//! seal.
 //! The operation row calls the loaded operate command.
 //! Every other row is a named gap. Gaps stay
 //! in the denominator. The frontier stays open while any gap
@@ -63,6 +68,8 @@ mod author;
 mod bind;
 #[path = "portable_canary.rs"]
 mod canary;
+#[path = "portable_compile.rs"]
+mod compile;
 #[path = "portable_conduct.rs"]
 mod conduct;
 #[path = "portable_converge.rs"]
@@ -135,6 +142,7 @@ enum Ground {
     Normalize,
     Foreign,
     Evidence,
+    Compile,
     Gap(&'static str),
 }
 
@@ -466,6 +474,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
         Ground::Normalize => normalize::normalize_leaf(),
         Ground::Foreign => foreign::foreign_leaf(),
         Ground::Evidence => evidence::evidence_leaf(),
+        Ground::Compile => compile::compile_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),

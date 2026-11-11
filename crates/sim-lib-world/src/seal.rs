@@ -7,9 +7,10 @@
 //!
 //! The owning batch is the resolver input captured while this crate compiled:
 //! workspace lock, member features, nested Cargo locks, generated sources, and
-//! toolchain identity. A loaded command reads that sealed text and does not
-//! open a compiler, a host process, or a network connection. Only a verified
-//! input admits compilation. Present-unverified, stub-only, and absent stay
+//! toolchain identity. Reading that text opens no compiler, host process, or
+//! network connection. A missing, corrupt, wrong-target, or stub-only input
+//! refuses before a compiler starts. Only a verified input admits compilation.
+//! Present-unverified, stub-only, and absent stay
 //! distinct, and a target-specific status is never copied onto another target.
 
 use std::{
@@ -162,10 +163,13 @@ pub(crate) fn diff_admitted(
     ))
 }
 
-/// Times the owning seal. The command still opens no compiler.
+/// Times the owning seal. This timing opens no compiler.
+///
+/// The loaded measure command does not call this timing.
 ///
 /// # Errors
 /// Returns an error when the owning input text is internally inconsistent.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn measure() -> Result<Datum, WorldError> {
     let expected = open_admitted(None, None)?;
     let members = count_field(&expected, "members")?;
@@ -202,6 +206,7 @@ struct Assessed {
     digest: String,
     gap: bool,
     marks: BTreeMap<String, String>,
+    #[cfg_attr(not(test), allow(dead_code))]
     work: query::HostWork,
 }
 
@@ -535,6 +540,7 @@ fn member_key(member: &Member) -> String {
     )
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 fn count_field(value: &Datum, name: &str) -> Result<usize, WorldError> {
     let Datum::Node { fields, .. } = value else {
         return Err(WorldError::Qualification("seal is not a node".to_owned()));
