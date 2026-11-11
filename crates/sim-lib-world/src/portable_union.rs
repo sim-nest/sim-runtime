@@ -11,8 +11,9 @@
 //! The journal row is a named gap: `rebuild` and `rebuild_report` are the
 //! same computation. The assay row compares the sealed graph with the
 //! commissioned oracle. The project row calls the loaded world command.
-//! Every other row is a named gap. Gaps stay in the
-//! denominator. The frontier stays open while any gap or failed leaf remains.
+//! The plan row calls the loaded plan command. Every other row is a named
+//! gap. Gaps stay in the denominator. The frontier stays open while any gap
+//! or failed leaf remains.
 //! The sensitivity assay of forty conclusions is a different set. Each
 //! executed leaf digest binds the verdict and the retained deck.
 
@@ -30,6 +31,8 @@ use crate::provider;
 
 use super::record::{self, flag, gap, list, node, num, text};
 
+#[path = "portable_plan.rs"]
+mod plan;
 #[path = "portable_project.rs"]
 mod project;
 #[path = "portable_union_view.rs"]
@@ -42,6 +45,7 @@ const PHASES: usize = 29;
 enum Ground {
     Assay,
     Project,
+    Plan,
     Gap(&'static str),
 }
 
@@ -85,7 +89,7 @@ const GATES: &[Gate] = &[
     },
     Gate {
         leaf: "phase/08",
-        ground: Ground::Gap("no-owner-result"),
+        ground: Ground::Plan,
     },
     Gate {
         leaf: "phase/09",
@@ -378,7 +382,7 @@ fn classify(leaf: &str) -> Result<Class, WorldError> {
     };
     match gate.ground {
         Ground::Gap(reason) => Ok(Class::Gap(reason)),
-        Ground::Assay | Ground::Project => Ok(Class::Executed),
+        Ground::Assay | Ground::Project | Ground::Plan => Ok(Class::Executed),
     }
 }
 
@@ -465,6 +469,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
     match gate.ground {
         Ground::Assay => assay_leaf(name),
         Ground::Project => project::project_leaf(),
+        Ground::Plan => plan::plan_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),
@@ -548,7 +553,7 @@ fn gap_rows() -> Vec<String> {
         .iter()
         .filter_map(|gate| match gate.ground {
             Ground::Gap(reason) => Some(format!("gap {} {reason}", gate.leaf)),
-            Ground::Assay | Ground::Project => None,
+            Ground::Assay | Ground::Project | Ground::Plan => None,
         })
         .collect()
 }
@@ -558,6 +563,7 @@ fn subject() -> Result<String, WorldError> {
         Datum::String(include_str!("portable_union.rs").to_owned()),
         Datum::String(include_str!("portable_union_view.rs").to_owned()),
         Datum::String(include_str!("portable_project.rs").to_owned()),
+        Datum::String(include_str!("portable_plan.rs").to_owned()),
         Datum::String(include_str!("assay.rs").to_owned()),
         Datum::String(include_str!("assay_oracle.rs").to_owned()),
         Datum::String(include_str!("provider.rs").to_owned()),

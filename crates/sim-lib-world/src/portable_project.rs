@@ -42,7 +42,7 @@ pub(super) fn project_leaf() -> Result<ProofLeaf, WorldError> {
 
 /// The bundled command has no caller input. One retained copy matches the
 /// loaded entrypoint, which keeps its product and dispatches each call.
-fn resident_command() -> Result<WorldCommandLib, WorldError> {
+pub(crate) fn resident_command() -> Result<WorldCommandLib, WorldError> {
     static RESIDENT: OnceLock<WorldCommandLib> = OnceLock::new();
     if let Some(command) = RESIDENT.get() {
         return Ok(command.clone());
