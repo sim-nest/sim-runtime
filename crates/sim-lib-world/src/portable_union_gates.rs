@@ -102,7 +102,7 @@ pub(super) const GATES: &[Gate] = &[
     },
     Gate {
         leaf: "phase/23",
-        ground: Ground::Gap("no-owner-result"),
+        ground: Ground::Work,
     },
     Gate {
         leaf: "phase/24",

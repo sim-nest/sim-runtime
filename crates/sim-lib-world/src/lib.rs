@@ -32,7 +32,11 @@
 //! model branch under a separate purpose grant. It runs once, recovers,
 //! and repeats the reconciliation with no further performance. A wrong or
 //! consumed purpose grant refuses. No public branch, tag, package, or
-//! merge is touched. A fresh succession reads one exported model record
+//! merge is touched. A work case calls the typed packet receiver. Oversize
+//! input and a wrong namespace, role, copy, or schema return before the
+//! port is read. Incomplete output keeps its packet. Malformed retries stop
+//! at the attempt ceiling. A proposal cannot carry an effect or an approval.
+//! A fresh succession reads one exported model record
 //! and one later change. The export names registry packages, the foreign
 //! project, and declared inputs. The change is observed, sealed, proved,
 //! converged, landed, delivered, and recovered. The repeated convergence
@@ -84,6 +88,7 @@ mod release;
 mod seal;
 mod service;
 mod succeed;
+mod work;
 
 pub use command::{ModelDomainLoad, WORLD_VERB, WorldCommandLib};
 pub use product::{
