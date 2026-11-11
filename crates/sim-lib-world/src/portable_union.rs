@@ -20,6 +20,7 @@
 //! conduct command. The composition row calls the loaded qualify command.
 //! The scheduler row calls the loaded schedule command.
 //! The convergence row calls the loaded converge command.
+//! The fixed-point row calls the loaded fixed command.
 //! Every other row is a named gap. Gaps stay
 //! in the denominator. The frontier stays open while any gap
 //! or failed leaf remains.
@@ -50,6 +51,8 @@ mod conduct;
 mod converge;
 #[path = "portable_deliver.rs"]
 mod deliver;
+#[path = "portable_fixed.rs"]
+mod fixed;
 #[path = "portable_observe.rs"]
 mod observe;
 #[path = "portable_plan.rs"]
@@ -88,6 +91,7 @@ enum Ground {
     Qualify,
     Schedule,
     Converge,
+    Fixed,
     Gap(&'static str),
 }
 
@@ -310,20 +314,7 @@ fn classify(leaf: &str) -> Result<Class, WorldError> {
     };
     match gate.ground {
         Ground::Gap(reason) => Ok(Class::Gap(reason)),
-        Ground::Assay
-        | Ground::Project
-        | Ground::Plan
-        | Ground::Observe
-        | Ground::Service
-        | Ground::Release
-        | Ground::Deliver
-        | Ground::Canary
-        | Ground::Work
-        | Ground::Author
-        | Ground::Conduct
-        | Ground::Qualify
-        | Ground::Schedule
-        | Ground::Converge => Ok(Class::Executed),
+        _ => Ok(Class::Executed),
     }
 }
 
@@ -422,6 +413,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
         Ground::Qualify => qualify::qualify_leaf(),
         Ground::Schedule => schedule::schedule_leaf(),
         Ground::Converge => converge::converge_leaf(),
+        Ground::Fixed => fixed::fixed_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),
@@ -505,20 +497,7 @@ fn gap_rows() -> Vec<String> {
         .iter()
         .filter_map(|gate| match gate.ground {
             Ground::Gap(reason) => Some(format!("gap {} {reason}", gate.leaf)),
-            Ground::Assay
-            | Ground::Project
-            | Ground::Plan
-            | Ground::Observe
-            | Ground::Service
-            | Ground::Release
-            | Ground::Deliver
-            | Ground::Canary
-            | Ground::Work
-            | Ground::Author
-            | Ground::Conduct
-            | Ground::Qualify
-            | Ground::Schedule
-            | Ground::Converge => None,
+            _ => None,
         })
         .collect()
 }
@@ -560,6 +539,9 @@ fn subject() -> Result<String, WorldError> {
         Datum::String(include_str!("portable_converge.rs").to_owned()),
         Datum::String(include_str!("portable_converge_expect.rs").to_owned()),
         Datum::String(include_str!("portable_converge_parse.rs").to_owned()),
+        Datum::String(include_str!("portable_fixed.rs").to_owned()),
+        Datum::String(include_str!("portable_fixed_expect.rs").to_owned()),
+        Datum::String(include_str!("portable_fixed_parse.rs").to_owned()),
         Datum::String(include_str!("assay.rs").to_owned()),
         Datum::String(include_str!("assay_oracle.rs").to_owned()),
         Datum::String(include_str!("provider.rs").to_owned()),

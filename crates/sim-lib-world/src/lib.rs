@@ -56,6 +56,10 @@
 //! One converge call runs the published revision once. A later call
 //! returns that record. A stop before commit keeps the accepted
 //! revision. A changed input opens only the claims that read it.
+//! One fixed call runs the published fixed point once. A later call
+//! returns that record. The second pass does no generation. A deletion
+//! names that generator's closure. A failed proof or a repeated image
+//! blocks the seal. The duplicate generator is not run.
 //! A fresh succession reads one exported model record
 //! and one later change. The export names registry packages, the foreign
 //! project, and declared inputs. The change is observed, sealed, proved,
@@ -99,6 +103,7 @@ mod command_steps;
 mod conduct;
 mod converge;
 mod deliver;
+mod fixed;
 mod fixture;
 mod grant;
 mod observe;

@@ -74,7 +74,7 @@ pub(super) const GATES: &[Gate] = &[
     },
     Gate {
         leaf: "phase/16",
-        ground: Ground::Gap("no-owner-result"),
+        ground: Ground::Fixed,
     },
     Gate {
         leaf: "phase/17",
