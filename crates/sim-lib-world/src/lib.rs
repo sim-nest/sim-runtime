@@ -49,6 +49,10 @@
 //! that is separate from selection, and rejected advice. A Linux provider
 //! and a changed closure refuse. Reading the retained result does not
 //! qualify again.
+//! One schedule call runs the published scheduler once. A later call
+//! returns that record. A blocked queue does not block control. A wait
+//! releases only that unit's leases. Stall and cleanup do not claim
+//! process death.
 //! A fresh succession reads one exported model record
 //! and one later change. The export names registry packages, the foreign
 //! project, and declared inputs. The change is observed, sealed, proved,
@@ -102,6 +106,7 @@ mod provider;
 mod qualify;
 mod query;
 mod release;
+mod schedule;
 mod seal;
 mod service;
 mod succeed;

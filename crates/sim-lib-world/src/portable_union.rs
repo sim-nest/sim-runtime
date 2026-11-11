@@ -18,6 +18,7 @@
 //! canary command. The work row calls the loaded work command. The authoring
 //! row calls the loaded author command. The one-effect row calls the loaded
 //! conduct command. The composition row calls the loaded qualify command.
+//! The scheduler row calls the loaded schedule command.
 //! Every other row is a named gap. Gaps stay
 //! in the denominator. The frontier stays open while any gap
 //! or failed leaf remains.
@@ -56,6 +57,8 @@ mod project;
 mod qualify;
 #[path = "portable_release.rs"]
 mod release;
+#[path = "portable_schedule.rs"]
+mod schedule;
 #[path = "portable_service.rs"]
 mod service;
 #[path = "portable_union_view.rs"]
@@ -80,6 +83,7 @@ enum Ground {
     Author,
     Conduct,
     Qualify,
+    Schedule,
     Gap(&'static str),
 }
 
@@ -313,7 +317,8 @@ fn classify(leaf: &str) -> Result<Class, WorldError> {
         | Ground::Work
         | Ground::Author
         | Ground::Conduct
-        | Ground::Qualify => Ok(Class::Executed),
+        | Ground::Qualify
+        | Ground::Schedule => Ok(Class::Executed),
     }
 }
 
@@ -410,6 +415,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
         Ground::Author => author::author_leaf(),
         Ground::Conduct => conduct::conduct_leaf(),
         Ground::Qualify => qualify::qualify_leaf(),
+        Ground::Schedule => schedule::schedule_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),
@@ -504,7 +510,8 @@ fn gap_rows() -> Vec<String> {
             | Ground::Work
             | Ground::Author
             | Ground::Conduct
-            | Ground::Qualify => None,
+            | Ground::Qualify
+            | Ground::Schedule => None,
         })
         .collect()
 }
@@ -540,6 +547,9 @@ fn subject() -> Result<String, WorldError> {
         Datum::String(include_str!("portable_qualify.rs").to_owned()),
         Datum::String(include_str!("portable_qualify_expect.rs").to_owned()),
         Datum::String(include_str!("portable_qualify_parse.rs").to_owned()),
+        Datum::String(include_str!("portable_schedule.rs").to_owned()),
+        Datum::String(include_str!("portable_schedule_expect.rs").to_owned()),
+        Datum::String(include_str!("portable_schedule_parse.rs").to_owned()),
         Datum::String(include_str!("assay.rs").to_owned()),
         Datum::String(include_str!("assay_oracle.rs").to_owned()),
         Datum::String(include_str!("provider.rs").to_owned()),
