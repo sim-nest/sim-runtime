@@ -173,6 +173,17 @@ fn owning_seal_matches_live_locks_and_stays_stable() {
     assert_eq!(text(field(world, "source")), "crates/sim-lib-world");
     assert_eq!(text(field(world, "checksum-kind")), "path-content");
     assert_eq!(field(world, "closure"), &Datum::Bool(true));
+    let closure_of = |name: &str| {
+        members
+            .iter()
+            .map(|value| node(value, "world/source-member-v1"))
+            .find(|row| text(field(row, "name")) == name)
+            .map(|row| field(row, "closure") == &Datum::Bool(true))
+    };
+    assert_eq!(closure_of("sha2"), Some(true), "sha2");
+    assert_eq!(closure_of("rustversion"), Some(false), "rustversion");
+    assert_eq!(closure_of("windows-link"), Some(false), "windows-link");
+    assert_eq!(closure_of("windows-sys"), Some(false), "windows-sys");
     assert_eq!(
         number(field(world, "files")),
         package_files(&root.join("crates/sim-lib-world"))
@@ -498,6 +509,17 @@ fn an_enumerated_lock_that_was_not_downloaded_does_not_refuse() {
     let refused_fields = node(&refused, "world/source-seal-v1");
     assert_eq!(text(field(refused_fields, "admission")), "refuse");
     assert_eq!(text(field(refused_fields, "reason")), "source-not-reached");
+
+    let outside = COMPILING_NOT_DOWNLOADED.replace(
+        " registry closure\n",
+        " registry closure abcdef\nmember resolver/demo registry host-only 1.0.0 registry+https://github.com/rust-lang/crates.io-index fedcba registry outside\n",
+    );
+    let admitted = seal::open_inputs(&outside).expect("outside");
+    let fields = node(&admitted, "world/source-seal-v1");
+    assert_eq!(text(field(fields, "admission")), "admit");
+    assert!(!has_field(fields, "reason"));
+    assert_eq!(number(field(fields, "verified")), 1);
+    assert_eq!(number(field(fields, "present-unverified")), 1);
 }
 
 #[test]

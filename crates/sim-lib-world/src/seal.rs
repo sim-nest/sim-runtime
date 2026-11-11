@@ -10,7 +10,8 @@
 //! toolchain identity. Reading that text opens no compiler, host process, or
 //! network connection. A missing, corrupt, wrong-target, or stub-only input
 //! refuses before a compiler starts. The compiling closure admits when its
-//! own members are verified. An enumerated lock whose registry crate was not
+//! own members are verified. A lock entry this target does not compile stays
+//! outside that closure. An enumerated lock whose registry crate was not
 //! downloaded stays present-unverified and does not refuse that closure.
 //! Present-unverified, stub-only, and absent stay distinct, and a
 //! target-specific status is never copied onto another target.
@@ -470,9 +471,10 @@ fn lock_bytes(member: &Member) -> Sealed {
                 checksum_kind: Some(member.kind.clone()),
                 files: None,
             },
-            // The compiling closure was an input to this build, so a missing
-            // crate refuses it. An enumerated lock is recorded either way.
-            refusal: member.compiling.then_some("source-not-reached"),
+            // A closure member this build did not reach refuses. An entry
+            // outside that closure, including one this target did not
+            // compile, stays present-unverified.
+            refusal: (member.compiling && member.closure).then_some("source-not-reached"),
         };
     }
     if member.observed != member.checksum {

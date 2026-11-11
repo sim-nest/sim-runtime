@@ -17,6 +17,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+#[path = "build/activate.rs"]
+mod activate;
 #[path = "build/content.rs"]
 mod content;
 #[path = "build/parse.rs"]
@@ -109,6 +111,7 @@ fn main() {
             aliases: vec![canonical],
         });
         let (_lock_version, packages) = parse::parse_lock(&text);
+        let index = content::domain_index(&root, &parent);
         let closure = closure_indexes(
             &packages,
             if role == "compiling" {
@@ -116,8 +119,12 @@ fn main() {
             } else {
                 ""
             },
+            if role == "compiling" {
+                Some((root.as_path(), &index))
+            } else {
+                None
+            },
         );
-        let index = content::domain_index(&root, &parent);
         for (index_in_lock, package) in packages.iter().enumerate() {
             let origin = origin_of(&package.source);
             let classified = content::classify(&root, &index, package, origin);
@@ -373,7 +380,11 @@ fn collect_generated(root: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-fn closure_indexes(packages: &[Pkg], root_package: &str) -> Vec<usize> {
+fn closure_indexes(
+    packages: &[Pkg],
+    root_package: &str,
+    host: Option<(&Path, &content::Index)>,
+) -> Vec<usize> {
     if root_package.is_empty() {
         return packages
             .iter()
@@ -399,7 +410,11 @@ fn closure_indexes(packages: &[Pkg], root_package: &str) -> Vec<usize> {
             continue;
         }
         seen[index] = true;
-        for dep in &packages[index].deps {
+        let deps = packages[index].deps.clone();
+        for dep in &deps {
+            if host.is_some_and(|host| !edge_active(host, &packages[index], dep)) {
+                continue;
+            }
             let Some(resolved) = resolve(packages, dep) else {
                 panic!(
                     "unresolved lock dependency {dep} from {}",
@@ -414,6 +429,32 @@ fn closure_indexes(packages: &[Pkg], root_package: &str) -> Vec<usize> {
         .filter(|(_, marked)| **marked)
         .map(|(index, _)| index)
         .collect()
+}
+
+fn edge_active(host: (&Path, &content::Index), package: &Pkg, dep: &str) -> bool {
+    let Some(text) = manifest_text(host.0, host.1, package) else {
+        return true;
+    };
+    let Ok(triple) = std::env::var("TARGET") else {
+        return true;
+    };
+    activate::dep_active(&text, dep, &triple, package.source.is_empty())
+}
+
+fn manifest_text(root: &Path, index: &content::Index, package: &Pkg) -> Option<String> {
+    if package.source.is_empty() {
+        let rel = index.lookup(&package.name, &package.version)?;
+        let path = if rel == "." {
+            root.join("Cargo.toml")
+        } else {
+            root.join(rel).join("Cargo.toml")
+        };
+        return fs::read_to_string(path).ok();
+    }
+    if package.source.starts_with("registry+") {
+        return content::registry_manifest(&package.name, &package.version);
+    }
+    None
 }
 
 fn resolve(packages: &[Pkg], spec: &str) -> Option<usize> {

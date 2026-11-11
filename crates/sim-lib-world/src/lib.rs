@@ -173,6 +173,9 @@ pub use prove_command::{PROVE_VERB, ProveCommandLib};
 pub use seal::{captured_inputs, workspace_root};
 
 #[cfg(test)]
+#[path = "../build/activate.rs"]
+mod activate_rules;
+#[cfg(test)]
 mod canary_tests;
 #[cfg(test)]
 mod deliver_tests;
