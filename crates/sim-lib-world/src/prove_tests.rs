@@ -232,8 +232,8 @@ fn retained_view_answers_d1_without_another_cold_execution() {
     );
     let why_journal = prove::why("D1", "phase/02", Some(&view)).unwrap();
     assert!(bool_field(&why_journal, "reused"));
-    let why_gap = prove::why("D1", "phase/14", Some(&view)).unwrap();
-    assert_eq!(text_field(&why_gap, "reason"), "circular");
+    let why_compare = prove::why("D1", "phase/14", Some(&view)).unwrap();
+    assert!(bool_field(&why_compare, "reused"));
     let mut tampered = view.clone();
     let last = tampered.pop().expect("view char");
     tampered.push(if last == 'a' { 'b' } else { 'a' });

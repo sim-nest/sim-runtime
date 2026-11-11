@@ -41,6 +41,9 @@
 //! a compiler starts. One well-formed admitted input runs one offline
 //! locked check. Equal inputs keep one seal. A changed lock moves that
 //! seal.
+//! The compare row calls the loaded prove command. That cold run skips
+//! the compare row and keeps reuse disabled. Zero false reuse and the
+//! frozen D1, D2, and D4 bounds admit the row.
 //! The operation row calls the loaded operate command.
 //! Every other row is a named gap. Gaps stay
 //! in the denominator. The frontier stays open while any gap
@@ -53,8 +56,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use sim_incremental_core::projection::ConclusionId;
 use sim_kernel::Datum;
 use sim_lib_roadmap_runner::{
-    ProcessCancellation, ProofCatalog, ProofDisposition, ProofLeaf, SandboxAttempt,
-    SandboxLauncher, SandboxRefusal, SandboxRequest, execute_proof_leaf,
+    ProcessCancellation, ProofLeaf, SandboxAttempt, SandboxLauncher, SandboxRefusal, SandboxRequest,
 };
 
 use crate::WorldError;
@@ -68,6 +70,8 @@ mod author;
 mod bind;
 #[path = "portable_canary.rs"]
 mod canary;
+#[path = "portable_compare.rs"]
+mod compare;
 #[path = "portable_compile.rs"]
 mod compile;
 #[path = "portable_conduct.rs"]
@@ -143,6 +147,7 @@ enum Ground {
     Foreign,
     Evidence,
     Compile,
+    Compare,
     Gap(&'static str),
 }
 
@@ -258,6 +263,12 @@ pub(super) fn status(view: Option<&str>) -> Result<Datum, WorldError> {
 /// Cold phase union, or reuse of its executed leaves against one delta.
 pub(super) fn run(name: &str, view: Option<&str>) -> Result<Datum, WorldError> {
     if name == "cold" {
+        if let Some(datum) = compare::cold_others_datum() {
+            return Ok(datum);
+        }
+        if compare::inside_union() {
+            return Ok(gap(name, "circular"));
+        }
         return cold_datum(&execute()?);
     }
     if !super::DELTAS.contains(&name) {
@@ -370,63 +381,7 @@ fn classify(leaf: &str) -> Result<Class, WorldError> {
 }
 
 fn execute() -> Result<UnionProof, WorldError> {
-    let leaves = phase_names()?;
-    let names = grounded_names()?;
-    let built = names
-        .iter()
-        .map(|name| leaf_for(name))
-        .collect::<Result<Vec<_>, _>>()?;
-    let catalog = ProofCatalog::new(built).map_err(qualify)?;
-    let launcher = RefuseLaunch;
-    let cancellation = ProcessCancellation::default();
-    let mut executed = Vec::with_capacity(names.len());
-    let mut failures = Vec::new();
-    let mut digests = BTreeMap::new();
-    let mut retained = BTreeMap::new();
-    let mut owner_commands = 0u64;
-    let mut effects = 0u64;
-    let mut subprocesses = 0u64;
-    for name in &names {
-        let leaf = catalog.leaf(name).map_err(qualify)?;
-        if matches!(leaf, ProofLeaf::Command(_)) {
-            owner_commands = owner_commands.saturating_add(1);
-        }
-        let receipt =
-            execute_proof_leaf(&catalog, name, &launcher, &cancellation, "portable-union")
-                .map_err(qualify)?;
-        let work = crate::query::HostWork::observe(
-            receipt.effect_id.as_deref(),
-            receipt.launcher_identity.as_deref(),
-        );
-        effects = effects.saturating_add(work.effects());
-        subprocesses = subprocesses.saturating_add(work.subprocesses());
-        if receipt.disposition != ProofDisposition::Passed {
-            failures.push((*name).to_owned());
-        }
-        let passed = receipt.disposition == ProofDisposition::Passed;
-        digests.insert(
-            (*name).to_owned(),
-            digest_of(leaf, passed, &receipt.semantic_detail)?,
-        );
-        retained.insert(
-            (*name).to_owned(),
-            retained_capture(leaf, &receipt.semantic_detail)?,
-        );
-        executed.push((*name).to_owned());
-    }
-    Ok(UnionProof {
-        subject: subject()?,
-        leaves,
-        executed,
-        gaps: gap_rows()?,
-        failures,
-        requests: u64::try_from(names.len()).unwrap_or(u64::MAX),
-        owner_commands,
-        effects,
-        subprocesses,
-        digests,
-        retained,
-    })
+    compare::execute_union()
 }
 
 fn grounded_names() -> Result<Vec<&'static str>, WorldError> {
@@ -475,6 +430,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
         Ground::Foreign => foreign::foreign_leaf(),
         Ground::Evidence => evidence::evidence_leaf(),
         Ground::Compile => compile::compile_leaf(),
+        Ground::Compare => compare::compare_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),

@@ -49,6 +49,26 @@ impl ProveCommandLib {
         require_field("artifact", &load.artifact)?;
         Ok(Self { load: Some(load) })
     }
+
+    /// Runs one argument list through the same dispatch as the loaded entry.
+    ///
+    /// # Errors
+    /// Returns the entrypoint refusal or evaluation error.
+    pub(crate) fn run(&self, argv: &[String]) -> std::result::Result<Datum, WorldError> {
+        let entry = ProveEntrypoint {
+            load: self.load.clone(),
+        };
+        match entry
+            .dispatch(argv)
+            .map_err(|error| WorldError::Qualification(error.to_string()))?
+        {
+            Outcome::Value(value) => Ok(value),
+            Outcome::Refused { reason, .. } => Err(WorldError::Qualification(reason)),
+            Outcome::OverCeiling { command, .. } => Err(WorldError::Qualification(format!(
+                "over ceiling: {command}"
+            ))),
+        }
+    }
 }
 
 fn require_field(name: &str, value: &str) -> std::result::Result<(), WorldError> {
