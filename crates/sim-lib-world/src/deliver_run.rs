@@ -214,6 +214,13 @@ pub(super) fn qualify_calls() -> usize {
     QUALIFY_CALLS.with(Cell::get)
 }
 
+#[cfg(test)]
+pub(crate) use memory::{
+    arm_hold as arm_qualification_hold, held_owners as held_qualification_owners,
+    opened as qualifications_opened, pending_waiters as qualification_waiters,
+    release_hold as release_qualification_hold,
+};
+
 pub(super) fn qualify(
     realization: &str,
     selector: &str,
@@ -230,11 +237,15 @@ pub(super) fn qualify(
     ) {
         return Ok(None);
     }
-    if let Some(found) = memory::recall(realization, selector, desired, reason, reading) {
-        return Ok(Some(found));
-    }
+    let claim = match memory::claim(realization, selector, desired, reason, reading) {
+        memory::Reservation::Ready(found) => return Ok(Some(found)),
+        memory::Reservation::Mine(claim) => claim,
+    };
     #[cfg(test)]
-    QUALIFY_CALLS.with(|cell| cell.set(cell.get().saturating_add(1)));
+    {
+        QUALIFY_CALLS.with(|cell| cell.set(cell.get().saturating_add(1)));
+        memory::note_and_wait(desired);
+    }
     let cause = cause(reason, &reading.state, &reading.kind)?;
     let condition = condition(cause);
     let calls = Arc::new(AtomicUsize::new(0));
@@ -324,7 +335,7 @@ pub(super) fn qualify(
         state: reading.state.clone(),
         value: reading.value.clone(),
     };
-    memory::store(realization, selector, desired, reason, reading, &qualified);
+    claim.commit(&qualified);
     Ok(Some(qualified))
 }
 

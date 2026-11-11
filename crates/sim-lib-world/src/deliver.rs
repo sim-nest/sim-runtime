@@ -545,6 +545,12 @@ pub(crate) fn qualify_calls() -> usize {
     run::qualify_calls()
 }
 
+#[cfg(test)]
+pub(crate) use run::{
+    arm_qualification_hold, held_qualification_owners, qualification_waiters,
+    qualifications_opened, release_qualification_hold,
+};
+
 fn gap(realization: &str, selector: &str, reason: &str) -> Datum {
     let realization = if leaked(realization) { "" } else { realization };
     let selector = if leaked(selector) { "" } else { selector };

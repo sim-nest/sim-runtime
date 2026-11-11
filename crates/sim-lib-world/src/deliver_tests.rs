@@ -4,6 +4,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use std::collections::BTreeSet;
+use std::sync::{Arc, Barrier};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use sim_kernel::{Datum, Symbol};
 
@@ -157,6 +160,58 @@ fn a_repeated_reading_does_not_open_another_journal() {
     let other = deliver::one("model", selector, "model-commit-memory-b").expect("other");
     assert_ne!(first, other);
     assert!(deliver::qualify_calls() > opened);
+}
+
+#[test]
+fn concurrent_identical_readings_share_one_partial_success() {
+    const DESIRED: &str = "model-commit-memory-race";
+    let selector = "ci/sim-run";
+    deliver::arm_qualification_hold(DESIRED);
+    let start = Arc::new(Barrier::new(2));
+    let mut threads = Vec::new();
+    for _ in 0..2 {
+        let start = Arc::clone(&start);
+        let selector = selector.to_owned();
+        threads.push(thread::spawn(move || {
+            start.wait();
+            deliver::one("model", &selector, DESIRED)
+        }));
+    }
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        let owners = deliver::held_qualification_owners(DESIRED);
+        let waiters = deliver::qualification_waiters(DESIRED);
+        if owners >= 2 || (owners == 1 && waiters >= 1) {
+            break;
+        }
+        if Instant::now() >= deadline {
+            deliver::release_qualification_hold(DESIRED);
+            for thread in threads {
+                let _ = thread.join();
+            }
+            panic!("owners {owners} waiters {waiters}");
+        }
+        thread::yield_now();
+    }
+    deliver::release_qualification_hold(DESIRED);
+    let mut joined = Vec::new();
+    for thread in threads {
+        joined.push(thread.join().expect("join"));
+    }
+    let results: Vec<_> = joined
+        .into_iter()
+        .map(|result| result.expect("qualified"))
+        .collect();
+    assert_eq!(results[0], results[1]);
+    assert_eq!(deliver::qualifications_opened(DESIRED), 1);
+    let row = named(
+        vector(deliver_fields(&results[0]), "actions"),
+        "world/deliver-action-v1",
+        selector,
+    )
+    .expect("partial action");
+    assert_eq!(text_at(row, "cause"), "partial-success");
+    assert_eq!(number(field(row, "dispatches")), 1);
 }
 
 #[test]
