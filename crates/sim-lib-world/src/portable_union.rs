@@ -406,12 +406,12 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
     };
     match gate.ground {
         Ground::Assay => assay_leaf(name),
-        Ground::Project => project::project_leaf(),
-        Ground::Plan => plan::plan_leaf(),
-        Ground::Observe => observe::observe_leaf(),
+        Ground::Project => retained(gate.leaf, project::project_leaf),
+        Ground::Plan => retained(gate.leaf, plan::plan_leaf),
+        Ground::Observe => retained(gate.leaf, observe::observe_leaf),
         Ground::Service => service::service_leaf(),
-        Ground::Release => release::release_leaf(),
-        Ground::Deliver => deliver::deliver_leaf(),
+        Ground::Release => retained(gate.leaf, release::release_leaf),
+        Ground::Deliver => retained(gate.leaf, deliver::deliver_leaf),
         Ground::Canary => canary::canary_leaf(),
         Ground::Work => work::work_leaf(),
         Ground::Author => author::author_leaf(),
@@ -427,7 +427,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
         Ground::Operate => operate::operate_leaf(),
         Ground::Journal => journal_gate::journal_leaf(),
         Ground::Normalize => normalize::normalize_leaf(),
-        Ground::Foreign => foreign::foreign_leaf(),
+        Ground::Foreign => retained(gate.leaf, foreign::foreign_leaf),
         Ground::Evidence => evidence::evidence_leaf(),
         Ground::Compile => compile::compile_leaf(),
         Ground::Compare => compare::compare_leaf(),
@@ -523,9 +523,41 @@ fn gap_rows() -> Result<Vec<String>, WorldError> {
 mod subject_bytes;
 
 fn subject() -> Result<String, WorldError> {
-    Ok(record::hex(
-        &provider::content_id(subject_bytes::subject_bytes()?)?.bytes,
-    ))
+    static SUBJECT: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    if let Some(found) = SUBJECT.get() {
+        return Ok(found.clone());
+    }
+    let value = record::hex(&provider::content_id(subject_bytes::subject_bytes()?)?.bytes);
+    Ok(SUBJECT.get_or_init(|| value.clone()).clone())
+}
+
+/// Keeps the first record from a loaded command for later admissions.
+///
+/// The first call runs that command. A later call in this process returns
+/// the same leaf. The admitted view still rebuilds its body from these
+/// leaves and refuses a body that disagrees. Journal and operate stay
+/// outside this retention so each cold run still counts their calls.
+fn retained(
+    name: &'static str,
+    build: fn() -> Result<ProofLeaf, WorldError>,
+) -> Result<ProofLeaf, WorldError> {
+    use std::collections::BTreeMap;
+    use std::sync::Mutex;
+
+    static KEPT: Mutex<BTreeMap<&'static str, ProofLeaf>> = Mutex::new(BTreeMap::new());
+    if let Some(found) = KEPT
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get(name)
+        .cloned()
+    {
+        return Ok(found);
+    }
+    let built = build()?;
+    let mut kept = KEPT
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    Ok(kept.entry(name).or_insert(built).clone())
 }
 
 fn retained_capture(leaf: &ProofLeaf, detail: &str) -> Result<Retained, WorldError> {
