@@ -24,8 +24,8 @@ use crate::seal;
 use crate::service;
 use crate::succeed;
 use crate::{
-    WorldError, WorldProduct, author, bind, conduct, converge, fixed, journal, land, operate,
-    qualify, recover, schedule, transact, work,
+    WorldError, WorldProduct, author, bind, conduct, converge, evidence, fixed, journal, land,
+    operate, qualify, recover, schedule, transact, work,
 };
 
 /// CLI verb contributed by this loaded library.
@@ -214,6 +214,9 @@ impl WorldEntrypoint {
                     Datum::String(argv[4].clone()),
                     Datum::String(argv[5].clone()),
                 )
+                .map(Outcome::Value)
+                .map_err(eval_error),
+            Some("why") if argv.len() == 4 && argv[2] == "evidence" => evidence::run(&argv[3])
                 .map(Outcome::Value)
                 .map_err(eval_error),
             Some("why") if argv.len() == 4 => self

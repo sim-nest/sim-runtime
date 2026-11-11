@@ -139,6 +139,7 @@ mod command_steps;
 mod conduct;
 mod converge;
 mod deliver;
+mod evidence;
 mod fixed;
 mod fixture;
 mod grant;
@@ -174,6 +175,8 @@ pub use seal::{captured_inputs, workspace_root};
 mod canary_tests;
 #[cfg(test)]
 mod deliver_tests;
+#[cfg(test)]
+mod evidence_tests;
 #[cfg(test)]
 mod fixture_tests;
 #[cfg(test)]

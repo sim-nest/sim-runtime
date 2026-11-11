@@ -32,6 +32,10 @@
 //! The foreign row calls the loaded succeed command. The specimen and a
 //! second project of the same public shape both close. A private branch
 //! stays a gap.
+//! The evidence row calls the loaded why command. Grade promotion keeps
+//! one key. A wrong domain, revoked support, a missing object, and a
+//! storage id used as a semantic key refuse. Telemetry leaves that key
+//! unchanged.
 //! The operation row calls the loaded operate command.
 //! Every other row is a named gap. Gaps stay
 //! in the denominator. The frontier stays open while any gap
@@ -65,6 +69,8 @@ mod conduct;
 mod converge;
 #[path = "portable_deliver.rs"]
 mod deliver;
+#[path = "portable_evidence.rs"]
+mod evidence;
 #[path = "portable_fixed.rs"]
 mod fixed;
 #[path = "portable_foreign.rs"]
@@ -128,6 +134,7 @@ enum Ground {
     Journal,
     Normalize,
     Foreign,
+    Evidence,
     Gap(&'static str),
 }
 
@@ -458,6 +465,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
         Ground::Journal => journal_gate::journal_leaf(),
         Ground::Normalize => normalize::normalize_leaf(),
         Ground::Foreign => foreign::foreign_leaf(),
+        Ground::Evidence => evidence::evidence_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),
