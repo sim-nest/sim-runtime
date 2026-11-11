@@ -24,6 +24,7 @@
 //! The transaction row calls the loaded transact command.
 //! The landing row calls the loaded land command.
 //! The recovery row calls the loaded recover command.
+//! The binding row calls the loaded bind command.
 //! Every other row is a named gap. Gaps stay
 //! in the denominator. The frontier stays open while any gap
 //! or failed leaf remains.
@@ -46,6 +47,8 @@ use super::record::{self, flag, gap, list, node, num, text};
 
 #[path = "portable_author.rs"]
 mod author;
+#[path = "portable_bind.rs"]
+mod bind;
 #[path = "portable_canary.rs"]
 mod canary;
 #[path = "portable_conduct.rs"]
@@ -104,6 +107,7 @@ enum Ground {
     Transact,
     Land,
     Recover,
+    Bind,
     Gap(&'static str),
 }
 
@@ -429,6 +433,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
         Ground::Transact => transact::transact_leaf(),
         Ground::Land => land::land_leaf(),
         Ground::Recover => recover::recover_leaf(),
+        Ground::Bind => bind::bind_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),
@@ -517,65 +522,13 @@ fn gap_rows() -> Vec<String> {
         .collect()
 }
 
+#[path = "portable_union_subject.rs"]
+mod subject_bytes;
+
 fn subject() -> Result<String, WorldError> {
-    let datum = Datum::Vector(vec![
-        Datum::String(include_str!("portable_union.rs").to_owned()),
-        Datum::String(include_str!("portable_union_view.rs").to_owned()),
-        Datum::String(include_str!("portable_project.rs").to_owned()),
-        Datum::String(include_str!("portable_union_gates.rs").to_owned()),
-        Datum::String(include_str!("portable_plan.rs").to_owned()),
-        Datum::String(include_str!("portable_observe.rs").to_owned()),
-        Datum::String(include_str!("portable_service.rs").to_owned()),
-        Datum::String(include_str!("portable_service_expect.rs").to_owned()),
-        Datum::String(include_str!("portable_release.rs").to_owned()),
-        Datum::String(include_str!("portable_release_expect.rs").to_owned()),
-        Datum::String(include_str!("portable_release_parse.rs").to_owned()),
-        Datum::String(include_str!("portable_deliver.rs").to_owned()),
-        Datum::String(include_str!("portable_deliver_expect.rs").to_owned()),
-        Datum::String(include_str!("portable_deliver_parse.rs").to_owned()),
-        Datum::String(include_str!("portable_canary.rs").to_owned()),
-        Datum::String(include_str!("portable_canary_expect.rs").to_owned()),
-        Datum::String(include_str!("portable_canary_parse.rs").to_owned()),
-        Datum::String(include_str!("portable_work.rs").to_owned()),
-        Datum::String(include_str!("portable_work_expect.rs").to_owned()),
-        Datum::String(include_str!("portable_work_parse.rs").to_owned()),
-        Datum::String(include_str!("portable_author.rs").to_owned()),
-        Datum::String(include_str!("portable_author_expect.rs").to_owned()),
-        Datum::String(include_str!("portable_author_parse.rs").to_owned()),
-        Datum::String(include_str!("portable_conduct.rs").to_owned()),
-        Datum::String(include_str!("portable_conduct_expect.rs").to_owned()),
-        Datum::String(include_str!("portable_conduct_parse.rs").to_owned()),
-        Datum::String(include_str!("portable_qualify.rs").to_owned()),
-        Datum::String(include_str!("portable_qualify_expect.rs").to_owned()),
-        Datum::String(include_str!("portable_qualify_parse.rs").to_owned()),
-        Datum::String(include_str!("portable_schedule.rs").to_owned()),
-        Datum::String(include_str!("portable_schedule_expect.rs").to_owned()),
-        Datum::String(include_str!("portable_schedule_parse.rs").to_owned()),
-        Datum::String(include_str!("portable_converge.rs").to_owned()),
-        Datum::String(include_str!("portable_converge_expect.rs").to_owned()),
-        Datum::String(include_str!("portable_converge_parse.rs").to_owned()),
-        Datum::String(include_str!("portable_fixed.rs").to_owned()),
-        Datum::String(include_str!("portable_fixed_expect.rs").to_owned()),
-        Datum::String(include_str!("portable_fixed_parse.rs").to_owned()),
-        Datum::String(include_str!("portable_transact.rs").to_owned()),
-        Datum::String(include_str!("portable_transact_expect.rs").to_owned()),
-        Datum::String(include_str!("portable_transact_parse.rs").to_owned()),
-        Datum::String(include_str!("portable_land.rs").to_owned()),
-        Datum::String(include_str!("portable_land_expect.rs").to_owned()),
-        Datum::String(include_str!("portable_land_parse.rs").to_owned()),
-        Datum::String(include_str!("portable_recover.rs").to_owned()),
-        Datum::String(include_str!("portable_recover_expect.rs").to_owned()),
-        Datum::String(include_str!("portable_recover_parse.rs").to_owned()),
-        Datum::String(include_str!("assay.rs").to_owned()),
-        Datum::String(include_str!("assay_oracle.rs").to_owned()),
-        Datum::String(include_str!("provider.rs").to_owned()),
-        Datum::String(include_str!("../freeze/incremental-graph.rs").to_owned()),
-        Datum::String(include_str!("../freeze/incremental-model.rs").to_owned()),
-        Datum::String(include_str!("../freeze/runner-proof.rs.freeze").to_owned()),
-        Datum::String(include_str!("../freeze/agent-net-Cargo.lock").to_owned()),
-        Datum::String(include_str!("../freeze/runtime-Cargo.lock").to_owned()),
-    ]);
-    Ok(record::hex(&provider::content_id(datum)?.bytes))
+    Ok(record::hex(
+        &provider::content_id(subject_bytes::subject_bytes()?)?.bytes,
+    ))
 }
 
 fn retained_capture(leaf: &ProofLeaf, detail: &str) -> Result<Retained, WorldError> {

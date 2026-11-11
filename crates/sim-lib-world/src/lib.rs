@@ -81,6 +81,11 @@
 //! foreign bytes. A committed observation inverts to the prior image,
 //! and a foreign observation refuses that inverse. Recovery does not
 //! mutate a checkout.
+//! One bind call runs the published pack binding once. A later call
+//! returns that record. One binding serves two subjects and two scopes.
+//! Swapped identities refuse. A missing pack scope is unimplemented.
+//! The facet law passes, and its unfunded scope stays unimplemented.
+//! Binding does not mutate a checkout.
 //! A fresh succession reads one exported model record
 //! and one later change. The export names registry packages, the foreign
 //! project, and declared inputs. The change is observed, sealed, proved,
@@ -118,6 +123,7 @@ mod assay;
 mod assay_mutant;
 mod assay_oracle;
 mod author;
+mod bind;
 mod canary;
 mod command;
 mod command_steps;
