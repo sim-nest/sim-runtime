@@ -5,10 +5,11 @@
 
 //! Loaded work command.
 //!
-//! Each case calls the typed packet receiver once. A later identical case
-//! returns that record. Oversize input, a wrong namespace, role, copy, or
-//! schema, and a packet that does not narrow return before the input port is
-//! read. Incomplete output keeps the packet evidence. Malformed retries stop
+//! Each case calls the typed packet receiver once. A later or concurrent
+//! identical case returns that record. Oversize input, a wrong namespace,
+//! role, copy, or schema, and a packet that does not narrow return before
+//! the input port is read. Incomplete output keeps the packet evidence.
+//! Malformed retries stop
 //! at the attempt ceiling. A model proposal cannot carry an effect or an
 //! approval. This command adds no controller. A private value is refused
 //! before the reservation.
@@ -71,12 +72,25 @@ fn known(case: &str) -> bool {
             | "stale"
             | "schema"
             | "effects"
-    )
+    ) || cfg!(test) && case == "work-memory-race"
+}
+
+/// Maps the reservation-race case onto the admitted reading.
+///
+/// The race key is not a second packet law. Tests use it so two calls of the
+/// loaded command share one receiver record without colliding with the named
+/// cases.
+fn canonical_case(case: &str) -> &str {
+    #[cfg(test)]
+    if case == "work-memory-race" {
+        return "admitted";
+    }
+    case
 }
 
 fn receive(case: &str) -> Datum {
     let mut input = canonical(BODY);
-    let drive = match case {
+    let drive = match canonical_case(case) {
         "admitted" => drive(
             &input,
             &[WorkerView::Passed],

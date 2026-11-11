@@ -303,18 +303,12 @@ mod tests {
         }
         assert_eq!(results[0], results[1]);
         assert_eq!(opened(case), 1);
-        assert_eq!(results[0], Datum::String("shared-receipt".to_owned()));
+        assert_eq!(class(&results[0]), "admitted");
+        assert_eq!(count(&results[0], "reads"), "1");
     }
 
     fn share(case: &str) -> Datum {
-        let record = Datum::String("shared-receipt".to_owned());
-        match claim(case) {
-            Reservation::Ready(found) => found,
-            Reservation::Mine(claim) => {
-                claim.commit(&record);
-                record
-            }
-        }
+        super::super::run(case).expect("raced work")
     }
 
     fn class(value: &Datum) -> String {
