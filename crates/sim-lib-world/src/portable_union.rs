@@ -11,8 +11,9 @@
 //! The journal row is a named gap: `rebuild` and `rebuild_report` are the
 //! same computation. The assay row compares the sealed graph with the
 //! commissioned oracle. The project row calls the loaded world command.
-//! The plan row calls the loaded plan command. Every other row is a named
-//! gap. Gaps stay in the denominator. The frontier stays open while any gap
+//! The plan row calls the loaded plan command. The observation row calls
+//! the loaded snapshot command. Every other row is a named gap. Gaps stay
+//! in the denominator. The frontier stays open while any gap
 //! or failed leaf remains.
 //! The sensitivity assay of forty conclusions is a different set. Each
 //! executed leaf digest binds the verdict and the retained deck.
@@ -31,6 +32,8 @@ use crate::provider;
 
 use super::record::{self, flag, gap, list, node, num, text};
 
+#[path = "portable_observe.rs"]
+mod observe;
 #[path = "portable_plan.rs"]
 mod plan;
 #[path = "portable_project.rs"]
@@ -46,6 +49,7 @@ enum Ground {
     Assay,
     Project,
     Plan,
+    Observe,
     Gap(&'static str),
 }
 
@@ -54,124 +58,10 @@ struct Gate {
     ground: Ground,
 }
 
-const GATES: &[Gate] = &[
-    Gate {
-        leaf: "phase/00",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/01",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/02",
-        ground: Ground::Gap("same-computation"),
-    },
-    Gate {
-        leaf: "phase/03",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/04",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/05",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/06",
-        ground: Ground::Project,
-    },
-    Gate {
-        leaf: "phase/07",
-        ground: Ground::Assay,
-    },
-    Gate {
-        leaf: "phase/08",
-        ground: Ground::Plan,
-    },
-    Gate {
-        leaf: "phase/09",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/10",
-        ground: Ground::Gap("host-read"),
-    },
-    Gate {
-        leaf: "phase/11",
-        ground: Ground::Gap("foreign-crate"),
-    },
-    Gate {
-        leaf: "phase/12",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/13",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/14",
-        ground: Ground::Gap("circular"),
-    },
-    Gate {
-        leaf: "phase/15",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/16",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/17",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/18",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/19",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/20",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/21",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/22",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/23",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/24",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/25",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/26",
-        ground: Ground::Gap("no-owner-result"),
-    },
-    Gate {
-        leaf: "phase/27",
-        ground: Ground::Gap("held"),
-    },
-    Gate {
-        leaf: "phase/28",
-        ground: Ground::Gap("unimplemented"),
-    },
-];
+#[path = "portable_union_gates.rs"]
+mod gates;
+
+use gates::GATES;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct UnionProof {
@@ -382,7 +272,7 @@ fn classify(leaf: &str) -> Result<Class, WorldError> {
     };
     match gate.ground {
         Ground::Gap(reason) => Ok(Class::Gap(reason)),
-        Ground::Assay | Ground::Project | Ground::Plan => Ok(Class::Executed),
+        Ground::Assay | Ground::Project | Ground::Plan | Ground::Observe => Ok(Class::Executed),
     }
 }
 
@@ -470,6 +360,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
         Ground::Assay => assay_leaf(name),
         Ground::Project => project::project_leaf(),
         Ground::Plan => plan::plan_leaf(),
+        Ground::Observe => observe::observe_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),
@@ -553,7 +444,7 @@ fn gap_rows() -> Vec<String> {
         .iter()
         .filter_map(|gate| match gate.ground {
             Ground::Gap(reason) => Some(format!("gap {} {reason}", gate.leaf)),
-            Ground::Assay | Ground::Project | Ground::Plan => None,
+            Ground::Assay | Ground::Project | Ground::Plan | Ground::Observe => None,
         })
         .collect()
 }
@@ -563,7 +454,9 @@ fn subject() -> Result<String, WorldError> {
         Datum::String(include_str!("portable_union.rs").to_owned()),
         Datum::String(include_str!("portable_union_view.rs").to_owned()),
         Datum::String(include_str!("portable_project.rs").to_owned()),
+        Datum::String(include_str!("portable_union_gates.rs").to_owned()),
         Datum::String(include_str!("portable_plan.rs").to_owned()),
+        Datum::String(include_str!("portable_observe.rs").to_owned()),
         Datum::String(include_str!("assay.rs").to_owned()),
         Datum::String(include_str!("assay_oracle.rs").to_owned()),
         Datum::String(include_str!("provider.rs").to_owned()),
