@@ -23,14 +23,7 @@ const CONSTRUCTION_ID: &str = "shade-1";
 /// Returns an error when the succession record is not a node the
 /// command can read.
 pub(crate) fn run(export_text: &str, change_text: &str) -> Result<Datum, WorldError> {
-    if construction_id(change_text) {
-        return Ok(gap("construction-specimen"));
-    }
     admit(succeed::run(export_text, change_text)?)
-}
-
-fn construction_id(change_text: &str) -> bool {
-    change_text.split_whitespace().next() == Some(CONSTRUCTION_ID)
 }
 
 fn admit(record: Datum) -> Result<Datum, WorldError> {
@@ -42,10 +35,15 @@ fn admit(record: Datum) -> Result<Datum, WorldError> {
     let qualified_tag = tag.as_qualified_str();
     match qualified_tag.as_str() {
         "world/succession-gap-v1" => Ok(gap(&string_field(fields, "reason").unwrap_or_default())),
+        "world/succession-v1" if construction_change(fields) => Ok(gap("construction-specimen")),
         "world/succession-v1" if qualified(fields) => Ok(admitted(fields)),
         "world/succession-v1" => Ok(gap("succession-open")),
         other => Err(WorldError::Qualification(format!("fresh record {other}"))),
     }
+}
+
+fn construction_change(fields: &[(Symbol, Datum)]) -> bool {
+    string_field(fields, "change").as_deref() == Some(CONSTRUCTION_ID)
 }
 
 fn qualified(fields: &[(Symbol, Datum)]) -> bool {
@@ -179,6 +177,8 @@ input remote/hostile unavailable -
             "construction-specimen"
         );
         assert_eq!(text(&fresh, "world/fresh-gap-v1", "seal"), "unclaimed");
+        let warm = run(&format!("{}checkout\n", export), change).expect("warm specimen");
+        assert_eq!(text(&warm, "world/fresh-gap-v1", "reason"), "warm-state");
     }
 
     #[test]
