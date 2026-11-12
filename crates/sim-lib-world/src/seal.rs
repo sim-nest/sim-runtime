@@ -108,10 +108,17 @@ pub fn captured_inputs() -> &'static str {
     batch::captured()
 }
 
-/// Workspace whose lock and members produced [`captured_inputs`].
+/// Directory a locked `cargo check` of this crate can use.
+///
+/// A source build uses the workspace that compiled the crate. A published
+/// crate's manifest parent is the registry, so the probe uses the nearest
+/// ancestor of the process directory that names this crate.
 #[must_use]
 pub fn workspace_root() -> std::path::PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+    crate::seal_workspace::resolve(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        std::env::current_dir().ok().as_deref(),
+    )
 }
 
 /// Seals one admitted input document. `None` selects the captured workspace.
