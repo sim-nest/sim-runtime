@@ -9,6 +9,8 @@
 //! and keeps reuse disabled. It passes when false reuse is zero and the
 //! frozen D1, D2, and D4 bounds hold.
 
+// conformance: cold comparison checks the loaded prove command against the frozen bounds.
+
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
 use std::sync::Mutex;
