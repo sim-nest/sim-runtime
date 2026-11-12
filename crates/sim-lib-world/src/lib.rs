@@ -117,6 +117,10 @@
 //! and delivery do no further work. A warm checkout, a construction
 //! fixture used as the change, or an unresolved hold stays open. Host
 //! reboot, power loss, and protected production stay outside that record.
+//! The loaded fresh command reads that export and one later change.
+//! The construction specimen stays open when a succession record
+//! closes. A warm checkout, a Linux claim, and an unresolved hold stay
+//! open. The record does not derive a completion seal.
 //! An admitted observation document carries provider rows.
 //! An admitted input document carries nested resolver roots and generated
 //! input. Bundled proof declarations stay on the loaded product. An
@@ -157,6 +161,7 @@ mod deliver;
 mod evidence;
 mod fixed;
 mod fixture;
+mod fresh;
 mod grant;
 mod journal;
 mod land;

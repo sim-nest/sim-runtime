@@ -21,9 +21,9 @@ fn the_public_denominator_is_the_phase_gates() {
         operate_before.saturating_add(4)
     );
     assert_eq!(number(&cold, "denominator"), 29);
-    assert_eq!(number(&cold, "executed"), 28);
+    assert_eq!(number(&cold, "executed"), 29);
     assert_eq!(number(&cold, "owner-commands"), 0);
-    assert_eq!(number(&cold, "requests"), 28);
+    assert_eq!(number(&cold, "requests"), 29);
     let gaps = text(&cold, "gaps");
     assert!(!gaps.contains("phase/00"));
     assert!(!gaps.contains("phase/12"));
@@ -33,7 +33,7 @@ fn the_public_denominator_is_the_phase_gates() {
     assert!(!gaps.contains("phase/11"));
     assert!(!gaps.contains("phase/14"));
     assert!(!gaps.contains("phase/27"));
-    assert!(gaps.contains("gap phase/28 unimplemented"));
+    assert!(!gaps.contains("phase/28"));
     assert!(!gaps.contains("phase/02"));
     assert!(!gaps.contains("phase/07"));
     assert!(!gaps.contains("phase/08"));
@@ -62,18 +62,18 @@ fn the_public_denominator_is_the_phase_gates() {
 }
 
 #[test]
-fn reuse_of_owner_leaves_is_complete_and_the_frontier_stays_open() {
+fn reuse_of_owner_leaves_covers_the_denominator() {
     let cold = prove::run("cold", None).unwrap();
     let view = text(&cold, "view");
     let d1 = prove::run("D1", Some(&view)).unwrap();
     assert_eq!(number(&d1, "denominator"), 29);
-    assert_eq!(number(&d1, "executed"), 28);
-    assert_eq!(number(&d1, "reused"), 28);
+    assert_eq!(number(&d1, "executed"), 29);
+    assert_eq!(number(&d1, "reused"), 29);
     assert_eq!(number(&d1, "false-reuse"), 0);
     assert_eq!(number(&d1, "reuse-basis-points"), 10_000);
     assert_eq!(text(&d1, "rerun"), "");
     let frontier = prove::frontier(Some(&view)).unwrap();
-    assert!(!bool_field(&frontier, "complete"));
+    assert!(bool_field(&frontier, "complete"));
     assert_eq!(number(&frontier, "executed"), number(&cold, "executed"));
     let why = prove::why("D2", "phase/07", Some(&view)).unwrap();
     assert!(bool_field(&why, "reused"));
@@ -131,6 +131,8 @@ fn reuse_of_owner_leaves_is_complete_and_the_frontier_stays_open() {
     assert!(bool_field(&qualify, "reused"));
     let promoted = prove::why("D2", "phase/27", Some(&view)).unwrap();
     assert!(bool_field(&promoted, "reused"));
+    let fresh = prove::why("D2", "phase/28", Some(&view)).unwrap();
+    assert!(bool_field(&fresh, "reused"));
     assert!(!text(&cold, "view").contains("gap phase/06"));
     assert_eq!(text(&why, "exercised"), "");
 }
