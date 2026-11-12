@@ -26,6 +26,8 @@ pub(super) fn subject_bytes() -> Result<Datum, WorldError> {
         Datum::String(include_str!("portable_promote.rs").to_owned()),
         Datum::String(include_str!("portable_promote_expect.rs").to_owned()),
         Datum::String(include_str!("portable_promote_parse.rs").to_owned()),
+        Datum::String(include_str!("fresh.rs").to_owned()),
+        Datum::String(include_str!("portable_fresh.rs").to_owned()),
         Datum::String(include_str!("portable_plan.rs").to_owned()),
         Datum::String(include_str!("portable_observe.rs").to_owned()),
         Datum::String(include_str!("portable_service.rs").to_owned()),

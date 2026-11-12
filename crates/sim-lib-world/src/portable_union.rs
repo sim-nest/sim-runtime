@@ -27,6 +27,9 @@
 //! The recovery row calls the loaded recover command.
 //! The owner row calls the loaded manifest command.
 //! The publication row calls the loaded promote command.
+//! The fresh row calls the loaded fresh command. A construction
+//! specimen stays open. One succession record does not derive a
+//! completion seal.
 //! The binding row calls the loaded bind command.
 //! The normalize row calls the loaded bind command. A field or role
 //! change moves the canonical identity. An ordering alias or a diagnostic
@@ -47,9 +50,8 @@
 //! the compare row and keeps reuse disabled. Zero false reuse and the
 //! frozen D1, D2, and D4 bounds admit the row.
 //! The operation row calls the loaded operate command.
-//! Every other row is a named gap. Gaps stay
-//! in the denominator. The frontier stays open while any gap
-//! or failed leaf remains.
+//! Gaps stay in the denominator. The frontier stays open while any
+//! gap or failed leaf remains.
 //! The sensitivity assay of forty conclusions is a different set. Each
 //! executed leaf digest binds the verdict and the retained deck.
 
@@ -88,6 +90,8 @@ mod evidence;
 mod fixed;
 #[path = "portable_foreign.rs"]
 mod foreign;
+#[path = "portable_fresh.rs"]
+mod fresh;
 #[path = "portable_journal.rs"]
 mod journal_gate;
 #[path = "portable_land.rs"]
@@ -156,6 +160,9 @@ enum Ground {
     Compare,
     Manifest,
     Promote,
+    Fresh,
+    // An unimplemented row stays representable after the current table is full.
+    #[allow(dead_code)]
     Gap(&'static str),
 }
 
@@ -441,6 +448,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
         Ground::Compare => compare::compare_leaf(),
         Ground::Manifest => manifest::manifest_leaf(),
         Ground::Promote => promote::promote_leaf(),
+        Ground::Fresh => fresh::fresh_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),

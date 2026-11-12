@@ -141,19 +141,19 @@ fn plan_resume_advances_one_page_and_a_bad_token_is_a_gap() {
 }
 
 #[test]
-fn frontier_of_the_cold_run_stays_open_while_gaps_remain() {
+fn frontier_of_the_cold_run_is_complete_when_no_gap_remains() {
     let cold = prove::run("cold", None).unwrap();
     assert_eq!(number_field(&cold, "denominator"), 29);
     let ran = number_field(&cold, "executed");
-    assert!(ran < 29);
+    assert_eq!(ran, 29);
     let view = text_field(&cold, "view");
     let executed = prove::cold_executions();
     let frontier = prove::frontier(Some(&view)).unwrap();
     assert_eq!(tag(&frontier), "prove/frontier-v1");
     assert_eq!(number_field(&frontier, "executed"), ran);
     assert_eq!(number_field(&frontier, "denominator"), 29);
-    assert!(!bool_field(&frontier, "complete"));
-    assert!(!text_field(&frontier, "gaps").is_empty());
+    assert!(bool_field(&frontier, "complete"));
+    assert!(text_field(&frontier, "gaps").is_empty());
     assert_eq!(
         number_field(&frontier, "requests"),
         number_field(&cold, "requests") * 2
@@ -161,7 +161,7 @@ fn frontier_of_the_cold_run_stays_open_while_gaps_remain() {
     let token = text_field(&frontier, "continuation").to_owned();
     let again = prove::resume(&token, Some(&view)).unwrap();
     assert_eq!(tag(&again), "prove/frontier-v1");
-    assert!(!bool_field(&again, "complete"));
+    assert!(bool_field(&again, "complete"));
     let missing = prove::frontier(None).unwrap();
     assert_eq!(text_field(&missing, "reason"), "refresh-needed");
     assert_eq!(prove::cold_executions(), executed);
@@ -636,7 +636,8 @@ fn a_failed_predicate_stays_in_the_denominator_and_opens_a_gap() {
     assert!(cold.captures["conclusion/01"].contains("baseline stable/01"));
     let record = prove::run("cold", None).unwrap();
     assert_eq!(number_field(&record, "denominator"), 29);
-    assert!(!text_field(&record, "gaps").is_empty());
+    assert_eq!(number_field(&record, "executed"), 29);
+    assert!(text_field(&record, "gaps").is_empty());
     let view = prove::cold_view(&cold).unwrap();
     let opened = prove::open_view(&view).unwrap().expect("assay view");
     assert_eq!(opened.failures, vec!["conclusion/40".to_owned()]);
