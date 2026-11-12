@@ -118,7 +118,7 @@ pub(super) const GATES: &[Gate] = &[
     },
     Gate {
         leaf: "phase/27",
-        ground: Ground::Gap("held"),
+        ground: Ground::Promote,
     },
     Gate {
         leaf: "phase/28",

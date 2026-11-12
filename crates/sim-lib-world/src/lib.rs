@@ -93,6 +93,14 @@
 //! an empty source, and a Linux row refuse. The record counts the
 //! owners, packages, and edges that table admitted. Manifest admission
 //! does not read a checkout.
+//! One promote call admits one registry publication set. A later call
+//! returns that record. A path source, a local receipt, a model plan,
+//! a missing version, a missing checksum, a missing source identity,
+//! a missing registry observation, a broken dependency order, a missing
+//! install, an unreconciled effect, two rows of one package, an empty
+//! set, and a Linux requirement refuse. The record counts the packages
+//! and needs that set admitted. Promote admission does not contact a
+//! registry.
 //! One journal compare runs rebuild and the rebuild report on one
 //! opened execution. Equal results are the same computation. A later
 //! call returns that record. The compare does not close the frontier.
@@ -157,6 +165,7 @@ mod observe;
 mod operate;
 mod plan;
 mod product;
+mod promote;
 mod prove;
 mod prove_command;
 mod provider;
