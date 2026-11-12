@@ -181,6 +181,7 @@ mod release;
 mod schedule;
 mod seal;
 mod seal_compile;
+mod seal_workspace;
 mod service;
 mod succeed;
 mod transact;

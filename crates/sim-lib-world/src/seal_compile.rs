@@ -235,7 +235,17 @@ fn flip_registry_checksum(line: &str) -> Option<String> {
 /// cargo on that same directory would wait forever. The directory stays
 /// under the workspace `target` tree.
 fn spawn_check() -> Result<i32, ()> {
-    let root = seal::workspace_root();
+    run_locked_check(&seal::workspace_root())
+}
+
+/// Runs one offline locked check in `root`.
+///
+/// A directory without a manifest is a refusal, not a cargo diagnostic.
+/// Cargo's own stderr stays in the captured output.
+pub(crate) fn run_locked_check(root: &std::path::Path) -> Result<i32, ()> {
+    if !root.join("Cargo.toml").is_file() {
+        return Err(());
+    }
     let target = root.join("target").join("seal-measure");
     let mut command = Command::new("cargo");
     command
@@ -247,10 +257,10 @@ fn spawn_check() -> Result<i32, ()> {
             "--offline",
             "--quiet",
         ])
-        .current_dir(&root)
+        .current_dir(root)
         .env("CARGO_TARGET_DIR", &target);
-    match command.status() {
-        Ok(status) => Ok(status.code().unwrap_or(1)),
+    match command.output() {
+        Ok(output) => Ok(output.status.code().unwrap_or(1)),
         Err(_) => Err(()),
     }
 }
