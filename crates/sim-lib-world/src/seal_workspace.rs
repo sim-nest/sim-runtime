@@ -5,8 +5,8 @@
 
 //! Workspace selection for the locked compile probe.
 //!
-//! The manifest directory is the workspace only for a source build. The
-//! registry checkout that publishes this crate has no workspace manifest.
+//! A source build keeps the two-level workspace path when that directory
+//! has a manifest. A published crate walks from the process directory.
 
 use std::path::{Path, PathBuf};
 
@@ -14,16 +14,17 @@ pub(crate) fn resolve(baked: PathBuf, cwd: Option<&Path>) -> PathBuf {
     if baked.join("Cargo.toml").is_file() {
         return baked;
     }
+    let mut selected = None;
     if let Some(cwd) = cwd {
         let mut current = Some(cwd);
         while let Some(dir) = current {
             if binds_world(dir) {
-                return dir.to_path_buf();
+                selected = Some(dir.to_path_buf());
             }
             current = dir.parent();
         }
     }
-    baked
+    selected.unwrap_or(baked)
 }
 
 fn binds_world(dir: &Path) -> bool {
@@ -42,32 +43,29 @@ fn binds_world(dir: &Path) -> bool {
 
 fn member_dirs(workspace: &Path, text: &str) -> Vec<PathBuf> {
     let mut dirs = Vec::new();
-    let mut lines = text.lines();
-    while let Some(line) = lines.next() {
+    let mut section = String::new();
+    let mut in_members = false;
+    for line in text.lines() {
         let trimmed = line.trim();
-        if !trimmed.starts_with("members") || trimmed.starts_with("default-members") {
+        if let Some(header) = table_header(trimmed) {
+            section = header.to_owned();
+            in_members = false;
             continue;
         }
-        let mut body = String::new();
-        if let Some(open) = trimmed.find('[') {
-            body.push_str(&trimmed[open..]);
-        }
-        if !body.contains(']') {
-            for next in lines.by_ref() {
-                body.push('\n');
-                body.push_str(next);
-                if next.contains(']') {
-                    break;
-                }
-            }
-        }
-        let Some(open) = body.find('[') else {
+        if section != "workspace" {
             continue;
-        };
-        let Some(close) = body[open..].find(']') else {
+        }
+        if key_is(trimmed, "members") {
+            in_members = true;
+        }
+        if !in_members {
             continue;
-        };
-        for quoted in quotes(&body[open + 1..open + close]) {
+        }
+        if trimmed.starts_with(']') {
+            in_members = false;
+            continue;
+        }
+        for quoted in quotes(trimmed) {
             if quoted.is_empty()
                 || quoted.contains("..")
                 || quoted.starts_with('/')
@@ -77,8 +75,24 @@ fn member_dirs(workspace: &Path, text: &str) -> Vec<PathBuf> {
             }
             dirs.push(workspace.join(quoted));
         }
+        if trimmed.contains(']') {
+            in_members = false;
+        }
     }
     dirs
+}
+
+fn table_header(line: &str) -> Option<&str> {
+    if line.starts_with('[') && line.ends_with(']') && !line.starts_with("[[") {
+        Some(&line[1..line.len() - 1])
+    } else {
+        None
+    }
+}
+
+fn key_is(line: &str, key: &str) -> bool {
+    line.strip_prefix(key)
+        .is_some_and(|rest| rest.trim_start().starts_with('='))
 }
 
 fn quotes(body: &str) -> Vec<&str> {
@@ -180,6 +194,41 @@ mod tests {
             "[package]\nname = \"sim-run\"\nsim-lib-world = { version = \"0.1.8\" }\n",
         );
         assert_eq!(resolve(baked, Some(&workspace)), workspace);
+    }
+
+    #[test]
+    fn member_directory_uses_the_workspace_above_it() {
+        let scratch = Scratch::new();
+        let baked = scratch.path("registry/src");
+        fs::create_dir_all(&baked).expect("registry");
+        let workspace = scratch.path("checkout");
+        write(
+            &workspace.join("Cargo.toml"),
+            "[workspace]\nmembers = [\n  \"crates/sim-run\",\n]\n",
+        );
+        let package = workspace.join("crates/sim-run");
+        write(
+            &package.join("Cargo.toml"),
+            "[package]\nname = \"sim-run\"\nsim-lib-world = { version = \"0.1.8\" }\n",
+        );
+        assert_eq!(resolve(baked, Some(&package)), workspace);
+    }
+
+    #[test]
+    fn members_outside_the_workspace_table_stay_unbound() {
+        let scratch = Scratch::new();
+        let baked = scratch.path("registry/src");
+        fs::create_dir_all(&baked).expect("registry");
+        let decoy = scratch.path("checkout/decoy");
+        write(
+            &decoy.join("Cargo.toml"),
+            "[package]\nname = \"decoy\"\nmembers = [\"nested\"]\n[workspace]\nmembership = [\"nested\"]\n",
+        );
+        write(
+            &decoy.join("nested/Cargo.toml"),
+            "sim-lib-world = { version = \"0.1.8\" }\n",
+        );
+        assert_eq!(resolve(baked.clone(), Some(&decoy)), baked);
     }
 
     #[test]

@@ -110,9 +110,9 @@ pub fn captured_inputs() -> &'static str {
 
 /// Directory a locked `cargo check` of this crate can use.
 ///
-/// A source build uses the workspace that compiled the crate. A published
-/// crate's manifest parent is the registry, so the probe uses the nearest
-/// ancestor of the process directory that names this crate.
+/// A source build keeps the workspace that compiled the crate when that
+/// directory has a manifest. A published crate uses the outermost ancestor
+/// of the process directory that names this crate.
 #[must_use]
 pub fn workspace_root() -> std::path::PathBuf {
     crate::seal_workspace::resolve(
