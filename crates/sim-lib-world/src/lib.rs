@@ -86,6 +86,13 @@
 //! Swapped identities refuse. A missing pack scope is unimplemented.
 //! The facet law passes, and its unfunded scope stays unimplemented.
 //! Binding does not mutate a checkout.
+//! One manifest call admits one owner table. A later call returns
+//! that record. A public pin must be present and match the observed
+//! head. A private pin, an escaped path, two revisions of one package,
+//! two owners of one package, an unowned target, a dependency cycle,
+//! an empty source, and a Linux row refuse. The record counts the
+//! owners, packages, and edges that table admitted. Manifest admission
+//! does not read a checkout.
 //! One journal compare runs rebuild and the rebuild report on one
 //! opened execution. Equal results are the same computation. A later
 //! call returns that record. The compare does not close the frontier.
@@ -145,6 +152,7 @@ mod fixture;
 mod grant;
 mod journal;
 mod land;
+mod manifest;
 mod observe;
 mod operate;
 mod plan;

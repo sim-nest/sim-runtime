@@ -412,7 +412,7 @@ mod tests {
         let proof = super::super::execute().expect("union");
         let deck = super::last_deck();
         assert_eq!(deck, super::expect::expected_deck(), "{deck}");
-        assert_eq!(proof.executed.len(), 26, "{deck}");
+        assert_eq!(proof.executed.len(), 27, "{deck}");
         assert!(
             !proof.gaps.iter().any(|gap| gap.contains(super::SKIP)),
             "{deck}"
