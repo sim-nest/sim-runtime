@@ -26,6 +26,7 @@
 //! The landing row calls the loaded land command.
 //! The recovery row calls the loaded recover command.
 //! The owner row calls the loaded manifest command.
+//! The publication row calls the loaded promote command.
 //! The binding row calls the loaded bind command.
 //! The normalize row calls the loaded bind command. A field or role
 //! change moves the canonical identity. An ordering alias or a diagnostic
@@ -103,6 +104,8 @@ mod operate;
 mod plan;
 #[path = "portable_project.rs"]
 mod project;
+#[path = "portable_promote.rs"]
+mod promote;
 #[path = "portable_qualify.rs"]
 mod qualify;
 #[path = "portable_recover.rs"]
@@ -152,6 +155,7 @@ enum Ground {
     Compile,
     Compare,
     Manifest,
+    Promote,
     Gap(&'static str),
 }
 
@@ -436,6 +440,7 @@ fn leaf_for(name: &str) -> Result<ProofLeaf, WorldError> {
         Ground::Compile => compile::compile_leaf(),
         Ground::Compare => compare::compare_leaf(),
         Ground::Manifest => manifest::manifest_leaf(),
+        Ground::Promote => promote::promote_leaf(),
         Ground::Gap(_) => Err(WorldError::Qualification(format!(
             "unavailable-proof {name}"
         ))),

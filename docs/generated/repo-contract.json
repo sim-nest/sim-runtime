@@ -3192,13 +3192,13 @@
         }
       }
     },
-    "generation_timestamp": "2026-11-12T13:17:01+01:00",
+    "generation_timestamp": "2026-11-12T14:38:54+01:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "c00f9cbebc73613726183af858a3379db08ff34f",
+    "git_commit": "91d56359d61587caf28e7260e1c37b78895c7f37",
     "regeneration_command": "cargo run -p xtask -- simdoc",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "c00f9cbebc73613726183af858a3379db08ff34f",
+    "source_commit": "91d56359d61587caf28e7260e1c37b78895c7f37",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -3214,9 +3214,9 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "0adbeb7153d55bec",
+    "workspace_hash": "5c45c184155a65e7",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 972,
+    "workspace_hash_input_count": 978,
     "workspace_hash_inputs": [
       ".github/workflows/authorship.yml",
       ".github/workflows/ci.yml",
@@ -4111,6 +4111,10 @@
       "crates/sim-lib-world/src/portable_plan.rs",
       "crates/sim-lib-world/src/portable_plan_tests.rs",
       "crates/sim-lib-world/src/portable_project.rs",
+      "crates/sim-lib-world/src/portable_promote.rs",
+      "crates/sim-lib-world/src/portable_promote_expect.rs",
+      "crates/sim-lib-world/src/portable_promote_parse.rs",
+      "crates/sim-lib-world/src/portable_promote_tests.rs",
       "crates/sim-lib-world/src/portable_qualify.rs",
       "crates/sim-lib-world/src/portable_qualify_expect.rs",
       "crates/sim-lib-world/src/portable_qualify_parse.rs",
@@ -4143,6 +4147,8 @@
       "crates/sim-lib-world/src/portable_work_parse.rs",
       "crates/sim-lib-world/src/portable_work_tests.rs",
       "crates/sim-lib-world/src/product.rs",
+      "crates/sim-lib-world/src/promote.rs",
+      "crates/sim-lib-world/src/promote_admit.rs",
       "crates/sim-lib-world/src/prove.rs",
       "crates/sim-lib-world/src/prove_command.rs",
       "crates/sim-lib-world/src/prove_leaf.rs",
