@@ -214,6 +214,8 @@ mod observe_tests;
 #[cfg(test)]
 mod plan_tests;
 #[cfg(test)]
+mod prove_argv_tests;
+#[cfg(test)]
 mod prove_tests;
 #[cfg(test)]
 mod prove_union_tests;
