@@ -201,6 +201,9 @@ mod activate_rules;
 #[cfg(test)]
 mod canary_tests;
 #[cfg(test)]
+#[path = "../build/closure_flag.rs"]
+mod closure_flag;
+#[cfg(test)]
 mod deliver_tests;
 #[cfg(test)]
 mod evidence_tests;
