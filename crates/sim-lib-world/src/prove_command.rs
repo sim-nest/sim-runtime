@@ -151,20 +151,38 @@ impl ProveEntrypoint {
             Some("plan") if argv.len() == 2 => prove::plan(None),
             Some("plan") if argv.len() == 3 => prove::plan(Some(&argv[2])),
             Some("run") if argv.len() == 3 => prove::run(&argv[2], None),
+            Some("run") if argv.len() >= 4 && is_view_segment(&argv[3]) => {
+                let view = join_segments(&argv[3..]);
+                prove::run(&argv[2], Some(&view))
+            }
             Some("run") if argv.len() == 4 => prove::run(&argv[2], Some(&argv[3])),
             Some("status") if argv.len() == 2 => prove::status(None),
+            Some("status") if argv.len() >= 3 && is_view_segment(&argv[2]) => {
+                let view = join_segments(&argv[2..]);
+                prove::status(Some(&view))
+            }
             Some("status") if argv.len() == 3 => prove::status(Some(&argv[2])),
             Some("why") if argv.len() == 4 => prove::why(&argv[2], &argv[3], None),
+            Some("why") if argv.len() >= 5 && is_view_segment(&argv[4]) => {
+                let view = join_segments(&argv[4..]);
+                prove::why(&argv[2], &argv[3], Some(&view))
+            }
             Some("why") if argv.len() == 5 => prove::why(&argv[2], &argv[3], Some(&argv[4])),
             Some("frontier") if argv.len() == 2 => prove::frontier(None),
-            Some("frontier")
-                if argv.len() == 3 && argv[2].starts_with("sim-world-proof-view-v1") =>
-            {
-                prove::frontier(Some(&argv[2]))
+            Some("frontier") if argv.len() >= 3 && is_view_segment(&argv[2]) => {
+                let view = join_segments(&argv[2..]);
+                prove::frontier(Some(&view))
             }
             Some("frontier") if argv.len() == 3 => prove::frontier_leaf(&argv[2], None),
-            Some("frontier") if argv.len() == 4 => prove::frontier_leaf(&argv[2], Some(&argv[3])),
+            Some("frontier") if argv.len() >= 4 && is_view_segment(&argv[3]) => {
+                let view = join_segments(&argv[3..]);
+                prove::frontier_leaf(&argv[2], Some(&view))
+            }
             Some("resume") if argv.len() == 3 => prove::resume(&argv[2], None),
+            Some("resume") if argv.len() >= 4 && is_view_segment(&argv[3]) => {
+                let view = join_segments(&argv[3..]);
+                prove::resume(&argv[2], Some(&view))
+            }
             Some("resume") if argv.len() == 4 => prove::resume(&argv[2], Some(&argv[3])),
             Some("measure") if argv.len() == 3 && matches!(argv[2].as_str(), "status" | "why") => {
                 return measured(&argv[2], prove::measure(&argv[2]).map_err(eval_error)?);
@@ -225,6 +243,24 @@ fn measured(command: &str, measured: Measured) -> Result<Outcome> {
             command,
         })
     }
+}
+
+const UNION_VIEW_HEADER: &str = "sim-world-portable-union-v1";
+const PROOF_VIEW_HEADER: &str = "sim-world-proof-view-v1";
+
+fn is_view_segment(text: &str) -> bool {
+    text.starts_with(UNION_VIEW_HEADER) || text.starts_with(PROOF_VIEW_HEADER)
+}
+
+/// Concatenates one logical view. The first segment carries the header.
+/// Later segments add no separator, so the admitted body stays intact when
+/// the caller keeps each segment inside one host argument.
+fn join_segments(segments: &[String]) -> String {
+    let mut joined = String::with_capacity(segments.iter().map(String::len).sum());
+    for segment in segments {
+        joined.push_str(segment);
+    }
+    joined
 }
 
 fn refusal(call: &str, reason: &str) -> Datum {
