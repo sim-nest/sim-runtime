@@ -282,6 +282,49 @@ fn native_requests_and_credentials_refuse_before_effects() {
         "r2-observe",
         "native-request",
     );
+    let native_private = format!("request native\n{PRIVATE}");
+    let native_private_gap = command
+        .run(&argv(&native_private))
+        .expect("native before leakage");
+    assert_gap(&native_private_gap, "", "native-request");
+    let native_private_text = render(&native_private_gap);
+    assert!(!native_private_text.contains(PRIVATE));
+    assert!(!native_private_text.contains("s3cret-token"));
+    let private_then_native = document(&[
+        &format!("{}\n{PRIVATE}", rows(&[("evidence", "none")])),
+        &rows(&[
+            ("responsibility", "r5-land"),
+            ("scope", "native"),
+            ("previous", "cli/main/old-land"),
+            ("evidence", "caller-zero/cli/main/old-land"),
+        ]),
+    ]);
+    let hidden_native = command
+        .run(&argv(&private_then_native))
+        .expect("scope after leakage");
+    assert_gap(&hidden_native, "r5-land", "native-request");
+    assert!(!render(&hidden_native).contains(PRIVATE));
+    assert!(!render(&hidden_native).contains("s3cret-token"));
+    let private_then_linux = document(&[
+        &format!("{}\n{PRIVATE}", rows(&[("evidence", "none")])),
+        &rows(&[("responsibility", "r2-observe"), ("scope", "linux")]),
+    ]);
+    let hidden_linux = command
+        .run(&argv(&private_then_linux))
+        .expect("linux after leakage");
+    assert_gap(&hidden_linux, "r2-observe", "native-request");
+    assert!(!render(&hidden_linux).contains("s3cret-token"));
+    let named = document(&[&rows(&[
+        ("responsibility", "sim-private/land"),
+        ("scope", "linux"),
+    ])]);
+    let named_gap = command
+        .run(&argv(&named))
+        .expect("redacted native responsibility");
+    assert_gap(&named_gap, "", "native-request");
+    let named_text = render(&named_gap);
+    assert!(!named_text.contains("sim-private"));
+    assert!(!named_text.contains("land"));
 }
 
 #[test]

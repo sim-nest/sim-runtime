@@ -8,9 +8,11 @@
 //! The caller supplies one observed document. Retirement of a previous
 //! path requires caller-zero evidence and a zero caller count. Cargo,
 //! Git, validation, and operator recovery stay under their named roles.
-//! A native request, a native or publication path segment, or a model
-//! credential refuses before any effect. The command starts no
-//! observation and does not derive a completion seal.
+//! A native request, a linux or native scope, a native or publication
+//! path segment, or a model credential refuses before any effect. A
+//! native request is classified before a private-marker gap, and that
+//! gap does not echo the marker. The command starts no observation and
+//! does not derive a completion seal.
 
 use sim_kernel::{Datum, Symbol};
 
@@ -74,14 +76,14 @@ struct Admitted {
 ///
 /// Returns an error when the transfer record cannot be represented.
 pub(crate) fn run(document: &str) -> Result<Datum, WorldError> {
-    if leaked(document) {
-        return Ok(gap("", "private-leakage"));
-    }
     if native_request(document) {
         return Ok(gap(&first_responsibility(document), "native-request"));
     }
     if let Some(responsibility) = native_scope(document) {
         return Ok(gap(&responsibility, "native-request"));
+    }
+    if leaked(document) {
+        return Ok(gap("", "private-leakage"));
     }
     match admit_document(document) {
         Ok(rows) => Ok(success(&rows)),
