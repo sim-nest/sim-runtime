@@ -207,6 +207,38 @@ fn native_requests_and_credentials_refuse_before_effects() {
             "r3-prove",
             "native-authority",
         ),
+        (
+            rows(&[
+                ("previous", "cli/main/publication"),
+                ("evidence", "caller-zero/cli/main/publication"),
+            ]),
+            "r3-prove",
+            "native-authority",
+        ),
+        (
+            rows(&[
+                ("previous", "cli/main/native"),
+                ("evidence", "caller-zero/cli/main/native"),
+            ]),
+            "r3-prove",
+            "native-authority",
+        ),
+        (
+            rows(&[
+                ("previous", "cli/main/linux"),
+                ("evidence", "caller-zero/cli/main/linux"),
+            ]),
+            "r3-prove",
+            "native-authority",
+        ),
+        (
+            rows(&[
+                ("previous", "cli/main/sudo"),
+                ("evidence", "caller-zero/cli/main/sudo"),
+            ]),
+            "r3-prove",
+            "native-authority",
+        ),
         (rows(&[("provider", "local/site")]), "r3-prove", "provider"),
         (
             rows(&[("responsibility", "r3-publish")]),

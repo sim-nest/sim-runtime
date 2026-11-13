@@ -153,6 +153,7 @@ fn admit_block(lines: &[String]) -> Result<Admitted, Fault> {
     if native_segment(&fields.grant)
         || native_segment(&fields.provider)
         || native_segment(&fields.entrypoint)
+        || native_segment(&fields.previous)
     {
         return Err(fault(responsibility, "native-authority"));
     }
