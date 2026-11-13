@@ -255,6 +255,33 @@ fn native_requests_and_credentials_refuse_before_effects() {
         .run(&argv("request native"))
         .expect("request native");
     assert_gap(&only_native, "", "native-request");
+    let native_after_fault = document(&[
+        &rows(&[("evidence", "none")]),
+        &rows(&[
+            ("responsibility", "r5-land"),
+            ("scope", "native"),
+            ("previous", "cli/main/old-land"),
+            ("evidence", "caller-zero/cli/main/old-land"),
+        ]),
+    ]);
+    assert_gap(
+        &command
+            .run(&argv(&native_after_fault))
+            .expect("native after fault"),
+        "r5-land",
+        "native-request",
+    );
+    let linux_after_fault = document(&[
+        &rows(&[("evidence", "none")]),
+        &rows(&[("responsibility", "r2-observe"), ("scope", "linux")]),
+    ]);
+    assert_gap(
+        &command
+            .run(&argv(&linux_after_fault))
+            .expect("linux after fault"),
+        "r2-observe",
+        "native-request",
+    );
 }
 
 #[test]

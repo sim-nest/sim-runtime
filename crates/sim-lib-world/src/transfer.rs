@@ -80,6 +80,9 @@ pub(crate) fn run(document: &str) -> Result<Datum, WorldError> {
     if native_request(document) {
         return Ok(gap(&first_responsibility(document), "native-request"));
     }
+    if let Some(responsibility) = native_scope(document) {
+        return Ok(gap(&responsibility, "native-request"));
+    }
     match admit_document(document) {
         Ok(rows) => Ok(success(&rows)),
         Err(fault) => Ok(gap(&fault.responsibility, fault.reason)),
@@ -90,6 +93,43 @@ fn native_request(document: &str) -> bool {
     document
         .lines()
         .any(|line| trimmed(line) == "request native")
+}
+
+fn native_scope(document: &str) -> Option<String> {
+    for block in raw_blocks(document) {
+        let native = block.iter().any(|line| {
+            matches!(
+                line.strip_prefix("scope ").map(str::trim),
+                Some("linux" | "native")
+            )
+        });
+        if native {
+            let responsibility = block
+                .iter()
+                .find_map(|line| line.strip_prefix("responsibility ").map(str::trim))
+                .unwrap_or("");
+            return Some(responsibility.to_owned());
+        }
+    }
+    None
+}
+
+fn raw_blocks(document: &str) -> Vec<Vec<&str>> {
+    let mut blocks = Vec::new();
+    let mut current = Vec::new();
+    for line in document.lines().map(trimmed) {
+        if line.is_empty() {
+            if !current.is_empty() {
+                blocks.push(std::mem::take(&mut current));
+            }
+            continue;
+        }
+        current.push(line);
+    }
+    if !current.is_empty() {
+        blocks.push(current);
+    }
+    blocks
 }
 
 fn first_responsibility(document: &str) -> String {
