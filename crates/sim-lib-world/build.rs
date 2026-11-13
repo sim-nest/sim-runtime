@@ -10,8 +10,9 @@
 //! nested Cargo locks, generated sources, features, and the toolchain that is
 //! compiling the crate. Path members hash the files reached inside each
 //! package, and registry members hash the downloaded crate when it is present.
-//! A symlink that leaves its package is not a reached file. This script does
-//! not run when the loaded command answers.
+//! A registry or git entry whose bytes this compilation did not download is
+//! outside the compiling closure. A symlink that leaves its package is not a
+//! reached file. This script does not run when the loaded command answers.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -19,6 +20,8 @@ use std::process::Command;
 
 #[path = "build/activate.rs"]
 mod activate;
+#[path = "build/closure_flag.rs"]
+mod closure_flag;
 #[path = "build/content.rs"]
 mod content;
 #[path = "build/parse.rs"]
@@ -131,11 +134,11 @@ fn main() {
             for path in classified.rerun {
                 println!("cargo:rerun-if-changed={}", path.display());
             }
-            let closure_flag = if closure.contains(&index_in_lock) {
-                "closure"
-            } else {
-                "outside"
-            };
+            let closure_flag = closure_flag::closure_word(
+                closure.contains(&index_in_lock),
+                origin,
+                &classified.observed,
+            );
             assert!(
                 !classified.source.contains(' ') && !classified.checksum.contains(' '),
                 "sealed field contains a space: {} {}",
