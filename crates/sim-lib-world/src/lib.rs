@@ -101,6 +101,12 @@
 //! set, and a Linux requirement refuse. The record counts the packages
 //! and needs that set admitted. Promote admission does not contact a
 //! registry.
+//! One transfer call admits each portable responsibility move in one
+//! document. A later call returns that record. Retirement requires
+//! caller-zero evidence for the previous path and a zero caller count.
+//! Cargo, Git, validation, and operator recovery stay under their named
+//! roles. A native request, a publication segment, or a model credential
+//! refuses before any effect. The record does not derive a completion seal.
 //! One journal compare runs rebuild and the rebuild report on one
 //! opened execution. Equal results are the same computation. A later
 //! call returns that record. The compare does not close the frontier.
@@ -185,6 +191,7 @@ mod seal_workspace;
 mod service;
 mod succeed;
 mod transact;
+mod transfer;
 mod work;
 
 pub use command::{ModelDomainLoad, WORLD_VERB, WorldCommandLib};
@@ -233,3 +240,5 @@ mod service_tests;
 mod succeed_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod transfer_tests;
