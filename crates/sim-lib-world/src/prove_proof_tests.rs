@@ -109,6 +109,36 @@ fn loaded_proof_view_compares_the_cold_denominator() {
     assert_eq!(tag(&frontier), "prove/frontier-v1");
     assert!(bool_field(&frontier, "complete"));
     assert_eq!(number(&frontier, "denominator"), 40);
+    let named = prove
+        .run(&with_view(&["prove", "frontier", "conclusion/01"], &view))
+        .expect("named frontier");
+    assert_eq!(named, frontier);
+    let absent = prove
+        .run(&with_view(&["prove", "frontier", "conclusion/41"], &view))
+        .expect("absent leaf");
+    assert_eq!(text(&absent, "call"), "conclusion/41");
+    assert_eq!(text(&absent, "reason"), "unavailable-proof");
+    let phase_leaf = prove
+        .run(&with_view(&["prove", "frontier", "phase/28"], &view))
+        .expect("phase leaf");
+    assert_eq!(text(&phase_leaf, "call"), "phase/28");
+    assert_eq!(text(&phase_leaf, "reason"), "unavailable-proof");
+    let native = prove
+        .run(&with_view(
+            &["prove", "frontier", "leaf/native-worker-adapter"],
+            &view,
+        ))
+        .expect("native leaf");
+    assert_eq!(text(&native, "call"), "leaf/native-worker-adapter");
+    assert_eq!(text(&native, "reason"), "excluded-scope");
+    let tampered_leaf = prove
+        .run(&with_view(
+            &["prove", "frontier", "conclusion/01"],
+            &tampered,
+        ))
+        .expect("tampered leaf");
+    assert_eq!(text(&tampered_leaf, "call"), "frontier");
+    assert_eq!(text(&tampered_leaf, "reason"), "refresh-needed");
     let token = text(&frontier, "continuation");
     let resumed = prove
         .run(&with_view(&["prove", "resume", &token], &view))
