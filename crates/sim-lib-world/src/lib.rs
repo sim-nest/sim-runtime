@@ -54,7 +54,8 @@
 //! acknowledgement measures one hundred blocked workers, including one
 //! that does not return, outside that worker. The trace reopens.
 //! A wait releases only that unit's leases. Stall and cleanup do not claim
-//! process death.
+//! process death. Cleanup measurement records every modeled trace and
+//! refuses a silence of five ticks.
 //! One converge call runs the published revision once. A later call
 //! returns that record. A stop before commit keeps the accepted
 //! revision. A changed input opens only the claims that read it.
@@ -161,6 +162,7 @@ mod assay_oracle;
 mod author;
 mod bind;
 mod canary;
+mod cleanup_beats;
 mod command;
 mod command_steps;
 mod conduct;
