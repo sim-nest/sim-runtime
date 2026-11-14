@@ -75,13 +75,11 @@ pub(super) struct UnionRun {
 }
 
 /// Source of the predicate this catalog leaf executes.
-#[cfg(test)]
 pub(super) fn proof_implementation() -> &'static str {
     include_str!("prove_leaf.rs")
 }
 
 /// Implementation bytes plus the selected program. The caller supplies this text.
-#[cfg(test)]
 pub(super) fn executed_code(selected: &str) -> String {
     format!("{}\n{selected}", proof_implementation())
 }
@@ -175,7 +173,6 @@ pub(super) fn program_of(leaf: &ProofLeaf) -> Option<String> {
 ///
 /// Opening a view uses this and does not seal the subject again. The cold
 /// path executes the catalog built from projected bytes.
-#[cfg(test)]
 pub(super) fn program_for_facts(facts: &[String]) -> Result<Option<String>, WorldError> {
     if facts.is_empty() {
         return Err(WorldError::Qualification(
@@ -191,7 +188,6 @@ pub(super) fn program_for_facts(facts: &[String]) -> Result<Option<String>, Worl
 /// Admits every offered command receipt.
 ///
 /// The sealed cold run offers none. A scripted receipt fails the run.
-#[cfg(test)]
 pub(super) fn admit_offered(offers: &[(&str, bool)]) -> Result<u64, WorldError> {
     let mut admitted = 0u64;
     for (leaf, scripted) in offers {
@@ -206,7 +202,6 @@ pub(super) fn admit_offered(offers: &[(&str, bool)]) -> Result<u64, WorldError> 
 /// A scripted receipt is refused before the catalog is built and before any
 /// launch. A pure sealed leaf has no command. A command leaf is executed
 /// through the journaled catalog route.
-#[cfg(test)]
 pub(super) fn admit_command(leaf: &str, scripted: bool) -> Result<(), WorldError> {
     refuse_if_scripted(scripted)?;
     let bound = super::bind()?;
@@ -281,7 +276,6 @@ fn evaluate(program: &str, texts: &[String]) -> String {
     }
 }
 
-#[cfg(test)]
 fn dispatch(
     catalog: &ProofCatalog,
     name: &str,
@@ -303,7 +297,6 @@ fn dispatch(
     }
 }
 
-#[cfg(test)]
 fn refuse_if_scripted(scripted: bool) -> Result<(), WorldError> {
     if scripted {
         Err(WorldError::Qualification(

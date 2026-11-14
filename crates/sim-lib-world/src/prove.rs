@@ -20,9 +20,7 @@ use sim_incremental_core::projection::{
 };
 use sim_kernel::Datum;
 use std::cell::Cell;
-use std::collections::BTreeMap;
-#[cfg(test)]
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::assay;
 use crate::provider::{self, WorldConfigShape};
@@ -31,13 +29,17 @@ use crate::{WorldError, command};
 
 #[path = "prove_leaf.rs"]
 mod leaf;
+#[path = "prove_proof.rs"]
+mod proof;
+#[cfg(test)]
+#[path = "prove_proof_tests.rs"]
+mod proof_tests;
 #[path = "prove_record.rs"]
 mod record;
 #[path = "prove_run.rs"]
 mod run;
 #[path = "portable_union.rs"]
 mod union;
-#[cfg(test)]
 #[path = "prove_view.rs"]
 mod view;
 
@@ -71,7 +73,6 @@ const EXCLUDED: [&str; 2] = ["leaf/native-worker-adapter", "leaf/native-assay"];
 
 /// One leaf's reuse decision. The command follows the sealed graph. A caller
 /// can keep an affected leaf or name an input the row did not read.
-#[cfg(test)]
 pub(crate) struct Choice {
     /// Whether this leaf runs again.
     pub(crate) rerun: bool,
@@ -88,7 +89,6 @@ pub(crate) fn graph_choice(_leaf: &str, affected: bool) -> Choice {
     }
 }
 
-#[cfg(test)]
 #[derive(PartialEq, Eq)]
 struct DeltaCold {
     changed: BTreeSet<FactId>,
@@ -101,7 +101,6 @@ struct DeltaCold {
 ///
 /// The public cold record reports the portable phase union. This value is the
 /// forty-conclusion assay.
-#[cfg(test)]
 pub(crate) struct ColdProof {
     /// Semantic subject digest of the frozen baseline.
     pub(crate) subject: String,
@@ -128,10 +127,13 @@ pub(crate) struct ColdProof {
     baseline: BTreeMap<String, String>,
     facts: BTreeMap<String, Vec<String>>,
     deltas: BTreeMap<String, DeltaCold>,
+    /// Affected leaves this comparison keeps instead of running again.
+    pub(crate) kept: BTreeSet<String>,
+    /// Extra fact named as read for one leaf.
+    pub(crate) claims: BTreeMap<String, String>,
 }
 
 /// One delta compared with the cold denominator.
-#[cfg(test)]
 pub(crate) struct Report {
     /// Leaves whose baseline digest was kept.
     pub(crate) reused: BTreeSet<String>,
@@ -141,6 +143,10 @@ pub(crate) struct Report {
     pub(crate) basis: u16,
     /// Reuse rows that disagree with the cold digests or claim an unread input.
     pub(crate) false_reuse: u64,
+    /// Leaves counted by `false_reuse`.
+    pub(crate) false_leaves: BTreeSet<String>,
+    /// Digest each leaf compared with the cold row.
+    pub(crate) compared: BTreeMap<String, String>,
     /// Cold provider reads.
     pub(crate) cold_requests: u64,
     /// Provider reads on the reuse row.
@@ -186,7 +192,6 @@ pub(crate) fn leaf_facts() -> Result<BTreeMap<String, Vec<String>>, WorldError> 
 }
 
 /// Runs every assay conclusion on the baseline and on each frozen delta.
-#[cfg(test)]
 pub(crate) fn execute_cold() -> Result<ColdProof, WorldError> {
     #[cfg(test)]
     COLD_EXECUTIONS.with(|cell| cell.set(cell.get().saturating_add(1)));
@@ -224,7 +229,6 @@ pub(crate) fn cold_view(cold: &ColdProof) -> Result<String, WorldError> {
 }
 
 /// Compares one delta with the cold denominator.
-#[cfg(test)]
 pub(crate) fn reuse(
     cold: &ColdProof,
     delta: &str,
@@ -242,6 +246,8 @@ pub(crate) fn reuse(
         .collect::<BTreeSet<_>>();
     let mut reused = BTreeSet::new();
     let mut rerun = BTreeSet::new();
+    let mut false_leaves = BTreeSet::new();
+    let mut compared = BTreeMap::new();
     let mut false_reuse = 0u64;
     let mut reuse_requests = 0u64;
     for leaf in &cold.leaves {
@@ -273,7 +279,9 @@ pub(crate) fn reuse(
         }
         if &digest != cold_digest || claimed != actual {
             false_reuse = false_reuse.saturating_add(1);
+            false_leaves.insert(leaf.clone());
         }
+        compared.insert(leaf.clone(), digest);
         if run_again {
             rerun.insert(leaf.clone());
         } else {
@@ -285,6 +293,8 @@ pub(crate) fn reuse(
         reused,
         rerun,
         false_reuse,
+        false_leaves,
+        compared,
         cold_requests: cold.requests,
         reuse_requests,
         revision: row.revision,
@@ -301,20 +311,41 @@ pub(crate) fn resume(token: &str, view: Option<&str>) -> Result<Datum, WorldErro
     union::resume(token, view)
 }
 
-/// Resident proof status read from an admitted union view.
+/// Resident proof status read from an admitted view.
 ///
-/// The request count is the grounded leaves reread while admitting that view.
+/// A phase-union view reports that union. An assay proof view reports the
+/// forty-conclusion cold run. The request count is the reads spent admitting
+/// the view.
 pub(crate) fn status(view: Option<&str>) -> Result<Datum, WorldError> {
+    if is_proof_view(view) {
+        return proof::status(view);
+    }
     union::status(view)
 }
 
-/// Cold phase union, or one delta's reuse comparison against an admitted view.
+/// Cold phase union, the assay proof export, or one delta against an admitted view.
+///
+/// `cold` is the phase union. `proof` exports the forty-conclusion assay. A
+/// delta over an assay proof view runs the sealed comparison. A delta over a
+/// phase-union view reports that union.
 pub(crate) fn run(name: &str, view: Option<&str>) -> Result<Datum, WorldError> {
+    if name == "proof" {
+        return proof::export_datum();
+    }
+    if DELTAS.contains(&name)
+        && let Some(view) = view
+        && view.starts_with(view::HEADER)
+    {
+        return proof::reuse_datum(name, view);
+    }
     union::run(name, view)
 }
 
-/// Why one phase gate was reused, or the gap that kept it from running.
+/// Why one leaf was reused, or the gap that kept it from running.
 pub(crate) fn why(delta: &str, leaf: &str, view: Option<&str>) -> Result<Datum, WorldError> {
+    if is_proof_view(view) {
+        return proof::why(delta, leaf, view);
+    }
     union::why(delta, leaf, view)
 }
 
@@ -324,7 +355,14 @@ pub(crate) fn why(delta: &str, leaf: &str, view: Option<&str>) -> Result<Datum, 
 /// retained cold reads plus those admission reads. A named gap keeps the
 /// frontier open.
 pub(crate) fn frontier(view: Option<&str>) -> Result<Datum, WorldError> {
+    if is_proof_view(view) {
+        return proof::frontier(view);
+    }
     union::frontier(view)
+}
+
+fn is_proof_view(view: Option<&str>) -> bool {
+    view.is_some_and(|text| text.starts_with(view::HEADER))
 }
 
 /// One named leaf that is outside the phase union, or the full frontier when
@@ -487,7 +525,6 @@ pub(super) fn bind() -> Result<BoundFacts, WorldError> {
 
 pub(crate) use run::attempt_leaf;
 
-#[cfg(test)]
 fn sealed_ids() -> Result<(Vec<String>, String), WorldError> {
     let bound = bind()?;
     let leaves: Vec<String> = bound.facts.keys().cloned().collect();
@@ -500,7 +537,6 @@ fn sealed_ids() -> Result<(Vec<String>, String), WorldError> {
     Ok((leaves, subject))
 }
 
-#[cfg(test)]
 fn subject_of(bound: &BoundFacts) -> Result<String, WorldError> {
     let datum = Datum::Vector(
         subject_rows(bound)?
@@ -511,7 +547,6 @@ fn subject_of(bound: &BoundFacts) -> Result<String, WorldError> {
     Ok(hex(&provider::content_id(datum)?.bytes))
 }
 
-#[cfg(test)]
 fn subject_rows(bound: &BoundFacts) -> Result<Vec<String>, WorldError> {
     let mut rows = vec![
         bound.package.name.clone(),
@@ -583,7 +618,6 @@ fn is_token(token: &str) -> bool {
     token.len() == 64 && token.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
-#[cfg(test)]
 fn basis(denominator: usize, reused: usize) -> u16 {
     if denominator == 0 || reused > denominator {
         return 0;

@@ -21,10 +21,11 @@ use crate::provider;
 
 use super::{ColdProof, DeltaCold};
 
-const HEADER: &str = "sim-world-proof-view-v1";
+pub(super) const HEADER: &str = "sim-world-proof-view-v1";
 
 pub(super) struct Opened {
     pub(super) proof: ColdProof,
+    pub(super) admission_requests: u64,
 }
 
 pub(super) fn export(cold: &ColdProof) -> Result<String, WorldError> {
@@ -56,11 +57,12 @@ pub(super) fn open(text: &str) -> Result<Option<Opened>, WorldError> {
     if parsed.subject != live || parsed.proof.leaves != leaves || parsed.proof.subject != assay {
         return Ok(None);
     }
-    if super::run::authentic(&parsed.proof)?.is_none() {
+    let Some(admission_requests) = super::run::authentic(&parsed.proof)? else {
         return Ok(None);
-    }
+    };
     Ok(Some(Opened {
         proof: parsed.proof,
+        admission_requests,
     }))
 }
 
@@ -190,6 +192,12 @@ fn body_of(cold: &ColdProof, sealed: &str) -> Result<String, WorldError> {
     for leaf in &cold.failures {
         push(&mut lines, "failure", &[leaf])?;
     }
+    for leaf in &cold.kept {
+        push(&mut lines, "retain", &[leaf])?;
+    }
+    for (leaf, fact) in &cold.claims {
+        push(&mut lines, "claim", &[leaf, fact])?;
+    }
     for (name, delta) in &cold.deltas {
         push(&mut lines, "delta", &[name, &delta.revision.to_string()])?;
         for fact in &delta.changed {
@@ -283,6 +291,8 @@ fn parse_body(body: &str) -> Result<Option<Parsed>, WorldError> {
     let mut hidden_fact = None;
     let mut empty_fact = None;
     let mut failures = Vec::new();
+    let mut kept = BTreeSet::new();
+    let mut claims = BTreeMap::new();
     let mut deltas: BTreeMap<String, Draft> = BTreeMap::new();
     for part in body.split(';') {
         let mut words = part.split(' ');
@@ -349,6 +359,19 @@ fn parse_body(body: &str) -> Result<Option<Parsed>, WorldError> {
             "failure" if values.len() == 1 && leaves.iter().any(|leaf| leaf == values[0]) => {
                 if !failures.iter().any(|leaf| leaf == values[0]) {
                     failures.push(values[0].to_owned());
+                }
+            }
+            "retain" if values.len() == 1 && leaves.iter().any(|leaf| leaf == values[0]) => {
+                if !kept.insert(values[0].to_owned()) {
+                    return Ok(None);
+                }
+            }
+            "claim" if values.len() == 2 && leaves.iter().any(|leaf| leaf == values[0]) => {
+                if claims
+                    .insert(values[0].to_owned(), values[1].to_owned())
+                    .is_some()
+                {
+                    return Ok(None);
                 }
             }
             "delta" if values.len() == 2 && !deltas.contains_key(values[0]) => {
@@ -463,6 +486,8 @@ fn parse_body(body: &str) -> Result<Option<Parsed>, WorldError> {
             baseline,
             facts: fact_ids,
             deltas: cold_deltas,
+            kept,
+            claims,
         },
     }))
 }
