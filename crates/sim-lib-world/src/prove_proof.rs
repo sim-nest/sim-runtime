@@ -10,7 +10,9 @@
 //! affected leaf, or claiming an input the leaf did not read, counts as false
 //! reuse. The frontier of an admitted view names the same failures whether
 //! the caller asks for the whole view or for one conclusion in it. The
-//! frontier token of that view resumes it. A phase-union view stays on the
+//! frontier token of that view resumes it. The plan of an admitted view
+//! lists those conclusions. Its continuation resumes the next page, and the
+//! last page has no continuation. A phase-union view stays on the
 //! phase-union command.
 
 use std::collections::BTreeSet;
@@ -171,6 +173,28 @@ pub(super) fn frontier_leaf(leaf: &str, view: Option<&str>) -> Result<Datum, Wor
     Ok(gap(leaf, "unavailable-proof"))
 }
 
+pub(super) fn plan(token: Option<&str>, view: Option<&str>) -> Result<Datum, WorldError> {
+    if let Some(token) = token
+        && !super::is_token(token)
+    {
+        return Ok(gap("plan", "stale-or-missing"));
+    }
+    let Some(opened) = admitted(view)? else {
+        return Ok(gap("plan", "refresh-needed"));
+    };
+    let leaves = &opened.proof.leaves;
+    let subject = &opened.proof.subject;
+    let pages = super::page_count(leaves.len());
+    let page = match token {
+        None => 0,
+        Some(token) => match super::page_for(token, subject, pages)? {
+            Some(page) => page,
+            None => return Ok(gap("plan", "stale-or-missing")),
+        },
+    };
+    super::record::plan_record(leaves, subject, page, pages)
+}
+
 pub(super) fn resume(token: &str, view: Option<&str>) -> Result<Datum, WorldError> {
     if !super::is_token(token) {
         return Ok(gap("resume", "stale-or-missing"));
@@ -180,6 +204,15 @@ pub(super) fn resume(token: &str, view: Option<&str>) -> Result<Datum, WorldErro
     };
     if token == super::frontier_token(&opened.proof.subject)? {
         return frontier(view);
+    }
+    let pages = super::page_count(opened.proof.leaves.len());
+    if let Some(page) = super::page_for(token, &opened.proof.subject, pages)? {
+        return super::record::plan_record(
+            &opened.proof.leaves,
+            &opened.proof.subject,
+            page,
+            pages,
+        );
     }
     Ok(gap("resume", "stale-or-missing"))
 }

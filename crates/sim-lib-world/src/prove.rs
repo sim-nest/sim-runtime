@@ -301,8 +301,14 @@ pub(crate) fn reuse(
     }))
 }
 
-/// Plan page for the portable phase gates. A token opens the page it names.
-pub(crate) fn plan(token: Option<&str>) -> Result<Datum, WorldError> {
+/// Plan page for the view that admits it.
+///
+/// A phase-union plan lists that union's gates. An assay proof view lists
+/// the forty conclusions. A token opens the page it names.
+pub(crate) fn plan(token: Option<&str>, view: Option<&str>) -> Result<Datum, WorldError> {
+    if is_proof_view(view) {
+        return proof::plan(token, view);
+    }
     union::plan(token)
 }
 
