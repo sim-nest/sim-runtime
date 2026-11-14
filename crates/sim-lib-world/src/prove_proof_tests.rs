@@ -155,6 +155,60 @@ fn loaded_proof_view_compares_the_cold_denominator() {
         .run(&with_view(&["prove", "resume", &token], &tampered))
         .expect("tampered resume");
     assert_eq!(text(&tampered_resume, "reason"), "refresh-needed");
+    let plan = prove
+        .run(&with_view(&["prove", "plan"], &view))
+        .expect("plan");
+    assert_eq!(tag(&plan), "prove/plan-v1");
+    assert_eq!(number(&plan, "denominator"), 40);
+    assert_eq!(number(&plan, "page"), 0);
+    assert_eq!(number(&plan, "pages"), 5);
+    assert_eq!(number(&plan, "effects"), 0);
+    assert_eq!(number(&plan, "subprocesses"), 0);
+    assert_eq!(text(&plan, "leaves"), opened.leaves[..8].join(" "));
+    let plan_token = text(&plan, "continuation");
+    let next = prove
+        .run(&with_view(&["prove", "plan", &plan_token], &view))
+        .expect("next plan page");
+    let resumed_page = prove
+        .run(&with_view(&["prove", "resume", &plan_token], &view))
+        .expect("resume plan page");
+    assert_eq!(resumed_page, next);
+    assert_eq!(number(&next, "page"), 1);
+    assert_ne!(text(&next, "leaves"), text(&plan, "leaves"));
+    let mut token = maybe_text(&next, "continuation");
+    let mut pages = 2u64;
+    let mut last = next;
+    while let Some(current) = token {
+        last = prove
+            .run(&with_view(&["prove", "resume", &current], &view))
+            .expect("later plan page");
+        pages = pages.saturating_add(1);
+        token = maybe_text(&last, "continuation");
+    }
+    assert_eq!(pages, 5);
+    assert_eq!(number(&last, "page"), 4);
+    assert_eq!(text(&last, "leaves"), opened.leaves[32..].join(" "));
+    let zeros = "0".repeat(64);
+    let wrong = prove
+        .run(&with_view(&["prove", "plan", &zeros], &view))
+        .expect("wrong plan token");
+    assert_eq!(text(&wrong, "reason"), "stale-or-missing");
+    let forged_plan = prove
+        .run(&with_view(&["prove", "plan"], &tampered))
+        .expect("tampered plan");
+    assert_eq!(text(&forged_plan, "call"), "plan");
+    assert_eq!(text(&forged_plan, "reason"), "refresh-needed");
+    let bare = prove
+        .run(&args(["prove", "resume", plan_token.as_str()]))
+        .expect("plan token without the proof view");
+    assert_eq!(text(&bare, "reason"), "stale-or-missing");
+    let union_argv = ["prove".to_owned(), "plan".to_owned()];
+    let union_page = prove.run(&union_argv).expect("union plan");
+    let union_token = text(&union_page, "continuation");
+    let foreign = prove
+        .run(&with_view(&["prove", "resume", &union_token], &view))
+        .expect("union token on the proof view");
+    assert_eq!(text(&foreign, "reason"), "stale-or-missing");
     let status = prove
         .run(&with_view(&["prove", "status"], &view))
         .expect("status");
@@ -184,6 +238,17 @@ fn with_view(head: &[&str], view: &str) -> Vec<String> {
         .map(str::to_owned)
         .chain(std::iter::once(view.to_owned()))
         .collect()
+}
+
+fn maybe_text(value: &Datum, name: &str) -> Option<String> {
+    let Datum::Node { fields, .. } = value else {
+        return None;
+    };
+    let (_, field) = fields.iter().find(|(field, _)| field.to_string() == name)?;
+    match field {
+        Datum::String(text) => Some(text.clone()),
+        _ => None,
+    }
 }
 
 fn joined(values: &std::collections::BTreeSet<String>) -> String {

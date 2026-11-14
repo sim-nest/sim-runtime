@@ -143,7 +143,7 @@ fn the_plan_lists_every_phase_and_does_not_drop_a_gate() {
     let mut seen = Vec::new();
     for _ in 0..6 {
         let page = match token.as_deref() {
-            None => prove::plan(None).unwrap(),
+            None => prove::plan(None, None).unwrap(),
             Some(token) => prove::resume(token, None).unwrap(),
         };
         assert_eq!(number(&page, "denominator"), 29);

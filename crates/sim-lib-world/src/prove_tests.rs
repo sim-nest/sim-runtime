@@ -126,7 +126,7 @@ fn an_unknown_leaf_is_a_gap_and_a_native_leaf_stays_excluded() {
 
 #[test]
 fn plan_resume_advances_one_page_and_a_bad_token_is_a_gap() {
-    let first = prove::plan(None).unwrap();
+    let first = prove::plan(None, None).unwrap();
     assert_eq!(tag(&first), "prove/plan-v1");
     let token = text_field(&first, "continuation").to_owned();
     assert_eq!(token.len(), 64);
