@@ -271,9 +271,12 @@ fn a_resealed_view_cannot_drop_a_failed_capture() {
     let executed = prove::cold_executions();
     let opened = prove::open_view(&view).unwrap().expect("assay view");
     assert_eq!(opened.failures, vec!["conclusion/40".to_owned()]);
+    let admitted = prove::frontier(Some(&view)).unwrap();
+    assert_eq!(tag(&admitted), "prove/frontier-v1");
+    assert!(!bool_field(&admitted, "complete"));
     assert_eq!(
-        text_field(&prove::frontier(Some(&view)).unwrap(), "reason"),
-        "refresh-needed"
+        text_field(&admitted, "failures"),
+        "proof-failed conclusion/40"
     );
     let dropped_empty = prove::reseal_replaced(&view, "empty stable/40;", "")
         .unwrap()
@@ -641,9 +644,12 @@ fn a_failed_predicate_stays_in_the_denominator_and_opens_a_gap() {
     let view = prove::cold_view(&cold).unwrap();
     let opened = prove::open_view(&view).unwrap().expect("assay view");
     assert_eq!(opened.failures, vec!["conclusion/40".to_owned()]);
+    let admitted = prove::frontier(Some(&view)).unwrap();
+    assert_eq!(tag(&admitted), "prove/frontier-v1");
+    assert!(!bool_field(&admitted, "complete"));
     assert_eq!(
-        text_field(&prove::frontier(Some(&view)).unwrap(), "reason"),
-        "refresh-needed"
+        text_field(&admitted, "failures"),
+        "proof-failed conclusion/40"
     );
 }
 

@@ -10,7 +10,6 @@
 //! does not abort the remaining leaves. The owner-command count is the number
 //! of command leaves in that executed catalog.
 
-#[cfg(test)]
 use std::collections::{BTreeMap, BTreeSet};
 
 use sim_incremental_core::projection::FactId;
@@ -19,7 +18,6 @@ use sim_kernel::Datum;
 use crate::WorldError;
 use crate::provider;
 
-#[cfg(test)]
 use super::ColdProof;
 use super::{BoundFacts, leaf};
 
@@ -47,7 +45,6 @@ pub(super) struct Run {
 /// The sealed path uses [`Disturbance::none`]. A hidden read or an empty fact
 /// applies to every pass. A substitute program applies only to the later
 /// passes. The baseline keeps the sealed program.
-#[cfg(test)]
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Disturbance {
     /// Leaf that also reads `hidden_fact`.
@@ -60,7 +57,6 @@ pub(crate) struct Disturbance {
     pub(crate) empty_fact: Option<String>,
 }
 
-#[cfg(test)]
 impl Disturbance {
     /// The sealed subject, with no extra read and no substitute code.
     pub(crate) fn none() -> Self {
@@ -73,7 +69,6 @@ struct Prepared {
     datums: Vec<Datum>,
 }
 
-#[cfg(test)]
 pub(super) fn execute(disturbance: Disturbance) -> Result<ColdProof, WorldError> {
     let batch = crate::assay::read_semantics()?;
     let bound = super::bind()?;
@@ -168,6 +163,8 @@ pub(super) fn execute(disturbance: Disturbance) -> Result<ColdProof, WorldError>
         hidden_fact: disturbance.hidden_fact,
         empty_fact: disturbance.empty_fact,
         deltas,
+        kept: BTreeSet::new(),
+        claims: BTreeMap::new(),
     })
 }
 
@@ -179,7 +176,6 @@ pub(super) fn execute(disturbance: Disturbance) -> Result<ColdProof, WorldError>
 /// reads and the proof reads that comparison spent.
 /// The body is admitted only when its captures, digests, changed facts,
 /// revisions, request count, obligation facts, and failure set match.
-#[cfg(test)]
 pub(super) fn authentic(proof: &ColdProof) -> Result<Option<u64>, WorldError> {
     let bound = super::bind()?;
     let batch = crate::assay::read_semantics()?;
@@ -229,7 +225,6 @@ pub(super) fn authentic(proof: &ColdProof) -> Result<Option<u64>, WorldError> {
     Ok(Some(requests))
 }
 
-#[cfg(test)]
 fn same_facts(proof: &ColdProof, bound: &BoundFacts) -> bool {
     proof.facts.len() == bound.facts.len()
         && proof.facts.iter().all(|(leaf, names)| {
@@ -243,7 +238,6 @@ fn same_facts(proof: &ColdProof, bound: &BoundFacts) -> bool {
         })
 }
 
-#[cfg(test)]
 fn same_changes(proof: &ColdProof, batch: &crate::assay::SemanticBatch) -> bool {
     batch.deltas.len() == proof.deltas.len()
         && batch.deltas.iter().all(|delta| {
@@ -253,7 +247,6 @@ fn same_changes(proof: &ColdProof, batch: &crate::assay::SemanticBatch) -> bool 
         })
 }
 
-#[cfg(test)]
 fn record_pass(
     proof: &ColdProof,
     delta: Option<&str>,
@@ -291,7 +284,6 @@ fn record_pass(
     true
 }
 
-#[cfg(test)]
 fn retain(
     failures: &mut Vec<String>,
     captures: &mut BTreeMap<String, String>,
@@ -306,7 +298,6 @@ fn retain(
     baseline.insert(leaf_name.to_owned(), outcome.digest.clone());
 }
 
-#[cfg(test)]
 fn stored_codes(bound: &BoundFacts, disturbance: &Disturbance) -> BTreeMap<String, String> {
     bound
         .facts
@@ -320,7 +311,6 @@ fn stored_codes(bound: &BoundFacts, disturbance: &Disturbance) -> BTreeMap<Strin
         .collect()
 }
 
-#[cfg(test)]
 fn program_for(
     disturbance: &Disturbance,
     replaced: bool,
@@ -334,7 +324,6 @@ fn program_for(
     }
 }
 
-#[cfg(test)]
 fn prepare_pass(
     bound: &BoundFacts,
     disturbance: &Disturbance,
@@ -363,7 +352,6 @@ fn prepare_pass(
     Ok(rows)
 }
 
-#[cfg(test)]
 fn raw_bytes(disturbance: &Disturbance, fact: &str, raw: impl Fn(&str) -> String) -> String {
     if disturbance.empty_fact.as_deref() == Some(fact) {
         String::new()
@@ -373,7 +361,6 @@ fn raw_bytes(disturbance: &Disturbance, fact: &str, raw: impl Fn(&str) -> String
 }
 
 /// Reruns one retained leaf with its hidden read, empty fact, and program.
-#[cfg(test)]
 pub(super) fn project_retained(
     proof: &ColdProof,
     leaf_name: &str,

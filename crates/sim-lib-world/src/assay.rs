@@ -252,7 +252,6 @@ pub(crate) fn judge(
 }
 
 /// Assay subject stored on a cold proof and checked when its view is opened.
-#[cfg(test)]
 pub(crate) fn frozen_subject() -> Result<String, WorldError> {
     let facts = universe()?;
     let shape_id = provider::content_id(Datum::String("shape/world-config-v1".to_owned()))?;
