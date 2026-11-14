@@ -232,6 +232,7 @@ impl WorldEntrypoint {
                 "plan" => self.measure_plan_outcome(),
                 "seal" => self.measure_seal_outcome(),
                 "stop" => self.measure_stop_outcome(),
+                "cleanup" => self.measure_cleanup_outcome(),
                 _ => Ok(Outcome::Refused {
                     call: "usage".to_owned(),
                     reason: "usage".to_owned(),
@@ -412,6 +413,12 @@ impl WorldEntrypoint {
         }
     }
 
+    fn measure_cleanup_outcome(&self) -> Result<Outcome> {
+        crate::cleanup_beats::measure_cleanup()
+            .map(Outcome::Value)
+            .map_err(eval_error)
+    }
+
     fn measure_seal_outcome(&self) -> Result<Outcome> {
         seal_compile::run().map(Outcome::Value).map_err(eval_error)
     }
@@ -556,7 +563,7 @@ impl WorldEntrypoint {
     }
 }
 
-const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure status | measure why | measure plan | measure seal | measure stop | assay | plan [text|card] [CONTINUATION] | snapshot DOCUMENT SELECTOR | snapshot-diff BEFORE AFTER SELECTOR | service REALIZATION SELECTOR | service-plan REALIZATION [SELECTOR DESIRED] | release-plan REALIZATION [SELECTOR DESIRED] | release-status REALIZATION | release-why REALIZATION SELECTOR | deliver REALIZATION [SELECTOR DESIRED] | deliver-status REALIZATION [VIEW] | deliver-why REALIZATION SELECTOR [VIEW] | canary REALIZATION SOURCE DESTINATION PURPOSE [issued|spent] | conduct CASE | qualify CASE | schedule CASE | converge CASE | fixed CASE | transact CASE | land CASE | recover CASE | manifest CASE | promote CASE | bind CASE | journal CASE | operate CASE | author CASE | work CASE | fresh EXPORT CHANGE | succeed EXPORT CHANGE | transfer DOCUMENT | seal [DOCUMENT [TARGET]] | universe [DOCUMENT [TARGET]] | seal-diff BEFORE AFTER [TARGET]";
+const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure status | measure why | measure plan | measure seal | measure stop | measure cleanup | assay | plan [text|card] [CONTINUATION] | snapshot DOCUMENT SELECTOR | snapshot-diff BEFORE AFTER SELECTOR | service REALIZATION SELECTOR | service-plan REALIZATION [SELECTOR DESIRED] | release-plan REALIZATION [SELECTOR DESIRED] | release-status REALIZATION | release-why REALIZATION SELECTOR | deliver REALIZATION [SELECTOR DESIRED] | deliver-status REALIZATION [VIEW] | deliver-why REALIZATION SELECTOR [VIEW] | canary REALIZATION SOURCE DESTINATION PURPOSE [issued|spent] | conduct CASE | qualify CASE | schedule CASE | converge CASE | fixed CASE | transact CASE | land CASE | recover CASE | manifest CASE | promote CASE | bind CASE | journal CASE | operate CASE | author CASE | work CASE | fresh EXPORT CHANGE | succeed EXPORT CHANGE | transfer DOCUMENT | seal [DOCUMENT [TARGET]] | universe [DOCUMENT [TARGET]] | seal-diff BEFORE AFTER [TARGET]";
 
 #[cfg(test)]
 #[path = "command_argv.rs"]
