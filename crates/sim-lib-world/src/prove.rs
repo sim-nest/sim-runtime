@@ -303,19 +303,23 @@ pub(crate) fn reuse(
 
 /// Plan page for the view that admits it.
 ///
-/// A phase-union plan lists that union's gates. An assay proof view lists
-/// the forty conclusions. A token opens the page it names.
+/// A phase-union plan lists that union's gates. A supplied phase-union view
+/// is admitted first, and a missing or stale one is a refresh gap. A plan
+/// with no view lists the live gates and does not run a leaf. An assay proof
+/// view lists the forty conclusions. A token opens the page it names.
 pub(crate) fn plan(token: Option<&str>, view: Option<&str>) -> Result<Datum, WorldError> {
     if is_proof_view(view) {
         return proof::plan(token, view);
     }
-    union::plan(token)
+    union::plan(token, view)
 }
 
 /// Continues a plan page or a frontier token.
 ///
-/// A phase-union view resumes that union. An assay proof view resumes the
-/// frontier token of the admitted view.
+/// A phase-union view is admitted before a plan page is returned. A missing
+/// or stale phase-union view is a refresh gap. The frontier token opens that
+/// view's frontier. An assay proof view resumes the frontier token or the
+/// plan page of the admitted view.
 pub(crate) fn resume(token: &str, view: Option<&str>) -> Result<Datum, WorldError> {
     if is_proof_view(view) {
         return proof::resume(token, view);

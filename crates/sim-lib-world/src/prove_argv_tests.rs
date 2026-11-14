@@ -95,6 +95,53 @@ fn a_split_union_view_dispatches_like_one_string() {
         .expect("split resume");
     assert_eq!(split_resume, whole_resume);
     assert_eq!(whole_resume, whole_frontier);
+
+    let bare_plan = prove.run(&argv(&["prove", "plan"])).expect("bare plan");
+    let whole_plan = prove
+        .run(&with_view(["prove", "plan"], [&view]))
+        .expect("plan");
+    let split_plan = prove
+        .run(&with_view(["prove", "plan"], &parts))
+        .expect("split plan");
+    assert_eq!(split_plan, whole_plan);
+    assert_eq!(whole_plan, bare_plan);
+    assert_eq!(number(&whole_plan, "denominator"), 29);
+    assert_eq!(number(&whole_plan, "page"), 0);
+    let mut tampered = view.clone();
+    let last = tampered.pop().expect("view char");
+    tampered.push(if last == 'a' { 'b' } else { 'a' });
+    let forged_plan = prove
+        .run(&with_view(["prove", "plan"], [&tampered]))
+        .expect("forged plan");
+    assert_eq!(text(&forged_plan, "call"), "plan");
+    assert_eq!(text(&forged_plan, "reason"), "refresh-needed");
+    let early = prove
+        .run(&with_view(["prove", "plan", "not-a-token"], [&tampered]))
+        .expect("non-token plan");
+    assert_eq!(text(&early, "reason"), "stale-or-missing");
+    let plan_token = text(&whole_plan, "continuation");
+    let next_whole = prove
+        .run(&with_view(["prove", "plan", &plan_token], [&view]))
+        .expect("next plan");
+    let next_split = prove
+        .run(&with_view(["prove", "plan", &plan_token], &parts))
+        .expect("split next plan");
+    assert_eq!(next_split, next_whole);
+    assert_eq!(number(&next_whole, "page"), 1);
+    let resumed_page = prove
+        .run(&with_view(["prove", "resume", &plan_token], [&view]))
+        .expect("resume plan");
+    assert_eq!(resumed_page, next_whole);
+    let forged_resume = prove
+        .run(&with_view(["prove", "resume", &plan_token], [&tampered]))
+        .expect("forged resume");
+    assert_eq!(text(&forged_resume, "call"), "resume");
+    assert_eq!(text(&forged_resume, "reason"), "refresh-needed");
+    let zeros = "0".repeat(64);
+    let wrong = prove
+        .run(&with_view(["prove", "plan", &zeros], [&view]))
+        .expect("wrong plan token");
+    assert_eq!(text(&wrong, "reason"), "stale-or-missing");
 }
 
 #[test]
@@ -109,6 +156,11 @@ fn view_headers_are_not_leaves_and_unheaded_tails_are_usage() {
             .expect("header frontier");
         assert_eq!(text(&one, "call"), "frontier");
         assert_eq!(text(&one, "reason"), "refresh-needed");
+        let planned = prove
+            .run(&argv(&["prove", "plan", header]))
+            .expect("header plan");
+        assert_eq!(text(&planned, "call"), "plan");
+        assert_eq!(text(&planned, "reason"), "refresh-needed");
         let joined = format!("{header} tail");
         let split = prove
             .run(&argv(&["prove", "frontier", header, " tail"]))
@@ -118,6 +170,15 @@ fn view_headers_are_not_leaves_and_unheaded_tails_are_usage() {
             .expect("joined header");
         assert_eq!(split, whole);
         assert_eq!(text(&split, "reason"), "refresh-needed");
+        let split_plan = prove
+            .run(&argv(&["prove", "plan", header, " tail"]))
+            .expect("split plan header");
+        let whole_plan = prove
+            .run(&argv(&["prove", "plan", &joined]))
+            .expect("joined plan header");
+        assert_eq!(split_plan, whole_plan);
+        assert_eq!(text(&split_plan, "call"), "plan");
+        assert_eq!(text(&split_plan, "reason"), "refresh-needed");
     }
 
     let native = prove

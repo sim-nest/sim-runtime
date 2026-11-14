@@ -104,6 +104,8 @@ mod normalize;
 mod observe;
 #[path = "portable_operate.rs"]
 mod operate;
+#[path = "portable_union_pages.rs"]
+mod pages;
 #[path = "portable_plan.rs"]
 mod plan;
 #[path = "portable_project.rs"]
@@ -124,6 +126,8 @@ mod service;
 mod transact;
 #[path = "portable_union_view.rs"]
 mod view;
+
+pub(super) use pages::{plan, resume};
 #[path = "portable_work.rs"]
 mod work;
 
@@ -219,38 +223,6 @@ impl SandboxLauncher for RefuseLaunch {
             report: None,
         })
     }
-}
-
-/// Plan page for the phase gates. Listing them does not run a leaf.
-pub(super) fn plan(token: Option<&str>) -> Result<Datum, WorldError> {
-    let leaves = phase_names()?;
-    let subject = subject()?;
-    let pages = super::page_count(leaves.len());
-    let page = match token {
-        None => 0,
-        Some(token) => match super::page_for(token, &subject, pages)? {
-            Some(page) => page,
-            None => return Ok(gap("plan", "stale-or-missing")),
-        },
-    };
-    record::plan_record(&leaves, &subject, page, pages)
-}
-
-/// Continues a plan page, or opens the frontier named by a frontier token.
-pub(super) fn resume(token: &str, view: Option<&str>) -> Result<Datum, WorldError> {
-    if !super::is_token(token) {
-        return Ok(gap("resume", "stale-or-missing"));
-    }
-    let leaves = phase_names()?;
-    let subject = subject()?;
-    let pages = super::page_count(leaves.len());
-    if let Some(page) = super::page_for(token, &subject, pages)? {
-        return record::plan_record(&leaves, &subject, page, pages);
-    }
-    if token == super::frontier_token(&subject)? {
-        return frontier(view);
-    }
-    Ok(gap("resume", "stale-or-missing"))
 }
 
 /// Status of an admitted phase union.

@@ -12,6 +12,7 @@ use crate::WorldError;
 pub(super) fn subject_bytes() -> Result<Datum, WorldError> {
     Ok(Datum::Vector(vec![
         Datum::String(include_str!("portable_union.rs").to_owned()),
+        Datum::String(include_str!("portable_union_pages.rs").to_owned()),
         Datum::String(include_str!("portable_union_subject.rs").to_owned()),
         Datum::String(include_str!("portable_union_view.rs").to_owned()),
         Datum::String(include_str!("portable_project.rs").to_owned()),
