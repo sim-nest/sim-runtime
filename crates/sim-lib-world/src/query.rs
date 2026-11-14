@@ -27,7 +27,7 @@ pub(crate) struct ResidentSnapshot {
     pub(crate) units: usize,
 }
 
-pub(crate) struct MeasuredWhy {
+pub(crate) struct MeasuredQuery {
     pub(crate) record: Datum,
     pub(crate) within_ceiling: bool,
 }
@@ -41,6 +41,15 @@ pub(crate) fn count_datum(value: u64) -> Datum {
 
 pub(crate) fn nearest_rank_p95(samples: usize) -> usize {
     (samples.saturating_mul(95).saturating_add(99) / 100).saturating_sub(1)
+}
+
+/// Reports whether a nearest-rank p95 in microseconds meets the fixed ceiling.
+///
+/// `p95-ms` stays the whole-millisecond truncation of that sample. This
+/// predicate admits 200_000 microseconds and refuses 200_001.
+#[must_use]
+pub(crate) fn within_cached_ceiling(p95_us: u64) -> bool {
+    p95_us <= CEILING_MS.saturating_mul(1_000)
 }
 
 pub(crate) fn seal_resident_why() -> Result<ResidentSnapshot, WorldError> {
@@ -98,22 +107,41 @@ pub(crate) fn read_only_record(
     }
 }
 
-pub(crate) fn measure_why() -> Result<MeasuredWhy, WorldError> {
+pub(crate) fn measure_why() -> Result<MeasuredQuery, WorldError> {
+    measure_resident("why", |product| {
+        product.why_work("conclusion/unit-000000", "fact/000000")
+    })
+}
+
+pub(crate) fn measure_status() -> Result<MeasuredQuery, WorldError> {
+    measure_resident("status", |product| Ok(product.status_work()))
+}
+
+fn measure_resident(
+    command: &str,
+    mut read: impl FnMut(&WorldProduct) -> Result<(Datum, HostWork), WorldError>,
+) -> Result<MeasuredQuery, WorldError> {
     let snapshot = seal_resident_why()?;
     let records = snapshot.records;
     let units = snapshot.units;
     let product = WorldProduct::resident(snapshot.closure)?;
+    let (live_records, live_units) = product.resident_counts();
+    if live_records != records || live_units != units {
+        return Err(WorldError::Qualification(
+            "resident snapshot denominator drifted".to_owned(),
+        ));
+    }
     let effects = Cell::new(None);
     let subprocesses = Cell::new(None);
     let sampled = sample_cached(|| {
-        let (datum, work) = product.why_work("conclusion/unit-000000", "fact/000000")?;
+        let (datum, work) = read(&product)?;
         work.record(&effects, &subprocesses)?;
         Ok(render(&datum))
     })?;
     let (effects, subprocesses) = observed_pair(&effects, &subprocesses)?;
-    Ok(MeasuredWhy {
+    Ok(MeasuredQuery {
         record: latency_record(
-            "why",
+            command,
             records,
             units,
             sampled.p95_ms,
@@ -255,7 +283,7 @@ pub(crate) fn sample_cached(
     Ok(Sampled {
         p95_ms,
         raw_us,
-        within_ceiling: p95_ms <= CEILING_MS,
+        within_ceiling: within_cached_ceiling(p95_us),
     })
 }
 
@@ -264,7 +292,7 @@ pub(crate) struct Sampled {
     pub(crate) p95_ms: u64,
     /// Sample durations in microseconds, in call order.
     pub(crate) raw_us: Vec<u64>,
-    /// Whether `p95_ms` is within the cached-query ceiling.
+    /// Whether the raw microsecond p95 meets the fixed cached-query ceiling.
     pub(crate) within_ceiling: bool,
 }
 
@@ -332,5 +360,12 @@ mod tests {
         assert_eq!(walked.effects(), 0);
         assert_eq!(walked.subprocesses(), 0);
         assert!(!walked.compiler_opened());
+    }
+
+    #[test]
+    fn cached_ceiling_compares_raw_microseconds() {
+        assert!(super::within_cached_ceiling(200_000));
+        assert!(!super::within_cached_ceiling(200_001));
+        assert_eq!(200_001 / 1_000, super::CEILING_MS);
     }
 }

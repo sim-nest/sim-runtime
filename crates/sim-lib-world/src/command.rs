@@ -227,6 +227,7 @@ impl WorldEntrypoint {
                 .map_err(eval_error),
             Some("read-only") if argv.len() == 2 => Ok(Outcome::Value(self.read_only_value())),
             Some("measure") if argv.len() == 3 => match argv[2].as_str() {
+                "status" => self.measure_status_outcome(),
                 "why" => self.measure_outcome(),
                 "plan" => self.measure_plan_outcome(),
                 "seal" => self.measure_seal_outcome(),
@@ -374,14 +375,26 @@ impl WorldEntrypoint {
         }
     }
 
+    fn measure_status_outcome(&self) -> Result<Outcome> {
+        self.cached_outcome(query::measure_status(), "status")
+    }
+
     fn measure_outcome(&self) -> Result<Outcome> {
-        let measured = query::measure_why().map_err(eval_error)?;
+        self.cached_outcome(query::measure_why(), "why")
+    }
+
+    fn cached_outcome(
+        &self,
+        measured: Result<query::MeasuredQuery, crate::WorldError>,
+        command: &'static str,
+    ) -> Result<Outcome> {
+        let measured = measured.map_err(eval_error)?;
         if measured.within_ceiling {
             Ok(Outcome::Value(measured.record))
         } else {
             Ok(Outcome::OverCeiling {
                 value: measured.record,
-                command: "why",
+                command,
             })
         }
     }
@@ -528,7 +541,7 @@ impl WorldEntrypoint {
     }
 }
 
-const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | measure plan | measure seal | assay | plan [text|card] [CONTINUATION] | snapshot DOCUMENT SELECTOR | snapshot-diff BEFORE AFTER SELECTOR | service REALIZATION SELECTOR | service-plan REALIZATION [SELECTOR DESIRED] | release-plan REALIZATION [SELECTOR DESIRED] | release-status REALIZATION | release-why REALIZATION SELECTOR | deliver REALIZATION [SELECTOR DESIRED] | deliver-status REALIZATION [VIEW] | deliver-why REALIZATION SELECTOR [VIEW] | canary REALIZATION SOURCE DESTINATION PURPOSE [issued|spent] | conduct CASE | qualify CASE | schedule CASE | converge CASE | fixed CASE | transact CASE | land CASE | recover CASE | manifest CASE | promote CASE | bind CASE | journal CASE | operate CASE | author CASE | work CASE | fresh EXPORT CHANGE | succeed EXPORT CHANGE | transfer DOCUMENT | seal [DOCUMENT [TARGET]] | universe [DOCUMENT [TARGET]] | seal-diff BEFORE AFTER [TARGET]";
+const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure status | measure why | measure plan | measure seal | assay | plan [text|card] [CONTINUATION] | snapshot DOCUMENT SELECTOR | snapshot-diff BEFORE AFTER SELECTOR | service REALIZATION SELECTOR | service-plan REALIZATION [SELECTOR DESIRED] | release-plan REALIZATION [SELECTOR DESIRED] | release-status REALIZATION | release-why REALIZATION SELECTOR | deliver REALIZATION [SELECTOR DESIRED] | deliver-status REALIZATION [VIEW] | deliver-why REALIZATION SELECTOR [VIEW] | canary REALIZATION SOURCE DESTINATION PURPOSE [issued|spent] | conduct CASE | qualify CASE | schedule CASE | converge CASE | fixed CASE | transact CASE | land CASE | recover CASE | manifest CASE | promote CASE | bind CASE | journal CASE | operate CASE | author CASE | work CASE | fresh EXPORT CHANGE | succeed EXPORT CHANGE | transfer DOCUMENT | seal [DOCUMENT [TARGET]] | universe [DOCUMENT [TARGET]] | seal-diff BEFORE AFTER [TARGET]";
 
 #[cfg(test)]
 #[path = "command_argv.rs"]

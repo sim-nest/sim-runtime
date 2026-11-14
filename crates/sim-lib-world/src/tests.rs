@@ -245,6 +245,7 @@ fn resident_snapshot_has_the_cached_query_denominator() {
     assert!(!snapshot.closure.depends_on(&first, &fact10));
     assert!(snapshot.closure.depends_on(&last, &fact_last_start));
     assert!(snapshot.closure.depends_on(&last, &fact_last));
+    assert_eq!(snapshot.closure.fact_count(), 100_000);
     assert!(snapshot.closure.contains_fact(&fact_last));
     assert!(
         !snapshot
@@ -260,6 +261,16 @@ fn resident_snapshot_has_the_cached_query_denominator() {
             "fact/fact/000000".to_owned(),
         ]
     );
+    let product = WorldProduct::resident(snapshot.closure).unwrap();
+    let (status, work) = product.status_work();
+    assert_eq!(work.effects(), 0);
+    assert_eq!(work.subprocesses(), 0);
+    assert_eq!(work.reads(), 2);
+    let rendered = crate::command::render(&status);
+    assert!(rendered.starts_with("#(world/resident-status-v1 "));
+    assert!(rendered.contains("(records 100000)"));
+    assert!(rendered.contains("(units 10000)"));
+    assert!(rendered.contains("(resident true)"));
 }
 
 #[test]
@@ -277,6 +288,66 @@ fn measure_why_reports_the_resident_query() {
     assert!(rendered.contains("(raw-us ["));
     assert!(rendered.contains("(subprocesses 0)"));
     assert!(rendered.contains("(resident true)"));
+}
+
+#[test]
+fn resident_cached_status_and_why_use_the_shipped_command() {
+    let command = WorldCommandLib::new().expect("command");
+    for verb in ["status", "why"] {
+        let measured = crate::command::dispatch_argv(
+            &command,
+            &["sim".to_owned(), "measure".to_owned(), verb.to_owned()],
+        )
+        .unwrap_or_else(|error| panic!("{verb} dispatch: {error}"));
+        assert_resident_latency(&measured, verb);
+    }
+}
+
+fn assert_resident_latency(value: &Datum, command: &str) {
+    let field = |name: &str| latency_field(value, name);
+    let count = |name: &str| latency_count(field(name));
+    assert_eq!(field("command"), &Datum::String(command.to_owned()));
+    assert_eq!(count("records"), 100_000);
+    assert_eq!(count("units"), 10_000);
+    assert_eq!(count("warmups"), u64::try_from(query::WARMUPS).unwrap());
+    assert_eq!(count("samples"), u64::try_from(query::SAMPLES).unwrap());
+    assert_eq!(count("effects"), 0);
+    assert_eq!(count("subprocesses"), 0);
+    assert_eq!(field("resident"), &Datum::Bool(true));
+    let Datum::Vector(raw) = field("raw-us") else {
+        panic!("raw-us is not a vector");
+    };
+    assert_eq!(raw.len(), query::SAMPLES);
+    let mut ordered: Vec<u64> = raw.iter().map(latency_count).collect();
+    let rank = nearest_rank_p95(ordered.len());
+    assert_eq!(rank, (ordered.len() * 95).div_ceil(100) - 1);
+    ordered.sort_unstable();
+    let p95_ms = ordered[rank] / 1_000;
+    assert_eq!(count("p95-ms"), p95_ms);
+    eprintln!(
+        "{command} resident p95 {p95_ms} ms raw-us {}",
+        ordered[rank]
+    );
+    assert!(query::within_cached_ceiling(ordered[rank]), "{command}");
+}
+
+fn latency_field<'a>(value: &'a Datum, name: &str) -> &'a Datum {
+    let Datum::Node { tag, fields } = value else {
+        panic!("latency record, got {value:?}");
+    };
+    assert_eq!(tag.as_qualified_str(), "world/query-latency-v1");
+    fields
+        .iter()
+        .find(|(symbol, _)| symbol.as_qualified_str() == name)
+        .map(|(_, field)| field)
+        .unwrap_or_else(|| panic!("missing {name}"))
+}
+
+fn latency_count(value: &Datum) -> u64 {
+    let Datum::Number(number) = value else {
+        panic!("count, got {value:?}");
+    };
+    number.canonical.parse().expect("count")
 }
 
 fn oracle() -> &'static [crate::assay_oracle::Expected] {

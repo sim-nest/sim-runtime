@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: MPL-2.0
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 use std::{collections::BTreeSet, sync::Arc};
 
 use sim_kernel::{ContentId, Datum};
@@ -419,6 +424,9 @@ fn federated_closure_refuses_overlap_and_unknown_facts() {
         FederatedClosure::seal([], [graph("a")]),
         Err(ClosureError::UnknownFact { .. })
     ));
+    let (_, _, _, closure) = fixture(false, true);
+    assert_eq!(closure.fact_count(), 2);
+    assert_eq!(closure.conclusions().len(), 2);
 }
 
 #[test]
