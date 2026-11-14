@@ -371,9 +371,14 @@ fn is_proof_view(view: Option<&str>) -> bool {
     view.is_some_and(|text| text.starts_with(view::HEADER))
 }
 
-/// One named leaf that is outside the phase union, or the full frontier when
-/// the leaf is one of the gates.
+/// One named leaf against the view that admits it.
+///
+/// A phase-union view classifies that union's gates. An assay proof view
+/// classifies the forty conclusions. A native leaf stays outside both.
 pub(crate) fn frontier_leaf(leaf: &str, view: Option<&str>) -> Result<Datum, WorldError> {
+    if is_proof_view(view) {
+        return proof::frontier_leaf(leaf, view);
+    }
     union::frontier_leaf(leaf, view)
 }
 
