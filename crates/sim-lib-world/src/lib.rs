@@ -50,8 +50,10 @@
 //! and a changed closure refuse. Reading the retained result does not
 //! qualify again.
 //! One schedule call runs the published scheduler once. A later call
-//! returns that record. A blocked queue does not block control. A wait
-//! releases only that unit's leases. Stall and cleanup do not claim
+//! returns that record. A blocked queue does not block control. Stop
+//! acknowledgement measures one hundred blocked workers, including one
+//! that does not return, outside that worker. The trace reopens.
+//! A wait releases only that unit's leases. Stall and cleanup do not claim
 //! process death.
 //! One converge call runs the published revision once. A later call
 //! returns that record. A stop before commit keeps the accepted
@@ -189,6 +191,7 @@ mod seal;
 mod seal_compile;
 mod seal_workspace;
 mod service;
+mod stop_ack;
 mod succeed;
 mod transact;
 mod transfer;
