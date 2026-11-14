@@ -3728,7 +3728,7 @@ fn assert_resident_latency(value: &Datum, command: &str) {
         "{command} resident p95 {p95_ms} ms raw-us {}",
         ordered[rank]
     );
-    assert!(p95_ms <= query::CEILING_MS, "{command} p95 {p95_ms} ms");
+    assert!(query::within_cached_ceiling(ordered[rank]), "{command}");
 }
 
 fn latency_field<'a>(value: &'a Datum, name: &str) -> &'a Datum {

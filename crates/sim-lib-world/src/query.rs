@@ -43,6 +43,15 @@ pub(crate) fn nearest_rank_p95(samples: usize) -> usize {
     (samples.saturating_mul(95).saturating_add(99) / 100).saturating_sub(1)
 }
 
+/// Reports whether a nearest-rank p95 in microseconds meets the fixed ceiling.
+///
+/// `p95-ms` stays the whole-millisecond truncation of that sample. This
+/// predicate admits 200_000 microseconds and refuses 200_001.
+#[must_use]
+pub(crate) fn within_cached_ceiling(p95_us: u64) -> bool {
+    p95_us <= CEILING_MS.saturating_mul(1_000)
+}
+
 pub(crate) fn seal_resident_why() -> Result<ResidentSnapshot, WorldError> {
     let mut facts = Vec::with_capacity(RESIDENT_RECORDS);
     for index in 0..RESIDENT_RECORDS {
@@ -274,7 +283,7 @@ pub(crate) fn sample_cached(
     Ok(Sampled {
         p95_ms,
         raw_us,
-        within_ceiling: p95_ms <= CEILING_MS,
+        within_ceiling: within_cached_ceiling(p95_us),
     })
 }
 
@@ -283,7 +292,7 @@ pub(crate) struct Sampled {
     pub(crate) p95_ms: u64,
     /// Sample durations in microseconds, in call order.
     pub(crate) raw_us: Vec<u64>,
-    /// Whether `p95_ms` is within the cached-query ceiling.
+    /// Whether the raw microsecond p95 meets the fixed cached-query ceiling.
     pub(crate) within_ceiling: bool,
 }
 
@@ -351,5 +360,12 @@ mod tests {
         assert_eq!(walked.effects(), 0);
         assert_eq!(walked.subprocesses(), 0);
         assert!(!walked.compiler_opened());
+    }
+
+    #[test]
+    fn cached_ceiling_compares_raw_microseconds() {
+        assert!(super::within_cached_ceiling(200_000));
+        assert!(!super::within_cached_ceiling(200_001));
+        assert_eq!(200_001 / 1_000, super::CEILING_MS);
     }
 }
