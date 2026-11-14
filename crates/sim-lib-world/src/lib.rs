@@ -135,7 +135,7 @@
 //! universe enumerate the resolver inputs captured for this crate, admit only
 //! verified inputs, and refuse a missing, corrupt, wrong-target, or stub-only
 //! compiling input before any compiler opens. The loaded command reports that custody, refuses
-//! an unsupported pair or a malformed call, measures resident cached why from
+//! an unsupported pair or a malformed call, measures resident cached status and why from
 //! one sealed snapshot, reports projection sensitivity from provider-read
 //! baseline and variant bytes, and returns a deterministic proof plan for one
 //! sealed in-memory subject. The prove command's cold denominator is the

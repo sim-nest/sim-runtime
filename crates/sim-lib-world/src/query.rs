@@ -27,7 +27,7 @@ pub(crate) struct ResidentSnapshot {
     pub(crate) units: usize,
 }
 
-pub(crate) struct MeasuredWhy {
+pub(crate) struct MeasuredQuery {
     pub(crate) record: Datum,
     pub(crate) within_ceiling: bool,
 }
@@ -98,22 +98,41 @@ pub(crate) fn read_only_record(
     }
 }
 
-pub(crate) fn measure_why() -> Result<MeasuredWhy, WorldError> {
+pub(crate) fn measure_why() -> Result<MeasuredQuery, WorldError> {
+    measure_resident("why", |product| {
+        product.why_work("conclusion/unit-000000", "fact/000000")
+    })
+}
+
+pub(crate) fn measure_status() -> Result<MeasuredQuery, WorldError> {
+    measure_resident("status", |product| Ok(product.status_work()))
+}
+
+fn measure_resident(
+    command: &str,
+    mut read: impl FnMut(&WorldProduct) -> Result<(Datum, HostWork), WorldError>,
+) -> Result<MeasuredQuery, WorldError> {
     let snapshot = seal_resident_why()?;
     let records = snapshot.records;
     let units = snapshot.units;
     let product = WorldProduct::resident(snapshot.closure)?;
+    let (live_records, live_units) = product.resident_counts();
+    if live_records != records || live_units != units {
+        return Err(WorldError::Qualification(
+            "resident snapshot denominator drifted".to_owned(),
+        ));
+    }
     let effects = Cell::new(None);
     let subprocesses = Cell::new(None);
     let sampled = sample_cached(|| {
-        let (datum, work) = product.why_work("conclusion/unit-000000", "fact/000000")?;
+        let (datum, work) = read(&product)?;
         work.record(&effects, &subprocesses)?;
         Ok(render(&datum))
     })?;
     let (effects, subprocesses) = observed_pair(&effects, &subprocesses)?;
-    Ok(MeasuredWhy {
+    Ok(MeasuredQuery {
         record: latency_record(
-            "why",
+            command,
             records,
             units,
             sampled.p95_ms,

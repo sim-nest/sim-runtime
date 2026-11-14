@@ -342,6 +342,23 @@ impl WorldProduct {
         Ok((explanation_value(explanation), work))
     }
 
+    /// Reads the sealed fact and conclusion counts.
+    ///
+    /// Each count is one closure read. A read is not an effect or a subprocess.
+    pub(crate) fn status_work(&self) -> (Datum, crate::query::HostWork) {
+        let (records, units) = self.resident_counts();
+        let mut work = crate::query::HostWork::default();
+        work.read();
+        work.read();
+        (resident_status(records, units), work)
+    }
+
+    /// Re-reads the sealed fact and conclusion counts.
+    pub(crate) fn resident_counts(&self) -> (usize, usize) {
+        let closure = &self.state.closure;
+        (closure.fact_count(), closure.conclusions().len())
+    }
+
     /// Reports effect invocations recorded for this product.
     #[must_use]
     pub fn effect_calls(&self) -> usize {
@@ -383,6 +400,18 @@ impl WorldProduct {
             },
             requires_confinement: false,
         }
+    }
+}
+
+fn resident_status(records: usize, units: usize) -> Datum {
+    let count = |value: usize| crate::query::count_datum(u64::try_from(value).unwrap_or(u64::MAX));
+    Datum::Node {
+        tag: Symbol::qualified("world", "resident-status-v1"),
+        fields: vec![
+            (Symbol::new("records"), count(records)),
+            (Symbol::new("units"), count(units)),
+            (Symbol::new("resident"), Datum::Bool(true)),
+        ],
     }
 }
 

@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: MPL-2.0
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 use std::{
     collections::{BTreeMap, BTreeSet},
     error::Error,
@@ -131,6 +136,12 @@ impl FederatedClosure {
     #[must_use]
     pub fn contains_fact(&self, fact: &FactId) -> bool {
         self.consumers.contains_key(fact)
+    }
+
+    /// Returns how many facts belong to the sealed semantic universe.
+    #[must_use]
+    pub fn fact_count(&self) -> usize {
+        self.consumers.len()
     }
 
     /// Explains one exact conclusion-to-fact dependency.
