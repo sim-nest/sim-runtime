@@ -149,12 +149,12 @@ impl ProveEntrypoint {
     fn dispatch(&self, argv: &[String]) -> Result<Outcome> {
         let outcome = match argv.get(1).map(String::as_str) {
             Some("plan") if argv.len() == 2 => prove::plan(None, None),
-            Some("plan") if argv.len() >= 3 && argv[2].starts_with(PROOF_VIEW_HEADER) => {
+            Some("plan") if argv.len() >= 3 && is_view_segment(&argv[2]) => {
                 let view = join_segments(&argv[2..]);
                 prove::plan(None, Some(&view))
             }
             Some("plan") if argv.len() == 3 => prove::plan(Some(&argv[2]), None),
-            Some("plan") if argv.len() >= 4 && argv[3].starts_with(PROOF_VIEW_HEADER) => {
+            Some("plan") if argv.len() >= 4 && is_view_segment(&argv[3]) => {
                 let view = join_segments(&argv[3..]);
                 prove::plan(Some(&argv[2]), Some(&view))
             }
