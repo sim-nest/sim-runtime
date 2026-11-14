@@ -109,6 +109,22 @@ fn loaded_proof_view_compares_the_cold_denominator() {
     assert_eq!(tag(&frontier), "prove/frontier-v1");
     assert!(bool_field(&frontier, "complete"));
     assert_eq!(number(&frontier, "denominator"), 40);
+    let token = text(&frontier, "continuation");
+    let resumed = prove
+        .run(&with_view(&["prove", "resume", &token], &view))
+        .expect("resume");
+    assert_eq!(resumed, frontier);
+    let mut stale_token = token.clone();
+    let last = stale_token.pop().expect("token char");
+    stale_token.push(if last == 'a' { 'b' } else { 'a' });
+    let missing = prove
+        .run(&with_view(&["prove", "resume", &stale_token], &view))
+        .expect("stale resume");
+    assert_eq!(text(&missing, "reason"), "stale-or-missing");
+    let tampered_resume = prove
+        .run(&with_view(&["prove", "resume", &token], &tampered))
+        .expect("tampered resume");
+    assert_eq!(text(&tampered_resume, "reason"), "refresh-needed");
     let status = prove
         .run(&with_view(&["prove", "status"], &view))
         .expect("status");

@@ -307,7 +307,13 @@ pub(crate) fn plan(token: Option<&str>) -> Result<Datum, WorldError> {
 }
 
 /// Continues a plan page or a frontier token.
+///
+/// A phase-union view resumes that union. An assay proof view resumes the
+/// frontier token of the admitted view.
 pub(crate) fn resume(token: &str, view: Option<&str>) -> Result<Datum, WorldError> {
+    if is_proof_view(view) {
+        return proof::resume(token, view);
+    }
     union::resume(token, view)
 }
 
