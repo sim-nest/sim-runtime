@@ -26,7 +26,7 @@ use crate::service;
 use crate::succeed;
 use crate::{
     WorldError, WorldProduct, author, bind, conduct, converge, evidence, fixed, fresh, journal,
-    land, manifest, operate, promote, qualify, recover, schedule, transact, work,
+    land, manifest, operate, promote, qualify, recover, schedule, transact, transfer, work,
 };
 
 /// CLI verb contributed by this loaded library.
@@ -349,6 +349,9 @@ impl WorldEntrypoint {
             Some("succeed") if argv.len() == 4 => succeed::run(&argv[2], &argv[3])
                 .map(Outcome::Value)
                 .map_err(eval_error),
+            Some("transfer") if argv.len() == 3 => transfer::run(&argv[2])
+                .map(Outcome::Value)
+                .map_err(eval_error),
             Some("plan") => self.plan_outcome(&argv[2..]),
             _ => Ok(Outcome::Refused {
                 call: "usage".to_owned(),
@@ -525,7 +528,7 @@ impl WorldEntrypoint {
     }
 }
 
-const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | measure plan | measure seal | assay | plan [text|card] [CONTINUATION] | snapshot DOCUMENT SELECTOR | snapshot-diff BEFORE AFTER SELECTOR | service REALIZATION SELECTOR | service-plan REALIZATION [SELECTOR DESIRED] | release-plan REALIZATION [SELECTOR DESIRED] | release-status REALIZATION | release-why REALIZATION SELECTOR | deliver REALIZATION [SELECTOR DESIRED] | deliver-status REALIZATION [VIEW] | deliver-why REALIZATION SELECTOR [VIEW] | canary REALIZATION SOURCE DESTINATION PURPOSE [issued|spent] | conduct CASE | qualify CASE | schedule CASE | converge CASE | fixed CASE | transact CASE | land CASE | recover CASE | manifest CASE | promote CASE | bind CASE | journal CASE | operate CASE | author CASE | work CASE | fresh EXPORT CHANGE | succeed EXPORT CHANGE | seal [DOCUMENT [TARGET]] | universe [DOCUMENT [TARGET]] | seal-diff BEFORE AFTER [TARGET]";
+const USAGE: &str = "usage: sim world project KIND FACT VALUE | diff KIND FACT BEFORE AFTER | why CONCLUSION FACT | compose STEPS | read-only | measure why | measure plan | measure seal | assay | plan [text|card] [CONTINUATION] | snapshot DOCUMENT SELECTOR | snapshot-diff BEFORE AFTER SELECTOR | service REALIZATION SELECTOR | service-plan REALIZATION [SELECTOR DESIRED] | release-plan REALIZATION [SELECTOR DESIRED] | release-status REALIZATION | release-why REALIZATION SELECTOR | deliver REALIZATION [SELECTOR DESIRED] | deliver-status REALIZATION [VIEW] | deliver-why REALIZATION SELECTOR [VIEW] | canary REALIZATION SOURCE DESTINATION PURPOSE [issued|spent] | conduct CASE | qualify CASE | schedule CASE | converge CASE | fixed CASE | transact CASE | land CASE | recover CASE | manifest CASE | promote CASE | bind CASE | journal CASE | operate CASE | author CASE | work CASE | fresh EXPORT CHANGE | succeed EXPORT CHANGE | transfer DOCUMENT | seal [DOCUMENT [TARGET]] | universe [DOCUMENT [TARGET]] | seal-diff BEFORE AFTER [TARGET]";
 
 #[cfg(test)]
 #[path = "command_argv.rs"]
