@@ -8,7 +8,8 @@
 //! `proof` exports one cold run of the forty conclusions. A later delta opens
 //! that view and compares each leaf with the sealed affected set. Keeping an
 //! affected leaf, or claiming an input the leaf did not read, counts as false
-//! reuse. A phase-union view stays on the phase-union command.
+//! reuse. The frontier token of an admitted view resumes that frontier. A
+//! phase-union view stays on the phase-union command.
 
 use std::collections::BTreeSet;
 
@@ -153,6 +154,19 @@ pub(super) fn frontier(view: Option<&str>) -> Result<Datum, WorldError> {
             ("continuation", text(super::frontier_token(&proof.subject)?)),
         ],
     ))
+}
+
+pub(super) fn resume(token: &str, view: Option<&str>) -> Result<Datum, WorldError> {
+    if !super::is_token(token) {
+        return Ok(gap("resume", "stale-or-missing"));
+    }
+    let Some(opened) = admitted(view)? else {
+        return Ok(gap("resume", "refresh-needed"));
+    };
+    if token == super::frontier_token(&opened.proof.subject)? {
+        return frontier(view);
+    }
+    Ok(gap("resume", "stale-or-missing"))
 }
 
 fn admitted(view: Option<&str>) -> Result<Option<super::view::Opened>, WorldError> {
