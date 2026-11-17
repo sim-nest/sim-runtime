@@ -11,8 +11,9 @@
 //! catalog must have admitted each claim at release grade. The fresh
 //! command's seal string is not that proof. An open construction specimen,
 //! a warm checkout, and a selected release with neither registry
-//! publication nor exact source-release evidence stay gaps. Linux
-//! completion stays outside this seal.
+//! publication nor exact source-release evidence stay gaps. Exact
+//! source-release evidence is the identity claim 21's verified receipt
+//! names. Linux completion stays outside this seal.
 
 mod check;
 mod seal;
@@ -191,6 +192,8 @@ pub struct ReleaseObligation {
     /// Whether the named package is on the registry.
     pub registry_published: bool,
     /// Exact source-release evidence for a package that is not on the registry.
+    ///
+    /// Claim 21's verified receipt names this revision, package, and version.
     pub source_release: String,
     /// Zero-based position in dependency order.
     pub order: u16,

@@ -371,7 +371,7 @@ fn fixture_bound(
 mod completion_link;
 
 #[cfg(test)]
-pub(crate) use completion_link::scoped_release;
+pub(crate) use completion_link::{scoped_release, scoped_release_results};
 
 fn refused(result: Result<AdmittedEvidence, ProofError>) -> String {
     match result {

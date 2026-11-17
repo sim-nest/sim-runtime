@@ -8,7 +8,9 @@
 //! A claim is proved only when the owner catalog reuses a release receipt
 //! for that claim's admitted key and that receipt's checker is the one
 //! whose claim, subject, scope, and revocation state were validated.
-//! The admission's grade field is not read.
+//! The admission's grade field is not read. An unpublished release is
+//! covered only when claim 21's verified receipt names that revision,
+//! package, and version.
 
 use std::collections::BTreeSet;
 
@@ -36,7 +38,7 @@ pub(super) fn gaps(
     frontier(state, &mut gaps);
     artifacts(state, &mut gaps);
     leases(state, &mut gaps);
-    releases(&evidence.releases, &mut gaps);
+    releases(evidence, checks, &selected.final_world, &mut gaps);
     transfer_gaps(evidence, transfers, &mut gaps);
     fresh(&evidence.fresh, &mut gaps);
     linux(evidence.linux, &mut gaps);
@@ -122,13 +124,20 @@ fn leases(state: &RebuiltExecution, gaps: &mut Vec<CompletionGap>) {
     }
 }
 
-fn releases(obligations: &[super::ReleaseObligation], gaps: &mut Vec<CompletionGap>) {
+fn releases(
+    evidence: &EvidenceCatalog,
+    checks: &CheckerCatalog,
+    world: &super::WorldSealId,
+    gaps: &mut Vec<CompletionGap>,
+) {
+    let obligations = &evidence.releases;
     if obligations.is_empty() {
         gaps.push(gap(21, "release-missing"));
         return;
     }
     let mut names = BTreeSet::new();
     let mut orders = Vec::new();
+    let mut exact = Vec::new();
     for obligation in obligations {
         orders.push(obligation.order);
         let name = obligation.name.trim();
@@ -139,9 +148,12 @@ fn releases(obligations: &[super::ReleaseObligation], gaps: &mut Vec<CompletionG
         if !names.insert(name.to_owned()) {
             gaps.push(gap(21, format!("release-duplicate:{name}")));
         }
-        if !obligation.registry_published
-            && !exact_git_source_release(name, obligation.source_release.trim())
-        {
+        if obligation.registry_published {
+            continue;
+        }
+        if exact_git_source_release(name, obligation.source_release.trim()) {
+            exact.push(name.to_owned());
+        } else {
             gaps.push(gap(21, format!("unpublished-git-source:{name}")));
         }
     }
@@ -154,9 +166,67 @@ fn releases(obligations: &[super::ReleaseObligation], gaps: &mut Vec<CompletionG
     if orders != expected {
         gaps.push(gap(21, "release-order"));
     }
+    if !exact.is_empty() && !source_evidence_covers(evidence, checks, world) {
+        for name in exact {
+            gaps.push(gap(21, format!("unpublished-git-source:{name}")));
+        }
+    }
 }
 
-/// `git+` plus 40 lowercase hex digits, the package name, and its version.
+/// Result that claim 21's verified receipt must carry for these obligations.
+pub(super) fn claim_result(claim: u8, obligations: &[super::ReleaseObligation]) -> String {
+    if claim == 21 {
+        release_claim_result(obligations)
+    } else {
+        super::bound_result(claim)
+    }
+}
+
+/// `completion/claim-21`, plus each exact unpublished identity, sorted.
+pub(super) fn release_claim_result(obligations: &[super::ReleaseObligation]) -> String {
+    let mut identities = Vec::new();
+    for obligation in obligations {
+        if obligation.registry_published {
+            continue;
+        }
+        let name = obligation.name.trim();
+        let source = obligation.source_release.trim();
+        if exact_git_source_release(name, source) {
+            identities.push(source.to_owned());
+        }
+    }
+    identities.sort();
+    identities.dedup();
+    if identities.is_empty() {
+        return super::bound_result(21);
+    }
+    let mut result = super::bound_result(21);
+    result.push(' ');
+    result.push_str(&identities.join(" "));
+    result
+}
+
+fn source_evidence_covers(
+    evidence: &EvidenceCatalog,
+    checks: &CheckerCatalog,
+    world: &super::WorldSealId,
+) -> bool {
+    let found: Vec<_> = evidence
+        .admissions
+        .iter()
+        .filter(|row| row.claim == 21)
+        .collect();
+    if found.len() != 1 {
+        return false;
+    }
+    let expected = release_claim_result(&evidence.releases);
+    release_receipt(checks, world, found[0], &expected).is_ok()
+}
+
+/// `git+`, 40 lowercase hex digits, the package name, and its version.
+///
+/// Syntax does not discharge the obligation. Claim 21's verified receipt
+/// must name that same identity.
 fn exact_git_source_release(name: &str, source: &str) -> bool {
     let Some(rest) = source.strip_prefix("git+") else {
         return false;
@@ -251,7 +321,12 @@ fn prove_claim(
         gaps.push(gap(claim, "claim-unproved"));
         return;
     }
-    if let Err(reason) = release_receipt(checks, world, found[0]) {
+    if let Err(reason) = release_receipt(
+        checks,
+        world,
+        found[0],
+        &claim_result(claim, &evidence.releases),
+    ) {
         gaps.push(gap(claim, reason));
     }
 }
@@ -267,6 +342,7 @@ pub(super) fn release_receipt(
     checks: &CheckerCatalog,
     world: &super::WorldSealId,
     row: &super::ClaimAdmission,
+    result: &str,
 ) -> Result<EvidenceReceiptId, &'static str> {
     let status = checks
         .revocations
@@ -283,8 +359,7 @@ pub(super) fn release_receipt(
         .checker_receipt(&row.checker, status)
         .map_err(|_| "evidence-not-verified")?;
     let subject = CheckedSubjectId::from_text(&world.value).map_err(|_| "evidence-not-verified")?;
-    let result = CheckerResultId::from_text(&super::bound_result(row.claim))
-        .map_err(|_| "evidence-not-verified")?;
+    let result = CheckerResultId::from_text(result).map_err(|_| "evidence-not-verified")?;
     if receipt.subject() != &subject || receipt.scope() != &checks.scope {
         return Err("evidence-unrelated");
     }

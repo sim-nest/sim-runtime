@@ -282,12 +282,58 @@ fn unpublished_releases_stay_gaps_on_an_otherwise_proved_subject() {
     );
 }
 
+fn admitted_for(
+    releases: &[ReleaseObligation],
+) -> (
+    SelectedRoadmap,
+    RebuiltExecution,
+    EvidenceCatalog,
+    CheckerCatalog,
+    Vec<AuthorityTransfer>,
+) {
+    let mut inputs = proved();
+    let result = super::check::release_claim_result(releases);
+    let world = inputs.0.final_world.value.clone();
+    let scoped = crate::evidence::scoped_release_results(
+        &world,
+        "scope/completion",
+        &[(21, result.as_str())],
+    )
+    .expect("covering admission");
+    inputs.2.admissions = scoped
+        .admissions
+        .into_iter()
+        .map(|(claim, admitted, checker)| ClaimAdmission {
+            claim,
+            admitted,
+            checker,
+        })
+        .collect();
+    inputs.2.releases = releases.to_vec();
+    inputs.3.catalog = scoped.catalog;
+    inputs.3.scope = scoped.scope;
+    inputs.3.revocations = scoped.revocations;
+    inputs
+}
+
 #[test]
 fn exact_git_source_releases_discharge_unpublished_tooling() {
-    let mut inputs = proved();
-    inputs.2.releases = exact_unpublished();
+    let inputs = admitted_for(&exact_unpublished());
     let sealed = derive(&inputs).expect("exact source releases");
     assert_eq!(sealed.claims[20].number, 21);
+}
+
+#[test]
+fn a_changed_source_identity_keeps_the_admitted_evidence_a_gap() {
+    let releases = exact_unpublished();
+    let inputs = admitted_for(&releases);
+    let admitted = inputs.2.admissions.clone();
+    let mut changed = inputs;
+    changed.2.releases[0].source_release =
+        "git+0123456789abcdef0123456789abcdef01234567:sim-codec-mspdi@0.1.0".to_owned();
+    assert_eq!(changed.2.admissions, admitted);
+    let gaps = derive(&changed).expect_err("uncovered revision");
+    assert!(reasons(&gaps).contains(&"unpublished-git-source:sim-codec-mspdi"));
 }
 
 #[test]
