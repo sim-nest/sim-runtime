@@ -23,13 +23,25 @@ use super::{
 
 /// Reads the prove command's release input and the admitted phase union.
 ///
+/// `manifest` is an injected Cargo manifest. When it is present, its
+/// verified source-identity catalog is retained for the admitted subject
+/// and does not become a claim row.
+///
 /// # Errors
 ///
-/// Returns an error when the release input is not a source identity, or
-/// when the admitted union has no subject or no fresh specimen.
-pub(crate) fn catalog_datum(release_input: &str) -> Result<Datum, WorldError> {
+/// Returns an error when the release input is not a source identity, the
+/// admitted union has no subject or no fresh specimen, or the manifest
+/// observation is refused.
+pub(crate) fn catalog_datum(
+    release_input: &str,
+    manifest: Option<&str>,
+) -> Result<Datum, WorldError> {
+    super::owner_admit::clear_source_identity();
     let releases = parse_release_input(release_input)?;
     let admitted = admitted_phase_union()?;
+    if let Some(manifest) = manifest {
+        super::owner_admit::retain_observed_manifest(&admitted.subject, manifest)?;
+    }
     let (admissions, checks) = super::owner_admit::from_owner(&admitted.subject, &releases)?;
     let catalog = fill(&admitted, &releases, &admissions)?;
     Ok(render(&catalog, checks.as_ref()))
@@ -472,6 +484,19 @@ mod tests {
                     .any(|gap| gap == &format!("unpublished-git-source:{name}"))
             );
         }
+        let manifest = "[package]\npublish = false\n[dependencies]\nsim-example = { version = \"0.1.0\", git = \"https://example.invalid/sim-example.git\", rev = \"0123456789abcdef0123456789abcdef01234567\" }\n";
+        let retained = prove_command
+            .run(&argv(&["prove", "catalog", &SOURCES.join("\n"), manifest]))
+            .expect("retained");
+        assert_eq!(
+            list_field(&retained, "admissions"),
+            list_field(&catalog, "admissions")
+        );
+        assert_eq!(list_field(&retained, "gaps"), list_field(&catalog, "gaps"));
+        assert_eq!(
+            string_field(&retained, "world/final-catalog-v1", "seal"),
+            "unclaimed"
+        );
         let fresh = field(&catalog, "world/final-catalog-v1", "fresh").expect("fresh");
         assert_eq!(
             string_field(fresh, "world/fresh-gap-v1", "reason"),

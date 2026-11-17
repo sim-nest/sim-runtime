@@ -49,7 +49,20 @@ pub(crate) use union::{PhaseUnionAdmission, admitted_phase_union};
 ///
 /// Returns an error when the release input or the admitted union is unusable.
 pub(crate) fn catalog(releases: &str) -> Result<Datum, WorldError> {
-    crate::completion::catalog_datum(releases)
+    crate::completion::catalog_datum(releases, None)
+}
+
+/// Final-world catalog that also retains one injected source manifest.
+///
+/// The manifest is evidence for the admitted subject. Its source-identity
+/// result does not become a completion claim.
+///
+/// # Errors
+///
+/// Returns an error when the release input, the admitted union, or the
+/// manifest observation is unusable.
+pub(crate) fn catalog_with_source(releases: &str, manifest: &str) -> Result<Datum, WorldError> {
+    crate::completion::catalog_datum(releases, Some(manifest))
 }
 #[path = "prove_view.rs"]
 mod view;

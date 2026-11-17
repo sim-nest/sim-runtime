@@ -7,19 +7,125 @@
 //!
 //! The evidence owner is the only production admission path. Its checked
 //! subject and result must be this catalog's subject and the claim result.
-//! A source-deck label is not read. The lantern fixture is not copied onto
-//! another subject. This module does not derive a seal.
+//! A verified source-identity catalog stays at scope `release/source-identity`
+//! and does not become a claim. A source-deck label is not read. The lantern
+//! fixture is not copied onto another subject. This module does not derive a seal.
 
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 
-use sim_lib_roadmap_runner::AdmittedEvidence;
+use sim_conformance_evidence::{CheckScopeId, RevocationStatus};
+use sim_lib_roadmap_runner::{AdmittedEvidence, ProofCatalog};
 
 use super::{
     CheckerCatalog, ClaimAdmission, OwnerCheckerReceiptId, ReleaseObligation, WorldSealId,
 };
 use crate::WorldError;
 
+const SOURCE_IDENTITY_SCOPE: &str = "release/source-identity";
+
+struct RetainedSourceIdentity {
+    subject: String,
+    checks: CheckerCatalog,
+}
+
+thread_local! {
+    static RETAINED_SOURCE_IDENTITY: RefCell<Option<RetainedSourceIdentity>> =
+        const { RefCell::new(None) };
+}
+
+/// Retains one verified source-identity catalog for `subject`.
+///
+/// The catalog stays at scope `release/source-identity`. A completion-claim
+/// result is refused and leaves the previous catalog untouched.
+///
+/// # Errors
+///
+/// Returns an error when the result is not source-identity evidence or the
+/// scope is not `release/source-identity`.
+pub(crate) fn retain_source_identity(
+    subject: &str,
+    result: &str,
+    catalog: ProofCatalog,
+    checker: OwnerCheckerReceiptId,
+    scope: CheckScopeId,
+    revocation: RevocationStatus,
+) -> Result<(), WorldError> {
+    if !is_source_identity(result, &scope) {
+        return Err(WorldError::Qualification(
+            "source-identity catalog was refused".to_owned(),
+        ));
+    }
+    let checks = CheckerCatalog {
+        catalog,
+        scope,
+        revocations: BTreeMap::from([(checker, revocation)]),
+    };
+    RETAINED_SOURCE_IDENTITY.with(|slot| {
+        *slot.borrow_mut() = Some(RetainedSourceIdentity {
+            subject: subject.to_owned(),
+            checks,
+        });
+    });
+    Ok(())
+}
+
+fn is_source_identity(result: &str, scope: &CheckScopeId) -> bool {
+    let Ok(expected) = CheckScopeId::from_text(SOURCE_IDENTITY_SCOPE) else {
+        return false;
+    };
+    scope == &expected
+        && result.starts_with("source-identity ")
+        && !result.contains("completion/claim-")
+        && claim_from_result(result).is_none()
+}
+
+fn retained_source_identity(subject: &str) -> Option<CheckerCatalog> {
+    RETAINED_SOURCE_IDENTITY.with(|slot| {
+        slot.borrow()
+            .as_ref()
+            .and_then(|retained| (retained.subject == subject).then(|| retained.checks.clone()))
+    })
+}
+
+pub(crate) fn clear_source_identity() {
+    RETAINED_SOURCE_IDENTITY.with(|slot| *slot.borrow_mut() = None);
+}
+
+/// Observes `manifest` for `subject` and retains the verified catalog.
+///
+/// A pack refusal retains nothing.
+///
+/// # Errors
+///
+/// Returns an error when the pack refuses the manifest or the receipt is not
+/// source-identity evidence.
+pub(crate) fn retain_observed_manifest(subject: &str, manifest: &str) -> Result<(), WorldError> {
+    let observed =
+        match sim_conformance_packs::packs::release::observe_source_identity(subject, manifest) {
+            Ok(observed) => observed,
+            Err(error) => {
+                return Err(WorldError::Qualification(format!(
+                    "source-identity: {}",
+                    error.code
+                )));
+            }
+        };
+    retain_source_identity(
+        &observed.subject,
+        &observed.result,
+        observed.catalog,
+        observed.checker,
+        observed.scope,
+        observed.revocation,
+    )
+}
+
 /// Admissions whose owner receipt matches `subject`, and the catalog that checked them.
+///
+/// A retained source-identity catalog is returned with no claim rows. The
+/// lantern fixture supplies a claim only when its subject matches and its
+/// result is that claim.
 ///
 /// # Errors
 ///
@@ -28,6 +134,9 @@ pub(crate) fn from_owner(
     subject: &str,
     releases: &[ReleaseObligation],
 ) -> Result<(Vec<ClaimAdmission>, Option<CheckerCatalog>), WorldError> {
+    if let Some(checks) = retained_source_identity(subject) {
+        return Ok((Vec::new(), Some(checks)));
+    }
     let release = crate::evidence::owner_release()
         .map_err(|error| WorldError::Qualification(format!("evidence owner admission: {error}")))?;
     if release.subject != subject {
@@ -108,6 +217,114 @@ fn claim_from_result(result: &str) -> Option<u8> {
 mod tests {
     use super::super::CheckerCatalog;
     use super::claim_from_result;
+
+    struct ClearRetained;
+
+    impl Drop for ClearRetained {
+        fn drop(&mut self) {
+            super::clear_source_identity();
+        }
+    }
+
+    fn manifest() -> String {
+        let rev = "0123456789abcdef0123456789abcdef01234567";
+        format!(
+            "[package]\npublish = false\n[dependencies]\nsim-example = {{ version = \"0.1.0\", git = \"https://example.invalid/sim-example.git\", rev = \"{rev}\" }}\n"
+        )
+    }
+
+    #[test]
+    fn a_source_identity_catalog_stays_out_of_the_claims() {
+        let _guard = ClearRetained;
+        let subject = "subject/tooling-caller";
+        let observed =
+            sim_conformance_packs::packs::release::observe_source_identity(subject, &manifest())
+                .expect("admitted");
+        super::retain_source_identity(
+            &observed.subject,
+            &observed.result,
+            observed.catalog.clone(),
+            observed.checker.clone(),
+            observed.scope.clone(),
+            observed.revocation.clone(),
+        )
+        .expect("retained");
+        let (rows, checks) = super::from_owner(subject, &[]).expect("owner");
+        assert!(rows.is_empty());
+        let checks = checks.expect("catalog");
+        assert_eq!(
+            checks.scope,
+            sim_conformance_evidence::CheckScopeId::from_text("release/source-identity")
+                .expect("scope")
+        );
+        assert!(!observed.result.contains("completion/claim-"));
+        let (other_rows, other_checks) = super::from_owner("subject/lantern", &[]).expect("other");
+        assert!(other_rows.is_empty());
+        assert!(other_checks.is_none());
+        let (live_rows, live_checks) = super::from_owner(&"ab".repeat(32), &[]).expect("live");
+        assert!(live_rows.is_empty());
+        assert!(live_checks.is_none());
+    }
+
+    #[test]
+    fn a_claim_result_does_not_replace_the_source_identity_catalog() {
+        let _guard = ClearRetained;
+        let subject = "subject/tooling-caller";
+        let observed =
+            sim_conformance_packs::packs::release::observe_source_identity(subject, &manifest())
+                .expect("admitted");
+        super::retain_source_identity(
+            &observed.subject,
+            &observed.result,
+            observed.catalog.clone(),
+            observed.checker.clone(),
+            observed.scope.clone(),
+            observed.revocation.clone(),
+        )
+        .expect("retained");
+        let error = super::retain_source_identity(
+            subject,
+            "completion/claim-21 git+0123456789abcdef0123456789abcdef01234567:sim-example@0.1.0",
+            observed.catalog,
+            observed.checker,
+            observed.scope,
+            observed.revocation,
+        )
+        .expect_err("refused");
+        assert!(
+            error
+                .to_string()
+                .contains("source-identity catalog was refused")
+        );
+        let (rows, checks) = super::from_owner(subject, &[]).expect("owner");
+        assert!(rows.is_empty());
+        assert!(checks.is_some());
+    }
+
+    #[test]
+    fn a_refused_manifest_retains_nothing() {
+        let _guard = ClearRetained;
+        let subject = "subject/tooling-caller";
+        let metadata = "[package]\npublish = false\n[package.metadata]\nsim-example = { version = \"0.1.0\", git = \"https://example.invalid/sim-example.git\", rev = \"0123456789abcdef0123456789abcdef01234567\" }\n";
+        let missing =
+            match sim_conformance_packs::packs::release::observe_source_identity(subject, metadata)
+            {
+                Err(error) => error,
+                Ok(_) => panic!("metadata must not admit"),
+            };
+        assert_eq!(missing.code, "missing-source");
+        let specimen = match sim_conformance_packs::packs::release::observe_source_identity(
+            subject,
+            "[package]\npublish = false\nname = \"shade-1\"\n",
+        ) {
+            Err(error) => error,
+            Ok(_) => panic!("specimen must not admit"),
+        };
+        assert_eq!(specimen.code, "construction-specimen");
+        let (rows, checks) = super::from_owner(subject, &[]).expect("owner");
+        assert!(rows.is_empty());
+        assert!(checks.is_none());
+    }
 
     #[test]
     fn a_source_deck_label_is_not_a_claim() {
