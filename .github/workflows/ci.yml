@@ -60,13 +60,13 @@ jobs:
         with:
           components: rustfmt, clippy
       - run: cargo fmt --all --check
-      - run: cargo run -p xtask -- check-local-sources
-      - run: cargo run -p xtask -- check-managed-substrate
-      - run: cargo run -p xtask -- check-file-sizes
-      - run: cargo test -p sim-lib-standard-core --features native-export
-      - run: cargo test --workspace
-      - run: cargo clippy --workspace --all-targets -- -D warnings
-      - run: cargo doc --workspace --no-deps
+      - run: cargo run --locked -p xtask -- check-local-sources
+      - run: cargo run --locked -p xtask -- check-managed-substrate
+      - run: cargo run --locked -p xtask -- check-file-sizes
+      - run: cargo test --locked -p sim-lib-standard-core --features native-export
+      - run: cargo test --locked --workspace
+      - run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - run: cargo doc --locked --workspace --no-deps
         env:
           RUSTDOCFLAGS: -D warnings
       - name: simdoc --check (guest-only; see sim-tooling docs/simdoc-trust-boundaries.md)
@@ -91,13 +91,13 @@ jobs:
 
       - name: repo-contract --check (same hosted-toolchain limit as simdoc --check above)
         continue-on-error: true
-        run: cargo run -p xtask -- repo-contract --check --repo .
+        run: cargo run --locked -p xtask -- repo-contract --check --repo .
       - name: validation-matrix --check (same hosted-toolchain limit as simdoc --check above)
         continue-on-error: true
-        run: cargo run -p xtask -- validation-matrix --check --repo .
+        run: cargo run --locked -p xtask -- validation-matrix --check --repo .
       - name: crate-catalog --check (same hosted-toolchain limit as simdoc --check above)
         continue-on-error: true
-        run: cargo run -p xtask -- crate-catalog --check --repo .
+        run: cargo run --locked -p xtask -- crate-catalog --check --repo .
         # repo-contract, validation-matrix, and crate-catalog all route
         # through sim-tooling's shared simdoc_route::run_forwarded, which
         # performs the identical simdoc_pin toolchain-identity verification
