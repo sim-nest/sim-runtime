@@ -14,9 +14,14 @@
 //! publication nor exact source-release evidence stay gaps. Exact
 //! source-release evidence is the identity claim 21's verified receipt
 //! names. Linux completion stays outside this seal.
+//! The final-world catalog is filled from the admitted phase union and
+//! the caller release input. Filling that catalog does not derive a seal.
 
+mod assemble;
 mod check;
 mod seal;
+
+pub(crate) use assemble::catalog_datum;
 
 #[cfg(test)]
 mod tests;

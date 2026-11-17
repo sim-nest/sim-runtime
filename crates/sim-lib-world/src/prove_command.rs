@@ -158,6 +158,7 @@ impl ProveEntrypoint {
                 let view = join_segments(&argv[3..]);
                 prove::plan(Some(&argv[2]), Some(&view))
             }
+            Some("catalog") if argv.len() == 3 => prove::catalog(&argv[2]),
             Some("run") if argv.len() == 3 => prove::run(&argv[2], None),
             Some("run") if argv.len() >= 4 && is_view_segment(&argv[3]) => {
                 let view = join_segments(&argv[3..]);
@@ -321,4 +322,4 @@ fn envelope_args(cx: &mut Cx, envelope: Option<&Value>) -> Result<Vec<String>> {
         .collect()
 }
 
-const USAGE: &str = "usage: sim prove plan [CONTINUATION|VIEW] [VIEW] | run cold|proof|D1|D2|D3|D4|D5|D6 [VIEW] | status [VIEW] | why DELTA LEAF [VIEW] | frontier [LEAF|VIEW] [VIEW] | resume CONTINUATION [VIEW] | measure status|why";
+const USAGE: &str = "usage: sim prove plan [CONTINUATION|VIEW] [VIEW] | catalog RELEASES | run cold|proof|D1|D2|D3|D4|D5|D6 [VIEW] | status [VIEW] | why DELTA LEAF [VIEW] | frontier [LEAF|VIEW] [VIEW] | resume CONTINUATION [VIEW] | measure status|why";
