@@ -158,6 +158,40 @@ fn reasons(gaps: &[super::CompletionGap]) -> Vec<&str> {
     gaps.iter().map(|gap| gap.reason.as_str()).collect()
 }
 
+fn exact_unpublished() -> Vec<ReleaseObligation> {
+    [
+        (
+            "sim-codec-mspdi",
+            "fdb39e34ede165c1e261f518e56a338fc5a3ab33",
+        ),
+        ("sim-ledger", "a9a376f1376a19f153011e29257f9af7465a323f"),
+        (
+            "sim-ledger-store-port",
+            "a9a376f1376a19f153011e29257f9af7465a323f",
+        ),
+        (
+            "sim-lib-doc-site",
+            "bb8279c1bcbfe14aac8abe75f4bb03f14d29480c",
+        ),
+        ("sim-lib-gantt", "bb8279c1bcbfe14aac8abe75f4bb03f14d29480c"),
+        ("sim-lib-sheet", "bb8279c1bcbfe14aac8abe75f4bb03f14d29480c"),
+        ("sim-site-dalux", "fdb39e34ede165c1e261f518e56a338fc5a3ab33"),
+        (
+            "sim-site-powerproject",
+            "fdb39e34ede165c1e261f518e56a338fc5a3ab33",
+        ),
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(order, (name, commit))| ReleaseObligation {
+        name: name.to_owned(),
+        registry_published: false,
+        source_release: format!("git+{commit}:{name}@0.1.0"),
+        order: u16::try_from(order).expect("order"),
+    })
+    .collect()
+}
+
 fn unpublished() -> Vec<ReleaseObligation> {
     [
         "sim-codec-mspdi",
@@ -246,6 +280,73 @@ fn unpublished_releases_stay_gaps_on_an_otherwise_proved_subject() {
             .iter()
             .any(|reason| reason.contains("sim-lib-doc-core"))
     );
+}
+
+fn admitted_for(
+    releases: &[ReleaseObligation],
+) -> (
+    SelectedRoadmap,
+    RebuiltExecution,
+    EvidenceCatalog,
+    CheckerCatalog,
+    Vec<AuthorityTransfer>,
+) {
+    let mut inputs = proved();
+    let result = super::check::release_claim_result(releases);
+    let world = inputs.0.final_world.value.clone();
+    let scoped = crate::evidence::scoped_release_results(
+        &world,
+        "scope/completion",
+        &[(21, result.as_str())],
+    )
+    .expect("covering admission");
+    inputs.2.admissions = scoped
+        .admissions
+        .into_iter()
+        .map(|(claim, admitted, checker)| ClaimAdmission {
+            claim,
+            admitted,
+            checker,
+        })
+        .collect();
+    inputs.2.releases = releases.to_vec();
+    inputs.3.catalog = scoped.catalog;
+    inputs.3.scope = scoped.scope;
+    inputs.3.revocations = scoped.revocations;
+    inputs
+}
+
+#[test]
+fn exact_git_source_releases_discharge_unpublished_tooling() {
+    let inputs = admitted_for(&exact_unpublished());
+    let sealed = derive(&inputs).expect("exact source releases");
+    assert_eq!(sealed.claims[20].number, 21);
+}
+
+#[test]
+fn a_changed_source_identity_keeps_the_admitted_evidence_a_gap() {
+    let releases = exact_unpublished();
+    let inputs = admitted_for(&releases);
+    let admitted = inputs.2.admissions.clone();
+    let mut changed = inputs;
+    changed.2.releases[0].source_release =
+        "git+0123456789abcdef0123456789abcdef01234567:sim-codec-mspdi@0.1.0".to_owned();
+    assert_eq!(changed.2.admissions, admitted);
+    let gaps = derive(&changed).expect_err("uncovered revision");
+    assert!(reasons(&gaps).contains(&"unpublished-git-source:sim-codec-mspdi"));
+}
+
+#[test]
+fn a_path_or_mismatched_source_stays_unpublished() {
+    let mut inputs = proved();
+    inputs.2.releases = exact_unpublished();
+    inputs.2.releases[0].source_release = "path+../sim-office:sim-codec-mspdi@0.1.0".to_owned();
+    inputs.2.releases[1].source_release =
+        "git+a9a376f1376a19f153011e29257f9af7465a323f:sim-ledger-other@0.1.0".to_owned();
+    let gaps = derive(&inputs).expect_err("inexact source");
+    let found = reasons(&gaps);
+    assert!(found.contains(&"unpublished-git-source:sim-codec-mspdi"));
+    assert!(found.contains(&"unpublished-git-source:sim-ledger"));
 }
 
 #[test]

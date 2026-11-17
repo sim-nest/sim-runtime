@@ -30,6 +30,15 @@ pub(crate) struct ScopedRelease {
 }
 
 pub(crate) fn scoped_release(world: &str, scope: &str) -> Result<ScopedRelease, ProofError> {
+    scoped_release_results(world, scope, &[])
+}
+
+/// Same catalog path as [`scoped_release`], with a replacement checker result.
+pub(crate) fn scoped_release_results(
+    world: &str,
+    scope: &str,
+    overrides: &[(u8, &str)],
+) -> Result<ScopedRelease, ProofError> {
     let workspace = super::definition(
         "workspace",
         "resolver/lantern",
@@ -54,7 +63,14 @@ pub(crate) fn scoped_release(world: &str, scope: &str) -> Result<ScopedRelease, 
     let mut revocations = BTreeMap::new();
     let mut admissions = Vec::with_capacity(25);
     for claim in 1..=25 {
-        let (next, admitted, checker) = admit_one(catalog, &leaf, &found, world, scope, claim)?;
+        let fallback = crate::completion::bound_result(claim);
+        let result = overrides
+            .iter()
+            .find(|(number, _)| *number == claim)
+            .map(|(_, text)| *text)
+            .unwrap_or(fallback.as_str());
+        let (next, admitted, checker) =
+            admit_one(catalog, &leaf, &found, world, scope, claim, result)?;
         catalog = next;
         revocations.insert(checker.clone(), RevocationStatus::Current);
         admissions.push((claim, admitted, checker));
@@ -74,6 +90,7 @@ fn admit_one(
     world: &str,
     scope: &str,
     claim: u8,
+    result: &str,
 ) -> Result<(ProofCatalog, AdmittedEvidence, CheckerReceiptId), ProofError> {
     let mut shape = super::shape_from(found)?;
     shape.subject = super::sid(world)?;
@@ -94,7 +111,7 @@ fn admit_one(
         .map_err(|error| ProofError::Invalid(error.to_string()))?;
     let receipt = CheckerReceipt::passing(
         &invocation,
-        super::sid(&crate::completion::bound_result(claim))?,
+        super::sid(result)?,
         EvidenceGrade::Release,
         super::sid(&format!("provenance/fixture-claim-{claim}"))?,
         super::sid("policy/catalog")?,

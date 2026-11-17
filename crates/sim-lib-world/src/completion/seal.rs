@@ -28,7 +28,12 @@ pub(super) fn from_proved(
             .map(|row| id_hex(row.admitted.key.content_id().bytes))
             .unwrap_or_default();
         if let Some(row) = row
-            && let Ok(receipt) = super::check::release_receipt(checks, &selected.final_world, row)
+            && let Ok(receipt) = super::check::release_receipt(
+                checks,
+                &selected.final_world,
+                row,
+                &super::check::claim_result(row.claim, &evidence.releases),
+            )
         {
             checker_receipts.push(CheckerReceiptId {
                 value: id_hex(receipt.content_id().bytes),
@@ -99,9 +104,14 @@ fn digest(
     let mut admissions = evidence.admissions.clone();
     admissions.sort_by_key(|row| row.claim);
     for row in admissions {
-        let receipt = super::check::release_receipt(checks, &selected.final_world, &row)
-            .map(|receipt| id_hex(receipt.content_id().bytes))
-            .unwrap_or_default();
+        let receipt = super::check::release_receipt(
+            checks,
+            &selected.final_world,
+            &row,
+            &super::check::claim_result(row.claim, &evidence.releases),
+        )
+        .map(|receipt| id_hex(receipt.content_id().bytes))
+        .unwrap_or_default();
         push(
             &mut text,
             "admission",
