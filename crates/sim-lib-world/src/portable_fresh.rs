@@ -24,7 +24,19 @@ const GAP: &str = "world/fresh-gap-v1";
 
 pub(super) fn fresh_leaf() -> Result<ProofLeaf, WorldError> {
     let command = super::project::resident_command()?;
-    Ok(leaf_from(capture(&command)?))
+    let captured = capture(&command)?;
+    // A proved subject is a successful derivation. This leaf renders the
+    // fresh command record and does not reject that success or emit the seal.
+    match crate::completion::derive_fresh_record(&captured.specimen) {
+        Ok(_seal) => {}
+        Err(gaps) if gaps.iter().any(|gap| gap.reason == "construction-specimen") => {}
+        Err(_) => {
+            return Err(WorldError::Qualification(
+                "completion derivation missed the construction specimen".to_owned(),
+            ));
+        }
+    }
+    Ok(leaf_from(captured))
 }
 
 fn capture(command: &WorldCommandLib) -> Result<Capture, WorldError> {
@@ -212,7 +224,6 @@ mod tests {
     };
 
     use super::*;
-    use crate::command::WorldCommandLib;
 
     struct RefuseLaunch;
 
@@ -246,9 +257,7 @@ mod tests {
 
     #[test]
     fn the_loaded_fresh_command_refuses_the_construction_specimen() {
-        let command = WorldCommandLib::new().expect("command");
-        let captured = capture(&command).expect("capture");
-        let leaf = leaf_from(captured);
+        let leaf = fresh_leaf().expect("fresh leaf");
         let ProofLeaf::SourceDeckPredicate {
             name,
             actual_deck,
