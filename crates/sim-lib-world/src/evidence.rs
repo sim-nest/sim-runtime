@@ -323,6 +323,10 @@ fn semantic(class: &str, fields: &[&str]) -> String {
 }
 
 fn checker_binding() -> Result<CheckerBinding, ProofError> {
+    checker_binding_for(SCOPE)
+}
+
+fn checker_binding_for(scope: &str) -> Result<CheckerBinding, ProofError> {
     CheckerBinding::new(
         "checker/c-evidence".into(),
         sid("owner/test")?,
@@ -332,7 +336,7 @@ fn checker_binding() -> Result<CheckerBinding, ProofError> {
         sid("revocation/test")?,
         sid("command/validate")?,
         sid("command/docs")?,
-        BTreeSet::from([sid(SCOPE)?]),
+        BTreeSet::from([sid(scope)?]),
         CheckTemplate::new(
             "check".into(),
             vec![
@@ -352,6 +356,22 @@ fn checker_binding() -> Result<CheckerBinding, ProofError> {
 fn current(_: &CheckerReceiptId) -> RevocationStatus {
     RevocationStatus::Current
 }
+
+#[cfg(test)]
+fn fixture_bound(
+    leaf: &sim_lib_roadmap_runner::ProofLeaf,
+    template: &sim_lib_roadmap_runner::EvidenceClaim,
+    selected: &[&sim_lib_roadmap_runner::DiscoveredDefinition],
+) -> Result<CheckInputClosureId, sim_lib_roadmap_runner::ProofError> {
+    closure::input_closure(leaf, template, selected)
+}
+
+#[cfg(test)]
+#[path = "evidence_completion.rs"]
+mod completion_link;
+
+#[cfg(test)]
+pub(crate) use completion_link::scoped_release;
 
 fn refused(result: Result<AdmittedEvidence, ProofError>) -> String {
     match result {

@@ -165,6 +165,7 @@ mod canary;
 mod cleanup_beats;
 mod command;
 mod command_steps;
+pub mod completion;
 mod conduct;
 mod converge;
 mod deliver;
@@ -207,7 +208,6 @@ pub use product::{
 };
 pub use prove_command::{PROVE_VERB, ProveCommandLib};
 pub use seal::{captured_inputs, workspace_root};
-
 #[cfg(test)]
 #[path = "../build/activate.rs"]
 mod activate_rules;

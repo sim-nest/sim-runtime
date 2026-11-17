@@ -12,7 +12,7 @@ use sim_lib_roadmap_runner::{
 use super::*;
 use crate::command::{WorldCommandLib, render};
 
-const COMPOSITION: &str = "pages 1 revision 8eed83fd708e5c7a0944c8627663af1f8bc105a9c5a6f7d5659122e4661be28b transitions 1 stale-effects 0 effects 1 hot-delta 0 samples 20 providers model/direction,model/landing,model/snapshot stale-edges 1 bound 1 proof 0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e linux 0";
+const COMPOSITION: &str = "pages 1 revision 10e8d81a27f696c6d1896b44d6327c2c7bf92b54c5ac2f938455c68787cd0b92 transitions 1 stale-effects 0 effects 1 hot-delta 0 samples 20 providers model/direction,model/landing,model/snapshot stale-edges 1 bound 1 proof 0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e linux 0";
 const LINUX: &str = "linux-provider";
 const FREEZE: &str = "freeze-mismatch empty freeze-mismatch";
 const ADVICE: &str = "advice-rejected";
