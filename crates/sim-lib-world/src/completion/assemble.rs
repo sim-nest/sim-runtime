@@ -5,9 +5,11 @@
 
 //! Final-world evidence catalog for one admitted phase union.
 //!
-//! The prove command supplies the selected run's release input. The
-//! union's source-deck leaves are not checker receipts, so a claim with
-//! no verified admission stays a gap. This module does not derive a seal.
+//! The prove command supplies the selected run's release input. A claim
+//! enters this catalog only from an owner receipt the evidence catalog
+//! has already admitted for this subject. A source-deck label is not
+//! that receipt. A claim with no verified admission stays a gap. This
+//! module does not derive a seal.
 
 use sim_kernel::{Datum, Symbol};
 
@@ -27,8 +29,9 @@ use super::{
 /// when the admitted union has no subject or no fresh specimen.
 pub(crate) fn catalog_datum(release_input: &str) -> Result<Datum, WorldError> {
     let releases = parse_release_input(release_input)?;
-    // The phase union verifies source decks. It does not admit claim receipts.
-    let catalog = fill(&admitted_phase_union()?, &releases, &[])?;
+    let admitted = admitted_phase_union()?;
+    let admissions = super::owner_admit::from_owner(&admitted.subject, &releases)?;
+    let catalog = fill(&admitted, &releases, &admissions)?;
     Ok(render(&catalog))
 }
 

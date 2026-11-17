@@ -98,15 +98,55 @@ fn admitted() -> Datum {
     if let Some(found) = CACHED.get() {
         return found.clone();
     }
-    let datum = match survey() {
-        Ok(found) => record(&found),
+    let datum = match cached() {
+        Ok(found) => record(&found.survey),
         Err(error) => return gap("admit", &error.to_string()),
     };
     CACHED.get_or_init(|| datum.clone());
     datum
 }
 
-fn survey() -> Result<Survey, ProofError> {
+/// Release admission the evidence owner has checked for the lantern fixture.
+pub(crate) struct OwnerRelease {
+    /// Subject the checker receipt names.
+    pub(crate) subject: String,
+    /// Result text carried by the release-grade receipt.
+    pub(crate) result: String,
+    /// Evidence `admit_evidence` accepted for that receipt.
+    pub(crate) admitted: AdmittedEvidence,
+    /// Checker receipt that bound the admission.
+    pub(crate) checker: CheckerReceiptId,
+    /// Catalog that holds the receipt.
+    pub(crate) catalog: ProofCatalog,
+    /// Scope recorded on the receipt.
+    pub(crate) scope: CheckScopeId,
+    /// Revocation state recorded for that checker.
+    pub(crate) revocation: RevocationStatus,
+}
+
+/// Returns the evidence owner's verified release admission.
+///
+/// # Errors
+/// Returns an error when the owner cannot build that admission.
+pub(crate) fn owner_release() -> Result<&'static OwnerRelease, ProofError> {
+    Ok(&cached()?.release)
+}
+
+struct Checked {
+    survey: Survey,
+    release: OwnerRelease,
+}
+
+fn cached() -> Result<&'static Checked, ProofError> {
+    static CACHED: OnceLock<Checked> = OnceLock::new();
+    if let Some(found) = CACHED.get() {
+        return Ok(found);
+    }
+    let built = build_checked()?;
+    Ok(CACHED.get_or_init(|| built))
+}
+
+fn build_checked() -> Result<Checked, ProofError> {
     let workspace = definition(
         "workspace",
         "resolver/lantern",
@@ -174,7 +214,7 @@ fn survey() -> Result<Survey, ProofError> {
             RevocationStatus::Current
         }
     });
-    Ok(Survey {
+    let survey = Survey {
         key: mark(bootstrap.key == checked.key && checked.key == published.key),
         receipt: mark(bootstrap.id == checked.id),
         telemetry: mark(again.key == checked.key && again.id == checked.id),
@@ -182,9 +222,22 @@ fn survey() -> Result<Survey, ProofError> {
         revoked: decided(revoked),
         missing: refused(catalog.admit_evidence(missing, current)),
         storage: refused(catalog.admit_evidence(stored, current)),
+    };
+    Ok(Checked {
+        survey,
+        release: OwnerRelease {
+            subject: SUBJECT.to_owned(),
+            result: RELEASE_RESULT.to_owned(),
+            admitted: published,
+            checker: grades.release,
+            catalog,
+            scope: shape.scope,
+            revocation: RevocationStatus::Current,
+        },
     })
 }
 
+const RELEASE_RESULT: &str = "result/published";
 fn catalog(
     leaf: ProofLeaf,
     bound: CheckInputClosureId,
@@ -215,7 +268,7 @@ fn catalog(
         (
             EvidenceGrade::Release,
             "provenance/published",
-            "result/published",
+            RELEASE_RESULT,
         ),
     ] {
         let receipt = CheckerReceipt::passing(
