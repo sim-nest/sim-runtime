@@ -418,6 +418,31 @@ fn a_relabelled_admission_does_not_prove_another_claim() {
 }
 
 #[test]
+fn a_swapped_admission_does_not_prove_the_kept_checker() {
+    let mut inputs = proved();
+    let admitted = inputs
+        .2
+        .admissions
+        .iter()
+        .find(|row| row.claim == 1)
+        .expect("claim 1")
+        .admitted
+        .clone();
+    let target = inputs
+        .2
+        .admissions
+        .iter_mut()
+        .find(|row| row.claim == 7)
+        .expect("claim 7");
+    target.admitted = admitted;
+    let gaps = derive(&inputs).expect_err("swapped admission");
+    assert!(
+        gaps.iter()
+            .any(|gap| gap.claim == 7 && gap.reason == "evidence-not-verified")
+    );
+}
+
+#[test]
 fn revoked_support_is_not_proof() {
     let mut inputs = proved();
     let checker = inputs

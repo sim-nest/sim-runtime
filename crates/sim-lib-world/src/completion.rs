@@ -171,7 +171,8 @@ pub struct RebuiltExecution {
 /// One claim citing evidence the owner catalog admitted.
 ///
 /// The admission grade is not proof. The checker receipt's subject, scope,
-/// and result bind this claim, and the catalog decides release reuse.
+/// and result bind this claim. The admitted receipt must be that checker's
+/// evidence, and the catalog decides release reuse.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ClaimAdmission {
     /// Claim number, from 1 through 25.

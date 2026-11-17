@@ -6,7 +6,9 @@
 //! Claim checks for completion derivation.
 //!
 //! A claim is proved only when the owner catalog reuses a release receipt
-//! for that claim's admitted key. The admission's grade field is not read.
+//! for that claim's admitted key and that receipt's checker is the one
+//! whose claim, subject, scope, and revocation state were validated.
+//! The admission's grade field is not read.
 
 use std::collections::BTreeSet;
 
@@ -231,7 +233,9 @@ fn prove_claim(
 ///
 /// Revocation comes from the owner map. A missing id is unknown, not current.
 /// The checker receipt must name this claim, the selected subject, and the
-/// catalog scope. Catalog membership of some other receipt is not proof.
+/// catalog scope. The open evidence gate reports support checkers and then
+/// the evidence record's own checker. That reuse is this checker's evidence
+/// only when every consulted checker is the validated checker.
 pub(super) fn release_receipt(
     checks: &CheckerCatalog,
     world: &super::WorldSealId,
@@ -260,16 +264,26 @@ pub(super) fn release_receipt(
     if receipt.result() != &result {
         return Err("claim-relabelled");
     }
-    match checks
-        .catalog
-        .decide_evidence(&row.admitted.key, EvidenceGrade::Release, |id| {
-            checks
-                .revocations
-                .get(id)
-                .cloned()
-                .unwrap_or(RevocationStatus::Unknown)
-        }) {
-        EvidenceDecision::Reuse { receipt } if receipt == row.admitted.id => Ok(receipt),
+    let mut consulted = Vec::new();
+    let decision =
+        checks
+            .catalog
+            .decide_evidence(&row.admitted.key, EvidenceGrade::Release, |id| {
+                consulted.push(id.clone());
+                checks
+                    .revocations
+                    .get(id)
+                    .cloned()
+                    .unwrap_or(RevocationStatus::Unknown)
+            });
+    match decision {
+        EvidenceDecision::Reuse { receipt }
+            if receipt == row.admitted.id
+                && !consulted.is_empty()
+                && consulted.iter().all(|id| id == &row.checker) =>
+        {
+            Ok(receipt)
+        }
         EvidenceDecision::Refuse {
             reason: "revoked-support",
         } => Err("revoked-support"),
