@@ -139,7 +139,9 @@ fn releases(obligations: &[super::ReleaseObligation], gaps: &mut Vec<CompletionG
         if !names.insert(name.to_owned()) {
             gaps.push(gap(21, format!("release-duplicate:{name}")));
         }
-        if !obligation.registry_published && obligation.source_release.trim().is_empty() {
+        if !obligation.registry_published
+            && !exact_git_source_release(name, obligation.source_release.trim())
+        {
             gaps.push(gap(21, format!("unpublished-git-source:{name}")));
         }
     }
@@ -152,6 +154,31 @@ fn releases(obligations: &[super::ReleaseObligation], gaps: &mut Vec<CompletionG
     if orders != expected {
         gaps.push(gap(21, "release-order"));
     }
+}
+
+/// `git+` plus 40 lowercase hex digits, the package name, and its version.
+fn exact_git_source_release(name: &str, source: &str) -> bool {
+    let Some(rest) = source.strip_prefix("git+") else {
+        return false;
+    };
+    let Some((commit, spec)) = rest.split_once(':') else {
+        return false;
+    };
+    if commit.len() != 40
+        || !commit
+            .bytes()
+            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+    {
+        return false;
+    }
+    let Some((package, version)) = spec.split_once('@') else {
+        return false;
+    };
+    package == name
+        && !version.is_empty()
+        && version
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || byte == b'.')
 }
 
 fn transfer_gaps(

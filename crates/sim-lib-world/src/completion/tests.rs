@@ -158,6 +158,40 @@ fn reasons(gaps: &[super::CompletionGap]) -> Vec<&str> {
     gaps.iter().map(|gap| gap.reason.as_str()).collect()
 }
 
+fn exact_unpublished() -> Vec<ReleaseObligation> {
+    [
+        (
+            "sim-codec-mspdi",
+            "fdb39e34ede165c1e261f518e56a338fc5a3ab33",
+        ),
+        ("sim-ledger", "a9a376f1376a19f153011e29257f9af7465a323f"),
+        (
+            "sim-ledger-store-port",
+            "a9a376f1376a19f153011e29257f9af7465a323f",
+        ),
+        (
+            "sim-lib-doc-site",
+            "bb8279c1bcbfe14aac8abe75f4bb03f14d29480c",
+        ),
+        ("sim-lib-gantt", "bb8279c1bcbfe14aac8abe75f4bb03f14d29480c"),
+        ("sim-lib-sheet", "bb8279c1bcbfe14aac8abe75f4bb03f14d29480c"),
+        ("sim-site-dalux", "fdb39e34ede165c1e261f518e56a338fc5a3ab33"),
+        (
+            "sim-site-powerproject",
+            "fdb39e34ede165c1e261f518e56a338fc5a3ab33",
+        ),
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(order, (name, commit))| ReleaseObligation {
+        name: name.to_owned(),
+        registry_published: false,
+        source_release: format!("git+{commit}:{name}@0.1.0"),
+        order: u16::try_from(order).expect("order"),
+    })
+    .collect()
+}
+
 fn unpublished() -> Vec<ReleaseObligation> {
     [
         "sim-codec-mspdi",
@@ -246,6 +280,27 @@ fn unpublished_releases_stay_gaps_on_an_otherwise_proved_subject() {
             .iter()
             .any(|reason| reason.contains("sim-lib-doc-core"))
     );
+}
+
+#[test]
+fn exact_git_source_releases_discharge_unpublished_tooling() {
+    let mut inputs = proved();
+    inputs.2.releases = exact_unpublished();
+    let sealed = derive(&inputs).expect("exact source releases");
+    assert_eq!(sealed.claims[20].number, 21);
+}
+
+#[test]
+fn a_path_or_mismatched_source_stays_unpublished() {
+    let mut inputs = proved();
+    inputs.2.releases = exact_unpublished();
+    inputs.2.releases[0].source_release = "path+../sim-office:sim-codec-mspdi@0.1.0".to_owned();
+    inputs.2.releases[1].source_release =
+        "git+a9a376f1376a19f153011e29257f9af7465a323f:sim-ledger-other@0.1.0".to_owned();
+    let gaps = derive(&inputs).expect_err("inexact source");
+    let found = reasons(&gaps);
+    assert!(found.contains(&"unpublished-git-source:sim-codec-mspdi"));
+    assert!(found.contains(&"unpublished-git-source:sim-ledger"));
 }
 
 #[test]
