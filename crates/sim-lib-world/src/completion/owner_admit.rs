@@ -19,7 +19,7 @@ use super::{
 };
 use crate::WorldError;
 
-/// Admissions whose owner receipt matches `subject` and these releases.
+/// Admissions whose owner receipt matches `subject`, and the catalog that checked them.
 ///
 /// # Errors
 ///
@@ -27,14 +27,14 @@ use crate::WorldError;
 pub(crate) fn from_owner(
     subject: &str,
     releases: &[ReleaseObligation],
-) -> Result<Vec<ClaimAdmission>, WorldError> {
+) -> Result<(Vec<ClaimAdmission>, Option<CheckerCatalog>), WorldError> {
     let release = crate::evidence::owner_release()
         .map_err(|error| WorldError::Qualification(format!("evidence owner admission: {error}")))?;
     if release.subject != subject {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), None));
     }
     let Some(claim) = claim_from_result(&release.result) else {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), None));
     };
     let checks = CheckerCatalog {
         catalog: release.catalog.clone(),
@@ -46,7 +46,8 @@ pub(crate) fn from_owner(
         admitted: release.admitted.clone(),
         checker: release.checker.clone(),
     };
-    Ok(admit_checked(subject, releases, &[row], &checks))
+    let admitted = admit_checked(subject, releases, &[row], &checks);
+    Ok((admitted, Some(checks)))
 }
 
 struct CheckedAdmit {
@@ -136,10 +137,12 @@ mod tests {
 
     #[test]
     fn the_lantern_owner_is_not_admitted_for_any_subject() {
-        let lantern = super::from_owner("subject/lantern", &[]).expect("owner");
+        let (lantern, lantern_checks) = super::from_owner("subject/lantern", &[]).expect("owner");
         assert!(lantern.is_empty());
-        let live = super::from_owner(&"ab".repeat(32), &[]).expect("owner");
+        assert!(lantern_checks.is_none());
+        let (live, live_checks) = super::from_owner(&"ab".repeat(32), &[]).expect("owner");
         assert!(live.is_empty());
+        assert!(live_checks.is_none());
     }
 
     #[test]
