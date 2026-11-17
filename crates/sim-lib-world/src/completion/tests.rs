@@ -610,3 +610,18 @@ fn fresh_and_transfer_sources_do_not_carry_the_derivation() {
         assert!(!source.contains("PortableClosed"));
     }
 }
+
+#[test]
+fn the_final_catalog_assembler_does_not_derive_a_seal() {
+    for source in [
+        include_str!("assemble.rs"),
+        include_str!("../portable_union_catalog.rs"),
+    ] {
+        let production = source.split("#[cfg(test)]").next().unwrap_or(source);
+        assert!(!production.contains("derive_completion"));
+        assert!(!production.contains("PortableClosed"));
+        assert!(!production.contains("fdb39e34ede165c1e261f518e56a338fc5a3ab33"));
+        assert!(!production.contains("bb8279c1bcbfe14aac8abe75f4bb03f14d29480c"));
+        assert!(!production.contains("a9a376f1376a19f153011e29257f9af7465a323f"));
+    }
+}

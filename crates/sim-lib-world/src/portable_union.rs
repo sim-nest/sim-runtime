@@ -74,6 +74,8 @@ mod author;
 mod bind;
 #[path = "portable_canary.rs"]
 mod canary;
+#[path = "portable_union_catalog.rs"]
+mod catalog;
 #[path = "portable_compare.rs"]
 mod compare;
 #[path = "portable_compile.rs"]
@@ -126,6 +128,8 @@ mod service;
 mod transact;
 #[path = "portable_union_view.rs"]
 mod view;
+
+pub(crate) use catalog::{PhaseUnionAdmission, admitted_phase_union};
 
 pub(super) use pages::{plan, resume};
 #[path = "portable_work.rs"]

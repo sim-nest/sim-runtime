@@ -34,10 +34,14 @@ fn admit(record: Datum) -> Result<Datum, WorldError> {
     };
     let qualified_tag = tag.as_qualified_str();
     match qualified_tag.as_str() {
-        "world/succession-gap-v1" => Ok(gap(&string_field(fields, "reason").unwrap_or_default())),
-        "world/succession-v1" if construction_change(fields) => Ok(gap("construction-specimen")),
+        "world/succession-gap-v1" => Ok(gap_record(
+            &string_field(fields, "reason").unwrap_or_default(),
+        )),
+        "world/succession-v1" if construction_change(fields) => {
+            Ok(gap_record("construction-specimen"))
+        }
         "world/succession-v1" if qualified(fields) => Ok(admitted(fields)),
-        "world/succession-v1" => Ok(gap("succession-open")),
+        "world/succession-v1" => Ok(gap_record("succession-open")),
         other => Err(WorldError::Qualification(format!("fresh record {other}"))),
     }
 }
@@ -82,7 +86,8 @@ fn admitted(fields: &[(Symbol, Datum)]) -> Datum {
     )
 }
 
-fn gap(reason: &str) -> Datum {
+/// Gap record the fresh command returns for one refused change.
+pub(crate) fn gap_record(reason: &str) -> Datum {
     node(
         "fresh-gap-v1",
         vec![

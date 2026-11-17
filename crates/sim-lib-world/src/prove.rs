@@ -40,6 +40,17 @@ mod record;
 mod run;
 #[path = "portable_union.rs"]
 mod union;
+
+pub(crate) use union::{PhaseUnionAdmission, admitted_phase_union};
+
+/// Final-world catalog for the admitted phase union and one release input.
+///
+/// # Errors
+///
+/// Returns an error when the release input or the admitted union is unusable.
+pub(crate) fn catalog(releases: &str) -> Result<Datum, WorldError> {
+    crate::completion::catalog_datum(releases)
+}
 #[path = "prove_view.rs"]
 mod view;
 

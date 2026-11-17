@@ -149,10 +149,10 @@
 //! command leaf is launched on the qualified route. Each leaf digest binds the
 //! verdict and the retained capture. The admitted view keeps those capture
 //! bytes. The subject binds the proof implementation. A scripted
-//! command receipt is not a proof. A later
-//! reuse, status, why, or frontier query reads
-//! that admitted view. A missing or stale view asks for a refresh and does
-//! not execute the cold path again.
+//! command receipt is not a proof. Catalog reads this admitted union
+//! and the caller release input, names missing admissions as gaps, and
+//! does not derive a seal. A later reuse, status, why, or frontier query
+//! reads that view and does not run the cold path again.
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
