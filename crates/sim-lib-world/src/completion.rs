@@ -249,10 +249,14 @@ pub struct EvidenceCatalog {
 pub struct CheckerCatalog {
     /// Catalog whose admitted evidence is the proof. A grade label is not.
     pub catalog: ProofCatalog,
-    /// Scope the selected checker receipts must carry.
+    /// Scope recorded for `catalog`. Each receipt keeps its own scope.
     pub scope: CheckScopeId,
     /// Authoritative revocation state for checker receipt ids.
     pub revocations: BTreeMap<OwnerCheckerReceiptId, RevocationStatus>,
+    /// Catalogs for owner checkers other than `catalog`.
+    ///
+    /// A checker absent from this map is read from `catalog`.
+    pub owners: BTreeMap<OwnerCheckerReceiptId, ProofCatalog>,
 }
 
 impl CheckerCatalog {
@@ -273,7 +277,13 @@ impl CheckerCatalog {
             catalog,
             scope,
             revocations: BTreeMap::new(),
+            owners: BTreeMap::new(),
         }
+    }
+
+    /// Catalog that holds `checker`. The primary catalog is the fallback.
+    pub(crate) fn proof_for(&self, checker: &OwnerCheckerReceiptId) -> &ProofCatalog {
+        self.owners.get(checker).unwrap_or(&self.catalog)
     }
 }
 

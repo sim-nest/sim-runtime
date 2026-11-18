@@ -354,8 +354,8 @@ pub(super) fn release_receipt(
         RevocationStatus::Unknown => return Err("unknown-revocation"),
         RevocationStatus::Current => {}
     }
-    let receipt = checks
-        .catalog
+    let catalog = checks.proof_for(&row.checker);
+    let receipt = catalog
         .checker_receipt(&row.checker, status)
         .map_err(|_| "evidence-not-verified")?;
     let subject = CheckedSubjectId::from_text(&world.value).map_err(|_| "evidence-not-verified")?;
@@ -367,17 +367,14 @@ pub(super) fn release_receipt(
         return Err("claim-relabelled");
     }
     let mut consulted = Vec::new();
-    let decision =
+    let decision = catalog.decide_evidence(&row.admitted.key, EvidenceGrade::Release, |id| {
+        consulted.push(id.clone());
         checks
-            .catalog
-            .decide_evidence(&row.admitted.key, EvidenceGrade::Release, |id| {
-                consulted.push(id.clone());
-                checks
-                    .revocations
-                    .get(id)
-                    .cloned()
-                    .unwrap_or(RevocationStatus::Unknown)
-            });
+            .revocations
+            .get(id)
+            .cloned()
+            .unwrap_or(RevocationStatus::Unknown)
+    });
     match decision {
         EvidenceDecision::Reuse { receipt }
             if receipt == row.admitted.id

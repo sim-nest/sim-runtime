@@ -137,6 +137,7 @@ fn proved() -> (
             catalog: scoped.catalog,
             scope: scoped.scope,
             revocations: scoped.revocations,
+            owners: std::collections::BTreeMap::new(),
         },
         vec![transfer],
     )
