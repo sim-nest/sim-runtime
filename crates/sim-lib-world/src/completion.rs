@@ -19,6 +19,7 @@
 
 mod assemble;
 mod check;
+mod owner_admit;
 mod seal;
 
 pub(crate) use assemble::catalog_datum;

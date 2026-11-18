@@ -159,6 +159,7 @@ impl ProveEntrypoint {
                 prove::plan(Some(&argv[2]), Some(&view))
             }
             Some("catalog") if argv.len() == 3 => prove::catalog(&argv[2]),
+            Some("catalog") if argv.len() == 4 => prove::catalog_with_source(&argv[2], &argv[3]),
             Some("run") if argv.len() == 3 => prove::run(&argv[2], None),
             Some("run") if argv.len() >= 4 && is_view_segment(&argv[3]) => {
                 let view = join_segments(&argv[3..]);

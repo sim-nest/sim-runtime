@@ -5,9 +5,11 @@
 
 //! Final-world evidence catalog for one admitted phase union.
 //!
-//! The prove command supplies the selected run's release input. The
-//! union's source-deck leaves are not checker receipts, so a claim with
-//! no verified admission stays a gap. This module does not derive a seal.
+//! The prove command supplies the selected run's release input. A claim
+//! enters this catalog only from an owner receipt the evidence catalog
+//! has already admitted for this subject. A source-deck label is not
+//! that receipt. A claim with no verified admission stays a gap. This
+//! module does not derive a seal.
 
 use sim_kernel::{Datum, Symbol};
 
@@ -15,21 +17,34 @@ use crate::WorldError;
 use crate::prove::{PhaseUnionAdmission, admitted_phase_union};
 
 use super::{
-    ClaimAdmission, EvidenceCatalog, EvidenceSetId, LinuxBoundary, ReleaseObligation,
-    SelectedRoadmapId, WorldSealId,
+    CheckerCatalog, ClaimAdmission, EvidenceCatalog, EvidenceSetId, LinuxBoundary,
+    ReleaseObligation, SelectedRoadmapId, WorldSealId,
 };
 
 /// Reads the prove command's release input and the admitted phase union.
 ///
+/// `manifest` is an injected Cargo manifest. When it is present, its
+/// verified source-identity catalog is retained for the admitted subject
+/// and does not become a claim row.
+///
 /// # Errors
 ///
-/// Returns an error when the release input is not a source identity, or
-/// when the admitted union has no subject or no fresh specimen.
-pub(crate) fn catalog_datum(release_input: &str) -> Result<Datum, WorldError> {
+/// Returns an error when the release input is not a source identity, the
+/// admitted union has no subject or no fresh specimen, or the manifest
+/// observation is refused.
+pub(crate) fn catalog_datum(
+    release_input: &str,
+    manifest: Option<&str>,
+) -> Result<Datum, WorldError> {
+    super::owner_admit::clear_source_identity();
     let releases = parse_release_input(release_input)?;
-    // The phase union verifies source decks. It does not admit claim receipts.
-    let catalog = fill(&admitted_phase_union()?, &releases, &[])?;
-    Ok(render(&catalog))
+    let admitted = admitted_phase_union()?;
+    if let Some(manifest) = manifest {
+        super::owner_admit::retain_observed_manifest(&admitted.subject, manifest)?;
+    }
+    let (admissions, checks) = super::owner_admit::from_owner(&admitted.subject, &releases)?;
+    let catalog = fill(&admitted, &releases, &admissions)?;
+    Ok(render(&catalog, checks.as_ref()))
 }
 
 /// Parses one release identity per line.
@@ -106,7 +121,7 @@ fn fill(
     })
 }
 
-fn render(catalog: &EvidenceCatalog) -> Datum {
+fn render(catalog: &EvidenceCatalog, checks: Option<&CheckerCatalog>) -> Datum {
     node(vec![
         (
             "admissions",
@@ -114,7 +129,7 @@ fn render(catalog: &EvidenceCatalog) -> Datum {
         ),
         ("evidence", text(&catalog.id.value)),
         ("fresh", catalog.fresh.clone()),
-        ("gaps", strings(open_gaps(catalog))),
+        ("gaps", strings(open_gaps(catalog, checks))),
         (
             "releases",
             strings(catalog.releases.iter().map(release_token)),
@@ -127,7 +142,7 @@ fn render(catalog: &EvidenceCatalog) -> Datum {
     ])
 }
 
-fn open_gaps(catalog: &EvidenceCatalog) -> Vec<String> {
+fn open_gaps(catalog: &EvidenceCatalog, checks: Option<&CheckerCatalog>) -> Vec<String> {
     let mut gaps = Vec::new();
     if let Some(reason) = gap_reason(&catalog.fresh) {
         gaps.push(reason);
@@ -135,8 +150,7 @@ fn open_gaps(catalog: &EvidenceCatalog) -> Vec<String> {
     if catalog.releases.is_empty() {
         gaps.push("release-missing".to_owned());
     }
-    let claim_21 = catalog.admissions.iter().any(|row| row.claim == 21);
-    if !claim_21 {
+    if !source_covered(catalog, checks) {
         for release in &catalog.releases {
             if !release.registry_published {
                 gaps.push(format!("unpublished-git-source:{}", release.name));
@@ -150,6 +164,22 @@ fn open_gaps(catalog: &EvidenceCatalog) -> Vec<String> {
         gaps.push("linux-claim".to_owned());
     }
     gaps
+}
+
+fn source_covered(catalog: &EvidenceCatalog, checks: Option<&CheckerCatalog>) -> bool {
+    let Some(checks) = checks else {
+        return false;
+    };
+    let found: Vec<_> = catalog
+        .admissions
+        .iter()
+        .filter(|row| row.claim == 21)
+        .collect();
+    if found.len() != 1 {
+        return false;
+    }
+    let expected = super::check::claim_result(21, &catalog.releases);
+    super::check::release_receipt(checks, &catalog.final_world, found[0], &expected).is_ok()
 }
 
 fn release_token(release: &ReleaseObligation) -> String {
@@ -332,6 +362,60 @@ mod tests {
     }
 
     #[test]
+    fn a_claim_21_row_without_release_cover_keeps_the_source_gap() {
+        use super::super::{
+            ClaimAdmission, EvidenceCatalog, EvidenceSetId, LinuxBoundary, ReleaseObligation,
+            SelectedRoadmapId, WorldSealId,
+        };
+
+        let scoped =
+            crate::evidence::scoped_release("world-final", "scope/completion").expect("fixture");
+        let (_, admitted, checker) = scoped
+            .admissions
+            .into_iter()
+            .find(|(claim, _, _)| *claim == 1)
+            .expect("claim 1");
+        let catalog = EvidenceCatalog {
+            id: EvidenceSetId {
+                value: "ab".repeat(32),
+            },
+            roadmap: SelectedRoadmapId {
+                value: "sim-world-portable-union-v1".to_owned(),
+            },
+            final_world: WorldSealId {
+                value: "cd".repeat(32),
+            },
+            source_digest: "cd".repeat(32),
+            replay_digest: "ef".repeat(32),
+            admissions: vec![ClaimAdmission {
+                claim: 21,
+                admitted,
+                checker,
+            }],
+            fresh: crate::fresh::gap_record("construction-specimen"),
+            releases: vec![ReleaseObligation {
+                name: "sim-example".to_owned(),
+                registry_published: false,
+                source_release: "git+0123456789abcdef0123456789abcdef01234567:sim-example@0.1.0"
+                    .to_owned(),
+                order: 0,
+            }],
+            linux: LinuxBoundary::Unselected,
+            model_provider_credential: false,
+        };
+        for checks in [None, Some(super::super::CheckerCatalog::without_evidence())] {
+            let gaps = super::open_gaps(&catalog, checks.as_ref());
+            assert!(
+                gaps.iter()
+                    .any(|gap| gap == "unpublished-git-source:sim-example"),
+                "{checks:?}"
+            );
+            assert!(gaps.iter().any(|gap| gap == "construction-specimen"));
+            assert!(gaps.iter().any(|gap| gap == "claim-unproved"));
+        }
+    }
+
+    #[test]
     fn catalog_without_a_release_input_is_usage() {
         let error = ProveCommandLib::new()
             .run(&argv(&["prove", "catalog"]))
@@ -400,6 +484,19 @@ mod tests {
                     .any(|gap| gap == &format!("unpublished-git-source:{name}"))
             );
         }
+        let manifest = "[package]\npublish = false\n[dependencies]\nsim-example = { version = \"0.1.0\", git = \"https://example.invalid/sim-example.git\", rev = \"0123456789abcdef0123456789abcdef01234567\" }\n";
+        let retained = prove_command
+            .run(&argv(&["prove", "catalog", &SOURCES.join("\n"), manifest]))
+            .expect("retained");
+        assert_eq!(
+            list_field(&retained, "admissions"),
+            list_field(&catalog, "admissions")
+        );
+        assert_eq!(list_field(&retained, "gaps"), list_field(&catalog, "gaps"));
+        assert_eq!(
+            string_field(&retained, "world/final-catalog-v1", "seal"),
+            "unclaimed"
+        );
         let fresh = field(&catalog, "world/final-catalog-v1", "fresh").expect("fresh");
         assert_eq!(
             string_field(fresh, "world/fresh-gap-v1", "reason"),
