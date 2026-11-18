@@ -12,11 +12,11 @@ use sim_lib_roadmap_runner::{
 use super::*;
 use crate::command::{WorldCommandLib, render};
 
-const COMPOSITION: &str = "pages 1 revision 8eed83fd708e5c7a0944c8627663af1f8bc105a9c5a6f7d5659122e4661be28b transitions 1 stale-effects 0 effects 1 hot-delta 0 samples 20 providers model/direction,model/landing,model/snapshot stale-edges 1 bound 1 proof 0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e linux 0";
+const COMPOSITION: &str = "pages 1 revision 486a016a98381adfd74b7ace6a7448400af5da329f133680d5ae669ebf32a0a3 transitions 1 stale-effects 0 effects 1 hot-delta 0 samples 0 providers model/direction,model/landing,model/snapshot stale-edges 1 bound 1 proof bcadc29cc073ffbcbe9d29ed2fc42c693b2b8fb25a4eb76cfcc519428127ee37 linux 0";
 const LINUX: &str = "linux-provider";
 const FREEZE: &str = "freeze-mismatch empty freeze-mismatch";
 const ADVICE: &str = "advice-rejected";
-const BEGIN: &str = "distinct begin-required landed 1 stale 1 proof 0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e";
+const BEGIN: &str = "distinct begin-required landed 1 stale 1 proof bcadc29cc073ffbcbe9d29ed2fc42c693b2b8fb25a4eb76cfcc519428127ee37";
 
 struct RefuseLaunch;
 
@@ -131,16 +131,21 @@ fn a_changed_qualify_detail_fails() {
 }
 
 #[test]
-fn the_qualify_command_calls_the_published_specimen() {
-    let source = include_str!("qualify_drive.rs");
-    assert!(source.contains("qualify("));
-    assert!(source.contains("compiled_executor_closure("));
-    assert!(source.contains("open_with_linux("));
-    assert!(source.contains("advice_rejected("));
-    assert!(source.contains("selection_is_distinct("));
-    assert!(source.contains("hot_needs_begin("));
-    assert!(source.contains("selection_without_begin("));
-    assert!(!source.contains("advance_one_effect"));
+fn the_qualify_command_runs_the_composition_identity() {
+    let drive = include_str!("qualify_drive.rs");
+    let law = include_str!("qualify_law.rs");
+    assert!(drive.contains("law::qualify("));
+    assert!(drive.contains("law::revision("));
+    assert!(drive.contains("law::open_with_linux("));
+    assert!(drive.contains("law::advice_rejected("));
+    assert!(drive.contains("law::selection_is_distinct("));
+    assert!(drive.contains("law::hot_needs_begin("));
+    assert!(drive.contains("law::selection_without_begin("));
+    assert!(law.contains("fn qualify("));
+    assert!(law.contains("fn open_with_linux("));
+    assert!(!drive.contains("sim_conformance_packs"));
+    assert!(!law.contains("sim_conformance_packs"));
+    assert!(!drive.contains("advance_one_effect"));
 }
 
 fn with_field(value: &Datum, name: &str, replacement: Datum) -> Datum {

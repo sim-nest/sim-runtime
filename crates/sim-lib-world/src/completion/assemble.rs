@@ -23,34 +23,61 @@ use super::{
 
 /// Reads the prove command's release input and the admitted phase union.
 ///
-/// `manifest` is an injected Cargo manifest. When it is present, its
-/// verified source-identity catalog is retained for the admitted subject
-/// and does not become a claim row. The journal export captured while the
-/// admitted union runs is checked for this subject. Claim 17 enters only
-/// when that receipt verifies. A refusal leaves the claim unproved.
+/// A journal catalog supplied for this assembly is retained when it names
+/// the admitted subject. Claim 17 enters only from that retained receipt.
+/// This function does not run a conformance pack. A missing receipt leaves
+/// the claim unproved.
 ///
 /// # Errors
 ///
-/// Returns an error when the release input is not a source identity, the
-/// admitted union has no subject or no fresh specimen, or the manifest
-/// observation is refused.
+/// Returns an error when the release input is not a source identity, or
+/// the admitted union has no subject or no fresh specimen.
 pub(crate) fn catalog_datum(
     release_input: &str,
     manifest: Option<&str>,
 ) -> Result<Datum, WorldError> {
     super::owner_admit::clear_source_identity();
     super::owner_admit::clear_journal_completion();
+    super::owner_admit::clear_owner_claims();
     crate::journal::clear_export();
     let releases = parse_release_input(release_input)?;
     let admitted = admitted_phase_union()?;
-    if let Some(export) = crate::journal::take_export() {
-        super::owner_admit::retain_journal_completion(&admitted.subject, &export)?;
+    let _export = crate::journal::take_export();
+    if let Some(observation) = super::owner_admit::take_supplied_journal()
+        && observation.subject == admitted.subject
+    {
+        super::owner_admit::retain_journal_completion(
+            &observation.subject,
+            &observation.result,
+            observation.catalog,
+            observation.admitted,
+            observation.checker,
+            observation.scope,
+            observation.revocation,
+        )?;
     }
-    if let Some(manifest) = manifest {
-        super::owner_admit::retain_observed_manifest(&admitted.subject, manifest)?;
+    if let Some(source) = super::owner_admit::take_supplied_source()
+        && source.subject == admitted.subject
+    {
+        super::owner_admit::retain_source_identity(
+            &source.subject,
+            &source.result,
+            source.catalog,
+            source.checker,
+            source.scope,
+            source.revocation,
+        )?;
     }
+    super::owner_admit::accept_supplied_owner_claims(&admitted.subject);
+    let supplied_fresh = super::fresh_set::take();
+    let fresh = super::fresh_set::retain(
+        &admitted.fresh_reason,
+        supplied_fresh
+            .as_ref()
+            .map(|(export, change)| (export.as_str(), change.as_str())),
+    )?;
     let (admissions, checks) = super::owner_admit::from_owner(&admitted.subject, &releases)?;
-    let catalog = fill(&admitted, &releases, &admissions)?;
+    let catalog = fill(&admitted, &releases, &admissions, manifest, fresh)?;
     Ok(render(&catalog, checks.as_ref()))
 }
 
@@ -95,6 +122,8 @@ fn fill(
     admitted: &PhaseUnionAdmission,
     releases: &[ReleaseObligation],
     admissions: &[ClaimAdmission],
+    manifest: Option<&str>,
+    fresh: Datum,
 ) -> Result<EvidenceCatalog, WorldError> {
     if !is_digest(&admitted.subject) || admitted.replay_body.is_empty() {
         return Err(WorldError::Qualification(
@@ -102,7 +131,7 @@ fn fill(
         ));
     }
     let replay_digest = digest(&admitted.replay_body)?;
-    let fresh = crate::fresh::gap_record(&admitted.fresh_reason);
+    let source_digest = selected_source_digest(releases, manifest)?;
     let linux = if admitted.linux_selected {
         LinuxBoundary::SelectedUnfinished
     } else {
@@ -118,7 +147,7 @@ fn fill(
         final_world: WorldSealId {
             value: admitted.subject.clone(),
         },
-        source_digest: admitted.subject.clone(),
+        source_digest,
         replay_digest,
         admissions: admissions.to_vec(),
         fresh,
@@ -191,7 +220,7 @@ fn source_covered(catalog: &EvidenceCatalog, checks: Option<&CheckerCatalog>) ->
 
 fn release_token(release: &ReleaseObligation) -> String {
     if release.registry_published {
-        format!("registry:{}", release.name)
+        format!("registry:{}@{}", release.name, release.version)
     } else {
         release.source_release.clone()
     }
@@ -234,6 +263,7 @@ fn git_release(line: &str, order: u16) -> Option<ReleaseObligation> {
         name: name.to_owned(),
         registry_published: false,
         source_release: line.to_owned(),
+        version: version.to_owned(),
         order,
     })
 }
@@ -248,6 +278,7 @@ fn registry_release(line: &str, order: u16) -> Option<ReleaseObligation> {
         name: name.to_owned(),
         registry_published: true,
         source_release: String::new(),
+        version: version.to_owned(),
         order,
     })
 }
@@ -266,7 +297,32 @@ fn is_version(text: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || byte == b'.')
 }
 
+fn selected_source_digest(
+    releases: &[ReleaseObligation],
+    manifest: Option<&str>,
+) -> Result<String, WorldError> {
+    let mut text = String::new();
+    for release in releases {
+        text.push_str(&release_token(release));
+        text.push('\n');
+    }
+    if let Some(manifest) = manifest {
+        text.push_str(manifest.trim_end());
+        text.push('\n');
+    }
+    digest(&text)
+}
+
 fn gap_reason(record: &Datum) -> Option<String> {
+    if let Datum::Node { tag, fields } = record
+        && tag.as_qualified_str() == "world/fresh-set-v1"
+    {
+        let admitted = fields
+            .iter()
+            .find(|(symbol, _)| symbol.as_qualified_str() == "admitted")
+            .map(|(_, value)| value)?;
+        return gap_reason(admitted);
+    }
     let Datum::Node { tag, fields } = record else {
         return None;
     };
@@ -359,7 +415,15 @@ mod tests {
         assert_eq!(rows[0].order, 0);
         assert!(rows[1].registry_published);
         assert!(rows[1].source_release.is_empty());
+        assert_eq!(rows[0].version, "0.2.0");
+        assert_eq!(rows[1].version, "1.0");
         assert_eq!(rows[1].name, "sim-other");
+        let older = super::parse_release_input("registry:sim-example@0.1.0\n").expect("older");
+        let newer = super::parse_release_input("registry:sim-example@0.2.0\n").expect("newer");
+        assert_ne!(
+            super::selected_source_digest(&older, Some("manifest")).expect("older digest"),
+            super::selected_source_digest(&newer, Some("manifest")).expect("newer digest")
+        );
         let repeated = super::parse_release_input(
             "git+0123456789abcdef0123456789abcdef01234567:sim-example@0.2.0\ngit+0123456789abcdef0123456789abcdef01234567:sim-example@0.2.0\n",
         );
@@ -405,6 +469,7 @@ mod tests {
                 registry_published: false,
                 source_release: "git+0123456789abcdef0123456789abcdef01234567:sim-example@0.1.0"
                     .to_owned(),
+                version: "0.1.0".to_owned(),
                 order: 0,
             }],
             linux: LinuxBoundary::Unselected,
@@ -433,6 +498,7 @@ mod tests {
     #[test]
     fn the_final_catalog_fills_from_the_admitted_phase_union() {
         let prove_command = ProveCommandLib::new();
+        supply_replay();
         let catalog = prove_command
             .run(&argv(&["prove", "catalog", &SOURCES.join("\n")]))
             .expect("catalog");
@@ -447,10 +513,13 @@ mod tests {
             string_field(&catalog, "world/final-catalog-v1", "roadmap"),
             "sim-world-portable-union-v1"
         );
+        let releases = super::parse_release_input(&SOURCES.join("\n")).expect("releases");
+        let source = super::selected_source_digest(&releases, None).expect("source");
         assert_eq!(
             string_field(&catalog, "world/final-catalog-v1", "source"),
-            subject
+            source
         );
+        assert_ne!(source, subject);
         assert_eq!(
             string_field(&catalog, "world/final-catalog-v1", "seal"),
             "unclaimed"
@@ -492,6 +561,7 @@ mod tests {
             );
         }
         let manifest = "[package]\npublish = false\n[dependencies]\nsim-example = { version = \"0.1.0\", git = \"https://example.invalid/sim-example.git\", rev = \"0123456789abcdef0123456789abcdef01234567\" }\n";
+        supply_replay();
         let retained = prove_command
             .run(&argv(&["prove", "catalog", &SOURCES.join("\n"), manifest]))
             .expect("retained");
@@ -504,6 +574,14 @@ mod tests {
             string_field(&retained, "world/final-catalog-v1", "seal"),
             "unclaimed"
         );
+        let manifest_source =
+            super::selected_source_digest(&releases, Some(manifest)).expect("manifest source");
+        assert_eq!(
+            string_field(&retained, "world/final-catalog-v1", "source"),
+            manifest_source
+        );
+        assert_ne!(manifest_source, source);
+        assert_ne!(manifest_source, subject);
         let fresh = field(&catalog, "world/final-catalog-v1", "fresh").expect("fresh");
         assert_eq!(
             string_field(fresh, "world/fresh-gap-v1", "reason"),
@@ -512,6 +590,28 @@ mod tests {
         assert_eq!(
             string_field(fresh, "world/fresh-gap-v1", "seal"),
             "unclaimed"
+        );
+    }
+
+    fn supply_replay() {
+        let subject = prove::admitted_subject().expect("subject");
+        let scoped =
+            crate::evidence::scoped_release(&subject, "completion/replay").expect("replay");
+        let (_, admitted, checker) = scoped
+            .admissions
+            .into_iter()
+            .find(|(claim, _, _)| *claim == 17)
+            .expect("claim 17");
+        super::super::owner_admit::supply_journal_observation(
+            super::super::owner_admit::SuppliedReplay {
+                subject,
+                result: "completion/claim-17".to_owned(),
+                catalog: scoped.catalog,
+                admitted,
+                checker,
+                scope: scoped.scope,
+                revocation: sim_conformance_evidence::RevocationStatus::Current,
+            },
         );
     }
 

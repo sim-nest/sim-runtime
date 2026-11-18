@@ -5,11 +5,10 @@
 
 //! Binding gate for the portable phase union.
 //!
-//! The leaf calls the loaded bind command. One call runs the published
-//! pack binding. One binding serves two subjects and two scopes. Swapped
-//! identities refuse. A missing pack scope is unimplemented. The facet
-//! law passes, and its unfunded scope stays unimplemented. A private
-//! value is not copied.
+//! The leaf calls the loaded bind command. One binding serves two subjects
+//! and two scopes. Swapped identities refuse. A known unfunded scope is
+//! unimplemented. The facet law passes, and its unfunded scope stays
+//! unimplemented. A private value is not copied.
 
 use std::collections::BTreeSet;
 

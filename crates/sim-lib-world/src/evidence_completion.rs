@@ -127,3 +127,97 @@ fn admit_one(
     let admitted = super::admit(&mut catalog, &shape, &id, "", Vec::new())?;
     Ok((catalog, admitted, id))
 }
+
+/// One claim whose support was checked by a different owner checker.
+///
+/// The returned checker id is that support owner. The claim receipt keeps
+/// its own scope and checker.
+pub(crate) fn scoped_release_with_foreign_support(
+    world: &str,
+    scope: &str,
+    claim: u8,
+) -> Result<(ScopedRelease, CheckerReceiptId), ProofError> {
+    scoped_release_with_shared_support(world, scope, &[claim])
+}
+
+/// Several claims whose support was checked by one owner checker.
+///
+/// The returned checker id is that support owner. Each selected claim keeps
+/// its own checker. The revocation map records the support owner as current.
+pub(crate) fn scoped_release_with_shared_support(
+    world: &str,
+    scope: &str,
+    claims: &[u8],
+) -> Result<(ScopedRelease, CheckerReceiptId), ProofError> {
+    let mut release = scoped_release(world, scope)?;
+    let workspace = super::definition(
+        "workspace",
+        "resolver/lantern",
+        "lantern",
+        &["resolver/lantern", "path", "lantern", "1.0.0", "."],
+        "aaaa1111",
+    );
+    let generated = super::definition(
+        "generate",
+        "resolver/lantern",
+        "src/generated.rs",
+        &["resolver/lantern", "src/generated.rs"],
+        "dddd4444",
+    );
+    let found = [workspace, generated];
+    let leaf = release.catalog.leaf("anchor")?.clone();
+    let (catalog, support_admitted, support_checker) = admit_one(
+        release.catalog,
+        &leaf,
+        &found,
+        world,
+        "scope/support-owner",
+        0,
+        "support/owner-b",
+    )?;
+    release.catalog = catalog;
+    let support_id = support_admitted.id.clone();
+    for claim in claims {
+        let checker = release
+            .admissions
+            .iter()
+            .find(|(number, _, _)| number == claim)
+            .map(|(_, _, checker)| checker.clone())
+            .expect("selected claim");
+        let admitted = admit_supported(
+            &mut release.catalog,
+            &found,
+            world,
+            scope,
+            *claim,
+            &checker,
+            vec![support_id.clone()],
+        )?;
+        for row in &mut release.admissions {
+            if row.0 == *claim {
+                row.1 = admitted;
+                break;
+            }
+        }
+    }
+    release
+        .revocations
+        .insert(support_checker.clone(), RevocationStatus::Current);
+    Ok((release, support_checker))
+}
+
+fn admit_supported(
+    catalog: &mut ProofCatalog,
+    found: &[sim_lib_roadmap_runner::DiscoveredDefinition],
+    world: &str,
+    scope: &str,
+    claim: u8,
+    checker: &CheckerReceiptId,
+    supports: Vec<sim_lib_roadmap_runner::EvidenceReceiptId>,
+) -> Result<AdmittedEvidence, ProofError> {
+    let mut shape = super::shape_from(found)?;
+    shape.subject = super::sid(world)?;
+    shape.scope = super::sid(scope)?;
+    shape.environment = format!("environment/fixture-claim-{claim}");
+    super::admit(catalog, &shape, checker, "", supports)
+}

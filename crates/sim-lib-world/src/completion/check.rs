@@ -334,10 +334,10 @@ fn prove_claim(
 /// Receipt the catalog reuses at release grade for this bound admission.
 ///
 /// Revocation comes from the owner map. A missing id is unknown, not current.
-/// The checker receipt must name this claim, the selected subject, and the
-/// catalog scope. The open evidence gate reports support checkers and then
-/// the evidence record's own checker. That reuse is this checker's evidence
-/// only when every consulted checker is the validated checker.
+/// The checker receipt must name this claim and the selected subject. Its
+/// scope stays on that receipt; the catalog does not force every owner onto
+/// one scope label. Support checked by another current owner remains valid.
+/// Unknown or revoked support is refused.
 pub(super) fn release_receipt(
     checks: &CheckerCatalog,
     world: &super::WorldSealId,
@@ -354,35 +354,34 @@ pub(super) fn release_receipt(
         RevocationStatus::Unknown => return Err("unknown-revocation"),
         RevocationStatus::Current => {}
     }
-    let receipt = checks
-        .catalog
+    let catalog = checks.proof_for(&row.checker);
+    let receipt = catalog
         .checker_receipt(&row.checker, status)
         .map_err(|_| "evidence-not-verified")?;
     let subject = CheckedSubjectId::from_text(&world.value).map_err(|_| "evidence-not-verified")?;
     let result = CheckerResultId::from_text(result).map_err(|_| "evidence-not-verified")?;
-    if receipt.subject() != &subject || receipt.scope() != &checks.scope {
+    if receipt.subject() != &subject {
         return Err("evidence-unrelated");
     }
     if receipt.result() != &result {
         return Err("claim-relabelled");
     }
     let mut consulted = Vec::new();
-    let decision =
+    let decision = catalog.decide_evidence(&row.admitted.key, EvidenceGrade::Release, |id| {
+        consulted.push(id.clone());
         checks
-            .catalog
-            .decide_evidence(&row.admitted.key, EvidenceGrade::Release, |id| {
-                consulted.push(id.clone());
-                checks
-                    .revocations
-                    .get(id)
-                    .cloned()
-                    .unwrap_or(RevocationStatus::Unknown)
-            });
+            .revocations
+            .get(id)
+            .cloned()
+            .unwrap_or(RevocationStatus::Unknown)
+    });
     match decision {
         EvidenceDecision::Reuse { receipt }
             if receipt == row.admitted.id
-                && !consulted.is_empty()
-                && consulted.iter().all(|id| id == &row.checker) =>
+                && consulted.contains(&row.checker)
+                && consulted
+                    .iter()
+                    .all(|id| checks.revocations.get(id) == Some(&RevocationStatus::Current)) =>
         {
             Ok(receipt)
         }
@@ -397,6 +396,21 @@ pub(super) fn release_receipt(
 }
 
 fn fresh(record: &Datum, gaps: &mut Vec<CompletionGap>) {
+    if let Some(fields) = node_fields(record, "world/fresh-set-v1") {
+        let Some(specimen) = child(fields, "specimen") else {
+            gaps.push(gap(23, "fresh-specimen"));
+            return;
+        };
+        let Some(admitted) = child(fields, "admitted") else {
+            gaps.push(gap(23, "fresh-record-unreadable"));
+            return;
+        };
+        if gap_reason(specimen, "world/fresh-gap-v1").is_none() {
+            gaps.push(gap(23, "fresh-specimen"));
+        }
+        fresh(admitted, gaps);
+        return;
+    }
     if let Some(reason) = gap_reason(record, "world/fresh-gap-v1") {
         let reason = if reason.is_empty() {
             "fresh-gap-unspecified".to_owned()
@@ -457,6 +471,13 @@ fn gap(claim: u8, reason: impl Into<String>) -> CompletionGap {
         claim,
         reason: reason.into(),
     }
+}
+
+fn child<'a>(fields: &'a [(Symbol, Datum)], name: &str) -> Option<&'a Datum> {
+    fields
+        .iter()
+        .find(|(symbol, _)| symbol.as_qualified_str() == name)
+        .map(|(_, value)| value)
 }
 
 fn gap_reason(record: &Datum, tag: &str) -> Option<String> {

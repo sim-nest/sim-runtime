@@ -3,10 +3,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! Published pack-binding calls for one bind case.
+//! Binding identity for one world bind case.
+//!
+//! One binding serves two subjects and two funded scopes. A swapped
+//! identity refuses. A known unfunded scope stays unimplemented, and an
+//! unknown scope refuses. The funded facet scope passes. This module does
+//! not call a conformance pack.
 
-use sim_conformance_packs::{MemorySubject, PackRequest, PackVerdict, find_pack, packs};
-use sim_kernel::{ContentId, Symbol};
+use sim_kernel::{ContentId, Datum, Symbol};
 
 pub(crate) struct Law {
     pub(crate) detail: String,
@@ -19,7 +23,7 @@ pub(crate) enum Fault {
 }
 
 impl Fault {
-    pub(crate) fn code(self) -> &'static str {
+    pub(crate) const fn code(self) -> &'static str {
         match self {
             Self::Bound => "bound",
             Self::Refused => "bind-refused",
@@ -27,171 +31,78 @@ impl Fault {
     }
 }
 
-const EFFECT_KEYS: &[&str] = &[
-    "work.effect-port-is-local-check-port",
-    "work.packet-cannot-construct-native-command",
-    "work.packet-names-installed-command-id",
-    "work.command-bytes-cannot-be-substituted",
-    "work.proposals-remain-pure",
-    "work.proposals-apply-only-in-disposable-checkout",
-    "work.actual-owner-integration-remains-operator",
-    "work.formatter-result-observed",
-    "work.test-pass-result-observed",
-    "work.test-failure-result-observed",
-    "work.validation-and-docs-results-observed",
-    "work.operation-outcomes-typed",
-    "work.actor-grant-handoff-recorded",
-    "work.future-world-source-proof-unassumed",
-];
+const PURE: &str = "world/packet-pure";
+const EFFECTS: &str = "world/packet-effects";
+const NATIVE: &str = "world/native-dispatch";
+const UNKNOWN: &str = "world/not-bound";
+const FACET_PURE: &str = "world/facet-pure";
+const FACET_LANDING: &str = "world/facet-landing";
 
 pub(crate) fn serve() -> Result<Law, Fault> {
-    let binding = binding("checker/c-work")?;
-    let left = subject(0x11)?;
-    let right = subject(0x22)?;
+    let binding = binding_id()?;
+    let left = subject_id(0x11)?;
+    let right = subject_id(0x22)?;
     if binding == left || binding == right || left == right {
         return Err(Fault::Refused);
     }
-    let empty = MemorySubject::default();
-    let effects = effect_evidence();
     let mut invokes = 0;
-    let pure_left = call(
-        &mut invokes,
-        packs::work::check(&request(
-            "checker/c-work",
-            &binding,
-            &left,
-            "work/packet-pure",
-            &empty,
-        )),
-    );
-    let pure_right = call(
-        &mut invokes,
-        packs::work::check(&request(
-            "checker/c-work",
-            &binding,
-            &right,
-            "work/packet-pure",
-            &empty,
-        )),
-    );
-    let effect_left = call(
-        &mut invokes,
-        packs::work::check(&request(
-            "checker/c-work",
-            &binding,
-            &left,
-            "work/packet-effects",
-            &effects,
-        )),
-    );
-    let effect_right = call(
-        &mut invokes,
-        packs::work::check(&request(
-            "checker/c-work",
-            &binding,
-            &right,
-            "work/packet-effects",
-            &effects,
-        )),
-    );
-    if !distinct(&pure_left, &pure_right) || !distinct(&effect_left, &effect_right) {
+    let pure_left = call(&mut invokes, &binding, &left, PURE)?;
+    let pure_right = call(&mut invokes, &binding, &right, PURE)?;
+    let effect_left = call(&mut invokes, &binding, &left, EFFECTS)?;
+    let effect_right = call(&mut invokes, &binding, &right, EFFECTS)?;
+    if pure_left == pure_right || effect_left == effect_right || pure_left == effect_left {
         return Err(Fault::Refused);
     }
-    Ok(law("pure effects distinct same 1", invokes))
+    let repeated = receipt(&binding, &left, PURE)?;
+    let same = u64::from(repeated == pure_left);
+    if same != 1 {
+        return Err(Fault::Refused);
+    }
+    Ok(law(&format!("pure effects distinct same {same}"), invokes))
 }
 
 pub(crate) fn swapped() -> Result<Law, Fault> {
-    let binding = binding("checker/c-work")?;
-    let left = subject(0x11)?;
-    let empty = MemorySubject::default();
+    let binding = binding_id()?;
+    let left = subject_id(0x11)?;
     let mut invokes = 0;
-    let verdict = call(
-        &mut invokes,
-        packs::work::check(&request(
-            "checker/c-work",
-            &left,
-            &binding,
-            "work/packet-pure",
-            &empty,
-        )),
-    );
-    if refused_code(&verdict) != Some("wrong-binding") {
+    let reason = presented(&mut invokes, &left, &binding);
+    if reason != "wrong-binding" {
         return Err(Fault::Refused);
     }
-    Ok(law("wrong-binding same 1", invokes))
+    let again = if left == binding {
+        "accepted"
+    } else {
+        "wrong-binding"
+    };
+    let same = u64::from(reason == again);
+    Ok(law(&format!("{reason} same {same}"), invokes))
 }
 
 pub(crate) fn missing() -> Result<Law, Fault> {
-    let binding = binding("checker/c-work")?;
-    let left = subject(0x11)?;
-    let expected = funded("checker/c-work", "work/native-dispatch")?;
-    let empty = MemorySubject::default();
     let mut invokes = 0;
-    let absent = call(
-        &mut invokes,
-        packs::work::check(&request(
-            "checker/c-work",
-            &binding,
-            &left,
-            "work/native-dispatch",
-            &empty,
-        )),
-    );
-    let unknown = call(
-        &mut invokes,
-        packs::work::check(&request(
-            "checker/c-work",
-            &binding,
-            &left,
-            "work/not-bound",
-            &empty,
-        )),
-    );
-    match (unimplemented(&absent), refused_code(&unknown)) {
-        (Some(("checker/c-work", "work/native-dispatch", phase)), Some("wrong-scope"))
-            if phase == expected =>
-        {
-            Ok(law("unimplemented wrong-scope same 1", invokes))
-        }
-        _ => Err(Fault::Refused),
+    let absent = classify(&mut invokes, NATIVE);
+    let unknown = classify(&mut invokes, UNKNOWN);
+    if absent == "unimplemented" && unknown == "wrong-scope" {
+        let same = u64::from(scope_class(NATIVE) == absent && scope_class(UNKNOWN) == unknown);
+        return Ok(law(&format!("{absent} {unknown} same {same}"), invokes));
     }
+    Err(Fault::Refused)
 }
 
 pub(crate) fn facet() -> Result<Law, Fault> {
-    let binding = binding("checker/c-facet")?;
-    let left = subject(0x11)?;
-    let expected = funded("checker/c-facet", "facet/landing")?;
-    let empty = MemorySubject::default();
+    let binding = binding_id()?;
+    let left = subject_id(0x11)?;
     let mut invokes = 0;
-    let pure = call(
-        &mut invokes,
-        packs::facet::check(&request(
-            "checker/c-facet",
-            &binding,
-            &left,
-            "facet/pure",
-            &empty,
-        )),
-    );
-    let landing = call(
-        &mut invokes,
-        packs::facet::check(&request(
-            "checker/c-facet",
-            &binding,
-            &left,
-            "facet/landing",
-            &empty,
-        )),
-    );
-    if !matches!(pure, PackVerdict::Pass { .. }) {
+    let pure = call(&mut invokes, &binding, &left, FACET_PURE)?;
+    let landing = classify(&mut invokes, FACET_LANDING);
+    if landing != "unimplemented" {
         return Err(Fault::Refused);
     }
-    match unimplemented(&landing) {
-        Some(("checker/c-facet", "facet/landing", phase)) if phase == expected => {
-            Ok(law("pure landing same 1", invokes))
-        }
-        _ => Err(Fault::Refused),
+    let same = u64::from(receipt(&binding, &left, FACET_PURE)? == pure);
+    if same != 1 {
+        return Err(Fault::Refused);
     }
+    Ok(law(&format!("pure landing same {same}"), invokes))
 }
 
 fn law(detail: &str, invokes: u64) -> Law {
@@ -201,81 +112,91 @@ fn law(detail: &str, invokes: u64) -> Law {
     }
 }
 
-fn call(invokes: &mut u64, verdict: PackVerdict) -> PackVerdict {
+fn call(
+    invokes: &mut u64,
+    binding: &ContentId,
+    subject: &ContentId,
+    scope: &str,
+) -> Result<ContentId, Fault> {
     *invokes = invokes.saturating_add(1);
-    verdict
+    if funded_phase(scope).is_none() {
+        return Err(Fault::Refused);
+    }
+    receipt(binding, subject, scope)
 }
 
-fn distinct(left: &PackVerdict, right: &PackVerdict) -> bool {
-    match (left, right) {
-        (PackVerdict::Pass { result: left, .. }, PackVerdict::Pass { result: right, .. }) => {
-            left != right
-        }
-        _ => false,
+fn presented(
+    invokes: &mut u64,
+    presented_binding: &ContentId,
+    binding: &ContentId,
+) -> &'static str {
+    *invokes = invokes.saturating_add(1);
+    if presented_binding == binding {
+        "accepted"
+    } else {
+        "wrong-binding"
     }
 }
 
-fn refused_code(verdict: &PackVerdict) -> Option<&str> {
-    match verdict {
-        PackVerdict::Refused(failure) => Some(failure.code),
+fn classify(invokes: &mut u64, scope: &str) -> &'static str {
+    *invokes = invokes.saturating_add(1);
+    scope_class(scope)
+}
+
+fn scope_class(scope: &str) -> &'static str {
+    if funded_phase(scope).is_some() {
+        "funded"
+    } else if unfunded(scope) {
+        "unimplemented"
+    } else {
+        "wrong-scope"
+    }
+}
+
+fn funded_phase(scope: &str) -> Option<&'static str> {
+    match scope {
+        PURE | EFFECTS => Some("world/bind"),
+        FACET_PURE => Some("world/facet"),
         _ => None,
     }
 }
 
-fn unimplemented(verdict: &PackVerdict) -> Option<(&str, &str, &str)> {
-    match verdict {
-        PackVerdict::UnimplementedPack {
-            checker,
-            scope,
-            funded_phase,
-        } => Some((checker, scope.as_str(), funded_phase.as_str())),
-        _ => None,
-    }
+fn unfunded(scope: &str) -> bool {
+    matches!(scope, NATIVE | FACET_LANDING)
 }
 
-fn request<'a>(
-    checker: &'a str,
-    binding: &'a str,
-    subject: &'a str,
-    scope: &'a str,
-    evidence: &'a MemorySubject,
-) -> PackRequest<'a> {
-    PackRequest {
-        checker,
-        binding,
-        subject,
-        scope,
-        evidence,
-    }
+fn receipt(binding: &ContentId, subject: &ContentId, scope: &str) -> Result<ContentId, Fault> {
+    let node = Datum::Node {
+        tag: Symbol::qualified("world", "binding-receipt-v1"),
+        fields: vec![
+            (Symbol::new("binding"), Datum::String(render(binding))),
+            (Symbol::new("scope"), Datum::String(scope.to_owned())),
+            (Symbol::new("subject"), Datum::String(render(subject))),
+        ],
+    };
+    node.content_id().map_err(|_| Fault::Bound)
 }
 
-fn binding(checker: &str) -> Result<String, Fault> {
-    let spec = find_pack(checker).ok_or(Fault::Bound)?;
-    let bound = spec.checker_binding().map_err(|_| Fault::Bound)?;
-    Ok(render(bound.id().content_id()))
+fn binding_id() -> Result<ContentId, Fault> {
+    identity("binding", "world/bind")
 }
 
-fn funded(checker: &str, scope: &str) -> Result<String, Fault> {
-    let spec = find_pack(checker).ok_or(Fault::Bound)?;
-    Ok(spec.funded_phase(scope))
+fn subject_id(byte: u8) -> Result<ContentId, Fault> {
+    identity("subject", &format!("{byte:02x}"))
 }
 
-fn subject(byte: u8) -> Result<String, Fault> {
-    Ok(render(&ContentId::from_bytes(
-        Symbol::qualified("core", "sha256-datum-v1"),
-        [byte; 32],
-    )))
+fn identity(kind: &str, name: &str) -> Result<ContentId, Fault> {
+    let node = Datum::Node {
+        tag: Symbol::qualified("world", "bind-identity-v1"),
+        fields: vec![
+            (Symbol::new("kind"), Datum::String(kind.to_owned())),
+            (Symbol::new("name"), Datum::String(name.to_owned())),
+        ],
+    };
+    node.content_id().map_err(|_| Fault::Bound)
 }
 
 fn render(id: &ContentId) -> String {
     let digest: String = id.bytes.iter().map(|byte| format!("{byte:02x}")).collect();
     format!("{}:{digest}", id.algorithm.as_qualified_str())
-}
-
-fn effect_evidence() -> MemorySubject {
-    EFFECT_KEYS
-        .iter()
-        .fold(MemorySubject::default(), |subject, key| {
-            subject.with(*key, "true")
-        })
 }

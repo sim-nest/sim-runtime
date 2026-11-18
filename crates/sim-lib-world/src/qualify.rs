@@ -5,12 +5,12 @@
 
 //! Loaded qualify command.
 //!
-//! Each case runs the published composition specimen once. A later or
-//! concurrent identical case returns that record. The specimen keeps one
-//! same-revision page, the exact lineage, a begin that is separate from
-//! selection, and rejected advice. A Linux provider and a changed closure
-//! refuse. Reading the retained result does not qualify again. A private
-//! value is refused before the reservation.
+//! Each case runs the world composition identity once. A later or
+//! concurrent identical case returns that record. The identity keeps one
+//! same-revision page, a begin that is separate from selection, and
+//! rejected advice. A Linux provider and a changed closure refuse.
+//! Reading the retained result does not qualify again. A private value
+//! is refused before the reservation.
 
 use sim_kernel::{Datum, Symbol};
 
@@ -19,6 +19,8 @@ use crate::query;
 
 #[path = "qualify_drive.rs"]
 mod drive;
+#[path = "qualify_law.rs"]
+mod law;
 #[path = "qualify_memory.rs"]
 mod memory;
 
@@ -30,7 +32,7 @@ const MARKERS: &[&str] = &[
     "sim-private/",
 ];
 
-/// Runs one named qualify case through the published specimen.
+/// Runs one named qualify case through the composition identity.
 ///
 /// # Errors
 /// Returns an error when the specimen record cannot be represented.

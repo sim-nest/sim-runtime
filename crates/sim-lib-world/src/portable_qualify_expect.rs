@@ -22,8 +22,8 @@ struct GapSpec {
     evidence: &'static str,
 }
 
-const COMPOSITION: &str = "pages 1 revision 8eed83fd708e5c7a0944c8627663af1f8bc105a9c5a6f7d5659122e4661be28b transitions 1 stale-effects 0 effects 1 hot-delta 0 samples 20 providers model/direction,model/landing,model/snapshot stale-edges 1 bound 1 proof 0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e linux 0";
-const BEGIN: &str = "distinct begin-required landed 1 stale 1 proof 0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e";
+const COMPOSITION: &str = "pages 1 revision 486a016a98381adfd74b7ace6a7448400af5da329f133680d5ae669ebf32a0a3 transitions 1 stale-effects 0 effects 1 hot-delta 0 samples 0 providers model/direction,model/landing,model/snapshot stale-edges 1 bound 1 proof bcadc29cc073ffbcbe9d29ed2fc42c693b2b8fb25a4eb76cfcc519428127ee37 linux 0";
+const BEGIN: &str = "distinct begin-required landed 1 stale 1 proof bcadc29cc073ffbcbe9d29ed2fc42c693b2b8fb25a4eb76cfcc519428127ee37";
 
 const QUALIFY: &[QualifySpec] = &[
     QualifySpec {

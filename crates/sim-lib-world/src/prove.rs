@@ -52,16 +52,22 @@ pub(crate) fn catalog(releases: &str) -> Result<Datum, WorldError> {
     crate::completion::catalog_datum(releases, None)
 }
 
-/// Final-world catalog that also retains one injected source manifest.
+/// Final-world catalog for one release input and a caller-held manifest.
 ///
-/// The manifest is evidence for the admitted subject. Its source-identity
-/// result does not become a completion claim.
+/// The manifest text is not a checker receipt and does not become a claim.
+/// Its bytes are part of the selected source digest. An empty manifest is
+/// refused.
 ///
 /// # Errors
 ///
-/// Returns an error when the release input, the admitted union, or the
-/// manifest observation is unusable.
+/// Returns an error when the manifest is empty or the release input or the
+/// admitted union is unusable.
 pub(crate) fn catalog_with_source(releases: &str, manifest: &str) -> Result<Datum, WorldError> {
+    if manifest.trim().is_empty() {
+        return Err(WorldError::Qualification(
+            "source manifest was not retained".to_owned(),
+        ));
+    }
     crate::completion::catalog_datum(releases, Some(manifest))
 }
 #[path = "prove_view.rs"]

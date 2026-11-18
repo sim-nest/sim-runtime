@@ -545,27 +545,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sim-conformance-packs"
-version = "0.8.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "573394c7c38028d9ed1320f8de5b35ea7a6b8e562bf0d4caf7c850cd8cd0565d"
-dependencies = [
- "sha2",
- "sim-artifact-facet",
- "sim-conformance-core 0.2.0",
- "sim-conformance-core 0.3.0",
- "sim-kernel",
- "sim-lib-exec 0.3.0",
- "sim-lib-journal",
- "sim-lib-roadmap-runner",
- "sim-roadmap-core",
- "sim-roadmap-exec-core",
- "sim-source-deck",
- "sim-work-core",
- "toml",
-]
-
-[[package]]
 name = "sim-cookbook"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1409,7 +1388,6 @@ dependencies = [
  "sim-artifact-facet",
  "sim-conformance-core 0.2.0",
  "sim-conformance-core 0.3.0",
- "sim-conformance-packs",
  "sim-incremental-core 0.5.3",
  "sim-kernel",
  "sim-lib-journal",
