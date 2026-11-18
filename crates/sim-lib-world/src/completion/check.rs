@@ -334,10 +334,10 @@ fn prove_claim(
 /// Receipt the catalog reuses at release grade for this bound admission.
 ///
 /// Revocation comes from the owner map. A missing id is unknown, not current.
-/// The checker receipt must name this claim, the selected subject, and the
-/// catalog scope. The open evidence gate reports support checkers and then
-/// the evidence record's own checker. That reuse is this checker's evidence
-/// only when every consulted checker is the validated checker.
+/// The checker receipt must name this claim and the selected subject. Its
+/// scope stays on that receipt; the catalog does not force every owner onto
+/// one scope label. Support checked by another current owner remains valid.
+/// Unknown or revoked support is refused.
 pub(super) fn release_receipt(
     checks: &CheckerCatalog,
     world: &super::WorldSealId,
@@ -360,7 +360,7 @@ pub(super) fn release_receipt(
         .map_err(|_| "evidence-not-verified")?;
     let subject = CheckedSubjectId::from_text(&world.value).map_err(|_| "evidence-not-verified")?;
     let result = CheckerResultId::from_text(result).map_err(|_| "evidence-not-verified")?;
-    if receipt.subject() != &subject || receipt.scope() != &checks.scope {
+    if receipt.subject() != &subject {
         return Err("evidence-unrelated");
     }
     if receipt.result() != &result {
@@ -381,8 +381,10 @@ pub(super) fn release_receipt(
     match decision {
         EvidenceDecision::Reuse { receipt }
             if receipt == row.admitted.id
-                && !consulted.is_empty()
-                && consulted.iter().all(|id| id == &row.checker) =>
+                && consulted.contains(&row.checker)
+                && consulted
+                    .iter()
+                    .all(|id| checks.revocations.get(id) == Some(&RevocationStatus::Current)) =>
         {
             Ok(receipt)
         }

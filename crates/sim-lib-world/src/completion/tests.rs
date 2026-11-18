@@ -544,6 +544,59 @@ fn a_swapped_admission_does_not_prove_the_kept_checker() {
 }
 
 #[test]
+fn another_owner_scope_is_not_forced_into_the_catalog_label() {
+    let mut inputs = proved();
+    inputs.3.scope =
+        sim_conformance_evidence::CheckScopeId::from_text("scope/other-owner").expect("scope");
+    let seal = derive(&inputs).expect("receipt scopes");
+    assert_eq!(seal.domain, super::SealDomain::PortableClosed);
+    assert_eq!(seal.claims.len(), 25);
+}
+
+#[test]
+fn support_from_another_owner_checker_is_release_evidence() {
+    let mut inputs = proved();
+    let (supported, support_checker) =
+        crate::evidence::scoped_release_with_foreign_support("world-final", "scope/completion", 6)
+            .expect("foreign support");
+    inputs.2.admissions = supported
+        .admissions
+        .into_iter()
+        .map(|(claim, admitted, checker)| ClaimAdmission {
+            claim,
+            admitted,
+            checker,
+        })
+        .collect();
+    inputs.3.catalog = supported.catalog;
+    inputs.3.revocations = supported.revocations;
+    let seal = derive(&inputs).expect("current support");
+    assert_eq!(seal.domain, super::SealDomain::PortableClosed);
+
+    inputs
+        .3
+        .revocations
+        .insert(support_checker.clone(), RevocationStatus::Revoked);
+    let revoked = derive(&inputs).expect_err("revoked support");
+    assert!(
+        revoked
+            .iter()
+            .any(|gap| gap.claim == 6 && gap.reason == "revoked-support")
+    );
+
+    inputs
+        .3
+        .revocations
+        .insert(support_checker, RevocationStatus::Unknown);
+    let unknown = derive(&inputs).expect_err("unknown support");
+    assert!(
+        unknown
+            .iter()
+            .any(|gap| gap.claim == 6 && gap.reason == "unknown-revocation")
+    );
+}
+
+#[test]
 fn revoked_support_is_not_proof() {
     let mut inputs = proved();
     let checker = inputs
