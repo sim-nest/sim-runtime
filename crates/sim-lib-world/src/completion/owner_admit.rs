@@ -348,6 +348,7 @@ pub(crate) fn from_owner(
             claim: 17,
             admitted: replay.admitted,
             checker: replay.checker,
+            revocations: replay.checks.revocations.clone(),
         });
         replay.checks
     });
@@ -360,6 +361,7 @@ pub(crate) fn from_owner(
             claim: extra.claim,
             admitted: extra.admitted.clone(),
             checker: extra.checker.clone(),
+            revocations: extra.revocations.clone(),
         });
         true
     });
@@ -427,6 +429,7 @@ fn unmatched_owner(
         claim,
         admitted: release.admitted.clone(),
         checker: release.checker.clone(),
+        revocations: checks.revocations.clone(),
     };
     Ok((
         admit_checked(subject, releases, &[row], &checks),
@@ -438,6 +441,7 @@ struct CheckedAdmit {
     claim: u8,
     admitted: AdmittedEvidence,
     checker: OwnerCheckerReceiptId,
+    revocations: BTreeMap<OwnerCheckerReceiptId, RevocationStatus>,
 }
 
 fn admit_checked(
@@ -454,13 +458,15 @@ fn admit_checked(
         if !(1..=25).contains(&row.claim) {
             continue;
         }
+        let mut view = checks.clone();
+        view.revocations = row.revocations.clone();
         let expected = super::check::claim_result(row.claim, releases);
         let claim = ClaimAdmission {
             claim: row.claim,
             admitted: row.admitted.clone(),
             checker: row.checker.clone(),
         };
-        if super::check::release_receipt(checks, &world, &claim, &expected).is_ok() {
+        if super::check::release_receipt(&view, &world, &claim, &expected).is_ok() {
             admitted.push(claim);
         }
     }

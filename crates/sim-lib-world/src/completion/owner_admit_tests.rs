@@ -208,6 +208,7 @@ fn the_lantern_owner_is_not_admitted_for_any_subject() {
 fn a_verified_receipt_binds_only_its_own_subject() {
     let scoped =
         crate::evidence::scoped_release("world-final", "scope/completion").expect("scoped fixture");
+    let revocations = scoped.revocations.clone();
     let checks = CheckerCatalog {
         catalog: scoped.catalog,
         scope: scoped.scope,
@@ -221,6 +222,7 @@ fn a_verified_receipt_binds_only_its_own_subject() {
             claim,
             admitted,
             checker,
+            revocations: revocations.clone(),
         })
         .collect();
     let bound = super::admit_checked("world-final", &[], &rows, &checks);
@@ -238,6 +240,7 @@ fn a_relabelled_receipt_stays_out() {
         &[(1, "result/published")],
     )
     .expect("scoped fixture");
+    let revocations = scoped.revocations.clone();
     let checks = CheckerCatalog {
         catalog: scoped.catalog,
         scope: scoped.scope,
@@ -251,6 +254,7 @@ fn a_relabelled_receipt_stays_out() {
             claim,
             admitted,
             checker,
+            revocations: revocations.clone(),
         })
         .collect();
     let bound = super::admit_checked("world-final", &[], &rows, &checks);
@@ -515,5 +519,68 @@ fn supplied_foreign_support_survives_assembly() {
         let checks = checks.expect("catalog");
         assert_eq!(checks.revocations.get(&support), Some(&status));
         assert!(checks.revocations.values().any(|found| *found == current));
+    }
+}
+
+fn supply_shared_pair(subject: &str, revoked_first: bool) {
+    let (release, support) = crate::evidence::scoped_release_with_shared_support(
+        subject,
+        "scope/owner-support",
+        &[6, 7],
+    )
+    .expect("shared support");
+    let mut revoked = release.revocations.clone();
+    revoked.insert(support, sim_conformance_evidence::RevocationStatus::Revoked);
+    let current = release.revocations;
+    let mut claims = Vec::new();
+    for claim_number in [6, 7] {
+        let (claim, admitted, checker) = release
+            .admissions
+            .iter()
+            .find(|(number, _, _)| *number == claim_number)
+            .map(|(claim, admitted, checker)| (*claim, admitted.clone(), checker.clone()))
+            .expect("claim");
+        claims.push(super::SuppliedOwnerClaim {
+            subject: subject.to_owned(),
+            claim,
+            admitted,
+            checker,
+            catalog: release.catalog.clone(),
+            scope: release.scope.clone(),
+            revocations: if claim_number == 7 {
+                revoked.clone()
+            } else {
+                current.clone()
+            },
+        });
+    }
+    super::clear_owner_claims();
+    super::clear_supplied_owner_claims();
+    if revoked_first {
+        claims.reverse();
+    }
+    for claim in claims {
+        super::supply_owner_claim(claim);
+    }
+}
+
+#[test]
+fn a_later_support_revocation_is_not_hidden_by_an_earlier_current_one() {
+    let _guard = ClearRetained::arm();
+    let subject = crate::prove::admitted_subject().expect("subject");
+    for revoked_first in [false, true] {
+        supply_shared_pair(&subject, revoked_first);
+        let datum = super::super::assemble::catalog_datum("", None).expect("catalog");
+        assert_eq!(
+            admission_claims(&datum),
+            vec!["6".to_owned()],
+            "revoked first: {revoked_first}"
+        );
+        let (rows, _) = super::from_owner(&subject, &[]).expect("owner");
+        assert_eq!(
+            rows.iter().map(|row| row.claim).collect::<Vec<_>>(),
+            vec![6],
+            "revoked first: {revoked_first}"
+        );
     }
 }

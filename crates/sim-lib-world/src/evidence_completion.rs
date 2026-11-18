@@ -137,6 +137,18 @@ pub(crate) fn scoped_release_with_foreign_support(
     scope: &str,
     claim: u8,
 ) -> Result<(ScopedRelease, CheckerReceiptId), ProofError> {
+    scoped_release_with_shared_support(world, scope, &[claim])
+}
+
+/// Several claims whose support was checked by one owner checker.
+///
+/// The returned checker id is that support owner. Each selected claim keeps
+/// its own checker. The revocation map records the support owner as current.
+pub(crate) fn scoped_release_with_shared_support(
+    world: &str,
+    scope: &str,
+    claims: &[u8],
+) -> Result<(ScopedRelease, CheckerReceiptId), ProofError> {
     let mut release = scoped_release(world, scope)?;
     let workspace = super::definition(
         "workspace",
@@ -164,25 +176,28 @@ pub(crate) fn scoped_release_with_foreign_support(
         "support/owner-b",
     )?;
     release.catalog = catalog;
-    let checker = release
-        .admissions
-        .iter()
-        .find(|(number, _, _)| *number == claim)
-        .map(|(_, _, checker)| checker.clone())
-        .expect("selected claim");
-    let admitted = admit_supported(
-        &mut release.catalog,
-        &found,
-        world,
-        scope,
-        claim,
-        &checker,
-        vec![support_admitted.id],
-    )?;
-    for row in &mut release.admissions {
-        if row.0 == claim {
-            row.1 = admitted;
-            break;
+    let support_id = support_admitted.id.clone();
+    for claim in claims {
+        let checker = release
+            .admissions
+            .iter()
+            .find(|(number, _, _)| number == claim)
+            .map(|(_, _, checker)| checker.clone())
+            .expect("selected claim");
+        let admitted = admit_supported(
+            &mut release.catalog,
+            &found,
+            world,
+            scope,
+            *claim,
+            &checker,
+            vec![support_id.clone()],
+        )?;
+        for row in &mut release.admissions {
+            if row.0 == *claim {
+                row.1 = admitted;
+                break;
+            }
         }
     }
     release
