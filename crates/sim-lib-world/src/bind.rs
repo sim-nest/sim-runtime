@@ -5,9 +5,9 @@
 
 //! Loaded binding command.
 //!
-//! Each case runs the published pack binding once. A later or concurrent
+//! Each case runs the world binding identity once. A later or concurrent
 //! identical case returns that record. One binding serves two subjects and
-//! two scopes. Swapped identities refuse. A missing pack scope is
+//! two scopes. Swapped identities refuse. A known unfunded scope is
 //! unimplemented, and an unknown scope refuses. The facet law passes.
 //! Normalize admits one subject through the kernel content id. A private
 //! value is refused before the reservation.
@@ -32,7 +32,7 @@ const MARKERS: &[&str] = &[
     "sim-private/",
 ];
 
-/// Runs one named binding case through the published pack law.
+/// Runs one named binding case through the world binding identity.
 ///
 /// # Errors
 /// Returns an error when the binding record cannot be represented.

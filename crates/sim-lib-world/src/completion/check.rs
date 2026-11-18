@@ -396,6 +396,21 @@ pub(super) fn release_receipt(
 }
 
 fn fresh(record: &Datum, gaps: &mut Vec<CompletionGap>) {
+    if let Some(fields) = node_fields(record, "world/fresh-set-v1") {
+        let Some(specimen) = child(fields, "specimen") else {
+            gaps.push(gap(23, "fresh-specimen"));
+            return;
+        };
+        let Some(admitted) = child(fields, "admitted") else {
+            gaps.push(gap(23, "fresh-record-unreadable"));
+            return;
+        };
+        if gap_reason(specimen, "world/fresh-gap-v1").is_none() {
+            gaps.push(gap(23, "fresh-specimen"));
+        }
+        fresh(admitted, gaps);
+        return;
+    }
     if let Some(reason) = gap_reason(record, "world/fresh-gap-v1") {
         let reason = if reason.is_empty() {
             "fresh-gap-unspecified".to_owned()
@@ -456,6 +471,13 @@ fn gap(claim: u8, reason: impl Into<String>) -> CompletionGap {
         claim,
         reason: reason.into(),
     }
+}
+
+fn child<'a>(fields: &'a [(Symbol, Datum)], name: &str) -> Option<&'a Datum> {
+    fields
+        .iter()
+        .find(|(symbol, _)| symbol.as_qualified_str() == name)
+        .map(|(_, value)| value)
 }
 
 fn gap_reason(record: &Datum, tag: &str) -> Option<String> {

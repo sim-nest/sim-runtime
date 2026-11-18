@@ -30,10 +30,12 @@ use super::{
 ///
 /// # Errors
 ///
-/// Returns an error when the release input is not a source identity, the
-/// admitted union has no subject or no fresh specimen, or the manifest
-/// observation is refused.
-pub(crate) fn catalog_datum(release_input: &str) -> Result<Datum, WorldError> {
+/// Returns an error when the release input is not a source identity, or
+/// the admitted union has no subject or no fresh specimen.
+pub(crate) fn catalog_datum(
+    release_input: &str,
+    manifest: Option<&str>,
+) -> Result<Datum, WorldError> {
     super::owner_admit::clear_source_identity();
     super::owner_admit::clear_journal_completion();
     crate::journal::clear_export();
@@ -65,8 +67,15 @@ pub(crate) fn catalog_datum(release_input: &str) -> Result<Datum, WorldError> {
             source.revocation,
         )?;
     }
+    let supplied_fresh = super::fresh_set::take();
+    let fresh = super::fresh_set::retain(
+        &admitted.fresh_reason,
+        supplied_fresh
+            .as_ref()
+            .map(|(export, change)| (export.as_str(), change.as_str())),
+    )?;
     let (admissions, checks) = super::owner_admit::from_owner(&admitted.subject, &releases)?;
-    let catalog = fill(&admitted, &releases, &admissions)?;
+    let catalog = fill(&admitted, &releases, &admissions, manifest, fresh)?;
     Ok(render(&catalog, checks.as_ref()))
 }
 
@@ -111,6 +120,8 @@ fn fill(
     admitted: &PhaseUnionAdmission,
     releases: &[ReleaseObligation],
     admissions: &[ClaimAdmission],
+    manifest: Option<&str>,
+    fresh: Datum,
 ) -> Result<EvidenceCatalog, WorldError> {
     if !is_digest(&admitted.subject) || admitted.replay_body.is_empty() {
         return Err(WorldError::Qualification(
@@ -118,7 +129,7 @@ fn fill(
         ));
     }
     let replay_digest = digest(&admitted.replay_body)?;
-    let fresh = crate::fresh::gap_record(&admitted.fresh_reason);
+    let source_digest = selected_source_digest(releases, manifest)?;
     let linux = if admitted.linux_selected {
         LinuxBoundary::SelectedUnfinished
     } else {
@@ -134,7 +145,7 @@ fn fill(
         final_world: WorldSealId {
             value: admitted.subject.clone(),
         },
-        source_digest: admitted.subject.clone(),
+        source_digest,
         replay_digest,
         admissions: admissions.to_vec(),
         fresh,
@@ -282,7 +293,32 @@ fn is_version(text: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || byte == b'.')
 }
 
+fn selected_source_digest(
+    releases: &[ReleaseObligation],
+    manifest: Option<&str>,
+) -> Result<String, WorldError> {
+    let mut text = String::new();
+    for release in releases {
+        text.push_str(&release_token(release));
+        text.push('\n');
+    }
+    if let Some(manifest) = manifest {
+        text.push_str(manifest.trim_end());
+        text.push('\n');
+    }
+    digest(&text)
+}
+
 fn gap_reason(record: &Datum) -> Option<String> {
+    if let Datum::Node { tag, fields } = record
+        && tag.as_qualified_str() == "world/fresh-set-v1"
+    {
+        let admitted = fields
+            .iter()
+            .find(|(symbol, _)| symbol.as_qualified_str() == "admitted")
+            .map(|(_, value)| value)?;
+        return gap_reason(admitted);
+    }
     let Datum::Node { tag, fields } = record else {
         return None;
     };
@@ -464,10 +500,13 @@ mod tests {
             string_field(&catalog, "world/final-catalog-v1", "roadmap"),
             "sim-world-portable-union-v1"
         );
+        let releases = super::parse_release_input(&SOURCES.join("\n")).expect("releases");
+        let source = super::selected_source_digest(&releases, None).expect("source");
         assert_eq!(
             string_field(&catalog, "world/final-catalog-v1", "source"),
-            subject
+            source
         );
+        assert_ne!(source, subject);
         assert_eq!(
             string_field(&catalog, "world/final-catalog-v1", "seal"),
             "unclaimed"
@@ -522,6 +561,14 @@ mod tests {
             string_field(&retained, "world/final-catalog-v1", "seal"),
             "unclaimed"
         );
+        let manifest_source =
+            super::selected_source_digest(&releases, Some(manifest)).expect("manifest source");
+        assert_eq!(
+            string_field(&retained, "world/final-catalog-v1", "source"),
+            manifest_source
+        );
+        assert_ne!(manifest_source, source);
+        assert_ne!(manifest_source, subject);
         let fresh = field(&catalog, "world/final-catalog-v1", "fresh").expect("fresh");
         assert_eq!(
             string_field(fresh, "world/fresh-gap-v1", "reason"),

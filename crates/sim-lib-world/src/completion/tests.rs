@@ -679,3 +679,6 @@ fn the_final_catalog_assembler_does_not_derive_a_seal() {
         assert!(!production.contains("a9a376f1376a19f153011e29257f9af7465a323f"));
     }
 }
+
+#[path = "later_fresh_tests.rs"]
+mod later_fresh;

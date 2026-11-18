@@ -133,12 +133,13 @@ fn a_changed_bind_detail_fails() {
 }
 
 #[test]
-fn the_bind_command_calls_the_published_binding() {
+fn the_bind_command_binds_subjects_without_a_pack() {
     let source = include_str!("bind_drive.rs");
-    assert!(source.contains("packs::work::check("));
-    assert!(source.contains("packs::facet::check("));
-    assert!(source.contains("checker_binding("));
-    assert!(source.contains("find_pack("));
+    assert!(source.contains("fn receipt("));
+    assert!(source.contains("fn binding_id("));
+    assert!(source.contains("fn subject_id("));
+    assert!(!source.contains("sim_conformance_packs"));
+    assert!(!source.contains("packs::"));
     assert!(!source.contains("ModelWorker"));
     assert!(!source.contains("MutationEngine"));
 }

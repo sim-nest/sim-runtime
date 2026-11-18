@@ -5,10 +5,10 @@
 
 //! Composition gate for the portable phase union.
 //!
-//! The leaf calls the loaded qualify command. One call runs the published
-//! composition specimen. The record keeps one same-revision page, the exact
-//! lineage, a begin that is separate from selection, and rejected advice.
-//! A Linux provider and a changed closure refuse. A private value is not copied.
+//! The leaf calls the loaded qualify command. One call runs the composition
+//! identity. The record keeps one same-revision page, a begin that is
+//! separate from selection, and rejected advice. A Linux provider and a
+//! changed closure refuse. A private value is not copied.
 
 use std::collections::BTreeSet;
 
