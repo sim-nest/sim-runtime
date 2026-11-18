@@ -56,6 +56,58 @@ thread_local! {
     static RETAINED_REPLAY: RefCell<Option<RetainedReplay>> = const { RefCell::new(None) };
     static RETAINED_OWNER_CLAIMS: RefCell<Vec<RetainedOwnerClaim>> =
         const { RefCell::new(Vec::new()) };
+    static SUPPLIED_REPLAY: RefCell<Option<SuppliedReplay>> = const { RefCell::new(None) };
+    static SUPPLIED_SOURCE: RefCell<Option<SuppliedSource>> = const { RefCell::new(None) };
+}
+
+/// One source-identity catalog a caller already had the checker admit.
+pub(crate) struct SuppliedSource {
+    /// Subject the receipt names.
+    pub subject: String,
+    /// Checker result. A completion claim is refused.
+    pub result: String,
+    /// Catalog that admitted the evidence.
+    pub catalog: ProofCatalog,
+    /// Receipt that bound the admission.
+    pub checker: OwnerCheckerReceiptId,
+    /// Scope recorded on that receipt.
+    pub scope: CheckScopeId,
+    /// Revocation state recorded for that checker.
+    pub revocation: RevocationStatus,
+}
+
+/// One journal catalog a caller already had the checker admit.
+///
+/// This module retains the catalog. It does not run the checker.
+pub(crate) struct SuppliedReplay {
+    /// Subject the receipt names.
+    pub subject: String,
+    /// Checker result. Claim 17 requires `completion/claim-17`.
+    pub result: String,
+    /// Catalog that admitted the evidence.
+    pub catalog: ProofCatalog,
+    /// Evidence the catalog admitted.
+    pub admitted: AdmittedEvidence,
+    /// Receipt that bound the admission.
+    pub checker: OwnerCheckerReceiptId,
+    /// Scope recorded on that receipt.
+    pub scope: CheckScopeId,
+    /// Revocation state recorded for that checker.
+    pub revocation: RevocationStatus,
+}
+
+/// Holds one journal catalog until the next final-catalog assembly takes it.
+#[cfg(test)]
+pub(crate) fn supply_journal_observation(observation: SuppliedReplay) {
+    SUPPLIED_REPLAY.with(|slot| *slot.borrow_mut() = Some(observation));
+}
+
+pub(crate) fn take_supplied_journal() -> Option<SuppliedReplay> {
+    SUPPLIED_REPLAY.with(|slot| slot.borrow_mut().take())
+}
+
+pub(crate) fn take_supplied_source() -> Option<SuppliedSource> {
+    SUPPLIED_SOURCE.with(|slot| slot.borrow_mut().take())
 }
 
 /// Retains one verified source-identity catalog for `subject`.
@@ -121,6 +173,7 @@ pub(crate) fn clear_journal_completion() {
     RETAINED_REPLAY.with(|slot| *slot.borrow_mut() = None);
 }
 
+#[cfg(test)]
 pub(crate) fn clear_owner_claims() {
     RETAINED_OWNER_CLAIMS.with(|slot| slot.borrow_mut().clear());
 }
@@ -129,6 +182,7 @@ pub(crate) fn clear_owner_claims() {
 ///
 /// Claim 17 stays on the journal path when that export is retained. A claim
 /// outside 1..=25 is ignored. The catalog is the proof for `checker` only.
+#[cfg(test)]
 pub(crate) fn retain_owner_claim(
     subject: &str,
     claim: u8,
@@ -164,42 +218,42 @@ fn retained_owner_claims(subject: &str) -> Vec<RetainedOwnerClaim> {
     })
 }
 
-/// Observes `body` for `subject` and retains a verified claim 17 catalog.
+/// Retains one journal catalog the caller already had the checker admit.
 ///
-/// `body` is the journal export captured from the loaded replay command.
-/// A pack refusal retains nothing and does not fail the catalog. The result
-/// must be exactly `completion/claim-17`.
+/// A result other than `completion/claim-17`, a different scope, or a
+/// revocation other than current retains nothing and does not fail the
+/// catalog. This function does not inspect an export body and does not run
+/// a conformance pack.
 ///
 /// # Errors
 ///
-/// Returns an error when the scope text cannot be constructed.
-pub(crate) fn retain_journal_completion(subject: &str, body: &str) -> Result<(), WorldError> {
-    let observed =
-        match sim_conformance_packs::packs::release::observe_journal_completion(subject, body) {
-            Ok(observed) => observed,
-            Err(_) => return Ok(()),
-        };
-    let scope = CheckScopeId::from_text(REPLAY_SCOPE).map_err(|_| {
+/// Returns an error when the replay scope text cannot be constructed.
+pub(crate) fn retain_journal_completion(
+    subject: &str,
+    result: &str,
+    catalog: ProofCatalog,
+    admitted: AdmittedEvidence,
+    checker: OwnerCheckerReceiptId,
+    scope: CheckScopeId,
+    revocation: RevocationStatus,
+) -> Result<(), WorldError> {
+    let expected = CheckScopeId::from_text(REPLAY_SCOPE).map_err(|_| {
         WorldError::Qualification("journal completion catalog was refused".to_owned())
     })?;
-    if observed.subject != subject
-        || observed.result != REPLAY_RESULT
-        || observed.scope != scope
-        || observed.revocation != RevocationStatus::Current
-    {
+    if result != REPLAY_RESULT || scope != expected || revocation != RevocationStatus::Current {
         return Ok(());
     }
     let checks = CheckerCatalog {
-        catalog: observed.catalog,
-        scope: observed.scope,
-        revocations: BTreeMap::from([(observed.checker.clone(), observed.revocation)]),
+        catalog,
+        scope,
+        revocations: BTreeMap::from([(checker.clone(), revocation)]),
         owners: BTreeMap::new(),
     };
     RETAINED_REPLAY.with(|slot| {
         *slot.borrow_mut() = Some(RetainedReplay {
-            subject: observed.subject,
-            admitted: observed.admitted,
-            checker: observed.checker,
+            subject: subject.to_owned(),
+            admitted,
+            checker,
             checks,
         });
     });
@@ -212,35 +266,6 @@ fn retained_replay(subject: &str) -> Option<RetainedReplay> {
             .as_ref()
             .and_then(|retained| (retained.subject == subject).then(|| retained.clone()))
     })
-}
-
-/// Observes `manifest` for `subject` and retains the verified catalog.
-///
-/// A pack refusal retains nothing.
-///
-/// # Errors
-///
-/// Returns an error when the pack refuses the manifest or the receipt is not
-/// source-identity evidence.
-pub(crate) fn retain_observed_manifest(subject: &str, manifest: &str) -> Result<(), WorldError> {
-    let observed =
-        match sim_conformance_packs::packs::release::observe_source_identity(subject, manifest) {
-            Ok(observed) => observed,
-            Err(error) => {
-                return Err(WorldError::Qualification(format!(
-                    "source-identity: {}",
-                    error.code
-                )));
-            }
-        };
-    retain_source_identity(
-        &observed.subject,
-        &observed.result,
-        observed.catalog,
-        observed.checker,
-        observed.scope,
-        observed.revocation,
-    )
 }
 
 /// Admissions whose owner receipt matches `subject`, and the catalog that checked them.

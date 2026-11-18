@@ -48,15 +48,6 @@ pub(crate) fn take_export() -> Option<String> {
     EXPORT.with(|slot| slot.borrow_mut().take())
 }
 
-/// Runs the replay journal and returns its export text.
-///
-/// # Errors
-/// Returns an error when the journal refuses the fact or the export.
-#[cfg(test)]
-pub(crate) fn executed_export() -> Result<String, WorldError> {
-    Ok(replay::reopen()?.export)
-}
-
 fn note_export(export: &str) {
     if export.is_empty() {
         return;

@@ -23,31 +23,47 @@ use super::{
 
 /// Reads the prove command's release input and the admitted phase union.
 ///
-/// `manifest` is an injected Cargo manifest. When it is present, its
-/// verified source-identity catalog is retained for the admitted subject
-/// and does not become a claim row. The journal export captured while the
-/// admitted union runs is checked for this subject. Claim 17 enters only
-/// when that receipt verifies. A refusal leaves the claim unproved.
+/// A journal catalog supplied for this assembly is retained when it names
+/// the admitted subject. Claim 17 enters only from that retained receipt.
+/// This function does not run a conformance pack. A missing receipt leaves
+/// the claim unproved.
 ///
 /// # Errors
 ///
 /// Returns an error when the release input is not a source identity, the
 /// admitted union has no subject or no fresh specimen, or the manifest
 /// observation is refused.
-pub(crate) fn catalog_datum(
-    release_input: &str,
-    manifest: Option<&str>,
-) -> Result<Datum, WorldError> {
+pub(crate) fn catalog_datum(release_input: &str) -> Result<Datum, WorldError> {
     super::owner_admit::clear_source_identity();
     super::owner_admit::clear_journal_completion();
     crate::journal::clear_export();
     let releases = parse_release_input(release_input)?;
     let admitted = admitted_phase_union()?;
-    if let Some(export) = crate::journal::take_export() {
-        super::owner_admit::retain_journal_completion(&admitted.subject, &export)?;
+    let _export = crate::journal::take_export();
+    if let Some(observation) = super::owner_admit::take_supplied_journal()
+        && observation.subject == admitted.subject
+    {
+        super::owner_admit::retain_journal_completion(
+            &observation.subject,
+            &observation.result,
+            observation.catalog,
+            observation.admitted,
+            observation.checker,
+            observation.scope,
+            observation.revocation,
+        )?;
     }
-    if let Some(manifest) = manifest {
-        super::owner_admit::retain_observed_manifest(&admitted.subject, manifest)?;
+    if let Some(source) = super::owner_admit::take_supplied_source()
+        && source.subject == admitted.subject
+    {
+        super::owner_admit::retain_source_identity(
+            &source.subject,
+            &source.result,
+            source.catalog,
+            source.checker,
+            source.scope,
+            source.revocation,
+        )?;
     }
     let (admissions, checks) = super::owner_admit::from_owner(&admitted.subject, &releases)?;
     let catalog = fill(&admitted, &releases, &admissions)?;
@@ -433,6 +449,7 @@ mod tests {
     #[test]
     fn the_final_catalog_fills_from_the_admitted_phase_union() {
         let prove_command = ProveCommandLib::new();
+        supply_replay();
         let catalog = prove_command
             .run(&argv(&["prove", "catalog", &SOURCES.join("\n")]))
             .expect("catalog");
@@ -492,6 +509,7 @@ mod tests {
             );
         }
         let manifest = "[package]\npublish = false\n[dependencies]\nsim-example = { version = \"0.1.0\", git = \"https://example.invalid/sim-example.git\", rev = \"0123456789abcdef0123456789abcdef01234567\" }\n";
+        supply_replay();
         let retained = prove_command
             .run(&argv(&["prove", "catalog", &SOURCES.join("\n"), manifest]))
             .expect("retained");
@@ -512,6 +530,28 @@ mod tests {
         assert_eq!(
             string_field(fresh, "world/fresh-gap-v1", "seal"),
             "unclaimed"
+        );
+    }
+
+    fn supply_replay() {
+        let subject = prove::admitted_subject().expect("subject");
+        let scoped =
+            crate::evidence::scoped_release(&subject, "completion/replay").expect("replay");
+        let (_, admitted, checker) = scoped
+            .admissions
+            .into_iter()
+            .find(|(claim, _, _)| *claim == 17)
+            .expect("claim 17");
+        super::super::owner_admit::supply_journal_observation(
+            super::super::owner_admit::SuppliedReplay {
+                subject,
+                result: "completion/claim-17".to_owned(),
+                catalog: scoped.catalog,
+                admitted,
+                checker,
+                scope: scoped.scope,
+                revocation: sim_conformance_evidence::RevocationStatus::Current,
+            },
         );
     }
 

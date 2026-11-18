@@ -13,9 +13,6 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use sim_conformance_packs::packs::release::{
-    ExecutedEntry, ExecutedJournal, format_executed_journal,
-};
 use sim_kernel::{ContentId, Symbol};
 use sim_lib_journal::{
     Journal, JournalBackend, JournalEntry, JournalError, JournalHead, JournalObject, MemoryBackend,
@@ -119,19 +116,48 @@ fn export_text(
         {
             return None;
         }
-        rendered.push(ExecutedEntry {
+        rendered.push(RenderedEntry {
             sequence: entry.sequence,
             namespace: namespace.to_owned(),
             name: name.to_owned(),
-            object: 0,
         });
     }
-    Some(format_executed_journal(&ExecutedJournal {
-        subject: subject.to_owned(),
-        objects: vec![object.bytes.clone()],
-        entries: rendered,
-        telemetry: vec![telemetry.to_owned()],
-    }))
+    Some(format_export(subject, &object.bytes, &rendered, telemetry))
+}
+
+struct RenderedEntry {
+    sequence: u64,
+    namespace: String,
+    name: String,
+}
+
+fn format_export(
+    subject: &str,
+    object: &[u8],
+    entries: &[RenderedEntry],
+    telemetry: &str,
+) -> String {
+    let mut text = String::from("journal-export-v1\nsubject ");
+    text.push_str(subject);
+    text.push('\n');
+    text.push_str("object ");
+    for byte in object {
+        text.push_str(&format!("{byte:02x}"));
+    }
+    text.push('\n');
+    for entry in entries {
+        text.push_str("entry ");
+        text.push_str(&entry.sequence.to_string());
+        text.push(' ');
+        text.push_str(&entry.namespace);
+        text.push(' ');
+        text.push_str(&entry.name);
+        text.push_str(" 0\n");
+    }
+    text.push_str("telemetry ");
+    text.push_str(telemetry);
+    text.push('\n');
+    text
 }
 
 fn shared_reference(state: &StoredState) -> bool {

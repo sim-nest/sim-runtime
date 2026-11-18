@@ -49,20 +49,25 @@ pub(crate) use union::{PhaseUnionAdmission, admitted_phase_union, admitted_subje
 ///
 /// Returns an error when the release input or the admitted union is unusable.
 pub(crate) fn catalog(releases: &str) -> Result<Datum, WorldError> {
-    crate::completion::catalog_datum(releases, None)
+    crate::completion::catalog_datum(releases)
 }
 
-/// Final-world catalog that also retains one injected source manifest.
+/// Final-world catalog for one release input and a caller-held manifest.
 ///
-/// The manifest is evidence for the admitted subject. Its source-identity
-/// result does not become a completion claim.
+/// The manifest text is not a checker receipt. This command does not observe
+/// it and does not turn it into a claim. An empty manifest is refused.
 ///
 /// # Errors
 ///
-/// Returns an error when the release input, the admitted union, or the
-/// manifest observation is unusable.
+/// Returns an error when the manifest is empty or the release input or the
+/// admitted union is unusable.
 pub(crate) fn catalog_with_source(releases: &str, manifest: &str) -> Result<Datum, WorldError> {
-    crate::completion::catalog_datum(releases, Some(manifest))
+    if manifest.trim().is_empty() {
+        return Err(WorldError::Qualification(
+            "source manifest was not retained".to_owned(),
+        ));
+    }
+    catalog(releases)
 }
 #[path = "prove_view.rs"]
 mod view;
