@@ -5,8 +5,11 @@
 
 //! Owner receipts that may enter the final-world catalog.
 //!
-//! The evidence owner is the only production admission path. Its checked
-//! subject and result must be this catalog's subject and the claim result.
+//! The caller supplies owner receipts the checker already admitted. Each
+//! claim keeps that owner's revocation map, including a different checker
+//! that supported the evidence. The evidence owner is used only when no
+//! receipt was supplied. Its checked subject and result must be this
+//! catalog's subject and the claim result.
 //! A verified source-identity catalog stays at scope `release/source-identity`
 //! and does not become a claim. A source-deck label is not read. The lantern
 //! fixture is not copied onto another subject. This module does not derive a seal.
@@ -47,7 +50,25 @@ struct RetainedOwnerClaim {
     checker: OwnerCheckerReceiptId,
     catalog: ProofCatalog,
     scope: CheckScopeId,
-    revocation: RevocationStatus,
+    revocations: BTreeMap<OwnerCheckerReceiptId, RevocationStatus>,
+}
+
+/// One owner claim a caller already had the checker admit.
+pub struct SuppliedOwnerClaim {
+    /// Subject the receipt names.
+    pub subject: String,
+    /// Claim number, from 1 through 25.
+    pub claim: u8,
+    /// Evidence the catalog admitted.
+    pub admitted: AdmittedEvidence,
+    /// Receipt that bound the admission.
+    pub checker: OwnerCheckerReceiptId,
+    /// Catalog that admitted the evidence.
+    pub catalog: ProofCatalog,
+    /// Scope recorded on that receipt.
+    pub scope: CheckScopeId,
+    /// Revocation state of the claim checker and every checker it consulted.
+    pub revocations: BTreeMap<OwnerCheckerReceiptId, RevocationStatus>,
 }
 
 thread_local! {
@@ -55,6 +76,8 @@ thread_local! {
         const { RefCell::new(None) };
     static RETAINED_REPLAY: RefCell<Option<RetainedReplay>> = const { RefCell::new(None) };
     static RETAINED_OWNER_CLAIMS: RefCell<Vec<RetainedOwnerClaim>> =
+        const { RefCell::new(Vec::new()) };
+    static SUPPLIED_OWNER_CLAIMS: RefCell<Vec<SuppliedOwnerClaim>> =
         const { RefCell::new(Vec::new()) };
     static SUPPLIED_REPLAY: RefCell<Option<SuppliedReplay>> = const { RefCell::new(None) };
     static SUPPLIED_SOURCE: RefCell<Option<SuppliedSource>> = const { RefCell::new(None) };
@@ -173,16 +196,51 @@ pub(crate) fn clear_journal_completion() {
     RETAINED_REPLAY.with(|slot| *slot.borrow_mut() = None);
 }
 
-#[cfg(test)]
 pub(crate) fn clear_owner_claims() {
     RETAINED_OWNER_CLAIMS.with(|slot| slot.borrow_mut().clear());
+}
+
+#[cfg(test)]
+pub(crate) fn clear_supplied_owner_claims() {
+    SUPPLIED_OWNER_CLAIMS.with(|slot| slot.borrow_mut().clear());
+}
+
+/// Holds one owner claim until the next final-catalog assembly takes it.
+///
+/// The prove catalog accepts matching claims on the calling thread. This
+/// does not run a checker and does not derive a seal.
+pub fn supply_owner_claim(claim: SuppliedOwnerClaim) {
+    SUPPLIED_OWNER_CLAIMS.with(|slot| slot.borrow_mut().push(claim));
+}
+
+/// Retains supplied owner claims that name `subject`. Other subjects are dropped.
+pub(crate) fn accept_supplied_owner_claims(subject: &str) {
+    for claim in take_supplied_owner_claims() {
+        if claim.subject != subject {
+            continue;
+        }
+        retain_owner_claim(
+            &claim.subject,
+            claim.claim,
+            claim.admitted,
+            claim.checker,
+            claim.catalog,
+            claim.scope,
+            claim.revocations,
+        );
+    }
+}
+
+fn take_supplied_owner_claims() -> Vec<SuppliedOwnerClaim> {
+    SUPPLIED_OWNER_CLAIMS.with(|slot| std::mem::take(&mut *slot.borrow_mut()))
 }
 
 /// Retains one owner-backed claim for `subject`.
 ///
 /// Claim 17 stays on the journal path when that export is retained. A claim
-/// outside 1..=25 is ignored. The catalog is the proof for `checker` only.
-#[cfg(test)]
+/// outside 1..=25 is ignored. A map that does not name `checker` is ignored.
+/// The map keeps every consulted checker, including support checked by
+/// another owner. The catalog is the proof for `checker` only.
 pub(crate) fn retain_owner_claim(
     subject: &str,
     claim: u8,
@@ -190,9 +248,9 @@ pub(crate) fn retain_owner_claim(
     checker: OwnerCheckerReceiptId,
     catalog: ProofCatalog,
     scope: CheckScopeId,
-    revocation: RevocationStatus,
+    revocations: BTreeMap<OwnerCheckerReceiptId, RevocationStatus>,
 ) {
-    if !(1..=25).contains(&claim) {
+    if !(1..=25).contains(&claim) || !revocations.contains_key(&checker) {
         return;
     }
     RETAINED_OWNER_CLAIMS.with(|slot| {
@@ -203,7 +261,7 @@ pub(crate) fn retain_owner_claim(
             checker,
             catalog,
             scope,
-            revocation,
+            revocations,
         });
     });
 }
@@ -313,10 +371,7 @@ pub(crate) fn from_owner(
         None => catalog_from_owner(extras.remove(0)),
     };
     for extra in extras {
-        checks
-            .revocations
-            .entry(extra.checker.clone())
-            .or_insert(extra.revocation);
+        merge_revocations(&mut checks, extra.revocations);
         checks.owners.insert(extra.checker, extra.catalog);
     }
     queued.sort_by_key(|row| row.claim);
@@ -330,8 +385,17 @@ fn catalog_from_owner(row: RetainedOwnerClaim) -> CheckerCatalog {
     CheckerCatalog {
         catalog: row.catalog,
         scope: row.scope,
-        revocations: BTreeMap::from([(row.checker, row.revocation)]),
+        revocations: row.revocations,
         owners: BTreeMap::new(),
+    }
+}
+
+fn merge_revocations(
+    checks: &mut CheckerCatalog,
+    revocations: BTreeMap<OwnerCheckerReceiptId, RevocationStatus>,
+) {
+    for (id, status) in revocations {
+        checks.revocations.entry(id).or_insert(status);
     }
 }
 
@@ -357,7 +421,7 @@ fn unmatched_owner(
         checker: release.checker.clone(),
         catalog: release.catalog.clone(),
         scope: release.scope.clone(),
-        revocation: release.revocation.clone(),
+        revocations: BTreeMap::from([(release.checker.clone(), release.revocation.clone())]),
     });
     let row = CheckedAdmit {
         claim,

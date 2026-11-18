@@ -115,6 +115,7 @@ fn proved() -> (
             name: "sim-lib-doc-core".to_owned(),
             registry_published: true,
             source_release: String::new(),
+            version: "0.1.0".to_owned(),
             order: 0,
         }],
         linux: LinuxBoundary::Absent,
@@ -188,6 +189,7 @@ fn exact_unpublished() -> Vec<ReleaseObligation> {
         name: name.to_owned(),
         registry_published: false,
         source_release: format!("git+{commit}:{name}@0.1.0"),
+        version: "0.1.0".to_owned(),
         order: u16::try_from(order).expect("order"),
     })
     .collect()
@@ -210,6 +212,7 @@ fn unpublished() -> Vec<ReleaseObligation> {
         name: name.to_owned(),
         registry_published: false,
         source_release: String::new(),
+        version: String::new(),
         order: u16::try_from(order).expect("order"),
     })
     .collect()
@@ -392,6 +395,7 @@ fn an_empty_release_name_stays_a_gap() {
         name: "  ".to_owned(),
         registry_published: false,
         source_release: String::new(),
+        version: String::new(),
         order: 0,
     }];
     let gaps = derive(&inputs).expect_err("missing name");

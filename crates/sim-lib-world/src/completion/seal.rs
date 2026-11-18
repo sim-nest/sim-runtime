@@ -130,8 +130,12 @@ fn digest(
             &mut text,
             "release",
             &format!(
-                "{}:{}:{}:{}",
-                release.order, release.name, release.registry_published, release.source_release
+                "{}:{}:{}:{}:{}",
+                release.order,
+                release.name,
+                release.registry_published,
+                release.source_release,
+                release.version
             ),
         );
     }

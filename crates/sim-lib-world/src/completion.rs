@@ -24,6 +24,7 @@ mod owner_admit;
 mod seal;
 
 pub(crate) use assemble::catalog_datum;
+pub use owner_admit::{SuppliedOwnerClaim, supply_owner_claim};
 
 #[cfg(test)]
 mod tests;
@@ -202,6 +203,8 @@ pub struct ReleaseObligation {
     ///
     /// Claim 21's verified receipt names this revision, package, and version.
     pub source_release: String,
+    /// Package version named by the selected release line.
+    pub version: String,
     /// Zero-based position in dependency order.
     pub order: u16,
 }

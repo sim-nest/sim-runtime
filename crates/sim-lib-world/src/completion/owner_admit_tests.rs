@@ -13,6 +13,7 @@ impl ClearRetained {
         super::clear_source_identity();
         super::clear_journal_completion();
         super::clear_owner_claims();
+        super::clear_supplied_owner_claims();
         Self
     }
 }
@@ -22,6 +23,7 @@ impl Drop for ClearRetained {
         super::clear_source_identity();
         super::clear_journal_completion();
         super::clear_owner_claims();
+        super::clear_supplied_owner_claims();
     }
 }
 
@@ -386,7 +388,10 @@ fn owner_claims_continue_past_the_journal() {
         checker.clone(),
         scoped.catalog.clone(),
         scoped.scope.clone(),
-        sim_conformance_evidence::RevocationStatus::Current,
+        std::collections::BTreeMap::from([(
+            checker.clone(),
+            sim_conformance_evidence::RevocationStatus::Current,
+        )]),
     );
     super::retain_owner_claim(
         &subject,
@@ -395,7 +400,10 @@ fn owner_claims_continue_past_the_journal() {
         checker.clone(),
         scoped.catalog,
         scoped.scope,
-        sim_conformance_evidence::RevocationStatus::Current,
+        std::collections::BTreeMap::from([(
+            checker.clone(),
+            sim_conformance_evidence::RevocationStatus::Current,
+        )]),
     );
     let (rows, checks) = super::from_owner(&subject, &[]).expect("owner");
     assert_eq!(
@@ -422,12 +430,90 @@ fn owner_claims_continue_past_the_journal() {
             keep.1.clone(),
             keep.2.clone(),
             keep.3.clone(),
-            status,
+            std::collections::BTreeMap::from([(keep.1.clone(), status)]),
         );
         let (rows, _) = super::from_owner(&subject, &[]).expect("owner");
         assert_eq!(
             rows.iter().map(|row| row.claim).collect::<Vec<_>>(),
             vec![17]
         );
+    }
+}
+
+fn supply_foreign_support(
+    subject: &str,
+    status: sim_conformance_evidence::RevocationStatus,
+) -> sim_conformance_evidence::CheckerReceiptId {
+    let (mut release, support_checker) =
+        crate::evidence::scoped_release_with_foreign_support(subject, "scope/owner-support", 6)
+            .expect("foreign support");
+    release.revocations.insert(support_checker.clone(), status);
+    let (claim, admitted, checker) = release
+        .admissions
+        .into_iter()
+        .find(|(number, _, _)| *number == 6)
+        .expect("claim 6");
+    super::clear_owner_claims();
+    super::supply_owner_claim(super::SuppliedOwnerClaim {
+        subject: subject.to_owned(),
+        claim,
+        admitted,
+        checker,
+        catalog: release.catalog,
+        scope: release.scope,
+        revocations: release.revocations,
+    });
+    support_checker
+}
+
+fn admission_claims(datum: &sim_kernel::Datum) -> Vec<String> {
+    let sim_kernel::Datum::Node { fields, .. } = datum else {
+        panic!("catalog node");
+    };
+    let value = fields
+        .iter()
+        .find(|(symbol, _)| symbol.as_qualified_str() == "admissions")
+        .map(|(_, value)| value)
+        .expect("admissions");
+    let sim_kernel::Datum::Vector(items) = value else {
+        panic!("admissions list");
+    };
+    items
+        .iter()
+        .map(|item| match item {
+            sim_kernel::Datum::String(text) => text.clone(),
+            other => panic!("admission {other:?}"),
+        })
+        .collect()
+}
+
+#[test]
+fn supplied_foreign_support_survives_assembly() {
+    let _guard = ClearRetained::arm();
+    let subject = crate::prove::admitted_subject().expect("subject");
+    let current = sim_conformance_evidence::RevocationStatus::Current;
+    let support = supply_foreign_support(&subject, current.clone());
+    let datum = super::super::assemble::catalog_datum("", None).expect("catalog");
+    assert_eq!(admission_claims(&datum), vec!["6".to_owned()]);
+    let (rows, checks) = super::from_owner(&subject, &[]).expect("owner");
+    assert_eq!(
+        rows.iter().map(|row| row.claim).collect::<Vec<_>>(),
+        vec![6]
+    );
+    let checks = checks.expect("catalog");
+    assert_eq!(checks.revocations.get(&support), Some(&current));
+
+    for status in [
+        sim_conformance_evidence::RevocationStatus::Revoked,
+        sim_conformance_evidence::RevocationStatus::Unknown,
+    ] {
+        let support = supply_foreign_support(&subject, status.clone());
+        let datum = super::super::assemble::catalog_datum("", None).expect("catalog");
+        assert!(admission_claims(&datum).iter().all(|claim| claim != "6"));
+        let (rows, checks) = super::from_owner(&subject, &[]).expect("owner");
+        assert!(rows.iter().all(|row| row.claim != 6));
+        let checks = checks.expect("catalog");
+        assert_eq!(checks.revocations.get(&support), Some(&status));
+        assert!(checks.revocations.values().any(|found| *found == current));
     }
 }

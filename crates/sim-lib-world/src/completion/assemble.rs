@@ -38,6 +38,7 @@ pub(crate) fn catalog_datum(
 ) -> Result<Datum, WorldError> {
     super::owner_admit::clear_source_identity();
     super::owner_admit::clear_journal_completion();
+    super::owner_admit::clear_owner_claims();
     crate::journal::clear_export();
     let releases = parse_release_input(release_input)?;
     let admitted = admitted_phase_union()?;
@@ -67,6 +68,7 @@ pub(crate) fn catalog_datum(
             source.revocation,
         )?;
     }
+    super::owner_admit::accept_supplied_owner_claims(&admitted.subject);
     let supplied_fresh = super::fresh_set::take();
     let fresh = super::fresh_set::retain(
         &admitted.fresh_reason,
@@ -218,7 +220,7 @@ fn source_covered(catalog: &EvidenceCatalog, checks: Option<&CheckerCatalog>) ->
 
 fn release_token(release: &ReleaseObligation) -> String {
     if release.registry_published {
-        format!("registry:{}", release.name)
+        format!("registry:{}@{}", release.name, release.version)
     } else {
         release.source_release.clone()
     }
@@ -261,6 +263,7 @@ fn git_release(line: &str, order: u16) -> Option<ReleaseObligation> {
         name: name.to_owned(),
         registry_published: false,
         source_release: line.to_owned(),
+        version: version.to_owned(),
         order,
     })
 }
@@ -275,6 +278,7 @@ fn registry_release(line: &str, order: u16) -> Option<ReleaseObligation> {
         name: name.to_owned(),
         registry_published: true,
         source_release: String::new(),
+        version: version.to_owned(),
         order,
     })
 }
@@ -411,7 +415,15 @@ mod tests {
         assert_eq!(rows[0].order, 0);
         assert!(rows[1].registry_published);
         assert!(rows[1].source_release.is_empty());
+        assert_eq!(rows[0].version, "0.2.0");
+        assert_eq!(rows[1].version, "1.0");
         assert_eq!(rows[1].name, "sim-other");
+        let older = super::parse_release_input("registry:sim-example@0.1.0\n").expect("older");
+        let newer = super::parse_release_input("registry:sim-example@0.2.0\n").expect("newer");
+        assert_ne!(
+            super::selected_source_digest(&older, Some("manifest")).expect("older digest"),
+            super::selected_source_digest(&newer, Some("manifest")).expect("newer digest")
+        );
         let repeated = super::parse_release_input(
             "git+0123456789abcdef0123456789abcdef01234567:sim-example@0.2.0\ngit+0123456789abcdef0123456789abcdef01234567:sim-example@0.2.0\n",
         );
@@ -457,6 +469,7 @@ mod tests {
                 registry_published: false,
                 source_release: "git+0123456789abcdef0123456789abcdef01234567:sim-example@0.1.0"
                     .to_owned(),
+                version: "0.1.0".to_owned(),
                 order: 0,
             }],
             linux: LinuxBoundary::Unselected,
