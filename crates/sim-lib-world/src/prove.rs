@@ -41,7 +41,7 @@ mod run;
 #[path = "portable_union.rs"]
 mod union;
 
-pub(crate) use union::{PhaseUnionAdmission, admitted_phase_union};
+pub(crate) use union::{PhaseUnionAdmission, admitted_phase_union, admitted_subject};
 
 /// Final-world catalog for the admitted phase union and one release input.
 ///

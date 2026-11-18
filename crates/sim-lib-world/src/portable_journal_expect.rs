@@ -9,7 +9,7 @@ use std::collections::BTreeSet;
 
 use super::OwnedReplay;
 
-const SPEC: (&str, &str, &str, &str, &str) = ("replay", "reopened", "matched", "refused", "1");
+const SPEC: (&str, &str, &str, &str, &str) = ("replay", "reopened", "matched", "refused", "2");
 
 pub(super) fn expected_deck() -> String {
     [

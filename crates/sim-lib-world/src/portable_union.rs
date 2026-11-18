@@ -525,6 +525,10 @@ fn subject() -> Result<String, WorldError> {
     Ok(SUBJECT.get_or_init(|| value.clone()).clone())
 }
 
+pub(crate) fn admitted_subject() -> Result<String, WorldError> {
+    subject()
+}
+
 /// Keeps the first record from a loaded command for later admissions.
 ///
 /// The first call runs that command. A later call in this process returns

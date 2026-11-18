@@ -25,7 +25,9 @@ use super::{
 ///
 /// `manifest` is an injected Cargo manifest. When it is present, its
 /// verified source-identity catalog is retained for the admitted subject
-/// and does not become a claim row.
+/// and does not become a claim row. The journal export captured while the
+/// admitted union runs is checked for this subject. Claim 17 enters only
+/// when that receipt verifies. A refusal leaves the claim unproved.
 ///
 /// # Errors
 ///
@@ -37,8 +39,13 @@ pub(crate) fn catalog_datum(
     manifest: Option<&str>,
 ) -> Result<Datum, WorldError> {
     super::owner_admit::clear_source_identity();
+    super::owner_admit::clear_journal_completion();
+    crate::journal::clear_export();
     let releases = parse_release_input(release_input)?;
     let admitted = admitted_phase_union()?;
+    if let Some(export) = crate::journal::take_export() {
+        super::owner_admit::retain_journal_completion(&admitted.subject, &export)?;
+    }
     if let Some(manifest) = manifest {
         super::owner_admit::retain_observed_manifest(&admitted.subject, manifest)?;
     }
@@ -465,7 +472,7 @@ mod tests {
         assert_eq!(number_field(&cold, "prove/cold-v1", "denominator"), 29);
         assert_eq!(number_field(&cold, "prove/cold-v1", "executed"), 29);
         assert_eq!(list_field(&catalog, "releases"), SOURCES);
-        assert!(list_field(&catalog, "admissions").is_empty());
+        assert_eq!(list_field(&catalog, "admissions"), vec!["17".to_owned()]);
         let gaps = list_field(&catalog, "gaps");
         assert!(gaps.iter().any(|gap| gap == "construction-specimen"));
         assert!(gaps.iter().any(|gap| gap == "claim-unproved"));

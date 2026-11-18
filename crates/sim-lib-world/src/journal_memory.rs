@@ -17,7 +17,7 @@ use sim_kernel::Datum;
 
 enum Slot {
     Pending { waiters: usize },
-    Ready(Box<Datum>),
+    Ready { record: Box<Datum>, export: String },
 }
 
 struct Table {
@@ -34,7 +34,7 @@ static TABLE: LazyLock<(Mutex<Table>, Condvar)> = LazyLock::new(|| {
 });
 
 pub(super) enum Reservation {
-    Ready(Datum),
+    Ready { record: Datum, export: String },
     Mine(Claim),
 }
 
@@ -47,7 +47,12 @@ pub(super) fn claim(case: &str) -> Reservation {
     let mut guard = lock();
     loop {
         match guard.slots.get(case) {
-            Some(Slot::Ready(found)) => return Reservation::Ready(found.as_ref().clone()),
+            Some(Slot::Ready { record, export }) => {
+                return Reservation::Ready {
+                    record: record.as_ref().clone(),
+                    export: export.clone(),
+                };
+            }
             Some(Slot::Pending { .. }) => {
                 if let Some(Slot::Pending { waiters }) = guard.slots.get_mut(case) {
                     *waiters += 1;
@@ -76,12 +81,16 @@ pub(super) fn claim(case: &str) -> Reservation {
 }
 
 impl Claim {
-    pub(super) fn commit(mut self, record: &Datum) {
+    pub(super) fn commit(mut self, record: &Datum, export: &str) {
         {
             let mut guard = lock();
-            guard
-                .slots
-                .insert(self.case.clone(), Slot::Ready(Box::new(record.clone())));
+            guard.slots.insert(
+                self.case.clone(),
+                Slot::Ready {
+                    record: Box::new(record.clone()),
+                    export: export.to_owned(),
+                },
+            );
         }
         self.open = false;
         cond().notify_all();
