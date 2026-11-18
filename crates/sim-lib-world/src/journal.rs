@@ -11,7 +11,7 @@
 //! identical case returns that record. A private value is refused before
 //! the reservation.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 
 use sim_kernel::{Datum, Symbol};
 
@@ -35,6 +35,33 @@ const MARKERS: &[&str] = &[
 
 thread_local! {
     static CALLS: Cell<u64> = const { Cell::new(0) };
+    static EXPORT: RefCell<Option<String>> = const { RefCell::new(None) };
+}
+
+/// Drops the journal export captured on this thread.
+pub(crate) fn clear_export() {
+    EXPORT.with(|slot| *slot.borrow_mut() = None);
+}
+
+/// Takes the journal export captured by the loaded replay command.
+pub(crate) fn take_export() -> Option<String> {
+    EXPORT.with(|slot| slot.borrow_mut().take())
+}
+
+/// Runs the replay journal and returns its export text.
+///
+/// # Errors
+/// Returns an error when the journal refuses the fact or the export.
+#[cfg(test)]
+pub(crate) fn executed_export() -> Result<String, WorldError> {
+    Ok(replay::reopen()?.export)
+}
+
+fn note_export(export: &str) {
+    if export.is_empty() {
+        return;
+    }
+    EXPORT.with(|slot| *slot.borrow_mut() = Some(export.to_owned()));
 }
 
 /// Runs one named journal case through the published rebuild pair.
@@ -49,12 +76,18 @@ pub(crate) fn run(case: &str) -> Result<Datum, WorldError> {
     if !known(case) {
         return Ok(gap(case, "unknown-case", 0, 0));
     }
-    let claim = match memory::claim(case) {
-        memory::Reservation::Ready(found) => return Ok(found),
-        memory::Reservation::Mine(claim) => claim,
+    let (rendered, export) = match memory::claim(case) {
+        memory::Reservation::Ready { record, export } => {
+            note_export(&export);
+            return Ok(record);
+        }
+        memory::Reservation::Mine(claim) => {
+            let (rendered, export) = receive(canonical_case(case))?;
+            claim.commit(&rendered, &export);
+            (rendered, export)
+        }
     };
-    let rendered = receive(canonical_case(case))?;
-    claim.commit(&rendered);
+    note_export(&export);
     Ok(rendered)
 }
 
@@ -80,15 +113,20 @@ fn canonical_case(case: &str) -> &str {
     case
 }
 
-fn receive(case: &str) -> Result<Datum, WorldError> {
+fn receive(case: &str) -> Result<(Datum, String), WorldError> {
     if case == "replay" {
-        return Ok(replay_record(&replay::reopen()?));
+        let reopened = replay::reopen()?;
+        let export = reopened.export.clone();
+        return Ok((replay_record(&reopened), export));
     }
     if case != "compare" {
-        return Ok(gap(case, "unknown-case", 0, 0));
+        return Ok((gap(case, "unknown-case", 0, 0), String::new()));
     }
     let compared = drive::compare()?;
-    Ok(gap(case, compared.reason, compared.records, 2))
+    Ok((
+        gap(case, compared.reason, compared.records, 2),
+        String::new(),
+    ))
 }
 
 fn replay_record(reopened: &replay::Reopened) -> Datum {

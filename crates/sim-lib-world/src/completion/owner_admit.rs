@@ -23,15 +23,26 @@ use super::{
 use crate::WorldError;
 
 const SOURCE_IDENTITY_SCOPE: &str = "release/source-identity";
+const REPLAY_SCOPE: &str = "completion/replay";
+const REPLAY_RESULT: &str = "completion/claim-17";
 
 struct RetainedSourceIdentity {
     subject: String,
     checks: CheckerCatalog,
 }
 
+#[derive(Clone)]
+struct RetainedReplay {
+    subject: String,
+    admitted: AdmittedEvidence,
+    checker: OwnerCheckerReceiptId,
+    checks: CheckerCatalog,
+}
+
 thread_local! {
     static RETAINED_SOURCE_IDENTITY: RefCell<Option<RetainedSourceIdentity>> =
         const { RefCell::new(None) };
+    static RETAINED_REPLAY: RefCell<Option<RetainedReplay>> = const { RefCell::new(None) };
 }
 
 /// Retains one verified source-identity catalog for `subject`.
@@ -92,6 +103,59 @@ pub(crate) fn clear_source_identity() {
     RETAINED_SOURCE_IDENTITY.with(|slot| *slot.borrow_mut() = None);
 }
 
+pub(crate) fn clear_journal_completion() {
+    RETAINED_REPLAY.with(|slot| *slot.borrow_mut() = None);
+}
+
+/// Observes `body` for `subject` and retains a verified claim 17 catalog.
+///
+/// `body` is the journal export captured from the loaded replay command.
+/// A pack refusal retains nothing and does not fail the catalog. The result
+/// must be exactly `completion/claim-17`.
+///
+/// # Errors
+///
+/// Returns an error when the scope text cannot be constructed.
+pub(crate) fn retain_journal_completion(subject: &str, body: &str) -> Result<(), WorldError> {
+    let observed =
+        match sim_conformance_packs::packs::release::observe_journal_completion(subject, body) {
+            Ok(observed) => observed,
+            Err(_) => return Ok(()),
+        };
+    let scope = CheckScopeId::from_text(REPLAY_SCOPE).map_err(|_| {
+        WorldError::Qualification("journal completion catalog was refused".to_owned())
+    })?;
+    if observed.subject != subject
+        || observed.result != REPLAY_RESULT
+        || observed.scope != scope
+        || observed.revocation != RevocationStatus::Current
+    {
+        return Ok(());
+    }
+    let checks = CheckerCatalog {
+        catalog: observed.catalog,
+        scope: observed.scope,
+        revocations: BTreeMap::from([(observed.checker.clone(), observed.revocation)]),
+    };
+    RETAINED_REPLAY.with(|slot| {
+        *slot.borrow_mut() = Some(RetainedReplay {
+            subject: observed.subject,
+            admitted: observed.admitted,
+            checker: observed.checker,
+            checks,
+        });
+    });
+    Ok(())
+}
+
+fn retained_replay(subject: &str) -> Option<RetainedReplay> {
+    RETAINED_REPLAY.with(|slot| {
+        slot.borrow()
+            .as_ref()
+            .and_then(|retained| (retained.subject == subject).then(|| retained.clone()))
+    })
+}
+
 /// Observes `manifest` for `subject` and retains the verified catalog.
 ///
 /// A pack refusal retains nothing.
@@ -123,6 +187,7 @@ pub(crate) fn retain_observed_manifest(subject: &str, manifest: &str) -> Result<
 
 /// Admissions whose owner receipt matches `subject`, and the catalog that checked them.
 ///
+/// A retained journal export admits claim 17 when its receipt verifies.
 /// A retained source-identity catalog is returned with no claim rows. The
 /// lantern fixture supplies a claim only when its subject matches and its
 /// result is that claim.
@@ -134,6 +199,15 @@ pub(crate) fn from_owner(
     subject: &str,
     releases: &[ReleaseObligation],
 ) -> Result<(Vec<ClaimAdmission>, Option<CheckerCatalog>), WorldError> {
+    if let Some(replay) = retained_replay(subject) {
+        let row = CheckedAdmit {
+            claim: 17,
+            admitted: replay.admitted.clone(),
+            checker: replay.checker.clone(),
+        };
+        let admitted = admit_checked(subject, releases, &[row], &replay.checks);
+        return Ok((admitted, Some(replay.checks)));
+    }
     if let Some(checks) = retained_source_identity(subject) {
         return Ok((Vec::new(), Some(checks)));
     }
@@ -220,10 +294,25 @@ mod tests {
 
     struct ClearRetained;
 
+    impl ClearRetained {
+        fn arm() -> Self {
+            super::clear_source_identity();
+            super::clear_journal_completion();
+            Self
+        }
+    }
+
     impl Drop for ClearRetained {
         fn drop(&mut self) {
             super::clear_source_identity();
+            super::clear_journal_completion();
         }
+    }
+
+    fn digest_list() -> String {
+        (0..29)
+            .map(|index| format!("phase/{index:02} {index:064x}\n"))
+            .collect()
     }
 
     fn manifest() -> String {
@@ -235,7 +324,7 @@ mod tests {
 
     #[test]
     fn a_source_identity_catalog_stays_out_of_the_claims() {
-        let _guard = ClearRetained;
+        let _guard = ClearRetained::arm();
         let subject = "subject/tooling-caller";
         let observed =
             sim_conformance_packs::packs::release::observe_source_identity(subject, &manifest())
@@ -268,7 +357,7 @@ mod tests {
 
     #[test]
     fn a_claim_result_does_not_replace_the_source_identity_catalog() {
-        let _guard = ClearRetained;
+        let _guard = ClearRetained::arm();
         let subject = "subject/tooling-caller";
         let observed =
             sim_conformance_packs::packs::release::observe_source_identity(subject, &manifest())
@@ -303,7 +392,7 @@ mod tests {
 
     #[test]
     fn a_refused_manifest_retains_nothing() {
-        let _guard = ClearRetained;
+        let _guard = ClearRetained::arm();
         let subject = "subject/tooling-caller";
         let metadata = "[package]\npublish = false\n[package.metadata]\nsim-example = { version = \"0.1.0\", git = \"https://example.invalid/sim-example.git\", rev = \"0123456789abcdef0123456789abcdef01234567\" }\n";
         let missing =
@@ -412,5 +501,83 @@ mod tests {
         let bound = super::admit_checked("world-final", &[], &rows, &checks);
         assert_eq!(bound.len(), 24);
         assert!(bound.iter().all(|row| row.claim != 1));
+    }
+
+    #[test]
+    fn an_executed_journal_admits_only_claim_17() {
+        let _guard = ClearRetained::arm();
+        let subject = crate::prove::admitted_subject().expect("subject");
+        let export = crate::journal::executed_export().expect("replay");
+        let probe = "\
+journal-export-v1
+object 09
+entry 0 world fact 0
+entry 1 world fact 0
+telemetry side-channel
+";
+        super::retain_journal_completion(&subject, probe).expect("unbound keeps the catalog");
+        super::retain_journal_completion("subject/other", &export)
+            .expect("other subject keeps the catalog");
+        let (rows, checks) = super::from_owner(&subject, &[]).expect("unbound");
+        assert!(rows.is_empty());
+        assert!(checks.is_none());
+        super::retain_journal_completion(&subject, &export).expect("replay");
+        let (rows, checks) = super::from_owner(&subject, &[]).expect("owner");
+        assert_eq!(
+            rows.iter().map(|row| row.claim).collect::<Vec<_>>(),
+            vec![17]
+        );
+        assert_eq!(
+            checks.expect("catalog").scope,
+            sim_conformance_evidence::CheckScopeId::from_text("completion/replay").expect("scope")
+        );
+        let observed =
+            sim_conformance_packs::packs::release::observe_source_identity(&subject, &manifest())
+                .expect("source");
+        super::retain_source_identity(
+            &observed.subject,
+            &observed.result,
+            observed.catalog,
+            observed.checker,
+            observed.scope,
+            observed.revocation,
+        )
+        .expect("retained");
+        let (rows, checks) = super::from_owner(&subject, &[]).expect("both");
+        assert_eq!(
+            rows.iter().map(|row| row.claim).collect::<Vec<_>>(),
+            vec![17]
+        );
+        assert_eq!(
+            checks.expect("replay catalog").scope,
+            sim_conformance_evidence::CheckScopeId::from_text("completion/replay").expect("scope")
+        );
+        super::clear_journal_completion();
+        let (rows, checks) = super::from_owner(&subject, &[]).expect("source only");
+        assert!(rows.is_empty());
+        assert_eq!(
+            checks.expect("source catalog").scope,
+            sim_conformance_evidence::CheckScopeId::from_text("release/source-identity")
+                .expect("scope")
+        );
+    }
+
+    #[test]
+    fn a_fabricated_digest_list_retains_no_claim() {
+        let _guard = ClearRetained::arm();
+        let subject = "subject/replay-example";
+        match sim_conformance_packs::packs::release::observe_journal_completion(
+            subject,
+            &digest_list(),
+        ) {
+            Err(error) => assert_eq!(error.code, "fabricated-digest-list"),
+            Ok(_) => panic!("digest list admitted a receipt"),
+        }
+        super::retain_journal_completion(subject, &digest_list())
+            .expect("refusal keeps the catalog");
+        super::retain_journal_completion(subject, "shade-1\n").expect("specimen keeps the catalog");
+        let (rows, checks) = super::from_owner(subject, &[]).expect("owner");
+        assert!(rows.is_empty());
+        assert!(checks.is_none());
     }
 }
