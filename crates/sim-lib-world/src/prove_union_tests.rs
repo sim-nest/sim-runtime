@@ -62,6 +62,19 @@ fn the_public_denominator_is_the_phase_gates() {
 }
 
 #[test]
+fn cold_stage_runs_the_loaded_comparison() {
+    let stage = crate::cold_stage::execute().expect("cold stage");
+    assert_eq!(stage.denominator, 29);
+    assert!(stage.reuse_disabled);
+    assert_eq!(stage.false_reuse, 0);
+    assert_eq!(stage.d1, 10_000);
+    assert_eq!(stage.d2, 9_500);
+    assert_eq!(stage.d4, 7_000);
+    crate::cold_stage::scripted_receipt_is_refused("conclusion/01").expect("scripted");
+    crate::cold_stage::contradictory_basis_is_false_reuse().expect("basis");
+}
+
+#[test]
 fn reuse_of_owner_leaves_covers_the_denominator() {
     let cold = prove::run("cold", None).unwrap();
     let view = text(&cold, "view");

@@ -151,8 +151,7 @@
 //! bytes. The subject binds the proof implementation. A scripted
 //! command receipt is not a proof. Catalog reads this admitted union
 //! and the caller release input, names missing admissions as gaps, and
-//! does not derive a seal. A later reuse, status, why, or frontier query
-//! reads that view and does not run the cold path again.
+//! does not derive a seal. A later reuse, status, why, or frontier query reads that view and does not run the cold path again.
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
@@ -206,6 +205,7 @@ pub use product::{
     DISCLOSURE_CONCLUSION, DISCLOSURE_FACT, Declaration, SOURCE_CONCLUSION, SOURCE_FACT,
     WorldError, WorldProduct, WorldProjection,
 };
+pub use prove::cold_stage;
 pub use prove_command::{PROVE_VERB, ProveCommandLib};
 pub use seal::{captured_inputs, workspace_root};
 #[cfg(test)]

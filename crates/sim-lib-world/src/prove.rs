@@ -244,6 +244,29 @@ pub(crate) fn admit_command(leaf: &str, scripted: bool) -> Result<(), WorldError
     leaf::admit_command(leaf, scripted)
 }
 
+/// Refuses a scripted command receipt before any catalog launch.
+///
+/// # Errors
+/// Returns an error when the receipt is admitted or refused for another reason.
+pub(crate) fn scripted_receipt_is_refused(leaf: &str) -> Result<(), WorldError> {
+    match leaf::admit_command(leaf, true) {
+        Err(error)
+            if error
+                .to_string()
+                .contains("scripted process receipt cannot enter the denominator") =>
+        {
+            Ok(())
+        }
+        Ok(()) => Err(WorldError::Qualification(
+            "scripted receipt was admitted".to_owned(),
+        )),
+        Err(error) => Err(error),
+    }
+}
+
+#[path = "cold_stage.rs"]
+pub mod cold_stage;
+
 /// Executes one catalog command on the qualified route.
 ///
 /// The leaf is not a member of the sealed denominator.

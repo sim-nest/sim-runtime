@@ -115,6 +115,180 @@ pub(super) fn compare_leaf() -> Result<ProofLeaf, WorldError> {
     Ok(leaf_from(survey()))
 }
 
+/// Numbers the loaded cold comparison observed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ObservedCold {
+    /// Phase gates in the public cold run.
+    pub denominator: u64,
+    /// False reuse summed from the loaded assay rows.
+    pub false_reuse: u64,
+    /// Unaffected basis points of D1.
+    pub d1: u64,
+    /// Unaffected basis points of D2.
+    pub d2: u64,
+    /// Unaffected basis points of D4.
+    pub d4: u64,
+    /// Whether that cold run kept reuse disabled.
+    pub reuse_disabled: bool,
+}
+
+/// Runs the loaded cold comparison and returns the numbers it observed.
+///
+/// The public cold run is the complete phase denominator. Its compare gate
+/// reads the loaded prove command with that gate skipped, then the loaded
+/// assay. The gate passes only when those records meet the frozen deck.
+///
+/// # Errors
+/// Returns an error when the denominator is incomplete, the loaded records
+/// miss the frozen deck, or this comparison calls itself.
+pub(crate) fn execute_cold_stage() -> Result<ObservedCold, WorldError> {
+    if inside_union() {
+        return Err(WorldError::Qualification(
+            "prove cold comparison called itself".to_owned(),
+        ));
+    }
+    let cold = super::super::run("cold", None)?;
+    let denominator = field_u64(&cold, "denominator")?;
+    let executed = field_u64(&cold, "executed")?;
+    let gaps = field_joined(&cold, "gaps")?;
+    if denominator == 0 || denominator != executed || gaps.contains("proof-failed") {
+        return Err(WorldError::Qualification(
+            "portable phase denominator is incomplete".to_owned(),
+        ));
+    }
+    if !field_bool(&cold, "reuse-disabled")? {
+        return Err(WorldError::Qualification(
+            "cold comparison missed the frozen bounds".to_owned(),
+        ));
+    }
+    let capture = survey();
+    let Some(parsed) = parse::parsed_compare(&capture) else {
+        return Err(WorldError::Qualification(
+            "cold comparison missed the frozen bounds".to_owned(),
+        ));
+    };
+    let observed = ColdNumbers {
+        denominator: parse_u64(&parsed.leaves)?,
+        false_reuse: parse_u64(&parsed.false_reuse)?,
+        d1: parse_u64(&parsed.d1)?,
+        d2: parse_u64(&parsed.d2)?,
+        d4: parse_u64(&parsed.d4)?,
+        reuse_disabled: parsed.reuse == "disabled",
+    };
+    if !observed.reuse_disabled
+        || observed.false_reuse != 0
+        || observed.denominator.saturating_add(1) != denominator
+    {
+        return Err(WorldError::Qualification(
+            "cold comparison missed the frozen bounds".to_owned(),
+        ));
+    }
+    let leaf = leaf_from(capture);
+    let catalog =
+        ProofCatalog::new([leaf]).map_err(|error| WorldError::Qualification(error.to_string()))?;
+    let cancellation = ProcessCancellation::default();
+    let receipt = execute_proof_leaf(
+        &catalog,
+        SKIP,
+        &super::RefuseLaunch,
+        &cancellation,
+        "portable-union",
+    )
+    .map_err(|error| WorldError::Qualification(error.to_string()))?;
+    if receipt.disposition != ProofDisposition::Passed {
+        return Err(WorldError::Qualification(
+            "cold comparison did not pass".to_owned(),
+        ));
+    }
+    Ok(ObservedCold {
+        denominator,
+        false_reuse: observed.false_reuse,
+        d1: observed.d1,
+        d2: observed.d2,
+        d4: observed.d4,
+        reuse_disabled: true,
+    })
+}
+
+/// A basis that disagrees with its affected set counts as false reuse.
+///
+/// # Errors
+/// Returns an error when that disagreement is counted as zero.
+pub(crate) fn contradictory_basis_is_false_reuse() -> Result<(), WorldError> {
+    if parse::contradictory_basis_is_false_reuse() {
+        Ok(())
+    } else {
+        Err(WorldError::Qualification(
+            "basis disagreement was not false reuse".to_owned(),
+        ))
+    }
+}
+
+struct ColdNumbers {
+    denominator: u64,
+    false_reuse: u64,
+    d1: u64,
+    d2: u64,
+    d4: u64,
+    reuse_disabled: bool,
+}
+
+fn parse_u64(text: &str) -> Result<u64, WorldError> {
+    text.parse::<u64>()
+        .map_err(|_| WorldError::Qualification("cold comparison missed the frozen bounds".into()))
+}
+
+fn field<'a>(value: &'a Datum, name: &str) -> Result<&'a Datum, WorldError> {
+    let Datum::Node { fields, .. } = value else {
+        return Err(WorldError::Qualification(
+            "cold record was not a node".to_owned(),
+        ));
+    };
+    fields
+        .iter()
+        .find(|(field, _)| field.to_string() == name)
+        .map(|(_, field)| field)
+        .ok_or_else(|| WorldError::Qualification(format!("cold record omitted {name}")))
+}
+
+fn field_u64(value: &Datum, name: &str) -> Result<u64, WorldError> {
+    match field(value, name)? {
+        Datum::Number(number) => number
+            .canonical
+            .parse()
+            .map_err(|_| WorldError::Qualification("cold record field was not a count".to_owned())),
+        _ => Err(WorldError::Qualification(
+            "cold record field was not a count".to_owned(),
+        )),
+    }
+}
+
+fn field_bool(value: &Datum, name: &str) -> Result<bool, WorldError> {
+    match field(value, name)? {
+        Datum::Bool(bit) => Ok(*bit),
+        _ => Err(WorldError::Qualification(
+            "cold record field was not a flag".to_owned(),
+        )),
+    }
+}
+
+fn field_joined(value: &Datum, name: &str) -> Result<String, WorldError> {
+    match field(value, name)? {
+        Datum::Vector(items) => Ok(items
+            .iter()
+            .map(|item| match item {
+                Datum::String(text) => text.as_str(),
+                _ => "",
+            })
+            .collect::<Vec<_>>()
+            .join(" ")),
+        Datum::String(text) => Ok(text.clone()),
+        _ => Err(WorldError::Qualification(
+            "cold record field was not a list".to_owned(),
+        )),
+    }
+}
+
 /// The stashed cold run over every gate except this one.
 pub(super) fn cold_others_datum() -> Option<Datum> {
     STASH.with(|stash| stash.borrow().as_ref().map(others_datum))
