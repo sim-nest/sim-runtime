@@ -497,7 +497,7 @@ fn supplied_foreign_support_survives_assembly() {
     let subject = crate::prove::admitted_subject().expect("subject");
     let current = sim_conformance_evidence::RevocationStatus::Current;
     let support = supply_foreign_support(&subject, current.clone());
-    let datum = super::super::assemble::catalog_datum("", None).expect("catalog");
+    let datum = super::super::final_catalog("").expect("catalog");
     assert_eq!(admission_claims(&datum), vec!["6".to_owned()]);
     let (rows, checks) = super::from_owner(&subject, &[]).expect("owner");
     assert_eq!(
@@ -512,7 +512,7 @@ fn supplied_foreign_support_survives_assembly() {
         sim_conformance_evidence::RevocationStatus::Unknown,
     ] {
         let support = supply_foreign_support(&subject, status.clone());
-        let datum = super::super::assemble::catalog_datum("", None).expect("catalog");
+        let datum = super::super::final_catalog("").expect("catalog");
         assert!(admission_claims(&datum).iter().all(|claim| claim != "6"));
         let (rows, checks) = super::from_owner(&subject, &[]).expect("owner");
         assert!(rows.iter().all(|row| row.claim != 6));
@@ -570,7 +570,7 @@ fn a_later_support_revocation_is_not_hidden_by_an_earlier_current_one() {
     let subject = crate::prove::admitted_subject().expect("subject");
     for revoked_first in [false, true] {
         supply_shared_pair(&subject, revoked_first);
-        let datum = super::super::assemble::catalog_datum("", None).expect("catalog");
+        let datum = super::super::final_catalog("").expect("catalog");
         assert_eq!(
             admission_claims(&datum),
             vec!["6".to_owned()],
