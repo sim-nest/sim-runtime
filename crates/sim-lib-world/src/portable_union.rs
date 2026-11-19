@@ -78,6 +78,8 @@ mod canary;
 mod catalog;
 #[path = "portable_compare.rs"]
 mod compare;
+
+pub(crate) use compare::{contradictory_basis_is_false_reuse, execute_cold_stage};
 #[path = "portable_compile.rs"]
 mod compile;
 #[path = "portable_conduct.rs"]

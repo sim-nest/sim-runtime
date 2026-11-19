@@ -176,3 +176,38 @@ fn text(value: &Datum, name: &str) -> Option<String> {
         _ => None,
     }
 }
+
+/// A stated basis that disagrees with the affected set counts as false reuse.
+///
+/// The same row with the computed basis does not. Both rows go through
+/// `row_bounds`, which is the comparison's own arithmetic.
+pub(super) fn contradictory_basis_is_false_reuse() -> bool {
+    let wrong = row_bounds(&basis_row(10_000), 40);
+    let right = row_bounds(&basis_row(9_500), 40);
+    matches!(wrong, Some(row) if row.false_reuse > 0)
+        && matches!(right, Some(row) if row.false_reuse == 0)
+}
+
+fn basis_row(basis: u64) -> Datum {
+    Datum::Node {
+        tag: sim_kernel::Symbol::qualified("world", "assay-row-v1"),
+        fields: vec![
+            (
+                sim_kernel::Symbol::new("delta"),
+                Datum::String("D1".to_owned()),
+            ),
+            (
+                sim_kernel::Symbol::new("affected"),
+                Datum::Vector(vec![
+                    Datum::String("conclusion/01".to_owned()),
+                    Datum::String("conclusion/02".to_owned()),
+                ]),
+            ),
+            (
+                sim_kernel::Symbol::new("unaffected-basis-points"),
+                crate::query::count_datum(basis),
+            ),
+            (sim_kernel::Symbol::new("carried-state"), Datum::Bool(false)),
+        ],
+    }
+}
