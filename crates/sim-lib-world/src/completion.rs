@@ -26,6 +26,19 @@ mod seal;
 pub(crate) use assemble::catalog_datum;
 pub use owner_admit::{SuppliedOwnerClaim, supply_owner_claim};
 
+/// Assembles the final-world catalog from receipts already supplied on this thread.
+///
+/// The caller admits each receipt through [`supply_owner_claim`] before this
+/// call. A missing receipt stays unproved. This function does not run a
+/// conformance pack and does not derive a seal.
+///
+/// # Errors
+///
+/// Returns an error when the release input or the admitted union is unusable.
+pub fn final_catalog(releases: &str) -> Result<Datum, crate::WorldError> {
+    catalog_datum(releases, None)
+}
+
 #[cfg(test)]
 mod tests;
 
