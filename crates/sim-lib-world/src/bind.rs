@@ -21,8 +21,12 @@ use crate::query;
 mod drive;
 #[path = "bind_memory.rs"]
 mod memory;
+#[path = "bind_negatives.rs"]
+mod negatives;
 #[path = "bind_normalize.rs"]
 mod normalize;
+
+pub use negatives::{RefusedNegatives, execute};
 
 const MARKERS: &[&str] = &[
     "bo-private",
@@ -55,7 +59,15 @@ pub(crate) fn run(case: &str) -> Result<Datum, WorldError> {
 fn known(case: &str) -> bool {
     matches!(
         case,
-        "serve" | "swapped" | "missing" | "facet" | "normalize"
+        "serve"
+            | "swapped"
+            | "missing"
+            | "facet"
+            | "normalize"
+            | "crossed"
+            | "confused"
+            | "mutated"
+            | "exact"
     ) || cfg!(test) && case == "bind-memory-race"
 }
 
@@ -83,6 +95,10 @@ fn receive(case: &str) -> Datum {
         "swapped" => drive::swapped(),
         "missing" => drive::missing(),
         "facet" => drive::facet(),
+        "crossed" => drive::crossed(),
+        "confused" => drive::confused(),
+        "mutated" => drive::mutated(),
+        "exact" => drive::exact(),
         _ => return gap(case, "unknown-case", ""),
     };
     match law {

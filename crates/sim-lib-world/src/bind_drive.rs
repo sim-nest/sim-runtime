@@ -89,6 +89,42 @@ pub(crate) fn missing() -> Result<Law, Fault> {
     Err(Fault::Refused)
 }
 
+pub(crate) fn crossed() -> Result<Law, Fault> {
+    let producer = party("binding", "producer")?;
+    let receiver = party("binding", "receiver")?;
+    classified(&producer, &receiver, "wrong-binding")
+}
+
+pub(crate) fn confused() -> Result<Law, Fault> {
+    let producer = party("binding", "producer")?;
+    let foreign = party("model", "producer")?;
+    classified(&producer, &foreign, "domain-confusion")
+}
+
+pub(crate) fn mutated() -> Result<Law, Fault> {
+    let producer = party("binding", "producer")?;
+    let mut bytes = producer.id.bytes;
+    bytes[0] ^= 0xff;
+    let mutated = Party {
+        kind: producer.kind,
+        id: ContentId::from_bytes(producer.id.algorithm.clone(), bytes),
+    };
+    classified(&producer, &mutated, "wrong-binding")
+}
+
+pub(crate) fn exact() -> Result<Law, Fault> {
+    let producer = party("binding", "producer")?;
+    classified(&producer, &producer, "accepted")
+}
+
+fn classified(expected: &Party, presented: &Party, intended: &str) -> Result<Law, Fault> {
+    let reason = presentation_reason(expected, presented);
+    if reason != intended {
+        return Err(Fault::Refused);
+    }
+    Ok(law(reason, 1))
+}
+
 pub(crate) fn facet() -> Result<Law, Fault> {
     let binding = binding_id()?;
     let left = subject_id(0x11)?;
@@ -194,6 +230,28 @@ fn identity(kind: &str, name: &str) -> Result<ContentId, Fault> {
         ],
     };
     node.content_id().map_err(|_| Fault::Bound)
+}
+
+struct Party {
+    kind: &'static str,
+    id: ContentId,
+}
+
+fn party(kind: &'static str, name: &str) -> Result<Party, Fault> {
+    Ok(Party {
+        kind,
+        id: identity(kind, name)?,
+    })
+}
+
+fn presentation_reason(expected: &Party, presented: &Party) -> &'static str {
+    if presented.kind != expected.kind {
+        "domain-confusion"
+    } else if presented.id == expected.id {
+        "accepted"
+    } else {
+        "wrong-binding"
+    }
 }
 
 fn render(id: &ContentId) -> String {
