@@ -266,10 +266,10 @@ pub(crate) fn scripted_receipt_is_refused(leaf: &str) -> Result<(), WorldError> 
 
 #[path = "cold_stage.rs"]
 pub mod cold_stage;
+#[path = "stage_one.rs"]
+pub mod stage_one;
 
-/// Executes one catalog command on the qualified route.
-///
-/// The leaf is not a member of the sealed denominator.
+/// Executes one catalog command. The leaf is outside the sealed denominator.
 #[cfg(test)]
 pub(crate) fn run_catalog_command() -> Result<leaf::CommandRoute, WorldError> {
     leaf::run_catalog_command()

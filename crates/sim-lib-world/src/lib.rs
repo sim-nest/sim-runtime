@@ -205,7 +205,7 @@ pub use product::{
     DISCLOSURE_CONCLUSION, DISCLOSURE_FACT, Declaration, SOURCE_CONCLUSION, SOURCE_FACT,
     WorldError, WorldProduct, WorldProjection,
 };
-pub use prove::cold_stage;
+pub use prove::{cold_stage, stage_one};
 pub use prove_command::{PROVE_VERB, ProveCommandLib};
 pub use seal::{captured_inputs, workspace_root};
 #[cfg(test)]
