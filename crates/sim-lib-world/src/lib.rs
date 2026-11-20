@@ -198,8 +198,8 @@ mod stop_ack;
 mod succeed;
 mod transact;
 mod transfer;
+pub mod universe;
 mod work;
-
 pub use command::{ModelDomainLoad, WORLD_VERB, WorldCommandLib};
 pub use product::{
     DISCLOSURE_CONCLUSION, DISCLOSURE_FACT, Declaration, SOURCE_CONCLUSION, SOURCE_FACT,
