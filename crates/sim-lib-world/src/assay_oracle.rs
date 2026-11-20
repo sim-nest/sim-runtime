@@ -109,7 +109,6 @@ const EXPECTED: &[Expected] = &[
 ];
 
 /// The frozen expected rows.
-#[cfg(test)]
 pub(crate) fn expected() -> &'static [Expected] {
     EXPECTED
 }
