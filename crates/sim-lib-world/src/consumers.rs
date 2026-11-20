@@ -115,14 +115,15 @@ pub fn execute() -> Result<LoadedConsumers, WorldError> {
     })
 }
 
-/// Refuses a direct dispatch of the same project arguments.
+/// Rejects a direct dispatch as a substitute for the loaded entry.
 ///
-/// The direct call returns a datum and does not emit a session load receipt.
+/// The helper may return a datum. That datum is admitted only when it meets
+/// the loaded project expectations. The first missing field is the refusal.
 ///
 /// # Errors
 ///
-/// Returns an error when the direct call fails for another reason, or when
-/// that datum carries a session load receipt.
+/// Returns an error when the direct datum misses a loaded-entry field, when
+/// the direct call fails, or when that datum carries a session load receipt.
 pub fn helper_dispatch_is_refused() -> Result<(), WorldError> {
     let command = WorldCommandLib::for_model_load(model_load())?;
     let value = command.run(&[
@@ -132,12 +133,15 @@ pub fn helper_dispatch_is_refused() -> Result<(), WorldError> {
         FACT.to_owned(),
         INPUT.to_owned(),
     ])?;
-    if render(&value).contains("load-receipt-v1") {
-        return Err(WorldError::Qualification(
-            "helper dispatch was accepted".to_owned(),
-        ));
-    }
-    Ok(())
+    let rendered = render(&value);
+    require(&rendered, &format!("(kind \"{KIND}\")"), "project kind")?;
+    require(&rendered, &format!("(fact \"{FACT}\")"), "project fact")?;
+    require(&rendered, SHAPE, "project shape")?;
+    require(&rendered, PROVIDER, "project provider")?;
+    require(&rendered, "load-receipt-v1", "project receipt")?;
+    Err(WorldError::Qualification(
+        "helper dispatch was accepted".to_owned(),
+    ))
 }
 
 /// Refuses a project whose fact is not one of the bundled pairs.
@@ -401,7 +405,10 @@ mod tests {
 
     #[test]
     fn a_direct_dispatch_is_refused() {
-        helper_dispatch_is_refused().expect("direct dispatch refused");
+        let error = helper_dispatch_is_refused().expect_err("helper stood in for the loaded entry");
+        let text = error.to_string();
+        assert!(text.contains("project provider missing"), "{text}");
+        assert!(!text.contains("load-receipt-v1"), "{text}");
     }
 
     #[test]
