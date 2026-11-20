@@ -10,9 +10,10 @@
 //! target, a compiling resolver, a verified checksum, a feature, resolver
 //! and lock configuration, a toolchain release, and a nested input. The
 //! conclusion seal binds the facts and policies that conclusion reads. An
-//! unread policy stays out of that seal. A fact the conclusion reads and
-//! the universe does not contain is unbound. This module does not derive a
-//! completion seal.
+//! unread policy stays out of that seal. Changing a fact or policy the
+//! conclusion reads changes the seal. Changing only an unread policy does
+//! not. A fact the conclusion reads and the universe does not contain is
+//! unbound. This module does not derive a completion seal.
 
 use std::collections::BTreeSet;
 
@@ -48,6 +49,14 @@ pub struct FinalUniverse {
     pub unbound_fact: String,
     /// The conclusion reads one present fact and one present policy, and no other policy.
     pub exact: String,
+    /// Seal of the exact read set, taken from the loaded command.
+    pub exact_seal: String,
+    /// Seal after an unread policy is added. It matches `exact_seal`.
+    pub unread_seal: String,
+    /// Seal after a fact the conclusion reads changes.
+    pub changed_fact_seal: String,
+    /// Seal after a policy the conclusion reads changes.
+    pub changed_policy_seal: String,
 }
 
 /// Runs the final-universe cases through the loaded source command.
@@ -58,6 +67,17 @@ pub struct FinalUniverse {
 /// other than the one that case exists to show.
 pub fn execute() -> Result<FinalUniverse, WorldError> {
     let command = WorldCommandLib::new()?;
+    let (exact, exact_seal) = sealed(&command, "exact", "exact")?;
+    let (_, unread_seal) = sealed(&command, "unread-policy", "unread-policy")?;
+    let (_, changed_fact_seal) = sealed(&command, "changed-fact", "exact")?;
+    let (_, changed_policy_seal) = sealed(&command, "changed-policy", "exact")?;
+    if unread_seal != exact_seal
+        || changed_fact_seal == exact_seal
+        || changed_policy_seal == exact_seal
+        || changed_fact_seal == changed_policy_seal
+    {
+        return Err(WorldError::Qualification("seal-identity".to_owned()));
+    }
     Ok(FinalUniverse {
         complete: reason(&command, "complete", "complete")?,
         missing_target: reason(&command, "missing-target", "missing-target")?,
@@ -69,7 +89,11 @@ pub fn execute() -> Result<FinalUniverse, WorldError> {
         missing_nested: reason(&command, "missing-nested", "missing-nested")?,
         unread_policy: reason(&command, "unread-policy", "unread-policy")?,
         unbound_fact: reason(&command, "unbound-fact", "unbound-fact")?,
-        exact: reason(&command, "exact", "exact")?,
+        exact,
+        exact_seal,
+        unread_seal,
+        changed_fact_seal,
+        changed_policy_seal,
     })
 }
 
@@ -100,6 +124,8 @@ fn known(case: &str) -> bool {
             | "unread-policy"
             | "unbound-fact"
             | "exact"
+            | "changed-fact"
+            | "changed-policy"
     )
 }
 
@@ -222,6 +248,8 @@ fn document(case: &str) -> Result<Option<String>, WorldError> {
         "unread-policy" => bound(base, true, false),
         "unbound-fact" => bound(base, false, true),
         "exact" => bound(base, false, false),
+        "changed-fact" => rewrite_resolver(bound(base, false, false)),
+        "changed-policy" => rewrite_policy(bound(base, false, false)),
         _ => {
             return Err(WorldError::Qualification(format!(
                 "unknown source case {case}"
@@ -258,6 +286,29 @@ fn clear_checksums(text: &str) -> String {
         .join("\n")
 }
 
+fn rewrite_resolver(text: String) -> String {
+    map_lines(text, |line| {
+        if line.starts_with("config resolver ") {
+            "config resolver shifted".to_owned()
+        } else {
+            line.to_owned()
+        }
+    })
+}
+
+fn rewrite_policy(text: String) -> String {
+    text.replace("policy kept present", "policy kept shifted")
+}
+
+fn map_lines(text: String, edit: impl FnMut(&str) -> String) -> String {
+    let newline = text.ends_with('\n');
+    let mut body = text.lines().map(edit).collect::<Vec<_>>().join("\n");
+    if newline {
+        body.push('\n');
+    }
+    body
+}
+
 fn bound(text: &str, unread: bool, unbound: bool) -> String {
     let mut body = text.to_owned();
     if !body.ends_with('\n') {
@@ -279,6 +330,34 @@ fn bound(text: &str, unread: bool, unbound: bool) -> String {
 fn digest_of(lines: &[String]) -> String {
     let bytes = Sha256::digest(lines.join("\n").as_bytes());
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+fn sealed(
+    command: &WorldCommandLib,
+    case: &str,
+    intended: &str,
+) -> Result<(String, String), WorldError> {
+    let datum = command.run(&["sim".to_owned(), "source".to_owned(), case.to_owned()])?;
+    let found = detail(&datum).ok_or_else(|| {
+        WorldError::Qualification(format!(
+            "{case} {}",
+            gap_reason(&datum).unwrap_or_else(|| "unreadable".to_owned())
+        ))
+    })?;
+    if found != intended {
+        return Err(WorldError::Qualification(format!(
+            "{case} returned {found}"
+        )));
+    }
+    let digest = text(&datum, "world/source-final-v1", "digest").unwrap_or_default();
+    if digest.len() != 64
+        || !digest
+            .bytes()
+            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+    {
+        return Err(WorldError::Qualification(format!("{case} seal")));
+    }
+    Ok((found, digest))
 }
 
 fn reason(command: &WorldCommandLib, case: &str, intended: &str) -> Result<String, WorldError> {
@@ -362,21 +441,30 @@ mod tests {
     }
 
     #[test]
-    fn an_unread_policy_does_not_change_the_conclusion_digest() {
+    fn an_unread_policy_keeps_the_seal_and_a_read_change_moves_it() {
+        let found = execute().expect("source");
         let command = WorldCommandLib::new().expect("command");
-        let unread = command
-            .run(&[
-                "sim".to_owned(),
-                "source".to_owned(),
-                "unread-policy".to_owned(),
-            ])
-            .expect("unread");
-        let exact = command
-            .run(&["sim".to_owned(), "source".to_owned(), "exact".to_owned()])
-            .expect("exact");
-        assert_eq!(digest(&unread), digest(&exact));
-        assert_ne!(digest(&exact), "");
-        assert!(!digest(&exact).contains("unread-token"));
+        let exact = seal(&command, "exact");
+        let unread = seal(&command, "unread-policy");
+        let fact = seal(&command, "changed-fact");
+        let policy = seal(&command, "changed-policy");
+        assert_eq!(found.exact_seal, exact);
+        assert_eq!(found.unread_seal, unread);
+        assert_eq!(unread, exact);
+        assert_eq!(found.changed_fact_seal, fact);
+        assert_ne!(fact, exact);
+        assert_eq!(found.changed_policy_seal, policy);
+        assert_ne!(policy, exact);
+        assert_ne!(policy, fact);
+        assert!(!exact.contains("unread-token"));
+        assert!(!exact.contains("shifted"));
+    }
+
+    fn seal(command: &WorldCommandLib, case: &str) -> String {
+        let datum = command
+            .run(&["sim".to_owned(), "source".to_owned(), case.to_owned()])
+            .expect(case);
+        digest(&datum)
     }
 
     #[test]
