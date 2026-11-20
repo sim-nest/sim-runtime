@@ -159,7 +159,7 @@ mod assay;
 mod assay_mutant;
 mod assay_oracle;
 mod author;
-mod bind;
+pub mod bind;
 mod canary;
 mod cleanup_beats;
 mod command;
