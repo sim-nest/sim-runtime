@@ -429,6 +429,200 @@ pub(crate) use completion_link::{
     scoped_release_with_shared_support,
 };
 
+/// Grade decision the published catalog returns for one named case.
+pub(crate) struct GradeFacts {
+    /// Catalog decision: reused, weak-grade, revoked-support, or unstable-key.
+    pub decision: &'static str,
+    /// Grade recorded on the admitted receipt.
+    pub grade: &'static str,
+    /// The key stays put when only telemetry changes.
+    pub key_stable: bool,
+    /// Revocation state the decision consulted.
+    pub support: &'static str,
+}
+
+/// Runs one grade case through the published catalog.
+///
+/// # Errors
+/// Returns an error when the catalog refuses a case that this law accepts,
+/// or when the named case is not one of the grade cases.
+pub(crate) fn grade_facts(case: &str) -> Result<GradeFacts, WorldError> {
+    match case {
+        "held" | "frontier-open" | "continuation-open" => held_grade(),
+        "weak-grade" => weak_grade(),
+        "revoked" => revoked_grade(),
+        "unstable-key" => unstable_grade(),
+        _ => Err(WorldError::Qualification(format!(
+            "unknown grade case {case}"
+        ))),
+    }
+}
+
+fn held_grade() -> Result<GradeFacts, WorldError> {
+    let (mut catalog, shape, grades) = fresh_catalog()?;
+    let first =
+        admit(&mut catalog, &shape, &grades.release, "", Vec::new()).map_err(grade_fault)?;
+    let second = admit(
+        &mut catalog,
+        &shape,
+        &grades.release,
+        "later-note",
+        Vec::new(),
+    )
+    .map_err(grade_fault)?;
+    if first.key != second.key || first.id != second.id || first.grade != EvidenceGrade::Release {
+        return Err(WorldError::Qualification("unstable release key".to_owned()));
+    }
+    match catalog.decide_evidence(&first.key, EvidenceGrade::Release, current) {
+        EvidenceDecision::Reuse { receipt } if receipt == first.id => Ok(GradeFacts {
+            decision: "reused",
+            grade: "release",
+            key_stable: true,
+            support: "current",
+        }),
+        _ => Err(WorldError::Qualification(
+            "release was not reused".to_owned(),
+        )),
+    }
+}
+
+fn weak_grade() -> Result<GradeFacts, WorldError> {
+    let (mut catalog, shape, grades) = fresh_catalog()?;
+    let admitted =
+        admit(&mut catalog, &shape, &grades.bootstrap, "", Vec::new()).map_err(grade_fault)?;
+    if admitted.grade != EvidenceGrade::Bootstrap {
+        return Err(WorldError::Qualification(
+            "bootstrap grade moved".to_owned(),
+        ));
+    }
+    match catalog.decide_evidence(&admitted.key, EvidenceGrade::Release, current) {
+        EvidenceDecision::Recheck { reason: "grade" } => Ok(GradeFacts {
+            decision: "weak-grade",
+            grade: "bootstrap",
+            key_stable: true,
+            support: "current",
+        }),
+        _ => Err(WorldError::Qualification(
+            "bootstrap met a release grade".to_owned(),
+        )),
+    }
+}
+
+fn revoked_grade() -> Result<GradeFacts, WorldError> {
+    let (mut catalog, shape, grades) = fresh_catalog()?;
+    let admitted =
+        admit(&mut catalog, &shape, &grades.release, "", Vec::new()).map_err(grade_fault)?;
+    let decision = catalog.decide_evidence(&admitted.key, EvidenceGrade::Release, |_| {
+        RevocationStatus::Revoked
+    });
+    match decision {
+        EvidenceDecision::Refuse {
+            reason: "revoked-support",
+        } => Ok(GradeFacts {
+            decision: "revoked-support",
+            grade: "release",
+            key_stable: true,
+            support: "revoked",
+        }),
+        _ => Err(WorldError::Qualification(
+            "revoked support was reused".to_owned(),
+        )),
+    }
+}
+
+fn unstable_grade() -> Result<GradeFacts, WorldError> {
+    let (mut held_catalog, held_shape, held_grades) = fresh_catalog()?;
+    let held = admit(
+        &mut held_catalog,
+        &held_shape,
+        &held_grades.release,
+        "",
+        Vec::new(),
+    )
+    .map_err(grade_fault)?;
+    let (mut moved_catalog, moved_shape, moved_grades) = fresh_catalog_with(&["projection/moved"])?;
+    let other = admit(
+        &mut moved_catalog,
+        &moved_shape,
+        &moved_grades.release,
+        "",
+        Vec::new(),
+    )
+    .map_err(grade_fault)?;
+    if held.key == other.key || held.id == other.id {
+        return Err(WorldError::Qualification(
+            "moved projection kept the key".to_owned(),
+        ));
+    }
+    let held_decision = held_catalog.decide_evidence(&held.key, EvidenceGrade::Release, current);
+    let foreign = held_catalog.decide_evidence(&other.key, EvidenceGrade::Release, current);
+    let moved_decision = moved_catalog.decide_evidence(&other.key, EvidenceGrade::Release, current);
+    match (held_decision, foreign, moved_decision) {
+        (
+            EvidenceDecision::Reuse {
+                receipt: held_receipt,
+            },
+            EvidenceDecision::Refuse {
+                reason: "missing-object",
+            },
+            EvidenceDecision::Reuse {
+                receipt: moved_receipt,
+            },
+        ) if held_receipt == held.id && moved_receipt == other.id => Ok(GradeFacts {
+            decision: "unstable-key",
+            grade: "release",
+            key_stable: false,
+            support: "current",
+        }),
+        _ => Err(WorldError::Qualification(
+            "moved projection reused the held receipt".to_owned(),
+        )),
+    }
+}
+
+fn fresh_catalog() -> Result<(ProofCatalog, Shape, Grades), WorldError> {
+    fresh_catalog_with(&["projection/body"])
+}
+
+fn fresh_catalog_with(projections: &[&str]) -> Result<(ProofCatalog, Shape, Grades), WorldError> {
+    let workspace = definition(
+        "workspace",
+        "resolver/lantern",
+        "lantern",
+        &["resolver/lantern", "path", "lantern", "1.0.0", "."],
+        "aaaa1111",
+    );
+    let generated = definition(
+        "generate",
+        "resolver/lantern",
+        "src/generated.rs",
+        &["resolver/lantern", "src/generated.rs"],
+        "dddd4444",
+    );
+    let found = [workspace, generated];
+    let mut shape = shape_from(&found).map_err(grade_fault)?;
+    shape.projections = projections.iter().map(|item| (*item).to_owned()).collect();
+    let chosen = [&found[0], &found[1]];
+    let leaf = ProofLeaf::ArtifactEquality {
+        name: "anchor".into(),
+        left: b"same".to_vec(),
+        right: b"same".to_vec(),
+    };
+    let template = claim(
+        &shape,
+        sid("receipt/unused").map_err(grade_fault)?,
+        "",
+        Vec::new(),
+    );
+    let bound = closure::input_closure(&leaf, &template, &chosen).map_err(grade_fault)?;
+    let (catalog, grades) = catalog(leaf, bound).map_err(grade_fault)?;
+    Ok((catalog, shape, grades))
+}
+
+fn grade_fault(error: ProofError) -> WorldError {
+    WorldError::Qualification(error.to_string())
+}
+
 fn refused(result: Result<AdmittedEvidence, ProofError>) -> String {
     match result {
         Err(ProofError::Refused(reason)) => reason.to_owned(),
