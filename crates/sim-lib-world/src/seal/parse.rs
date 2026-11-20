@@ -15,6 +15,7 @@ pub(super) fn parse(text: &str) -> Result<Inputs, WorldError> {
         config: BTreeMap::new(),
         toolchain: BTreeMap::new(),
         features: BTreeSet::new(),
+        feature_census: BTreeMap::new(),
         activates: BTreeSet::new(),
         patches: BTreeSet::new(),
         sealed_target: String::new(),
@@ -58,6 +59,20 @@ pub(super) fn parse(text: &str) -> Result<Inputs, WorldError> {
                     inputs.features.insert(format!("{package} {name}"));
                 } else {
                     inputs.features.insert(format!("{package} {name} {body}"));
+                }
+            }
+            ["feature-census", package, count] => {
+                let count = count.parse().map_err(|_| {
+                    WorldError::Qualification(format!("feature census is not a count: {count}"))
+                })?;
+                if inputs
+                    .feature_census
+                    .insert((*package).to_owned(), count)
+                    .is_some()
+                {
+                    return Err(WorldError::Qualification(format!(
+                        "feature census repeated {package}"
+                    )));
                 }
             }
             ["activate", package, dep, feature, scope] => {
@@ -253,6 +268,7 @@ pub(super) fn parse(text: &str) -> Result<Inputs, WorldError> {
             "dependency or path-file row has no member".to_owned(),
         ));
     }
+    check_feature_census(&inputs)?;
     inputs.members.sort_by(|left, right| {
         (&left.domain, &left.name, &left.version, &left.source).cmp(&(
             &right.domain,
@@ -262,6 +278,33 @@ pub(super) fn parse(text: &str) -> Result<Inputs, WorldError> {
         ))
     });
     Ok(inputs)
+}
+
+fn check_feature_census(inputs: &Inputs) -> Result<(), WorldError> {
+    if inputs.feature_census.is_empty() {
+        return Ok(());
+    }
+    let mut actual = BTreeMap::<&str, u64>::new();
+    for feature in &inputs.features {
+        let package = feature.split(' ').next().unwrap_or("");
+        *actual.entry(package).or_insert(0) += 1;
+    }
+    for (package, count) in &inputs.feature_census {
+        let found = actual.get(package.as_str()).copied().unwrap_or(0);
+        if found != *count {
+            return Err(WorldError::Qualification(format!(
+                "feature census does not match {package}"
+            )));
+        }
+    }
+    for package in actual.keys() {
+        if !inputs.feature_census.contains_key(*package) {
+            return Err(WorldError::Qualification(format!(
+                "feature census does not match {package}"
+            )));
+        }
+    }
+    Ok(())
 }
 
 struct MemberParts<'a> {

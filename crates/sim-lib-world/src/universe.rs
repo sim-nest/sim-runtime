@@ -7,9 +7,10 @@
 //!
 //! The loaded source command seals the captured resolver document and the
 //! same document with one required class removed. A final universe has a
-//! target, a compiling resolver, a verified checksum, a feature, resolver
-//! and lock configuration, a toolchain release, and a nested input. The
-//! conclusion seal binds the facts and policies that conclusion reads. An
+//! target, a compiling resolver, a verified checksum, a closed feature
+//! census, resolver and lock configuration, a toolchain release, and a
+//! nested input. An empty feature set stays closed. The conclusion seal
+//! binds the facts and policies that conclusion reads. An
 //! unread policy stays out of that seal. Changing a fact or policy the
 //! conclusion reads changes the seal. Changing only an unread policy does
 //! not. A fact the conclusion reads and the universe does not contain is
@@ -35,7 +36,7 @@ pub struct FinalUniverse {
     pub missing_resolver: String,
     /// The captured document with member checksums cleared.
     pub missing_checksum: String,
-    /// The captured document with its feature lines removed.
+    /// The captured document with its feature census and feature rows removed.
     pub missing_feature: String,
     /// The captured document with its configuration lines removed.
     pub missing_config: String,
@@ -153,7 +154,7 @@ fn class_of(face: &seal::FinalFace) -> Class {
     if face.verified_checksums == 0 {
         return token("missing-checksum");
     }
-    if face.features == 0 {
+    if !face.features_enumerated {
         return token("missing-feature");
     }
     if !face.config_resolver || !face.config_lock {
@@ -241,7 +242,7 @@ fn document(case: &str) -> Result<Option<String>, WorldError> {
         "missing-target" => drop_prefix(base, &["sealed-target "]),
         "missing-resolver" => drop_prefix(base, &["domain ", "alias ", "spell "]),
         "missing-checksum" => clear_checksums(base),
-        "missing-feature" => drop_prefix(base, &["feature "]),
+        "missing-feature" => drop_prefix(base, &["feature ", "feature-census "]),
         "missing-config" => drop_prefix(base, &["config "]),
         "missing-toolchain" => drop_prefix(base, &["toolchain "]),
         "missing-nested" => drop_prefix(base, &["generated ", "deps "]),
@@ -436,6 +437,7 @@ mod tests {
         assert_eq!(found.unread_policy, "unread-policy");
         assert_eq!(found.unbound_fact, "unbound-fact");
         assert_eq!(found.exact, "exact");
+        assert!(crate::captured_inputs().contains("\nfeature-census sim-lib-world "));
         assert_ne!(found.complete, found.exact);
         assert!(!format!("{found:?}").contains("completion/claim-"));
     }
@@ -477,3 +479,7 @@ mod tests {
         super::text(value, "world/source-final-v1", "digest").unwrap_or_default()
     }
 }
+
+#[cfg(test)]
+#[path = "universe_census_tests.rs"]
+mod census_tests;

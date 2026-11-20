@@ -6,7 +6,7 @@
 //! Offline seal of one source universe.
 //!
 //! The owning batch is the resolver input captured while this crate compiled:
-//! workspace lock, member features, nested Cargo locks, generated sources, and
+//! workspace lock, closed feature census, nested Cargo locks, generated sources, and
 //! toolchain identity. Reading that text opens no compiler, host process, or
 //! network connection. A missing, corrupt, wrong-target, or stub-only input
 //! refuses before a compiler starts. The compiling closure admits when its
@@ -235,6 +235,7 @@ struct Inputs {
     config: BTreeMap<String, String>,
     toolchain: BTreeMap<String, String>,
     features: BTreeSet<String>,
+    feature_census: BTreeMap<String, u64>,
     activates: BTreeSet<String>,
     patches: BTreeSet<String>,
     sealed_target: String,
