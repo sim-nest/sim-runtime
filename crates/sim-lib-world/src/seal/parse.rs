@@ -21,6 +21,9 @@ pub(super) fn parse(text: &str) -> Result<Inputs, WorldError> {
         domains: BTreeMap::new(),
         members: Vec::new(),
         generated: Vec::new(),
+        policies: BTreeMap::new(),
+        reads_facts: BTreeSet::new(),
+        reads_policies: BTreeSet::new(),
     };
     let mut saw_header = false;
     let mut pending_deps = BTreeMap::<(String, String, String, String), Vec<String>>::new();
@@ -196,6 +199,17 @@ pub(super) fn parse(text: &str) -> Result<Inputs, WorldError> {
                 } else {
                     pending_files.insert(key, count);
                 }
+            }
+            ["policy", name, value] => {
+                inputs
+                    .policies
+                    .insert((*name).to_owned(), (*value).to_owned());
+            }
+            ["reads", "fact", key] => {
+                inputs.reads_facts.insert((*key).to_owned());
+            }
+            ["reads", "policy", name] => {
+                inputs.reads_policies.insert((*name).to_owned());
             }
             ["generated", domain, path, bytes, checksum] => {
                 let bytes = bytes.parse().map_err(|_| {

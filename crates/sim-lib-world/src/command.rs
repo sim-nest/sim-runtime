@@ -26,7 +26,8 @@ use crate::service;
 use crate::succeed;
 use crate::{
     WorldError, WorldProduct, author, bind, conduct, converge, evidence, fixed, fresh, journal,
-    land, manifest, operate, promote, qualify, recover, schedule, transact, transfer, work,
+    land, manifest, operate, promote, qualify, recover, schedule, transact, transfer, universe,
+    work,
 };
 
 /// CLI verb contributed by this loaded library.
@@ -332,6 +333,9 @@ impl WorldEntrypoint {
             Some("bind") if argv.len() == 3 => {
                 bind::run(&argv[2]).map(Outcome::Value).map_err(eval_error)
             }
+            Some("source") if argv.len() == 3 => universe::run(&argv[2])
+                .map(Outcome::Value)
+                .map_err(eval_error),
             Some("journal") if argv.len() == 3 => journal::run(&argv[2])
                 .map(Outcome::Value)
                 .map_err(eval_error),

@@ -29,8 +29,11 @@ use crate::query::{self, CEILING_MS};
 
 mod batch;
 mod emit;
+mod inspect;
 mod marks;
 mod parse;
+
+pub(crate) use inspect::{FinalFace, inspect_final};
 
 pub(crate) fn is_local_batch(name: &str) -> bool {
     batch::is_local_batch(name)
@@ -238,6 +241,9 @@ struct Inputs {
     domains: BTreeMap<String, Domain>,
     members: Vec<Member>,
     generated: Vec<Generated>,
+    policies: BTreeMap<String, String>,
+    reads_facts: BTreeSet<String>,
+    reads_policies: BTreeSet<String>,
 }
 
 struct Domain {
