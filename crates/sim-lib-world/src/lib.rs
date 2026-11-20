@@ -147,8 +147,7 @@
 //! A pure leaf is an artifact comparison or a source-deck predicate. A
 //! command leaf is launched on the qualified route. Each leaf digest binds the
 //! verdict and the retained capture. The admitted view keeps those capture
-//! bytes. The subject binds the proof implementation. A scripted
-//! command receipt is not a proof. Catalog reads this admitted union
+//! bytes. The subject binds the proof implementation. A scripted command receipt is not a proof. Catalog reads this admitted union
 //! and the caller release input, names missing admissions as gaps, and
 //! does not derive a seal. A later reuse, status, why, or frontier query reads that view and does not run the cold path again.
 #![forbid(unsafe_code)]
@@ -161,6 +160,7 @@ mod author;
 pub mod bind;
 mod canary;
 mod cleanup_beats;
+pub mod closures;
 mod command;
 mod command_steps;
 pub mod completion;
