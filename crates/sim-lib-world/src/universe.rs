@@ -18,7 +18,6 @@
 
 use std::collections::BTreeSet;
 
-use sha2::{Digest, Sha256};
 use sim_kernel::{Datum, Symbol};
 
 use crate::WorldError;
@@ -210,7 +209,7 @@ fn class_of(face: &seal::FinalFace) -> Class {
         };
         return Class {
             detail: reason.to_owned(),
-            digest: digest_of(&lines),
+            digest: face.digest.clone(),
         };
     }
     let detail = if !explicit && !unread {
@@ -224,7 +223,7 @@ fn class_of(face: &seal::FinalFace) -> Class {
     };
     Class {
         detail: detail.to_owned(),
-        digest: digest_of(&lines),
+        digest: face.digest.clone(),
     }
 }
 
@@ -328,9 +327,27 @@ fn bound(text: &str, unread: bool, unbound: bool) -> String {
     body
 }
 
-fn digest_of(lines: &[String]) -> String {
-    let bytes = Sha256::digest(lines.join("\n").as_bytes());
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+/// Digest `seal::assess_text` emits for one existing source case.
+///
+/// # Errors
+///
+/// Returns an error when the case is unknown or the document cannot be sealed.
+pub fn source_digest(case: &str) -> Result<String, WorldError> {
+    if !known(case) {
+        return Err(WorldError::Qualification(format!(
+            "unknown source case {case}"
+        )));
+    }
+    let document = document(case)?;
+    let digest = seal::conclusion_digest(document.as_deref())?;
+    if digest.len() != 64
+        || !digest
+            .bytes()
+            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+    {
+        return Err(WorldError::Qualification(format!("{case} seal")));
+    }
+    Ok(digest)
 }
 
 fn sealed(
@@ -452,6 +469,22 @@ mod tests {
         let policy = seal(&command, "changed-policy");
         assert_eq!(found.exact_seal, exact);
         assert_eq!(found.unread_seal, unread);
+        assert_eq!(
+            found.exact_seal,
+            super::source_digest("exact").expect("exact")
+        );
+        assert_eq!(
+            found.unread_seal,
+            super::source_digest("unread-policy").expect("unread")
+        );
+        assert_eq!(
+            found.changed_fact_seal,
+            super::source_digest("changed-fact").expect("fact")
+        );
+        assert_eq!(
+            found.changed_policy_seal,
+            super::source_digest("changed-policy").expect("policy")
+        );
         assert_eq!(unread, exact);
         assert_eq!(found.changed_fact_seal, fact);
         assert_ne!(fact, exact);

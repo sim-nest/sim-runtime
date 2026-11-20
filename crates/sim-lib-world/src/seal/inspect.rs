@@ -30,6 +30,8 @@ pub(crate) struct FinalFace {
     pub(crate) policies: BTreeMap<String, String>,
     pub(crate) reads_facts: BTreeSet<String>,
     pub(crate) reads_policies: BTreeSet<String>,
+    /// Digest `assess_text` emitted for this document.
+    pub(crate) digest: String,
 }
 
 impl FinalFace {
@@ -50,6 +52,7 @@ impl FinalFace {
             policies: BTreeMap::new(),
             reads_facts: BTreeSet::new(),
             reads_policies: BTreeSet::new(),
+            digest: String::new(),
         }
     }
 }
@@ -123,6 +126,7 @@ pub(crate) fn inspect_final(input: Option<&str>) -> Result<FinalFace, WorldError
         policies: inputs.policies,
         reads_facts: inputs.reads_facts,
         reads_policies: inputs.reads_policies,
+        digest: assessed.digest,
     })
 }
 
