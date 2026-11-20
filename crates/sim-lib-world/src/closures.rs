@@ -8,7 +8,7 @@
 //! Each selected member names its closure, its kind, and, for a live member,
 //! the loaded command that member runs. A v3 tag from that command, a present
 //! executable, reader, schema, fixture oracle, or parser, or a retained fact
-//! placed in production refuses. The conclusion digest binds the rows that
+//! in production refuses. The conclusion digest binds the rows that
 //! conclusion reads. This module does not derive a completion seal.
 
 use std::collections::BTreeSet;
@@ -19,7 +19,7 @@ use sim_kernel::{Datum, Symbol};
 use crate::product::{SOURCE_FACT, WorldProduct};
 use crate::{WorldError, evidence, journal, universe};
 
-/// Reasons the loaded closures command returned for the selected set.
+/// Reasons the loaded closures command returns for the selected set.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FinalClosures {
     /// Neither closure contains a forbidden member, and retained facts stay out.
@@ -129,7 +129,7 @@ pub(crate) fn run(case: &str) -> Result<Datum, WorldError> {
     Ok(node(&class.detail, &class.digest))
 }
 
-/// Text the conclusion hashed for `case`.
+/// Text the conclusion hashes for `case`.
 ///
 /// # Errors
 ///
