@@ -9,11 +9,8 @@
 //! reachable owner result is one catalog leaf. A gate without one stays a
 //! named gap, and the frontier stays open. The forty conclusions remain the
 //! sensitivity assay. A scripted command receipt is not a member of either
-//! denominator. Opening an admitted union view reruns the grounded leaves.
-//! Opening an admitted assay view reruns the sealed baseline program and the
-//! retained later programs. A missing or stale view asks for a refresh and
-//! does not execute. Native worker and native assay leaves stay outside both
-//! denominators.
+//! denominator. Opening an admitted view reruns its grounded leaves. A missing
+//! or stale view asks for a refresh and does not execute.
 
 use sim_incremental_core::projection::{
     FactId, FederatedClosure, PackageIdentity, ProjectionRegistry, install_semantic_text_provider,
@@ -266,6 +263,8 @@ pub(crate) fn scripted_receipt_is_refused(leaf: &str) -> Result<(), WorldError> 
 
 #[path = "cold_stage.rs"]
 pub mod cold_stage;
+#[path = "consumers.rs"]
+pub mod consumers;
 #[path = "stage_one.rs"]
 pub mod stage_one;
 

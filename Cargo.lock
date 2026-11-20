@@ -458,6 +458,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "sim-codec-index"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16a64b731a0065ecb8cc906c71ea301f49056e369db1b60b9889dc6473e7e7e9"
+dependencies = [
+ "serde_json",
+ "sim-codec",
+ "sim-codec-json",
+ "sim-codec-lisp",
+ "sim-index-core",
+ "sim-kernel",
+ "sim-value",
+]
+
+[[package]]
 name = "sim-codec-json"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -578,6 +593,15 @@ dependencies = [
  "sim-conformance-core 0.3.0",
  "sim-kernel",
  "sim-lib-machine",
+]
+
+[[package]]
+name = "sim-index-core"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2ef7fe2375c663c60616828d0d61a17a0a1aba9be866f63d6f0ad84eb0686bf"
+dependencies = [
+ "sim-kernel",
 ]
 
 [[package]]
@@ -724,6 +748,20 @@ dependencies = [
  "sim-kernel",
  "sim-lib-core 0.4.0",
  "sim-shape",
+]
+
+[[package]]
+name = "sim-lib-index"
+version = "0.4.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "451d136e8aabf121d886609d2472ee1e83a422f5af7bbe2444132200b523a6b6"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sim-codec-index",
+ "sim-index-core",
+ "sim-kernel",
+ "sim-run-core",
 ]
 
 [[package]]
@@ -1382,7 +1420,7 @@ dependencies = [
 
 [[package]]
 name = "sim-lib-world"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "sha2",
  "sim-artifact-facet",
@@ -1390,6 +1428,7 @@ dependencies = [
  "sim-conformance-core 0.3.0",
  "sim-incremental-core 0.5.3",
  "sim-kernel",
+ "sim-lib-index",
  "sim-lib-journal",
  "sim-lib-operation-gate",
  "sim-lib-roadmap-runner",

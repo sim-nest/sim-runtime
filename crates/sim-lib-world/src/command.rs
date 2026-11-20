@@ -11,8 +11,8 @@ use sim_kernel::{
 };
 
 use crate::canary;
-pub(crate) use crate::command_steps::render;
-use crate::command_steps::{compose, envelope_args, eval_error, load_receipt, refusal};
+use crate::command_steps::{compose, envelope_args, eval_error, load_receipt, publish, refusal};
+pub(crate) use crate::command_steps::{recorded_lines, render};
 use crate::deliver;
 use crate::grant::ModelDomainGrant;
 use crate::observe;
@@ -557,7 +557,7 @@ impl WorldEntrypoint {
                 }))
             }
             Outcome::Refused { call, reason } => {
-                println!("{}", render(&refusal(&call, &reason)));
+                publish(&refusal(&call, &reason));
                 let detail = if reason == "usage" {
                     USAGE.to_owned()
                 } else {
@@ -569,9 +569,9 @@ impl WorldEntrypoint {
     }
 
     fn emit(&self, value: &Datum) {
-        println!("{}", render(value));
+        publish(value);
         if let Some(load) = &self.load {
-            println!("{}", render(&load_receipt(load)));
+            publish(&load_receipt(load));
         }
     }
 }
