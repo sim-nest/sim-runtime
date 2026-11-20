@@ -5,6 +5,8 @@
 
 //! Compose steps and datum rendering for the loaded world command.
 
+use std::cell::RefCell;
+
 use sim_kernel::{Cx, Datum, Error, Expr, Result, Symbol, Value};
 
 use crate::command::ModelDomainLoad;
@@ -26,17 +28,17 @@ pub(crate) fn compose(
         match args[index].as_str() {
             "revoke" => {
                 grant.revoke().map_err(eval_error)?;
-                println!("{}", render(&custody("revoke")));
+                publish(&custody("revoke"));
                 index += 1;
             }
             "teardown" => {
                 grant.teardown();
-                println!("{}", render(&custody("teardown")));
+                publish(&custody("teardown"));
                 index += 1;
             }
             "reopen" => {
                 grant.reopen().map_err(eval_error)?;
-                println!("{}", render(&custody("reopen")));
+                publish(&custody("reopen"));
                 index += 1;
             }
             "project" => {
@@ -104,7 +106,7 @@ fn emit_use(
             Some(grant::refusal_reason(&error)),
         ),
     };
-    println!("{}", render(&record));
+    publish(&record);
     Ok(())
 }
 
@@ -198,6 +200,29 @@ pub(crate) fn refusal(call: &str, reason: &str) -> Datum {
             (Symbol::new("reason"), Datum::String(reason.to_owned())),
         ],
     }
+}
+
+thread_local! {
+    static RECORDED: RefCell<Option<Vec<String>>> = const { RefCell::new(None) };
+}
+
+/// Prints one rendered datum and keeps that line while recording is open.
+pub(crate) fn publish(value: &Datum) {
+    let line = render(value);
+    println!("{line}");
+    RECORDED.with(|slot| {
+        if let Some(lines) = slot.borrow_mut().as_mut() {
+            lines.push(line);
+        }
+    });
+}
+
+/// Runs `body` and returns the lines [`publish`] printed on this thread.
+pub(crate) fn recorded_lines<T>(body: impl FnOnce() -> T) -> (T, String) {
+    RECORDED.with(|slot| *slot.borrow_mut() = Some(Vec::new()));
+    let value = body();
+    let lines = RECORDED.with(|slot| slot.borrow_mut().take().unwrap_or_default());
+    (value, lines.join("\n"))
 }
 
 pub(crate) fn render(value: &Datum) -> String {

@@ -1,6 +1,6 @@
 [package]
 name = "sim-lib-world"
-version = "0.1.15"
+version = "0.1.16"
 edition.workspace = true
 license.workspace = true
 readme = "README.md"
@@ -16,6 +16,7 @@ sim-conformance-core = "0.3.0"
 sim-conformance-evidence = { package = "sim-conformance-core", version = "0.2.0" }
 sim-incremental-core = { version = "0.5.3", path = "../sim-incremental-core" }
 sim-kernel = { version = "0.4.0" }
+sim-lib-index = "0.4.5"
 sim-lib-journal = "0.3.2"
 sim-lib-operation-gate = { version = "0.5.0", path = "../sim-lib-operation-gate" }
 sim-lib-roadmap-runner = "0.3.0"
