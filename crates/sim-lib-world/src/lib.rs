@@ -103,8 +103,7 @@
 //! install, an unreconciled effect, two rows of one package, an empty
 //! set, and a Linux requirement refuse. The record counts the packages
 //! and needs that set admitted. Promote admission does not contact a
-//! registry.
-//! One transfer call admits each portable responsibility move in one
+//! registry. One transfer call admits each portable responsibility move in one
 //! document. A later call returns that record. Retirement requires
 //! caller-zero evidence for the previous path and a zero caller count.
 //! Cargo, Git, validation, and operator recovery stay under their named
@@ -196,6 +195,7 @@ mod seal_workspace;
 mod service;
 mod stop_ack;
 mod succeed;
+pub mod surfaces;
 mod transact;
 mod transfer;
 pub mod universe;
