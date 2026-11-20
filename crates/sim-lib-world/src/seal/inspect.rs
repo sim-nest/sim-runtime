@@ -21,7 +21,7 @@ pub(crate) struct FinalFace {
     pub(crate) target: String,
     pub(crate) compiling_domains: usize,
     pub(crate) verified_checksums: usize,
-    pub(crate) features: usize,
+    pub(crate) features_enumerated: bool,
     pub(crate) config_resolver: bool,
     pub(crate) config_lock: bool,
     pub(crate) toolchain_release: String,
@@ -41,7 +41,7 @@ impl FinalFace {
             target: String::new(),
             compiling_domains: 0,
             verified_checksums: 0,
-            features: 0,
+            features_enumerated: false,
             config_resolver: false,
             config_lock: false,
             toolchain_release: String::new(),
@@ -107,7 +107,7 @@ pub(crate) fn inspect_final(input: Option<&str>) -> Result<FinalFace, WorldError
                     && member.checksum.bytes().all(|byte| byte.is_ascii_hexdigit())
             })
             .count(),
-        features: inputs.features.len(),
+        features_enumerated: !inputs.feature_census.is_empty(),
         config_resolver: inputs
             .config
             .get("resolver")

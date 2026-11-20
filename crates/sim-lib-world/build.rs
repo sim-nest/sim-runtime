@@ -184,6 +184,7 @@ fn main() {
     }
 
     let mut feature_lines = Vec::new();
+    let mut feature_packages = Vec::new();
     let mut activate_lines = Vec::new();
     let mut patch_lines = Vec::new();
     for member in &members {
@@ -195,6 +196,7 @@ fn main() {
         println!("cargo:rerun-if-changed={}", manifest.display());
         let text = fs::read_to_string(&manifest).expect("member manifest");
         let (package, features, activates) = parse::parse_member_manifest(&text);
+        feature_packages.push(package.clone());
         for feature in features {
             assert!(!feature.contains('\n'), "feature body stays on one line");
             feature_lines.push(format!("feature {package} {feature}"));
@@ -258,6 +260,23 @@ fn main() {
     lines.push(format!("toolchain release {release}"));
     feature_lines.sort();
     feature_lines.dedup();
+    // A package with no features still closes the set. Zero rows and a missing
+    // census are different documents: only the census was enumerated.
+    let mut feature_counts = std::collections::BTreeMap::<String, usize>::new();
+    for package in feature_packages {
+        feature_counts.entry(package).or_insert(0);
+    }
+    for line in &feature_lines {
+        let package = line
+            .strip_prefix("feature ")
+            .and_then(|rest| rest.split(' ').next())
+            .expect("feature package");
+        *feature_counts.entry(package.to_owned()).or_insert(0) += 1;
+    }
+    let census_lines = feature_counts
+        .into_iter()
+        .map(|(package, count)| format!("feature-census {package} {count}"))
+        .collect::<Vec<_>>();
     activate_lines.sort();
     activate_lines.dedup();
     patch_lines.sort();
@@ -265,6 +284,7 @@ fn main() {
     domains.sort_by(|left, right| left.id.cmp(&right.id));
     member_lines.sort();
     generated_lines.sort();
+    lines.extend(census_lines);
     lines.extend(feature_lines);
     lines.extend(activate_lines);
     lines.extend(patch_lines);

@@ -33,6 +33,9 @@ pub(super) fn field_marks(inputs: &Inputs) -> BTreeMap<String, String> {
         let body = parts.next().unwrap_or("");
         marks.insert(format!("feature|{package}|{name}"), body.to_owned());
     }
+    for (package, count) in &inputs.feature_census {
+        marks.insert(format!("feature-census|{package}"), count.to_string());
+    }
     for activate in &inputs.activates {
         marks.insert(format!("activate|{activate}"), "present".to_owned());
     }
