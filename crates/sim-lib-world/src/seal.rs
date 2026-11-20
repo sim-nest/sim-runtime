@@ -285,6 +285,10 @@ struct Shown {
     files: Option<u64>,
 }
 
+pub(crate) fn conclusion_digest(input: Option<&str>) -> Result<String, WorldError> {
+    Ok(assess_admitted(input, None)?.digest)
+}
+
 fn assess_admitted(input: Option<&str>, target: Option<&str>) -> Result<Assessed, WorldError> {
     let Some(text) = input else {
         return assess_text("admitted", batch::captured(), target);
@@ -365,7 +369,7 @@ fn assess_text(batch: &str, text: &str, target: Option<&str>) -> Result<Assessed
     if !wrong_target && refusal.is_none() && !inputs.members.iter().any(|member| member.compiling) {
         refusal = Some(("absent-input", "compiling".to_owned()));
     }
-    let digest = hex_id(Datum::String(marks::digest_body(&marks)))?;
+    let digest = hex_id(Datum::String(marks::conclusion_body(&inputs, &marks)))?;
     let admission = if refusal.is_some() { "refuse" } else { "admit" };
     let counts = counts_of(&shown);
     let work = host_work(&inputs.members);

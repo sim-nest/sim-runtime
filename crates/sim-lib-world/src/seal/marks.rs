@@ -83,6 +83,30 @@ pub(super) fn digest_body(marks: &BTreeMap<String, String>) -> String {
         .join("\n")
 }
 
+/// Body whose identity is the facts and policies the conclusion reads.
+///
+/// A document that names no read set keeps the field-mark body. An
+/// explicit read set omits every unread policy.
+pub(super) fn conclusion_body(inputs: &super::Inputs, marks: &BTreeMap<String, String>) -> String {
+    let explicit = !inputs.reads_facts.is_empty() || !inputs.reads_policies.is_empty();
+    if !explicit {
+        return digest_body(marks);
+    }
+    let mut lines = Vec::new();
+    for fact in &inputs.reads_facts {
+        if let Some(value) = marks.get(fact) {
+            lines.push(format!("fact|{fact}={value}"));
+        }
+    }
+    for policy in &inputs.reads_policies {
+        if let Some(value) = inputs.policies.get(policy) {
+            lines.push(format!("policy|{policy}={value}"));
+        }
+    }
+    lines.sort();
+    lines.join("\n")
+}
+
 pub(super) fn changed(
     before: &BTreeMap<String, String>,
     after: &BTreeMap<String, String>,
