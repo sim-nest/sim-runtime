@@ -118,14 +118,13 @@
 //! forged transition is refused. An interruption before or after an
 //! admission recovers without repeating the dispatch. A later call
 //! returns that record. The operation does not close the frontier.
-//! A fresh succession reads one exported model record
-//! and one later change. The export names registry packages, the foreign
+//! A fresh succession reads one exported model record and one later change.
+//! The export names registry packages, the foreign
 //! project, and declared inputs. The change is observed, sealed, proved,
 //! converged, landed, delivered, and recovered. The repeated convergence
 //! and delivery do no further work. A warm checkout, a construction
 //! fixture used as the change, or an unresolved hold stays open. Host
 //! reboot, power loss, and protected production stay outside that record.
-//! The loaded fresh command reads that export and one later change.
 //! The construction specimen stays open when a succession record
 //! closes. A warm checkout, a Linux claim, and an unresolved hold stay
 //! open. The record does not derive a completion seal.
@@ -166,6 +165,7 @@ pub mod constructors;
 mod converge;
 mod deliver;
 pub mod domains;
+pub mod effects;
 mod evidence;
 mod fixed;
 mod fixture;
