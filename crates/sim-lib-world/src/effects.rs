@@ -6,15 +6,16 @@
 //! Selected operation settlement.
 //!
 //! Each case runs the operation lifecycle or the durable operation service
-//! and reports the state that run produced. A verified operation whose lease
-//! has expired is settled: it is not dispatched, divergent, or uncertain, and
-//! a second call does not perform it again. A missing acknowledgement stays
-//! dispatched. A proved absence after lease expiry is divergent. An
-//! unavailable observation stays uncertain. A lease inside its window stays
-//! leased. Replaying a completed or uncertain operation does not perform it
-//! again. A historical unresolved dispatch is recorded as a hold, not as
-//! success and not as a new attempt. This module does not derive a completion
-//! seal. The operate, conduct, and schedule commands remain their own commands.
+//! and reports the state that run produces. A verified operation whose lease
+//! is past its window is settled: it is not dispatched, divergent, or
+//! uncertain, and a second call does not perform it again. A missing
+//! acknowledgement stays dispatched. A negative observation after lease
+//! expiry is divergent. An unavailable observation stays uncertain. A lease
+//! inside its window stays leased. Replaying a completed or uncertain
+//! operation does not perform it again. The historical case reads an
+//! unresolved dispatch and holds it, without a second attempt. This module
+//! does not derive a completion seal. The operate, conduct, and schedule
+//! commands remain their own commands.
 
 use sim_kernel::{Datum, Symbol};
 
@@ -23,19 +24,19 @@ use crate::WorldError;
 /// Reasons the loaded effects command returns for the selected set.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FinalEffects {
-    /// Verified, expired, and not performed again.
+    /// Verified, past its lease window, and a second call does not perform it.
     pub settled: String,
-    /// A missing acknowledgement is still a dispatch.
+    /// A missing acknowledgement remains a dispatch.
     pub dispatched: String,
-    /// Observation proved a different state after the lease expired.
+    /// Observation proves a different state after lease expiry.
     pub divergent: String,
-    /// Observation could not establish a value.
+    /// Observation does not establish a value.
     pub uncertain: String,
-    /// The recorded lease still contains the observation tick.
+    /// The recorded lease contains the observation tick.
     pub leased: String,
-    /// A completed or uncertain operation was not performed again.
+    /// A completed or uncertain operation does not perform again.
     pub replayed: String,
-    /// An unresolved historical dispatch stays a hold.
+    /// An unresolved dispatch stays a hold.
     pub historical: String,
     /// Digest of the rows the settled conclusion reads.
     pub settled_seal: String,
