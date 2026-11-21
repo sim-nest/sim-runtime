@@ -188,7 +188,7 @@ mod qualify;
 mod query;
 mod recover;
 mod release;
-mod schedule;
+pub mod schedule;
 mod seal;
 mod seal_compile;
 mod seal_workspace;
