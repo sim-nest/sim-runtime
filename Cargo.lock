@@ -708,7 +708,7 @@ dependencies = [
 
 [[package]]
 name = "sim-lib-exec"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "sim-cli-core",
  "sim-cookbook",
