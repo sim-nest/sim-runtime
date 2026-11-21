@@ -9,7 +9,9 @@
 //! identical case returns that record. Failure order does not change the
 //! set. A wait releases only that unit's leases. A blocked queue does not
 //! block control. Stall and cleanup do not claim process death. A private
-//! value is refused before the reservation.
+//! value is refused before the reservation. `execute` reads the loaded
+//! control case, the loaded liveness case, the loaded cleanup measurement,
+//! and the loaded stop measurement. It does not derive a completion seal.
 
 use sim_kernel::{Datum, Symbol};
 
@@ -20,6 +22,10 @@ use crate::query;
 mod drive;
 #[path = "schedule_memory.rs"]
 mod memory;
+#[path = "schedule_observe.rs"]
+mod observe;
+
+pub use observe::{FinalSchedule, execute};
 
 const MARKERS: &[&str] = &[
     "bo-private",
