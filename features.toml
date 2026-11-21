@@ -139,6 +139,7 @@ claims_anchors = [
   "anchor/export/sim-lib-world/model/ci/sim-kernel",
   "anchor/export/sim-lib-world/model/ci/sim-run",
   "anchor/export/sim-lib-world/model/ci/sim-sdk",
+  "anchor/export/sim-lib-world/model/direction",
   "anchor/export/sim-lib-world/model/git/branch/canary-1",
   "anchor/export/sim-lib-world/model/git/branch/main",
   "anchor/export/sim-lib-world/model/git/branch/topic",
