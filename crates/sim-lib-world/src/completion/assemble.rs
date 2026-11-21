@@ -497,6 +497,7 @@ mod tests {
 
     #[test]
     fn the_final_catalog_fills_from_the_admitted_phase_union() {
+        let _ = super::super::fresh_set::take();
         let prove_command = ProveCommandLib::new();
         supply_replay();
         let catalog = prove_command
