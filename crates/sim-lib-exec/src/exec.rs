@@ -348,27 +348,7 @@ impl ProcessAttempt {
                         "elapsed-monotonic-nanoseconds",
                         Datum::String(receipt.elapsed_mono_ns.to_string()),
                     ),
-                    process_field(
-                        "result",
-                        process_node(
-                            "process-result-v1",
-                            vec![
-                                process_field(
-                                    "stdout",
-                                    Datum::String(receipt.result.stdout.clone()),
-                                ),
-                                process_field(
-                                    "stderr",
-                                    Datum::String(receipt.result.stderr.clone()),
-                                ),
-                                process_field(
-                                    "exit",
-                                    Datum::String(receipt.result.exit_code.to_string()),
-                                ),
-                                process_field("truncated", Datum::Bool(receipt.result.truncated)),
-                            ],
-                        ),
-                    ),
+                    process_field("result", result_datum(&receipt.result)),
                 ],
             ),
             Self::StoppedAfterTimeout { receipt } => stop_datum("timeout", receipt),
@@ -430,6 +410,18 @@ fn process_node(name: &str, fields: Vec<(Symbol, Datum)>) -> Datum {
 fn process_field(name: &str, value: Datum) -> (Symbol, Datum) {
     (Symbol::new(name), value)
 }
+
+pub(crate) fn result_datum(result: &ProcResult) -> Datum {
+    process_node(
+        "process-result-v1",
+        vec![
+            process_field("stdout", Datum::String(result.stdout.clone())),
+            process_field("stderr", Datum::String(result.stderr.clone())),
+            process_field("exit", Datum::String(result.exit_code.to_string())),
+            process_field("truncated", Datum::Bool(result.truncated)),
+        ],
+    )
+}
 /// Runtime-owned seam implemented only by model and physical capsules.
 pub trait ProcessPort: Send + Sync {
     /// Resolves opaque resources and executes one sealed request.
@@ -444,12 +436,12 @@ pub fn exec(
     options: &ExecOptions,
     cancellation: &ProcessCancellation,
 ) -> Result<ProcResult> {
-    cx.require(&exec_capability())?;
-    let request = checked_request(argv, options)?;
-    match port.run(&request, cancellation) {
-        ProcessAttempt::Completed { receipt } => Ok(receipt.result),
-        attempt => Err(Error::HostError(format!("exec attempt: {attempt:?}"))),
-    }
+    Ok(
+        crate::operator_completion::complete(cx, port, argv, options, cancellation)?
+            .receipt()
+            .result
+            .clone(),
+    )
 }
 pub(crate) fn checked_request(argv: &[String], options: &ExecOptions) -> Result<ProcessRequest> {
     if options.budget.timeout_ms == 0 {
