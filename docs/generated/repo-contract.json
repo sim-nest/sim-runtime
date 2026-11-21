@@ -3192,13 +3192,13 @@
         }
       }
     },
-    "generation_timestamp": "2026-11-20T23:23:25+01:00",
+    "generation_timestamp": "2026-11-21T00:49:56+01:00",
     "generator": "xtask repo-contract v1",
-    "git_commit": "b039c7c02037204ea5df450653aba48c88c03625",
+    "git_commit": "7245a26a435801c113d9291107723e7975812e6f",
     "regeneration_command": "cargo run -p xtask -- simdoc",
     "repo": "sim-runtime",
     "schema": "sim.provenance.v1",
-    "source_commit": "b039c7c02037204ea5df450653aba48c88c03625",
+    "source_commit": "7245a26a435801c113d9291107723e7975812e6f",
     "source_remote": "https://github.com/sim-nest/sim-runtime",
     "validation_commands": [
       "cargo fmt --all --check",
@@ -3214,9 +3214,9 @@
       "cargo run -p xtask -- validation-matrix --check --repo .",
       "cargo run -p xtask -- crate-catalog --check --repo ."
     ],
-    "workspace_hash": "a502fe2628f7ec02",
+    "workspace_hash": "1c1af40bd1dc2820",
     "workspace_hash_algorithm": "fnv1a64",
-    "workspace_hash_input_count": 1015,
+    "workspace_hash_input_count": 1016,
     "workspace_hash_inputs": [
       ".github/workflows/authorship.yml",
       ".github/workflows/ci.yml",
@@ -4044,6 +4044,7 @@
       "crates/sim-lib-world/src/fixture.rs",
       "crates/sim-lib-world/src/fixture_tests.rs",
       "crates/sim-lib-world/src/fresh.rs",
+      "crates/sim-lib-world/src/grades.rs",
       "crates/sim-lib-world/src/grant.rs",
       "crates/sim-lib-world/src/journal.rs",
       "crates/sim-lib-world/src/journal_drive.rs",
