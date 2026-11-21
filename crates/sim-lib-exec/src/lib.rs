@@ -18,9 +18,11 @@
 //! entries with distinct capabilities. The host admits their concrete services;
 //! loading a profile supplies neither native installation authority nor a grant.
 //! [`ExecCommandLib`] exposes one exact host-bound ordinary request through
-//! `exec/selected` and `cli/main/operator-exec`. It delegates to [`exec`] and
-//! cannot replace the selected argv, options or environment. The zero-argument
-//! selected callable is distinct from general agent `exec(argv, options)`.
+//! `exec/selected` and `cli/main/operator-exec`. It cannot replace the selected
+//! argv, options or environment. The selected callable returns the dispatched
+//! argv, environment, source, authority, and process result. The CLI returns
+//! the child exit code. The zero-argument selected callable is distinct from
+//! general agent `exec(argv, options)`.
 //! It preserves raw process outcomes, not checker or sandbox qualification.
 //! It is a host operation, not SIM evaluation.
 
@@ -34,6 +36,7 @@ mod local_check_reconciliation;
 #[cfg(test)]
 mod local_check_reconciliation_tests;
 mod operator_args;
+mod operator_completion;
 mod sandbox;
 mod sandbox_binding;
 #[cfg(test)]
