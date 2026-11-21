@@ -150,7 +150,6 @@
 //! and the caller release input, names missing admissions as gaps, and does not derive a seal. A later reuse, status, why, or frontier query reads that view and does not run the cold path again.
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
-
 mod assay;
 mod assay_mutant;
 mod assay_oracle;
@@ -166,6 +165,7 @@ mod conduct;
 pub mod constructors;
 mod converge;
 mod deliver;
+pub mod domains;
 mod evidence;
 mod fixed;
 mod fixture;

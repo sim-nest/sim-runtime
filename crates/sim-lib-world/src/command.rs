@@ -25,9 +25,9 @@ use crate::seal_compile;
 use crate::service;
 use crate::succeed;
 use crate::{
-    WorldError, WorldProduct, author, bind, closures, conduct, constructors, converge, evidence,
-    fixed, fresh, grades, journal, land, manifest, operate, promote, qualify, recover, schedule,
-    surfaces, transact, transfer, universe, work,
+    WorldError, WorldProduct, author, bind, closures, conduct, constructors, converge, domains,
+    evidence, fixed, fresh, grades, journal, land, manifest, operate, promote, qualify, recover,
+    schedule, surfaces, transact, transfer, universe, work,
 };
 
 /// CLI verb contributed by this loaded library.
@@ -343,6 +343,9 @@ impl WorldEntrypoint {
                 .map(Outcome::Value)
                 .map_err(eval_error),
             Some("constructors") if argv.len() == 3 => constructors::run(&argv[2])
+                .map(Outcome::Value)
+                .map_err(eval_error),
+            Some("domains") if argv.len() == 3 => domains::run(&argv[2])
                 .map(Outcome::Value)
                 .map_err(eval_error),
             Some("grades") if argv.len() == 3 => grades::run(&argv[2])
