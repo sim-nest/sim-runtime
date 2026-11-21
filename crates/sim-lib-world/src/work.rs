@@ -26,8 +26,12 @@ use sim_lib_roadmap_runner::{
 use crate::WorldError;
 use crate::query;
 
+#[path = "work_execute.rs"]
+mod execute;
 #[path = "work_memory.rs"]
 mod memory;
+
+pub use execute::{FinalWork, execute};
 
 const MARKERS: &[&str] = &[
     "bo-private",
