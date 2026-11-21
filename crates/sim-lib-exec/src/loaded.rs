@@ -1,7 +1,8 @@
 //! Loaded exposure of one exact host-bound ordinary process request.
 //! conformance: selected calls require authority, load inertly and reject replacement input.
 
-use crate::{ExecOptions, ProcResult, ProcessCancellation, ProcessPort, exec, exec_capability};
+use crate::operator_completion::OperatorExecCompletion;
+use crate::{ExecOptions, ProcessCancellation, ProcessPort, exec_capability};
 use sim_kernel::{
     AbiVersion, Args, Callable, Cx, Error, Export, Expr, Lib, LibManifest, LibTarget, Linker,
     LoadCx, Object, ObjectCompat, Result, Symbol, Value, Version,
@@ -13,6 +14,8 @@ use std::sync::Arc;
 /// Loading grants no authority and starts no process. Both the callable and CLI
 /// entry require `exec`; neither accepts replacement argv, bindings or budgets.
 /// Results describe ordinary execution, never sandbox or checker qualification.
+/// The selected callable returns the dispatched argv, environment, source,
+/// authority, and process result. The CLI returns the child exit code.
 /// Each authorized call can execute again; this is not a durable once-only
 /// acceptance. Cancellation remains cooperative through the injected port.
 #[derive(Clone)]
@@ -40,8 +43,8 @@ impl ExecCommandLib {
         })
     }
 
-    fn execute(&self, cx: &mut Cx) -> Result<ProcResult> {
-        exec(
+    fn execute(&self, cx: &mut Cx) -> Result<OperatorExecCompletion> {
+        crate::operator_completion::complete(
             cx,
             self.port.as_ref(),
             &self.argv,
@@ -135,10 +138,11 @@ impl Callable for Entrypoint {
                 "host-bound exec accepts no replacement arguments".into(),
             ));
         }
-        let result = self.command.execute(cx)?;
+        let completion = self.command.execute(cx)?;
         if !self.cli {
-            return cx.factory().expr(result.to_constructor_expr());
+            return cx.factory().expr(Expr::from(completion.canonical_datum()));
         }
+        let result = completion.receipt().result.clone();
         print!("{}", result.stdout);
         eprint!("{}", result.stderr);
         if result.truncated {
@@ -159,7 +163,11 @@ impl Callable for Entrypoint {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ProcessAttempt, ProcessReceipt, ProcessRequest, ProgramRef, ProjectRootRef};
+    use crate::{
+        BindingValue, PrivateArtifactRef, ProcResult, ProcessAttempt, ProcessReceipt,
+        ProcessRefusal, ProcessRequest, ProgramRef, ProjectRootRef, SealedBindings,
+    };
+    use sim_kernel::Datum;
     use std::sync::Mutex;
 
     #[derive(Default)]
@@ -181,7 +189,42 @@ mod tests {
             }
         }
     }
-    fn selected(port: Arc<Port>) -> ExecCommandLib {
+
+    struct FactPort {
+        requests: Mutex<Vec<ProcessRequest>>,
+        receipt: ProcessReceipt,
+    }
+    impl ProcessPort for FactPort {
+        fn run(&self, request: &ProcessRequest, _: &ProcessCancellation) -> ProcessAttempt {
+            self.requests.lock().unwrap().push(request.clone());
+            ProcessAttempt::Completed {
+                receipt: self.receipt.clone(),
+            }
+        }
+    }
+
+    struct RefusingPort(Mutex<Vec<ProcessRequest>>);
+    impl ProcessPort for RefusingPort {
+        fn run(&self, request: &ProcessRequest, _: &ProcessCancellation) -> ProcessAttempt {
+            self.0.lock().unwrap().push(request.clone());
+            ProcessAttempt::NotDispatched {
+                refusal: ProcessRefusal::Refused("not dispatched".into()),
+            }
+        }
+    }
+
+    fn node_field<'a>(datum: &'a Datum, name: &str) -> &'a Datum {
+        let Datum::Node { fields, .. } = datum else {
+            panic!("expected node");
+        };
+        fields
+            .iter()
+            .find(|(field, _)| field.name.as_ref() == name)
+            .map(|(_, value)| value)
+            .unwrap_or_else(|| panic!("missing {name}"))
+    }
+
+    fn selected(port: Arc<dyn ProcessPort>) -> ExecCommandLib {
         ExecCommandLib::new(
             port,
             vec!["exact argument".into()],
@@ -214,14 +257,23 @@ mod tests {
         assert!(entry.call(&mut cx, Args::new(vec![foreign])).is_err());
         assert!(port.0.lock().unwrap().is_empty());
         let result = entry.call(&mut cx, Args::new(vec![])).unwrap();
-        assert!(matches!(
-            result.object().as_expr(&mut cx).unwrap(),
-            Expr::Call { .. }
-        ));
+        let datum = Datum::try_from(result.object().as_expr(&mut cx).unwrap()).unwrap();
         let requests = port.0.lock().unwrap();
         assert_eq!(requests.len(), 1);
         assert_eq!(requests[0].argv[0].as_str(), "exact argument");
         assert_eq!(requests[0].environment.iter().count(), 0);
+        assert_eq!(
+            node_field(&datum, "argv"),
+            &Datum::Vector(vec![Datum::String(requests[0].argv[0].as_str().into())])
+        );
+        assert_eq!(
+            node_field(&datum, "source"),
+            &Datum::String(requests[0].root.as_str().into())
+        );
+        assert_eq!(
+            node_field(&datum, "authority"),
+            &Datum::String(exec_capability().as_str().into())
+        );
     }
 
     #[test]
@@ -271,6 +323,138 @@ mod tests {
             assert!(entry.call(&mut cx, Args::new(vec![envelope])).is_err());
         }
         assert!(port.0.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn selected_completion_copies_the_dispatched_request_and_port_result() {
+        let port = Arc::new(FactPort {
+            requests: Mutex::new(Vec::new()),
+            receipt: ProcessReceipt {
+                provider: "operator-fixture".into(),
+                elapsed_mono_ns: 44,
+                result: ProcResult {
+                    stdout: "port-stdout-9f3".into(),
+                    stderr: "port-stderr-9f3".into(),
+                    exit_code: 17,
+                    truncated: false,
+                },
+            },
+        });
+        let command = ExecCommandLib::new(
+            port.clone(),
+            vec!["fmt-arg-9f3".into()],
+            ExecOptions::new(
+                ProgramRef::new("formatter").unwrap(),
+                ProjectRootRef::new("source-root-9f3").unwrap(),
+                100,
+                4096,
+            )
+            .with_bindings(
+                SealedBindings::try_from_entries([
+                    ("JOB".into(), BindingValue::Literal("literal-9f3".into())),
+                    (
+                        "SECRET".into(),
+                        BindingValue::PrivateArtifact(
+                            PrivateArtifactRef::new("artifact-9f3").unwrap(),
+                        ),
+                    ),
+                ])
+                .unwrap(),
+            ),
+            ProcessCancellation::default(),
+        )
+        .unwrap();
+        let entry = Entrypoint {
+            command,
+            cli: false,
+        };
+        let mut cx = sim_kernel::testing::bare_cx();
+        cx.grant(exec_capability());
+        let result = entry.call(&mut cx, Args::new(vec![])).unwrap();
+        let datum = Datum::try_from(result.object().as_expr(&mut cx).unwrap()).unwrap();
+        let requests = port.requests.lock().unwrap();
+        let request = &requests[0];
+        assert_eq!(
+            node_field(&datum, "argv"),
+            &Datum::Vector(vec![Datum::String(request.argv[0].as_str().into())])
+        );
+        assert_eq!(
+            node_field(&datum, "source"),
+            &Datum::String(request.root.as_str().into())
+        );
+        assert_eq!(
+            node_field(&datum, "authority"),
+            &Datum::String(exec_capability().as_str().into())
+        );
+        assert_eq!(
+            node_field(&datum, "provider"),
+            &Datum::String(port.receipt.provider.clone())
+        );
+        assert_eq!(
+            node_field(&datum, "elapsed-monotonic-nanoseconds"),
+            &Datum::String(port.receipt.elapsed_mono_ns.to_string())
+        );
+        let result_node = node_field(&datum, "result");
+        assert_eq!(
+            node_field(result_node, "stdout"),
+            &Datum::String(port.receipt.result.stdout.clone())
+        );
+        assert_eq!(
+            node_field(result_node, "stderr"),
+            &Datum::String(port.receipt.result.stderr.clone())
+        );
+        assert_eq!(
+            node_field(result_node, "exit"),
+            &Datum::String(port.receipt.result.exit_code.to_string())
+        );
+        assert_eq!(
+            node_field(result_node, "truncated"),
+            &Datum::Bool(port.receipt.result.truncated)
+        );
+        let bindings = node_field(node_field(&datum, "environment"), "bindings");
+        let Datum::Map(entries) = bindings else {
+            panic!("environment bindings");
+        };
+        assert_eq!(entries.len(), request.environment.iter().count());
+        for (name, value) in request.environment.iter() {
+            let found = entries
+                .iter()
+                .find(|(key, _)| matches!(key, Datum::String(text) if text == name))
+                .map(|(_, value)| value);
+            let Some(found) = found else {
+                panic!("missing binding {name}");
+            };
+            match value {
+                BindingValue::Literal(text) => {
+                    assert_eq!(node_field(found, "value"), &Datum::String(text.clone()));
+                }
+                BindingValue::PrivateArtifact(artifact) => {
+                    assert_eq!(
+                        node_field(found, "value"),
+                        &Datum::String(artifact.as_str().into())
+                    );
+                }
+                BindingValue::ProjectRoot(root) => {
+                    assert_eq!(
+                        node_field(found, "value"),
+                        &Datum::String(root.as_str().into())
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn an_undispatched_attempt_returns_no_completion() {
+        let port = Arc::new(RefusingPort(Mutex::new(Vec::new())));
+        let entry = Entrypoint {
+            command: selected(port.clone()),
+            cli: false,
+        };
+        let mut cx = sim_kernel::testing::bare_cx();
+        cx.grant(exec_capability());
+        assert!(entry.call(&mut cx, Args::new(vec![])).is_err());
+        assert_eq!(port.0.lock().unwrap().len(), 1);
     }
 
     #[test]
