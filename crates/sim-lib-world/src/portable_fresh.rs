@@ -23,6 +23,7 @@ const RECORD: &str = "world/fresh-v1";
 const GAP: &str = "world/fresh-gap-v1";
 
 pub(super) fn fresh_leaf() -> Result<ProofLeaf, WorldError> {
+    let _held = crate::completion::hold_notes();
     let command = super::project::resident_command()?;
     let captured = capture(&command)?;
     // A proved subject is a successful derivation. This leaf renders the

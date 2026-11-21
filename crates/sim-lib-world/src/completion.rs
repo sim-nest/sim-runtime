@@ -24,6 +24,7 @@ mod owner_admit;
 mod seal;
 
 pub(crate) use assemble::catalog_datum;
+pub(crate) use fresh_set::hold_notes;
 pub use owner_admit::{SuppliedOwnerClaim, supply_owner_claim};
 
 /// Assembles the final-world catalog from receipts already supplied on this thread.
@@ -37,6 +38,14 @@ pub use owner_admit::{SuppliedOwnerClaim, supply_owner_claim};
 /// Returns an error when the release input or the admitted union is unusable.
 pub fn final_catalog(releases: &str) -> Result<Datum, crate::WorldError> {
     catalog_datum(releases, None)
+}
+
+/// Retains the export and change the fresh command just ran.
+///
+/// The next [`final_catalog`] assembly takes this pair. This does not
+/// derive a seal. The construction specimen stays refused.
+pub(crate) fn note_fresh_command(export: &str, change: &str) {
+    fresh_set::supply(export, change);
 }
 
 #[cfg(test)]

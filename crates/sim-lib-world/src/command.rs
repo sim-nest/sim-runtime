@@ -369,9 +369,11 @@ impl WorldEntrypoint {
             Some("work") if argv.len() == 3 => {
                 work::run(&argv[2]).map(Outcome::Value).map_err(eval_error)
             }
-            Some("fresh") if argv.len() == 4 => fresh::run(&argv[2], &argv[3])
-                .map(Outcome::Value)
-                .map_err(eval_error),
+            Some("fresh") if argv.len() == 4 => {
+                let record = fresh::run(&argv[2], &argv[3]).map_err(eval_error)?;
+                crate::completion::note_fresh_command(&argv[2], &argv[3]);
+                Ok(Outcome::Value(record))
+            }
             Some("succeed") if argv.len() == 4 => succeed::run(&argv[2], &argv[3])
                 .map(Outcome::Value)
                 .map_err(eval_error),
