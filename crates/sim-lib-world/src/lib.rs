@@ -200,7 +200,7 @@ mod transact;
 mod transfer;
 pub mod universe;
 pub mod work;
-pub use command::{ModelDomainLoad, WORLD_VERB, WorldCommandLib};
+pub use command::{ModelDomainLoad, WORLD_VERB, WorldCommandLib, run_fresh_command};
 pub use product::{
     DISCLOSURE_CONCLUSION, DISCLOSURE_FACT, Declaration, SOURCE_CONCLUSION, SOURCE_FACT,
     WorldError, WorldProduct, WorldProjection,

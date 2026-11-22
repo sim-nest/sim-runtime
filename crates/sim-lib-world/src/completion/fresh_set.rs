@@ -179,7 +179,6 @@ mod tests {
     #[test]
     fn the_catalog_reads_the_installed_later_change() {
         let _ = take();
-        let command = crate::WorldCommandLib::new().expect("command");
         let export = "\
 export world/succession-export-v1
 package sim-run 0.3.10 registry
@@ -189,14 +188,7 @@ input provider/widget observed widget-body
 input remote/hostile unavailable -
 ";
         let change = "later-0310 harbor provider/marker observed later-body";
-        let record = command
-            .run(&[
-                "sim".to_owned(),
-                "fresh".to_owned(),
-                export.to_owned(),
-                change.to_owned(),
-            ])
-            .expect("fresh");
+        let record = crate::run_fresh_command(export, change).expect("fresh");
         assert_eq!(text(&record, "world/fresh-v1", "change"), "later-0310");
         assert_eq!(text(&record, "world/fresh-v1", "project"), "harbor");
         assert_eq!(text(&record, "world/fresh-v1", "seal"), "unclaimed");
