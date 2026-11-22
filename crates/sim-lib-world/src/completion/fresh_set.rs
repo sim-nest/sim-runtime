@@ -176,6 +176,85 @@ mod tests {
         assert_eq!(text(&again, "world/final-catalog-v1", "seal"), "unclaimed");
     }
 
+    #[test]
+    fn the_catalog_reads_the_installed_later_change() {
+        let _ = take();
+        let command = crate::WorldCommandLib::new().expect("command");
+        let export = "\
+export world/succession-export-v1
+package sim-run 0.3.10 registry
+package sim-lib-world 0.1.29 registry
+project harbor
+input provider/widget observed widget-body
+input remote/hostile unavailable -
+";
+        let change = "later-0310 harbor provider/marker observed later-body";
+        let record = command
+            .run(&[
+                "sim".to_owned(),
+                "fresh".to_owned(),
+                export.to_owned(),
+                change.to_owned(),
+            ])
+            .expect("fresh");
+        assert_eq!(text(&record, "world/fresh-v1", "change"), "later-0310");
+        assert_eq!(text(&record, "world/fresh-v1", "project"), "harbor");
+        assert_eq!(text(&record, "world/fresh-v1", "seal"), "unclaimed");
+        assert_eq!(text(&record, "world/fresh-v1", "succession"), "portable");
+        assert_eq!(text(&record, "world/fresh-v1", "linux"), "absent");
+        assert_eq!(number_field(&record, "converge-second"), Some(0));
+        assert_eq!(number_field(&record, "deliver-second"), Some(0));
+        assert_eq!(number_field(&record, "effects"), Some(0));
+        assert_eq!(number_field(&record, "subprocesses"), Some(0));
+        assert_eq!(bool_field(&record, "resident"), Some(true));
+        let catalog = super::super::final_catalog("").expect("catalog");
+        let fresh = child(&catalog, "fresh");
+        let admitted = child(&fresh, "admitted");
+        assert_eq!(
+            text(&child(&fresh, "specimen"), "world/fresh-gap-v1", "reason"),
+            "construction-specimen"
+        );
+        assert_eq!(text(&admitted, "world/fresh-v1", "change"), "later-0310");
+        assert_eq!(text(&admitted, "world/fresh-v1", "project"), "harbor");
+        assert_eq!(text(&admitted, "world/fresh-v1", "seal"), "unclaimed");
+        assert_eq!(text(&admitted, "world/fresh-v1", "succession"), "portable");
+        assert_eq!(text(&admitted, "world/fresh-v1", "linux"), "absent");
+        assert_eq!(number_field(&admitted, "converge-second"), Some(0));
+        assert_eq!(number_field(&admitted, "deliver-second"), Some(0));
+        assert_eq!(number_field(&admitted, "effects"), Some(0));
+        assert_eq!(number_field(&admitted, "subprocesses"), Some(0));
+        assert_eq!(bool_field(&admitted, "resident"), Some(true));
+        assert_eq!(
+            text(&catalog, "world/final-catalog-v1", "seal"),
+            "unclaimed"
+        );
+        assert!(take().is_none());
+    }
+
+    fn bool_field(record: &Datum, name: &str) -> Option<bool> {
+        let Datum::Node { fields, .. } = record else {
+            return None;
+        };
+        fields.iter().find_map(|(field, value)| {
+            (field.as_qualified_str() == name).then(|| match value {
+                Datum::Bool(value) => *value,
+                _ => panic!("missing {name}"),
+            })
+        })
+    }
+
+    fn number_field(record: &Datum, name: &str) -> Option<u64> {
+        let Datum::Node { fields, .. } = record else {
+            return None;
+        };
+        fields.iter().find_map(|(field, value)| {
+            (field.as_qualified_str() == name).then(|| match value {
+                Datum::Number(number) => number.canonical.parse().expect(name),
+                _ => panic!("missing {name}"),
+            })
+        })
+    }
+
     fn export_text(project: &str) -> String {
         format!(
             "\
