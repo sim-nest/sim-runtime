@@ -118,6 +118,27 @@ impl WorldCommandLib {
     }
 }
 
+/// Runs the loaded fresh command and retains that export for the next catalog.
+///
+/// The next catalog reads this note beside the construction specimen. This
+/// does not derive a seal.
+///
+/// # Errors
+///
+/// Returns the fresh-command refusal.
+pub fn run_fresh_command(
+    export: &str,
+    change: &str,
+) -> std::result::Result<Datum, crate::WorldError> {
+    let command = WorldCommandLib::new()?;
+    command.run(&[
+        "sim".to_owned(),
+        "fresh".to_owned(),
+        export.to_owned(),
+        change.to_owned(),
+    ])
+}
+
 fn require_load_field(name: &str, value: &str) -> std::result::Result<(), crate::WorldError> {
     if value.is_empty() {
         return Err(crate::WorldError::Qualification(format!(
